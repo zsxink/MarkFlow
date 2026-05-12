@@ -1,0 +1,22 @@
+{
+  "identifier": "main-capability",
+  "description": "Main window capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-message",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    "fs:allow-exists",
+    "fs:allow-mkdir",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-read-dir",
+    "fs:allow-rename",
+    "fs:allow-remove",
+    "fs:allow-copy-file",
+    "fs:allow-stat"
+  ]
+}

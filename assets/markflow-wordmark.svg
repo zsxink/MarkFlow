@@ -1,0 +1,14 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="360" rx="36" fill="#F7F3EE"/>
+  <g transform="translate(164 92)">
+    <rect width="176" height="176" rx="24" fill="#BE4A29"/>
+    <path d="M36 118V48L76 92L140 48V118" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 132H140" stroke="#E08458" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <text x="338" y="228"
+        fill="#2A2522"
+        font-family="Segoe UI, Inter, Arial, sans-serif"
+        font-size="132"
+        font-weight="700"
+        letter-spacing="0">ark<tspan fill="#BE4A29">Flow</tspan></text>
+</svg>

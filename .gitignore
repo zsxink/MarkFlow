@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+output/
+
+# Rust build artifacts
+src-tauri/target/
+
+# Tauri generated
+src-tauri/gen/
+
+# OMC state
+.omc/
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -124,16 +124,61 @@ fn validate_parent_in_workspace(path: &Path, state: &State<AppState>) -> Result<
     Ok(())
 }
 
-/// Validate that a path is within the workspace using string-prefix comparison.
-/// Unlike `validate_parent_in_workspace`, this does NOT require the target or its
-/// parent to exist on disk — safe for new directory creation.
+fn normalize_lexical(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            _ => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
+}
+
+/// Validate a path stays inside workspace without relying on string prefixes.
+/// Allows non-existent targets (for create/write) while rejecting traversal and symlink hops.
 fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
     let workspace = state.get_workspace().ok_or("No workspace set")?;
-    let ws_normalized = normalize_path(&workspace);
-    let path_normalized = normalize_path(path);
-    if !path_normalized.starts_with(&ws_normalized) {
+    let workspace = workspace.canonicalize().map_err(|_| "Workspace not found")?;
+
+    let candidate = if path.is_absolute() {
+        normalize_lexical(path)
+    } else {
+        normalize_lexical(&workspace.join(path))
+    };
+
+    if !candidate.starts_with(&workspace) {
         return Err("Path outside workspace".into());
     }
+
+    let parent = candidate.parent().ok_or("Invalid path")?;
+    let relative_parent = parent
+        .strip_prefix(&workspace)
+        .map_err(|_| "Path outside workspace")?;
+
+    let mut current = workspace.clone();
+    for component in relative_parent.components() {
+        current.push(component.as_os_str());
+        if current.exists() {
+            let metadata = fs::symlink_metadata(&current)
+                .map_err(|e| format!("Failed to inspect path: {}", e))?;
+            if metadata.file_type().is_symlink() {
+                return Err("Symlink not allowed".into());
+            }
+        }
+    }
+
+    if candidate.exists() {
+        let metadata = fs::symlink_metadata(&candidate)
+            .map_err(|e| format!("Failed to inspect target: {}", e))?;
+        if metadata.file_type().is_symlink() {
+            return Err("Symlink not allowed".into());
+        }
+    }
+
     Ok(())
 }
 

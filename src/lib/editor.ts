@@ -356,7 +356,7 @@ export async function initEditor() {
   if (sourceEditor) {
     sourceEditor.addEventListener('input', () => {
       if (editor && mode === 'source') {
-        editor.commands.setContent(sourceEditor.value);
+        editor.commands.setContent(normalizeImageMarkdown(sourceEditor.value));
       }
     });
   }

@@ -9,6 +9,22 @@ let expandedPaths: Set<string> = new Set();
 const suppressPaths: Map<string, number> = new Map();
 const SUPPRESS_DURATION_MS = 3000;
 
+function escapePathSelector(path: string): string {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(path);
+  }
+  return path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Mouse-drag state
 let dragSrcPath: string | null = null;
 let dragSrcEl: HTMLElement | null = null;
@@ -170,7 +186,7 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
   folder.innerHTML = `
     <svg class="tree-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-    <span>${entry.name}</span>
+    <span>${escapeHtml(entry.name)}</span>
   `;
 
   const children = document.createElement('div');
@@ -215,7 +231,7 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
   file.style.paddingLeft = `${28 + depth * 12}px`;
   file.innerHTML = `
     <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-    <span>${entry.name}</span>
+    <span>${escapeHtml(entry.name)}</span>
   `;
 
   file.addEventListener('click', (e) => {
@@ -327,6 +343,8 @@ function initMouseDrag() {
       destDir = workspacePath;
     }
 
+    const srcIsFolder = dragSrcEl?.classList.contains('tree-folder') === true;
+
     // Clean up visual state
     document.querySelectorAll('.dragover').forEach(el => el.classList.remove('dragover'));
     document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
@@ -353,8 +371,7 @@ function initMouseDrag() {
           await renamePath(srcPath, destPath);
           removeEntryFromTree(srcPath);
 
-          const isFolder = (wrapper?.querySelector('.tree-folder') as HTMLElement | null)?.classList.contains('tree-folder');
-          if (isFolder) {
+          if (srcIsFolder) {
             suppressAllDescendants(destPath);
             await refreshFileTree();
           } else {
@@ -379,7 +396,7 @@ function initMouseDrag() {
 // --- Inline rename ---
 
 export function startInlineRename(path: string) {
-  const el = document.querySelector(`[data-path="${path}"]`) as HTMLElement;
+  const el = document.querySelector(`[data-path="${escapePathSelector(path)}"]`) as HTMLElement;
   if (!el) return;
 
   const span = el.querySelector(':scope > span') as HTMLElement;
@@ -465,7 +482,7 @@ export function startInlineCreate(type: 'file' | 'folder', targetDir: string) {
     container = document.getElementById('file-tree');
     depth = 0;
   } else {
-    const folderEl = document.querySelector(`.tree-folder[data-path="${targetDir}"]`) as HTMLElement;
+    const folderEl = document.querySelector(`.tree-folder[data-path="${escapePathSelector(targetDir)}"]`) as HTMLElement;
     if (!folderEl) return;
 
     // Auto-expand if collapsed
@@ -644,7 +661,7 @@ function getChildrenContainer(parentPath: string): HTMLElement | null {
   if (parentPath === workspacePath) {
     return document.getElementById('file-tree');
   }
-  const folderEl = document.querySelector(`.tree-folder[data-path="${parentPath}"]`);
+  const folderEl = document.querySelector(`.tree-folder[data-path="${escapePathSelector(parentPath)}"]`);
   if (!folderEl) return null;
   return folderEl.parentElement?.querySelector(':scope > .tree-children') as HTMLElement | null;
 }
@@ -664,7 +681,16 @@ export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) 
   if (!container) return;
 
   const depth = getDepth(container);
-  const node = createTreeNode(entry, depth);
+  let resolvedEntry = entry;
+  if (entry.isDir && !entry.children) {
+    try {
+      const children = await readDirRecursive(entry.path);
+      resolvedEntry = { ...entry, children };
+    } catch (e) {
+      console.error('Failed to read folder children:', e);
+    }
+  }
+  const node = createTreeNode(resolvedEntry, depth);
 
   // Insert in sorted position: dirs first, then alphabetical
   const children = Array.from(container.children);
@@ -675,15 +701,15 @@ export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) 
     const nameEl = child.querySelector(':scope > span, :scope > .tree-folder > span');
     const name = nameEl?.textContent || '';
 
-    if (entry.isDir && !isDir) continue;
-    if (!entry.isDir && isDir) { container.insertBefore(node, child); inserted = true; break; }
-    if (name.localeCompare(entry.name) >= 0) { container.insertBefore(node, child); inserted = true; break; }
+    if (resolvedEntry.isDir && !isDir) continue;
+    if (!resolvedEntry.isDir && isDir) { container.insertBefore(node, child); inserted = true; break; }
+    if (name.localeCompare(resolvedEntry.name) >= 0) { container.insertBefore(node, child); inserted = true; break; }
   }
   if (!inserted) container.appendChild(node);
 
   // Auto-expand parent folder if collapsed
   if (parentPath !== workspacePath) {
-    const folderEl = document.querySelector(`.tree-folder[data-path="${parentPath}"]`);
+    const folderEl = document.querySelector(`.tree-folder[data-path="${escapePathSelector(parentPath)}"]`);
     if (folderEl) {
       const chevron = folderEl.querySelector('.tree-chevron');
       const childrenEl = folderEl.parentElement?.querySelector(':scope > .tree-children') as HTMLElement;
@@ -696,7 +722,7 @@ export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) 
 }
 
 export function removeEntryFromTree(path: string) {
-  const el = document.querySelector(`[data-path="${path}"]`);
+  const el = document.querySelector(`[data-path="${escapePathSelector(path)}"]`);
   if (!el) return;
   if (el.classList.contains('tree-file')) {
     el.remove();
@@ -707,7 +733,7 @@ export function removeEntryFromTree(path: string) {
 }
 
 export function renameEntryInTree(oldPath: string, newName: string) {
-  const el = document.querySelector(`[data-path="${oldPath}"]`) as HTMLElement;
+  const el = document.querySelector(`[data-path="${escapePathSelector(oldPath)}"]`) as HTMLElement;
   if (!el) return;
 
   const span = el.querySelector(':scope > span') as HTMLElement;

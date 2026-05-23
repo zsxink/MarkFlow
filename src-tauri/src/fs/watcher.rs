@@ -20,7 +20,7 @@ impl FileChangeEvent {
             EventKind::Remove(_) => "delete",
             _ => return None,
         };
-        let path = event.paths.first()?.to_string_lossy().to_string();
+        let path = event.paths.first()?.to_string_lossy().to_string().replace('\\', "/");
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()

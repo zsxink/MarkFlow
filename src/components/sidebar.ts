@@ -1,9 +1,9 @@
 import { readFile } from '../lib/storage';
 import { setMarkdown } from '../lib/editor';
 import { showToast } from './toast';
-import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath } from './fileTree';
+import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
 import { initOutline, refreshOutline } from './outline';
-import { showNewFileDialog } from './newFileDialog';
+import { showContextMenu } from './contextMenu';
 import { open } from '@tauri-apps/plugin-dialog';
 
 let activeFilePath: string | null = null;
@@ -23,6 +23,13 @@ export function initSidebar() {
   initFileTree();
   initOutline();
 
+  // Right-click on sidebar (outside file tree nodes) shows empty context menu
+  sidebar.addEventListener('contextmenu', (e) => {
+    if ((e.target as HTMLElement).closest('.tree-file, .tree-folder')) return;
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, null, 'empty');
+  });
+
   // Sidebar footer buttons
   document.getElementById('sidebar-open-btn')?.addEventListener('click', async () => {
     const selected = await open({ directory: true, multiple: false });
@@ -39,7 +46,7 @@ export function initSidebar() {
       showToast('请先打开一个工作区文件夹');
       return;
     }
-    showNewFileDialog('folder', workspacePath);
+    startInlineCreate('folder', workspacePath);
   });
 
   // Tab switching
@@ -73,7 +80,7 @@ export function initSidebar() {
       if (!isResizing) return;
 
       const diff = e.clientX - startX;
-      const newWidth = Math.max(150, Math.min(400, startWidth + diff));
+      const newWidth = Math.max(200, Math.min(400, startWidth + diff));
       sidebar.style.width = `${newWidth}px`;
     });
 

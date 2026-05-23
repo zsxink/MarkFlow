@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,6 +27,17 @@ fn validate_path(target: &Path, workspace_root: &Path) -> Result<PathBuf, String
         return Err("Symlink not allowed".into());
     }
     Ok(target)
+}
+
+/// Strip Windows `\\?\` prefix and normalize to forward slashes
+fn normalize_path(p: &Path) -> String {
+    let s = p.to_string_lossy().to_string();
+    let s = if s.starts_with(r"\\?\") {
+        &s[4..]
+    } else {
+        &s
+    };
+    s.replace('\\', "/")
 }
 
 fn resolve_path(raw: &str, state: &State<AppState>) -> Result<PathBuf, String> {
@@ -80,7 +92,7 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
         };
         entries.push(FileEntry {
             name,
-            path: path.to_string_lossy().to_string(),
+            path: normalize_path(&path),
             is_dir,
             children,
         });
@@ -112,6 +124,21 @@ fn validate_parent_in_workspace(path: &Path, state: &State<AppState>) -> Result<
     Ok(())
 }
 
+/// Validate that a path is within the workspace using string-prefix comparison.
+/// Unlike `validate_parent_in_workspace`, this does NOT require the target or its
+/// parent to exist on disk — safe for new directory creation.
+fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
+    let workspace = state.get_workspace().ok_or("No workspace set")?;
+    let ws_normalized = normalize_path(&workspace);
+    let path_normalized = normalize_path(path);
+    if !path_normalized.starts_with(&ws_normalized) {
+        return Err("Path outside workspace".into());
+    }
+    Ok(())
+}
+
+const MAX_IMAGE_SIZE: u64 = 20 * 1024 * 1024; // 20MB
+
 #[tauri::command]
 pub fn create_file(path: String, content: Option<String>, state: State<AppState>) -> Result<(), String> {
     let path = Path::new(&path);
@@ -139,8 +166,9 @@ pub fn create_dir(path: String, state: State<AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn rename_path(from: String, to: String, state: State<AppState>) -> Result<(), String> {
     let from = resolve_path(&from, &state)?;
-    let to = resolve_path(&to, &state)?;
-    fs::rename(&from, &to).map_err(|e| format!("Failed to rename: {}", e))
+    let to = Path::new(&to);
+    validate_parent_in_workspace(to, &state)?;
+    fs::rename(&from, to).map_err(|e| format!("Failed to rename: {}", e))
 }
 
 #[tauri::command]
@@ -153,16 +181,117 @@ pub fn delete_path(path: String, state: State<AppState>) -> Result<(), String> {
     }
 }
 
+fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
+    fs::create_dir_all(to).map_err(|e| format!("Failed to create dir: {}", e))?;
+    for entry in fs::read_dir(from).map_err(|e| format!("Failed to read dir: {}", e))? {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let from_path = entry.path();
+        let to_path = to.join(entry.file_name());
+        if from_path.is_dir() {
+            copy_dir_recursive(&from_path, &to_path)?;
+        } else {
+            fs::copy(&from_path, &to_path).map_err(|e| format!("Failed to copy: {}", e))?;
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn copy_file(from: String, to: String, state: State<AppState>) -> Result<(), String> {
     let from = resolve_path(&from, &state)?;
-    let to = resolve_path(&to, &state)?;
-    fs::copy(&from, &to).map_err(|e| format!("Failed to copy: {}", e))?;
+    let to = Path::new(&to);
+    validate_parent_in_workspace(to, &state)?;
+    if from.is_dir() {
+        copy_dir_recursive(&from, to)?;
+    } else {
+        fs::copy(&from, to).map_err(|e| format!("Failed to copy: {}", e))?;
+    }
     Ok(())
+}
+
+#[tauri::command]
+pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileEntry>, String> {
+    let dir = resolve_path(&path, &state)?;
+    if !dir.is_dir() {
+        return Err("Not a directory".into());
+    }
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(&dir).map_err(|e| format!("Failed to read dir: {}", e))? {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        entries.push(FileEntry {
+            name,
+            path: normalize_path(&path),
+            is_dir: path.is_dir(),
+            children: None,
+        });
+    }
+    entries.sort_by(|a, b| {
+        if a.is_dir == b.is_dir {
+            a.name.cmp(&b.name)
+        } else {
+            b.is_dir.cmp(&a.is_dir)
+        }
+    });
+    Ok(entries)
 }
 
 #[tauri::command]
 pub fn file_exists(path: String, state: State<AppState>) -> Result<bool, String> {
     let path = resolve_path(&path, &state)?;
     Ok(path.exists())
+}
+
+#[tauri::command]
+pub fn read_file_as_base64(path: String, state: State<AppState>) -> Result<String, String> {
+    let path = resolve_path(&path, &state)?;
+    let metadata = fs::metadata(&path).map_err(|e| format!("Failed to read metadata: {}", e))?;
+    if metadata.len() > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+    let bytes = fs::read(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
+#[tauri::command]
+pub fn write_file_from_base64(path: String, data: String, state: State<AppState>) -> Result<(), String> {
+    let path = Path::new(&path);
+    validate_path_in_workspace(path, &state)?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("Invalid base64 data: {}", e))?;
+    if bytes.len() as u64 > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
+    }
+    fs::write(path, bytes).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+#[tauri::command]
+pub async fn download_image(url: String, dest: String, state: State<'_, AppState>) -> Result<String, String> {
+    let dest_path = Path::new(&dest);
+    validate_path_in_workspace(dest_path, &state)?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let response = client.get(&url).send().await.map_err(|e| format!("Failed to download: {}", e))?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP error: {}", response.status()));
+    }
+    let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    if bytes.len() as u64 > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+    if let Some(parent) = dest_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
+    }
+    fs::write(dest_path, &bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(dest)
 }

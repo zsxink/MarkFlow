@@ -39,6 +39,10 @@ export async function copyFile(from: string, to: string): Promise<void> {
   return invoke('copy_file', { from, to });
 }
 
+export async function readSingleDir(path: string): Promise<FileEntry[]> {
+  return invoke<FileEntry[]>('read_single_dir', { path });
+}
+
 export async function setWorkspace(path: string): Promise<void> {
   return invoke('set_workspace', { path });
 }
@@ -53,4 +57,20 @@ export async function loadSettings(): Promise<Record<string, unknown>> {
 
 export async function saveSettings(settings: Record<string, unknown>): Promise<void> {
   return invoke('save_settings', { settings });
+}
+
+export async function readFileAsBase64(path: string): Promise<string> {
+  return invoke<string>('read_file_as_base64', { path });
+}
+
+export async function writeFileFromBase64(path: string, data: string): Promise<void> {
+  return invoke('write_file_from_base64', { path, data });
+}
+
+export async function downloadImage(url: string, dest: string): Promise<string> {
+  return invoke<string>('download_image', { url, dest });
+}
+
+export async function fileExists(path: string): Promise<boolean> {
+  return invoke<boolean>('file_exists', { path });
 }

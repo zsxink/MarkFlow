@@ -1,9 +1,6 @@
 # MarkFlow 技术设计文档 v1.0
 
-> 版本：1.0.0
-> 状态：草稿
-> 更新日期：2026-05-11
-> 技术栈：Rust + Tauri v2 + TypeScript
+> 版本：1.0.0 状态：草稿 更新日期：2026-05-11 技术栈：Rust + Tauri v2 + TypeScript
 
 ---
 
@@ -51,7 +48,7 @@
 ### 1.2 技术选型
 
 | 层级 | 技术 | 说明 |
-|------|------|------|
+| --- | --- | --- |
 | 桌面框架 | Tauri v2 | 跨平台桌面应用框架，使用系统 WebView |
 | 前端框架 | Tiptap (ProseMirror) | 节点化 WYSIWYG 编辑器，成熟稳定 |
 | 构建工具 | Vite | 快速开发构建 |
@@ -90,12 +87,9 @@ markflow/
 │   │   ├── editor.ts            # Tiptap 编辑器配置
 │   │   ├── mermaid.ts           # Mermaid 配置
 │   │   ├── theme.ts             # 主题管理
+│   │   ├── pathUtils.ts         # 路径工具（getFileName, getParentDir）
 │   │   ├── i18n.ts              # 国际化（预留）
 │   │   └── storage.ts           # 文件系统操作封装（Tauri IPC）
-│   ├── commands/                 # Tauri 命令封装
-│   │   ├── files.ts
-│   │   ├── settings.ts
-│   │   └── markdown.ts
 │   └── utils/
 │       ├── dom.ts               # DOM 工具函数
 │       └── keyboard.ts          # 快捷键处理
@@ -153,8 +147,11 @@ App
 ├── Sidebar
 │   ├── Tabs (文件/大纲 标签切换)
 │   ├── FileTree (文件树)
-│   │   ├── TreeFolder (文件夹节点)
-│   │   └── TreeFile (文件节点)
+│   │   ├── TreeFolder (文件夹节点，含 data-path)
+│   │   ├── TreeFile (文件节点，含 data-path)
+│   │   ├── InlineRename (内联重命名)
+│   │   ├── InlineCreate (内联新建)
+│   │   └── MouseDrag (拖拽移动)
 │   ├── OutlineTree (大纲树)
 │   └── FooterActions (底部操作)
 ├── EditorArea
@@ -228,6 +225,7 @@ function subscribe(fn: (state: AppState) => void) {
 ```
 
 **Tiptap 核心流程：**
+
 ```
 用户输入 → ProseMirror 事务 → 节点更新 → 渲染更新
                                        ↕
@@ -235,6 +233,7 @@ function subscribe(fn: (state: AppState) => void) {
 ```
 
 **Tiptap 配置：**
+
 ```typescript
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -272,6 +271,7 @@ const editor = new Editor({
 ```
 
 **Markdown 双向同步：**
+
 ```typescript
 // 使用社区包 tiptap-markdown（Tiptap v2: ^0.8，v3: latest）
 import { Markdown } from 'tiptap-markdown';
@@ -302,6 +302,7 @@ await invoke('write_file', { path, content: markdown });
 ### 2.4 Mermaid 集成
 
 **渲染流程：**
+
 ```
 代码块识别 → 检测语言为 'mermaid'
   → 提取代码内容 → Mermaid.render()
@@ -309,6 +310,7 @@ await invoke('write_file', { path, content: markdown });
 ```
 
 **实现：**
+
 ```typescript
 // 编辑器渲染后扫描所有 mermaid 代码块
 function renderMermaidBlocks() {
@@ -390,7 +392,7 @@ function renderMermaidBlocks() {
 
 #### 2.5.4 代码块
 
-````markdown
+```markdown
 ```javascript
 function hello() {
   console.log("Hello, World!");
@@ -401,11 +403,11 @@ function hello() {
 def hello():
     print("Hello, World!")
 ```
-````
+```
 
 #### 2.5.5 Mermaid 图表
 
-````markdown
+```markdown
 ```mermaid
 flowchart TD
     A[Start] --> B{Decision}
@@ -414,7 +416,7 @@ flowchart TD
     C --> E[End]
     D --> E
 ```
-````
+```
 
 #### 2.5.6 链接与图片
 
@@ -429,6 +431,7 @@ flowchart TD
 ### 2.6 主题系统
 
 **CSS 变量架构：**
+
 ```css
 /* variables.css */
 :root {
@@ -480,10 +483,8 @@ flowchart TD
 Tauri 命令通过 IPC 调用，以下是核心命令：
 
 #### 文件操作命令
-```rust
-#[tauri::command]
-async fn open_folder() -> Result<FileTree, String>;
 
+```rust
 #[tauri::command]
 async fn read_file(path: String) -> Result<String, String>;
 
@@ -491,25 +492,37 @@ async fn read_file(path: String) -> Result<String, String>;
 async fn write_file(path: String, content: String) -> Result<(), String>;
 
 #[tauri::command]
-async fn create_file(parent: String, name: String) -> Result<FileNode, String>;
+async fn create_file(path: String, content: Option<String>) -> Result<(), String>;
 
 #[tauri::command]
-async fn create_folder(parent: String, name: String) -> Result<FileNode, String>;
+async fn create_dir(path: String) -> Result<(), String>;
 
 #[tauri::command]
-async fn rename_file(old_path: String, new_name: String) -> Result<(), String>;
+async fn rename_path(from: String, to: String) -> Result<(), String>;
 
 #[tauri::command]
-async fn delete_file(path: String) -> Result<(), String>;
+async fn delete_path(path: String) -> Result<(), String>;
 
 #[tauri::command]
-async fn get_workspace_config() -> Result<WorkspaceConfig, String>;
+async fn copy_file(from: String, to: String) -> Result<(), String>;
 
 #[tauri::command]
-async fn set_workspace_path(path: String) -> Result<(), String>;
+async fn read_dir_recursive(path: String) -> Result<Vec<FileEntry>, String>;
+
+#[tauri::command]
+async fn read_single_dir(path: String) -> Result<Vec<FileEntry>, String>;
+
+#[tauri::command]
+async fn set_workspace(path: String) -> Result<(), String>;
+
+#[tauri::command]
+async fn get_workspace() -> Result<Option<String>, String>;
 ```
 
+`read_single_dir` 是非递归目录读取，仅返回目录的直接子项（文件夹在前，按名称排序），用于文件树的外科手术式 DOM 更新（创建/复制后获取新条目）。
+
 #### 文件监听命令
+
 ```rust
 #[tauri::command]
 async fn start_file_watcher(path: String) -> Result<(), String>;
@@ -519,6 +532,7 @@ async fn stop_file_watcher() -> Result<(), String>;
 ```
 
 **事件 payload 类型：**
+
 ```rust
 #[derive(Clone, Serialize)]
 pub struct FileChangeEvent {
@@ -537,12 +551,14 @@ pub enum FileChangeKind {
 ```
 
 **Watcher 生命周期：**
+
 - 归属：Watcher 实例绑定到 AppHandle，随应用生命周期管理
 - 启动：前端调用 `start_file_watcher` 时创建，监听工作区根目录递归
 - 停止：切换工作区或退出应用时调用 `stop_file_watcher`，自动 drop watcher
 - 事件分发：通过 `app_handle.emit("file-changed", payload)` 推送到前端
 
 #### Markdown 命令
+
 ```rust
 #[tauri::command]
 fn parse_markdown(content: String) -> Result<String, String>;
@@ -552,6 +568,7 @@ fn extract_outline(content: String) -> Result<Vec<OutlineItem>, String>;
 ```
 
 #### 设置命令
+
 ```rust
 #[tauri::command]
 fn get_settings() -> Result<Settings, String>;
@@ -562,7 +579,7 @@ fn update_settings(settings: Settings) -> Result<(), String>;
 
 ### 3.2 文件监听模块
 
-使用 `notify` crate 监听文件系统变化：
+使用 `notify` crate 监听文件系统变化。Watcher 实例绑定到 AppHandle，随应用生命周期管理。
 
 ```rust
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -605,6 +622,138 @@ impl FileWatcher {
         self.watcher.watch(&self.path, RecursiveMode::Recursive)
     }
 }
+```
+
+#### 3.2.1 路径标准化
+
+Watcher 在 Windows 上发出的路径使用反斜杠（`\`）。为确保与前端路径一致，Rust 端在发送事件前将所有反斜杠替换为正斜杠：
+
+```rust
+// watcher.rs
+let normalized = event.paths.first()?
+    .to_string_lossy()
+    .to_string()
+    .replace('\\', "/");
+```
+
+#### 3.2.2 Watcher 事件抑制
+
+当前端执行自操作（创建、删除、重命名、拖拽移动）时，会触发 OS 文件监听器产生事件。为避免这些自身操作导致整个文件树重建，前端使用 `suppressPaths` 机制：
+
+```typescript
+// fileTree.ts
+const suppressPaths: Set<string> = new Set();
+
+// 操作前：注册需要抑制的路径
+suppressNextWatcherRefresh(path);
+suppressAllDescendants(path); // 抑制路径本身及所有子路径
+
+// main.ts 监听器中：检查是否应跳过
+listen<FileChangeEvent>('file-changed', (event) => {
+  const { path, kind } = event.payload;
+  if (kind === 'create' || kind === 'delete') {
+    if (!isSuppressedPath(path)) {
+      refreshFileTree();
+    }
+  }
+});
+```
+
+`isSuppressedPath` **使用前缀匹配**：对于文件夹操作，需要抑制文件夹本身及其所有子路径的事件。例如抑制 `workspace/folder` 会同时匹配 `workspace/folder/a.md`。
+
+### 3.3 文件树架构
+
+文件树采用**外科手术式 DOM 更新**策略，避免全量重建导致的文件夹折叠状态丢失。
+
+#### 3.3.1 DOM 结构
+
+```
+#file-tree
+├── .tree-file[data-path=".../a.md"]        # 文件节点
+├── .tree-folder-wrapper                     # 文件夹包装器
+│   ├── .tree-folder[data-path=".../docs"]   # 文件夹头部（图标 + 名称）
+│   └── .tree-children                       # 子节点容器
+│       ├── .tree-file[data-path="..."]
+│       └── .tree-folder-wrapper
+│           └── ...
+```
+
+- 文件夹和文件节点均有 `data-path` 属性，用于通过 CSS 选择器快速定位
+- 文件夹使用 `.tree-folder-wrapper` 包装器，同时作为拖拽放置目标
+- 子节点按文件夹在前、文件在后、各自按名称字母排序
+
+#### 3.3.2 外科手术式 DOM 操作
+
+四个核心函数避免全量重建：
+
+| 函数 | 用途 | 实现 |
+| --- | --- | --- |
+| `insertEntryIntoTree(parentPath, entry)` | 创建/复制后插入节点 | 找到父容器，按排序位置插入，自动展开父文件夹 |
+| `removeEntryFromTree(path)` | 删除后移除节点 | 通过 `data-path` 定位，文件直接删除，文件夹删除 wrapper |
+| `renameEntryInTree(oldPath, newName)` | 重命名后更新节点 | 更新 span 文本和 `data-path`，重新排序到正确位置 |
+| `refreshFileTree()` | 外部变更时全量重建 | 保留展开状态 → 递归读取 → 重建 DOM → 恢复展开状态 |
+
+**插入排序逻辑**（`insertSorted`）：
+
+1. 遍历父容器的子节点
+2. 文件夹节点跳过（文件夹排前面）
+3. 遇到第一个名称 &gt;= 新节点名称的同类型节点，在其前面插入
+4. 如果没有找到合适位置，追加到末尾
+
+#### 3.3.3 鼠标拖拽移动
+
+由于 Tauri WebView2 不支持 HTML5 Drag API 事件，拖拽使用原生鼠标事件实现：
+
+```
+mousedown (记录源元素和路径)
+    ↓ 移动超过 5px
+mousemove → 创建 ghost 元素跟随鼠标
+         → 检测目标文件夹（elementFromPoint）
+         → 高亮目标文件夹（.dragover class）
+         → 悬停 500ms 自动展开折叠文件夹
+    ↓ 释放
+mouseup → 计算目标目录
+       → 抑制 watcher 事件
+       → 调用 renamePath 执行移动
+       → 更新 DOM（文件：外科手术式插入，文件夹：全量重建）
+```
+
+**关键实现细节：**
+
+- Ghost 元素：`cloneNode(true)` 源元素，`position: fixed`，`pointer-events: none`
+- 放置目标检测：`document.elementFromPoint()` + `.closest('.tree-folder-wrapper')`
+- 根目录放置：检测 `target === fileTree`，将文件移至工作区根目录
+- 循环移动保护：检查源路径是否是目标路径的前缀（`startsWith`）
+- 自引用保护：`srcPath !== destPath && srcParent !== destDir`
+- CSS `user-select: none` 防止拖拽时文本选中干扰
+
+#### 3.3.4 内联编辑（重命名/新建）
+
+**重命名流程**：
+
+1. 右键菜单触发 → 隐藏 `<span>`，插入 `<input>` 元素
+2. 自动选中文件名（不含扩展名）
+3. Enter 确认 → 调用 `renamePath`，更新 DOM，重新排序
+4. Escape 取消 → 恢复 `<span>`
+5. Blur 也触发确认（提交当前值）
+
+**新建流程**：
+
+1. 右键菜单/侧边栏按钮触发 → 在排序位置插入临时节点（带 `<input>`）
+2. Enter 确认 → 调用 `createFile`/`createDir`，通过 `readSingleDir` 获取新条目，替换临时节点为真实节点
+3. Escape 取消 → 移除临时节点
+4. 自动展开目标文件夹
+
+**输入框创建**（`createInlineInput`）：
+
+```typescript
+const input = document.createElement('input');
+input.type = 'text';
+input.className = 'tree-inline-input';
+input.spellcheck = false;
+input.setAttribute('autocomplete', 'off');
+input.setAttribute('autocorrect', 'off');
+input.setAttribute('autocapitalize', 'off');
 ```
 
 ### 3.3 配置管理
@@ -826,10 +975,8 @@ pub fn extract_outline(markdown: &str) -> Vec<OutlineItem> {
 ```
 
 > **动态工作区权限授予：** Tauri v2 的 `dialog:allow-open` 在用户选择文件夹时，会自动将该路径加入 fs scope（`dialog.plugin.autoGrantPermissions` 默认开启）。因此无需在 capability 文件中预置工作区路径——用户通过对话框选择文件夹后即获得该目录的读写权限。`$APPDATA/**` 仅覆盖应用配置目录（settings.json 存储位置）。
->
-> **记住工作区与 scope 持久化：** dialog 的 scope 变更默认不持久化，应用重启后清空。使用 `tauri-plugin-persisted-scope` 可自动将用户授权路径写入 capability 配置并跨重启保留。或者启动时由 Rust 后端读取 `settings.json` 中保存的 workspace 路径，自行做路径校验后直接读写文件。
->
-> **自定义 Rust 命令的路径校验：** Tauri 的 fs scope 仅约束 fs 插件命令，自定义 Rust 命令（`read_file`/`write_file` 等）不受 scope 限制。Rust 端必须对所有传入路径做以下校验：
+> ****记住工作区与 scope 持久化：** dialog 的 scope 变更默认不持久化，应用重启后清空。使用 `tauri-plugin-persisted-scope` 可自动将用户授权路径写入 capability 配置并跨重启保留。或者启动时由 Rust 后端读取 `settings.json` 中保存的 workspace 路径，自行做路径校验后直接读写文件。
+> ****自定义 Rust 命令的路径校验：** Tauri 的 fs scope 仅约束 fs 插件命令，自定义 Rust 命令（`read_file`/`write_file` 等）不受 scope 限制。Rust 端必须对所有传入路径做以下校验：
 >
 > ```rust
 > fn validate_path(target: &Path, workspace_root: &Path) -> Result<PathBuf, String> {
@@ -935,7 +1082,7 @@ jobs:
 ### 5.2 构建产物
 
 | 平台 | 产物格式 | 文件名模式 |
-|------|---------|-----------|
+| --- | --- | --- |
 | Windows | .exe (NSIS) | MarkFlow_x.x.x_x64-setup.exe |
 | Windows | .msi | MarkFlow_x.x.x_x64_en-US.msi |
 | macOS | .dmg | MarkFlow_x.x.x_aarch64.dmg |
@@ -950,14 +1097,16 @@ jobs:
 ### 6.1 文件树数据结构
 
 ```typescript
-interface FileNode {
-  id: string;
+// storage.ts — 与 Rust 端 FileEntry 对应
+interface FileEntry {
   name: string;
-  path: string;
-  type: 'file' | 'folder';
-  children?: FileNode[];
+  path: string;       // 绝对路径（正斜杠标准化）
+  isDir: boolean;
+  children?: FileEntry[];  // 仅 readDirRecursive 返回时填充
 }
 ```
+
+**路径标准化**：Rust 端返回的路径统一使用正斜杠（`/`），前端 `setWorkspacePath` 也执行 `path.replace(/\\/g, '/')` 确保一致。
 
 ### 6.2 所见即所得编辑策略
 
@@ -1011,58 +1160,39 @@ editor.commands.save().then(() => {
 #### 6.3.2 文件监听处理流程
 
 ```typescript
+// main.ts
 import { listen } from '@tauri-apps/api/event';
 
-let unlisten: (() => void) | null = null;
-let ignoreEventsUntil: number = 0;
-
-async function startWatching(path: string) {
-  if (unlisten) unlisten();
-
-  await invoke('start_file_watcher', { path });
-
-  unlisten = await listen<FileChangeEvent>('file-changed', (event) => {
-    const { path, kind, timestamp } = event.payload;
-
-    // 忽略自身保存触发的文件事件（500ms 内）
-    if (timestamp && timestamp < ignoreEventsUntil) {
-      return;
-    }
-
-    if (path !== currentFilePath || kind !== 'modify') return;
-
-    switch (editorState) {
-      case EditorState.CLEAN:
-        // 无未保存内容，直接重载
-        reloadCurrentFile();
-        break;
-
-      case EditorState.DIRTY:
-        // 有未保存内容，弹出冲突对话框
-        showConflictDialog({
-          type: 'file-changed-externally',
-          filePath: path,
-          actions: [
-            { label: '保留本地', value: 'keep-local' },
-            { label: '加载外部', value: 'reload-external' },
-            { label: '手动合并', value: 'manual-merge' },
-          ]
-        });
-        break;
-    }
-  });
+interface FileChangeEvent {
+  path: string;
+  kind: string;
+  timestamp: number;
 }
 
-// 保存时设置忽略窗口
-function ignoreNextFileEvent(path: string) {
-  ignoreEventsUntil = Date.now() + 500;
-}
+listen<FileChangeEvent>('file-changed', (event) => {
+  const { path, kind } = event.payload;
+  const activePath = getActiveFilePath();
+
+  // 当前打开的文件被外部修改 → 提示用户
+  if (activePath && path === activePath && kind === 'modify') {
+    showToast('文件已被外部修改');
+  }
+
+  // 文件创建/删除事件 → 刷新文件树（除非被抑制）
+  if (kind === 'create' || kind === 'delete') {
+    if (!isSuppressedPath(path)) {
+      refreshFileTree();
+    }
+  }
+});
 ```
+
+**Watcher 事件抑制机制**（详见 3.2.2）：前端在执行自操作（创建、删除、重命名、拖拽移动）前，将相关路径加入 `suppressPaths` 集合。监听器检查事件路径是否被抑制，如果是则跳过 `refreshFileTree()`，由外科手术式 DOM 操作处理更新。
 
 #### 6.3.3 冲突对话框
 
 | 选项 | 行为 |
-|------|------|
+| --- | --- |
 | 保留本地 | 忽略外部变化，保持当前编辑 |
 | 加载外部 | 丢弃本地修改，加载外部版本 |
 | 手动合并 | 打开 diff 视图，逐段选择保留内容 |
@@ -1086,6 +1216,7 @@ function ignoreNextFileEvent(path: string) {
 ```
 
 **说明：**
+
 - 禁用远程脚本（`'self'` 仅允许同源）
 - 禁用 `unsafe-eval`（防止动态代码执行）
 - 图片仅允许 `data:` 和 `blob:`（Mermaid SVG 输出）
@@ -1100,6 +1231,7 @@ function ignoreNextFileEvent(path: string) {
 #### 7.1.3 Mermaid SVG Sanitization
 
 Mermaid 渲染的 SVG 输出需要 sanitize 处理：
+
 - 禁止脚本标签（`<script>` → 移除）
 - 禁止事件属性（`onclick`、`onload` 等 → 移除）
 - 禁止外部资源加载（`xlink:href` 指向外部 → 移除）
@@ -1108,7 +1240,7 @@ Mermaid 渲染的 SVG 输出需要 sanitize 处理：
 #### 7.1.4 权限最小化原则
 
 | 权限 | 用途 | 限制 |
-|------|------|------|
+| --- | --- | --- |
 | fs:allow-read-text-file | 读取工作区 .md 文件 | 仅用户选择的目录 scope |
 | fs:allow-write-text-file | 写入工作区 .md 文件 | 仅用户选择的目录 scope |
 | dialog:allow-open | 用户选择工作区文件夹 | 需用户主动触发 |
@@ -1120,7 +1252,7 @@ Mermaid 渲染的 SVG 输出需要 sanitize 处理：
 ### 8.1 前端优化
 
 | 优化点 | 方案 |
-|--------|------|
+| --- | --- |
 | Markdown 渲染 | 使用 `requestAnimationFrame` 节流 |
 | 文件树渲染 | 大文件夹使用虚拟列表 |
 | 图片加载 | 使用 `loading="lazy"` |
@@ -1129,7 +1261,7 @@ Mermaid 渲染的 SVG 输出需要 sanitize 处理：
 ### 8.2 Rust 后端优化
 
 | 优化点 | 方案 |
-|--------|------|
+| --- | --- |
 | 文件监听 | 使用 `notify` 的 debounce |
 | 序列化 | 使用 `serde_json` 缓存 |
 
@@ -1140,7 +1272,7 @@ Mermaid 渲染的 SVG 输出需要 sanitize 处理：
 ### 9.1 测试类型
 
 | 类型 | 范围 |
-|------|------|
+| --- | --- |
 | 单元测试 | Rust 命令、Markdown 解析、前端工具函数 |
 | 集成测试 | Tauri 命令、文件系统操作 |
 | E2E 测试 | Playwright 覆盖关键用户流程 |
@@ -1153,6 +1285,7 @@ Mermaid 渲染的 SVG 输出需要 sanitize 处理：
 ### 10.1 插件系统
 
 预留插件扩展点：
+
 - Markdown 解析器可扩展
 - 渲染器可扩展（支持新的代码块语言）
 - 主题系统已预留扩展接口

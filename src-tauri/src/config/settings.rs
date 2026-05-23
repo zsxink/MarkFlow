@@ -18,6 +18,18 @@ pub struct Settings {
     pub show_tooltips: bool,
     pub follow_system_theme: bool,
     pub last_workspace: Option<String>,
+    #[serde(default)]
+    pub image_storage_mode: Option<String>,
+    #[serde(default)]
+    pub image_custom_path: Option<String>,
+    #[serde(default)]
+    pub image_prefer_relative: Option<bool>,
+    #[serde(default)]
+    pub image_auto_copy_local: Option<bool>,
+    #[serde(default)]
+    pub image_download_network: Option<bool>,
+    #[serde(default)]
+    pub image_naming_strategy: Option<String>,
 }
 
 impl Default for Settings {
@@ -38,6 +50,12 @@ impl Default for Settings {
             show_tooltips: true,
             follow_system_theme: false,
             last_workspace: None,
+            image_storage_mode: None,
+            image_custom_path: None,
+            image_prefer_relative: None,
+            image_auto_copy_local: None,
+            image_download_network: None,
+            image_naming_strategy: None,
         }
     }
 }

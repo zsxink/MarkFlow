@@ -35,7 +35,12 @@ fn set_workspace(
 
 #[tauri::command]
 fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, String> {
-    Ok(state.get_workspace().map(|p| p.to_string_lossy().to_string()))
+    Ok(state.get_workspace().map(|p| {
+        let s = p.to_string_lossy().to_string();
+        // Strip Windows \\?\ prefix and normalize to /
+        let s = if s.starts_with(r"\\?\") { &s[4..] } else { &s };
+        s.replace('\\', "/")
+    }))
 }
 
 pub fn run() {
@@ -44,6 +49,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             files::read_file,
@@ -54,7 +60,11 @@ pub fn run() {
             files::rename_path,
             files::delete_path,
             files::copy_file,
+            files::read_single_dir,
             files::file_exists,
+            files::read_file_as_base64,
+            files::write_file_from_base64,
+            files::download_image,
             settings::load_settings,
             settings::save_settings,
             set_workspace,

@@ -6,7 +6,7 @@ import { initStatusBar } from './components/statusbar';
 import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
 import { getWorkspace, writeFile, loadSettings } from './lib/storage';
-import { setWorkspacePath, refreshFileTree } from './components/fileTree';
+import { setWorkspacePath, refreshFileTree, isSuppressedPath, suppressNextWatcherRefresh } from './components/fileTree';
 import { getActiveFilePath } from './components/sidebar';
 import { showToast } from './components/toast';
 import { listen } from '@tauri-apps/api/event';
@@ -23,7 +23,13 @@ let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Record<string, unknown> = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  // Block contextmenu outside sidebar (sidebar handles its own)
+  document.addEventListener('contextmenu', (e) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('#sidebar')) {
+      e.preventDefault();
+    }
+  });
 
   initTheme();
   initToolbar();
@@ -41,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   listen<FileChangeEvent>('file-changed', (event) => {
     const { path, kind } = event.payload;
+    if (isSuppressedPath(path)) return;
     const activePath = getActiveFilePath();
     if (activePath && path === activePath && kind === 'modify') {
       showToast('文件已被外部修改');
@@ -76,6 +83,7 @@ function startAutoSave() {
       if (filePath) {
         try {
           const content = getMarkdown();
+          suppressNextWatcherRefresh(filePath);
           await writeFile(filePath, content);
         } catch (e) {
           console.error('Auto-save failed:', e);

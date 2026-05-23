@@ -1,5 +1,5 @@
-import { createFile, createDir } from '../lib/storage';
-import { refreshFileTree } from './fileTree';
+import { createFile, createDir, readSingleDir } from '../lib/storage';
+import { insertEntryIntoTree, suppressNextWatcherRefresh } from './fileTree';
 import { showToast } from './toast';
 import { openFileInEditor } from './sidebar';
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -85,7 +85,7 @@ async function handleCreateNoWorkspace(type: 'file' | 'folder') {
       const name = prompt('输入文件夹名称:');
       if (name && name.trim()) {
         try {
-          const fullPath = `${path}\\${name.trim()}`;
+          const fullPath = `${path}/${name.trim()}`;
           await createDir(fullPath);
           showToast('文件夹已创建');
         } catch (e) {
@@ -103,20 +103,26 @@ async function handleCreateInWorkspace(name: string, workspacePath: string | nul
     return;
   }
 
-  const fullPath = `${workspacePath}\\${name.trim()}`;
+  const fullPath = `${workspacePath}/${name.trim()}`;
 
   try {
     if (mode === 'file') {
       const fileName = fullPath.endsWith('.md') ? fullPath : `${fullPath}.md`;
+      suppressNextWatcherRefresh(fileName);
       await createFile(fileName, '');
       closeDialog();
-      await refreshFileTree();
+      const entries = await readSingleDir(workspacePath);
+      const newEntry = entries.find(e => e.path === fileName);
+      if (newEntry) insertEntryIntoTree(workspacePath, newEntry);
       await openFileInEditor(fileName);
       showToast('文件已创建');
     } else {
+      suppressNextWatcherRefresh(fullPath);
       await createDir(fullPath);
       closeDialog();
-      await refreshFileTree();
+      const entries = await readSingleDir(workspacePath);
+      const newEntry = entries.find(e => e.path === fullPath);
+      if (newEntry) insertEntryIntoTree(workspacePath, newEntry);
       showToast('文件夹已创建');
     }
   } catch (e) {

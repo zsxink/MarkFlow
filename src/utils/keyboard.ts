@@ -2,6 +2,7 @@ import { getEditor, switchToSource, switchToWysiwyg, getMode, getMarkdown } from
 import { showToast } from '../components/toast';
 import { writeFile } from '../lib/storage';
 import { getActiveFilePath } from '../components/sidebar';
+import { suppressNextWatcherRefresh } from '../components/fileTree';
 
 export function initKeyboard() {
   document.addEventListener('keydown', async (e) => {
@@ -29,6 +30,7 @@ export function initKeyboard() {
           }
           try {
             const content = getMarkdown();
+            suppressNextWatcherRefresh(filePath);
             await writeFile(filePath, content);
             showToast('已保存');
           } catch (err) {

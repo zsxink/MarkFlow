@@ -15,6 +15,7 @@ export function initSettings() {
           <button class="settings-tab active" data-panel="general">通用</button>
           <button class="settings-tab" data-panel="appearance">外观</button>
           <button class="settings-tab" data-panel="editor">编辑器</button>
+          <button class="settings-tab" data-panel="image">图片</button>
           <button class="settings-tab" data-panel="shortcuts">快捷键</button>
         </div>
         <div class="settings-panels">
@@ -137,6 +138,68 @@ export function initSettings() {
               </div>
             </div>
           </div>
+          <div id="panel-image" class="settings-panel" hidden>
+            <div class="settings-group">
+              <div class="settings-group-title">存储</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">存放位置</div>
+                  <div class="settings-desc">粘贴或拖入图片的保存位置</div>
+                </div>
+                <select class="settings-select" id="setting-image-storage">
+                  <option value="workspace-assets" selected>工作区 assets/</option>
+                  <option value="doc-assets">与文档同级 assets/</option>
+                  <option value="custom">自定义路径</option>
+                  <option value="none">无特殊操作</option>
+                </select>
+              </div>
+              <div class="settings-row" id="setting-image-custom-row" hidden>
+                <div>
+                  <div class="settings-label">自定义路径</div>
+                  <div class="settings-desc">支持相对路径，如 ./assets</div>
+                </div>
+                <input class="newfile-input" id="setting-image-custom-path" style="width:200px" placeholder="./images" />
+              </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">路径与行为</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">优先使用相对路径</div>
+                  <div class="settings-desc">Markdown 中使用相对路径引用图片</div>
+                </div>
+                <button class="toggle active" id="setting-image-relative"></button>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">对本地图片应用</div>
+                  <div class="settings-desc">粘贴/拖入本地图片时复制到存储位置</div>
+                </div>
+                <button class="toggle active" id="setting-image-auto-copy"></button>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">对网络图片应用</div>
+                  <div class="settings-desc">插入网络图片时下载到本地</div>
+                </div>
+                <button class="toggle" id="setting-image-download"></button>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">命名</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">文件命名策略</div>
+                  <div class="settings-desc">截图粘贴时自动生成文件名</div>
+                </div>
+                <select class="settings-select" id="setting-image-naming">
+                  <option value="original">原文件名</option>
+                  <option value="timestamp" selected>时间戳</option>
+                  <option value="sequence">自动序号</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div id="panel-shortcuts" class="settings-panel" hidden>
             <div class="settings-group">
               <div class="settings-group-title">格式化</div>
@@ -212,4 +275,13 @@ function bindSettingsEvents() {
       swatch.classList.add('selected');
     });
   });
+
+  // Image storage dropdown — show/hide custom path input
+  const storageSelect = document.getElementById('setting-image-storage') as HTMLSelectElement | null;
+  const customRow = document.getElementById('setting-image-custom-row');
+  if (storageSelect && customRow) {
+    storageSelect.addEventListener('change', () => {
+      customRow.hidden = storageSelect.value !== 'custom';
+    });
+  }
 }

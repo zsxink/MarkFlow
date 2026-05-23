@@ -1,0 +1,142 @@
+# MarkFlow 技术架构
+
+> 技术栈、项目结构与实现细节。
+
+---
+
+## 技术栈
+
+| 层级 | 技术 | 用途 |
+|------|------|------|
+| 桌面框架 | Tauri v2 | 跨平台原生桌面应用，使用系统 WebView |
+| 前端语言 | TypeScript | UI 逻辑与编辑器编排 |
+| 编辑器引擎 | Tiptap / ProseMirror | 节点化 WYSIWYG 编辑，Markdown 双向同步 |
+| 构建工具 | Vite | 开发服务器与生产构建 |
+| 后端 | Rust | 文件 I/O、文件监听、配置管理 |
+| 代码高亮 | highlight.js + lowlight | 代码块语法高亮 |
+| 图表 | Mermaid | 将 mermaid 代码块渲染为 SVG |
+| 文件监听 | notify | 递归文件系统变更检测 |
+| HTTP 请求 | reqwest | 网络图片下载 |
+
+---
+
+## 项目结构
+
+```
+markflow/
+├── src/                          # 前端源码 (TypeScript + CSS)
+│   ├── main.ts                   # 入口
+│   ├── styles/
+│   │   ├── main.css              # 布局、组件样式、主题
+│   │   └── variables.css         # CSS 自定义属性 (light/dark/sepia)
+│   ├── components/
+│   │   ├── toolbar.ts            # 顶部工具栏
+│   │   ├── sidebar.ts            # 侧边栏容器
+│   │   ├── statusbar.ts          # 底部状态栏
+│   │   ├── settings.ts           # 设置面板
+│   │   ├── fileTree.ts           # 文件树渲染
+│   │   ├── outline.ts            # 文档大纲提取
+│   │   ├── contextMenu.ts        # 右键菜单
+│   │   ├── toast.ts              # 提示通知
+│   │   └── newFileDialog.ts      # 新建文件/文件夹对话框
+│   ├── lib/
+│   │   ├── editor.ts             # Tiptap 编辑器配置 + Markdown 同步
+│   │   ├── imageUtils.ts         # 图片存储、路径解析、粘贴逻辑
+│   │   ├── pathUtils.ts          # 路径工具函数
+│   │   ├── storage.ts            # Tauri IPC 文件系统封装
+│   │   ├── theme.ts              # 主题切换逻辑
+│   │   └── mermaid.ts            # Mermaid 图表渲染
+│   └── utils/
+│       ├── dom.ts                # DOM 工具
+│       └── keyboard.ts           # 快捷键处理
+├── src-tauri/                    # Rust 后端源码
+│   ├── src/
+│   │   ├── main.rs               # Tauri 应用入口
+│   │   ├── lib.rs                # 库入口，命令注册
+│   │   ├── commands/
+│   │   │   ├── files.rs          # 文件操作命令
+│   │   │   └── settings.rs       # 设置读写命令
+│   │   ├── fs/
+│   │   │   ├── watcher.rs        # notify 文件监听
+│   │   │   └── tree.rs           # 文件树构建
+│   │   ├── config/
+│   │   │   └── settings.rs       # Settings 结构体与持久化
+│   │   └── state.rs              # 应用状态管理
+│   ├── Cargo.toml
+│   ├── tauri.conf.json           # Tauri 配置
+│   └── capabilities/             # Tauri v2 权限声明
+├── docs/
+│   ├── product-spec.md           # 产品规格文档
+│   ├── architecture.md           # 本文档
+│   └── ui-design/                # UI 设计稿
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+└── README.md
+```
+
+---
+
+## 架构设计
+
+### 前后端通信
+
+前端通过 Tauri IPC 调用 Rust 命令。所有文件操作、设置读写、二进制 I/O 均通过 `invoke()` 调用 Rust 端的 `#[tauri::command]` 函数。
+
+### 编辑器架构
+
+- **Tiptap** 基于 ProseMirror，以节点树表示文档结构
+- **tiptap-markdown** 扩展负责 Markdown 的双向序列化（`![]()` ↔ `<img>`）
+- **自定义 ProseMirror 插件**：
+  - `imageSrcResolverPlugin` — 将相对路径转换为 Tauri asset protocol URL
+  - `imageBubblePlugin` — 点击图片弹出路径编辑气泡
+- **DOM 级事件处理**：图片粘贴/拖拽通过 `paste`/`drop` 事件监听实现（Tiptap Image 扩展无内置处理）
+
+### 图片渲染
+
+1. Markdown 中的相对路径 `./assets/foo.png` 存储在 ProseMirror 节点的 `src` 属性中
+2. `imageSrcResolverPlugin` 的 `appendTransaction` 将其转换为 `convertFileSrc()` 生成的 asset protocol URL
+3. 模块级 `assetToOriginalMap` 记录 `assetUrl → originalPath` 映射
+4. 保存时 `getMarkdown()` 将 asset URL 替换回原始路径，保证 Markdown 文件中不包含 asset URL
+
+### Asset Protocol
+
+Tauri v2 内置 asset protocol，用于将本地文件路径转换为 WebView 可加载的 URL：
+- **Windows**: `http://asset.localhost/{encoded-path}`
+- **macOS/Linux**: `asset://localhost/{encoded-path}`
+
+通过 `@tauri-apps/api/core` 的 `convertFileSrc()` 自动处理平台差异。
+
+### 文件监听
+
+Rust 端使用 `notify` crate 递归监听工作区目录。变更事件通过 Tauri `emit` 发送到前端。前端维护一个 suppress 集合，在自身写入文件前将路径加入集合，避免自身保存触发"外部修改"提示。
+
+---
+
+## 配置
+
+### Tauri 配置 (`tauri.conf.json`)
+
+- Asset protocol 已启用，允许常见图片格式
+- CSP 允许 `asset:` 和 `http://asset.localhost` 作为图片来源
+- 窗口默认 1200×800，最小 800×600
+
+### Rust 依赖
+
+| 依赖 | 用途 |
+|------|------|
+| tauri | 桌面框架 |
+| serde / serde_json | 序列化 |
+| notify | 文件监听 |
+| dirs | 平台目录路径 |
+| base64 | 图片二进制编码 |
+| reqwest | HTTP 图片下载 |
+
+### 前端依赖
+
+| 依赖 | 用途 |
+|------|------|
+| @tiptap/core + 扩展 | WYSIWYG 编辑器 |
+| tiptap-markdown | Markdown 双向序列化 |
+| lowlight + highlight.js | 代码高亮 |
+| mermaid | 图表渲染 |

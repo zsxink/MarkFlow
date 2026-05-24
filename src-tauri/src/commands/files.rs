@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -14,6 +15,13 @@ pub struct FileEntry {
     pub is_dir: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<FileEntry>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RemoteImageData {
+    pub data: String,
+    #[serde(rename = "mimeType")]
+    pub mime_type: String,
 }
 
 fn validate_path(target: &Path, workspace_root: &Path) -> Result<PathBuf, String> {
@@ -64,6 +72,94 @@ pub fn read_file(path: String, state: State<AppState>) -> Result<String, String>
 pub fn write_file(path: String, content: String, state: State<AppState>) -> Result<(), String> {
     let path = resolve_path(&path, &state)?;
     fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+fn select_export_path(
+    app: &AppHandle,
+    title: &str,
+    file_name: &str,
+    filter_name: &str,
+    extensions: &[&str],
+) -> Result<Option<PathBuf>, String> {
+    let Some(path) = app
+        .dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(file_name)
+        .add_filter(filter_name, extensions)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+
+    path.into_path()
+        .map(Some)
+        .map_err(|_| "Invalid save path".into())
+}
+
+#[tauri::command]
+pub async fn save_mermaid_svg_export(
+    svg: String,
+    default_name: String,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let file_name = format!("{}.svg", default_name);
+    let Some(path) = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])? else {
+        return Ok(false);
+    };
+
+    fs::write(&path, svg).map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn save_mermaid_png_export(
+    data: String,
+    default_name: String,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("Invalid base64 data: {}", e))?;
+    if bytes.len() as u64 > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+
+    let file_name = format!("{}.png", default_name);
+    let Some(path) = select_export_path(&app, "图片另存为 PNG", &file_name, "PNG", &["png"])? else {
+        return Ok(false);
+    };
+
+    fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn save_image_export(
+    data: String,
+    file_name: String,
+    extension: String,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("Invalid base64 data: {}", e))?;
+    if bytes.len() as u64 > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+
+    let normalized_extension = extension.trim().trim_start_matches('.').to_lowercase();
+    let ext = if normalized_extension.is_empty() {
+        "png"
+    } else {
+        normalized_extension.as_str()
+    };
+    let Some(path) = select_export_path(&app, "图片另存为", &file_name, "图片", &[ext])? else {
+        return Ok(false);
+    };
+
+    fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(true)
 }
 
 #[tauri::command]
@@ -226,6 +322,72 @@ fn validate_remote_image_url(raw: &str) -> Result<reqwest::Url, String> {
     Ok(url)
 }
 
+async fn fetch_remote_image_bytes(url: &str) -> Result<(Vec<u8>, String), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let mut current_url = validate_remote_image_url(url)?;
+    let mut redirects_remaining = 5;
+
+    let response = loop {
+        let response = client
+            .get(current_url.clone())
+            .send()
+            .await
+            .map_err(|e| format!("Failed to download: {}", e))?;
+
+        if response.status().is_redirection() {
+            if redirects_remaining == 0 {
+                return Err("Too many redirects".into());
+            }
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or("Redirect location missing")?;
+            let next_url = current_url
+                .join(location)
+                .map_err(|e| format!("Invalid redirect URL: {}", e))?;
+            current_url = validate_remote_image_url(next_url.as_ref())?;
+            redirects_remaining -= 1;
+            continue;
+        }
+
+        break response;
+    };
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP error: {}", response.status()));
+    }
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    let mime_type = content_type.split(';').next().unwrap_or("").trim().to_string();
+    if !mime_type.starts_with("image/") {
+        return Err("Only image responses are allowed".into());
+    }
+    let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    if bytes.len() as u64 > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+
+    Ok((bytes.to_vec(), mime_type))
+}
+
+#[tauri::command]
+pub async fn fetch_remote_image_as_base64(url: String) -> Result<RemoteImageData, String> {
+    let (bytes, mime_type) = fetch_remote_image_bytes(&url).await?;
+    Ok(RemoteImageData {
+        data: base64::engine::general_purpose::STANDARD.encode(&bytes),
+        mime_type,
+    })
+}
+
 #[tauri::command]
 pub fn create_file(path: String, content: Option<String>, state: State<AppState>) -> Result<(), String> {
     let path = Path::new(&path);
@@ -373,57 +535,7 @@ pub fn write_file_from_base64(path: String, data: String, state: State<AppState>
 pub async fn download_image(url: String, dest: String, state: State<'_, AppState>) -> Result<String, String> {
     let dest_path = Path::new(&dest);
     validate_path_in_workspace(dest_path, &state)?;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-    let mut current_url = validate_remote_image_url(&url)?;
-    let mut redirects_remaining = 5;
-
-    let response = loop {
-        let response = client
-            .get(current_url.clone())
-            .send()
-            .await
-            .map_err(|e| format!("Failed to download: {}", e))?;
-
-        if response.status().is_redirection() {
-            if redirects_remaining == 0 {
-                return Err("Too many redirects".into());
-            }
-            let location = response
-                .headers()
-                .get(reqwest::header::LOCATION)
-                .and_then(|value| value.to_str().ok())
-                .ok_or("Redirect location missing")?;
-            let next_url = current_url
-                .join(location)
-                .map_err(|e| format!("Invalid redirect URL: {}", e))?;
-            current_url = validate_remote_image_url(next_url.as_ref())?;
-            redirects_remaining -= 1;
-            continue;
-        }
-
-        break response;
-    };
-
-    if !response.status().is_success() {
-        return Err(format!("HTTP error: {}", response.status()));
-    }
-    let content_type = response
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("");
-    if !content_type.starts_with("image/") {
-        return Err("Only image responses are allowed".into());
-    }
-    let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
-    if bytes.len() as u64 > MAX_IMAGE_SIZE {
-        return Err("文件过大，最大支持 20MB".into());
-    }
+    let (bytes, _) = fetch_remote_image_bytes(&url).await?;
     if let Some(parent) = dest_path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
     }

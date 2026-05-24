@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MarkFlow Image QA</title>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #editor-area { padding: 40px; min-height: 400px; }
+  </style>
+</head>
+<body>
+  <div id="editor-area"></div>
+  <div id="toast" hidden></div>
+  <pre id="results">running</pre>
+  <script type="module">
+    const resultsEl = document.getElementById('results');
+    const observations = [];
+    const log = (label, value) => observations.push({ label, value });
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const invokeCalls = [];
+    const clipboardTexts = [];
+    const clipboardWrites = [];
+
+    class ClipboardItemMock {
+      constructor(items) {
+        this.items = items;
+      }
+    }
+
+    Object.defineProperty(window, 'ClipboardItem', { value: ClipboardItemMock, configurable: true });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        async write(items) {
+          const normalized = [];
+          for (const item of items) {
+            const entries = [];
+            for (const [type, blob] of Object.entries(item.items || {})) {
+              entries.push({
+                type,
+                size: typeof blob?.size === 'number' ? blob.size : null,
+                blobType: blob?.type || null,
+              });
+            }
+            normalized.push(entries);
+          }
+          clipboardWrites.push(normalized);
+        },
+        async writeText(text) {
+          clipboardTexts.push(text);
+        },
+      },
+    });
+
+    window.__TAURI_INTERNALS__ = {
+      async invoke(cmd, args) {
+        invokeCalls.push({ cmd, args });
+        if (cmd === 'load_settings') {
+          return {
+            imageStorageMode: 'none',
+            imagePreferRelative: true,
+            imageAutoCopyLocal: false,
+            imageDownloadNetwork: false,
+            imageNamingStrategy: 'original',
+          };
+        }
+        if (cmd === 'save_image_export') return true;
+        if (cmd === 'get_workspace') return null;
+        if (cmd === 'set_workspace') return null;
+        if (cmd === 'read_file') return '';
+        if (cmd === 'write_file') return null;
+        if (cmd === 'read_dir_recursive') return [];
+        if (cmd === 'create_file') return null;
+        if (cmd === 'create_dir') return null;
+        if (cmd === 'rename_path') return null;
+        if (cmd === 'delete_path') return null;
+        if (cmd === 'copy_file') return null;
+        if (cmd === 'read_single_dir') return [];
+        if (cmd === 'save_settings') return null;
+        if (cmd === 'read_file_as_base64') return '';
+        if (cmd === 'write_file_from_base64') return null;
+        if (cmd === 'download_image') return '';
+        if (cmd === 'file_exists') return false;
+        throw new Error(`Unexpected invoke: ${cmd}`);
+      },
+      transformCallback(fn) { return fn; },
+      unregisterCallback() {},
+      convertFileSrc(filePath) { return filePath; },
+      metadata: {},
+    };
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
+
+    try {
+      const editorModule = await import('/src/lib/editor.ts');
+      const { initEditor, setMarkdown, getMarkdown } = editorModule;
+
+      await initEditor();
+      const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGP8z8DAwMAAAAYIAQHLR3Z1AAAAAElFTkSuQmCC';
+      setMarkdown(`![初始注释](${dataUrl})`);
+      await sleep(300);
+
+      const img = document.querySelector('#wysiwyg-editor img');
+      if (!img) throw new Error('Editor image not rendered');
+
+      log('renderedImage', {
+        exists: !!img,
+        src: img.getAttribute('src'),
+        markdown: getMarkdown(),
+      });
+
+      img.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, clientX: 120, clientY: 120 }));
+      await sleep(200);
+
+      const panel = document.querySelector('.image-edit-panel');
+      const row1Labels = [...document.querySelectorAll('.image-edit-fields label')].map(el => el.textContent || '');
+      const row1Inputs = [...document.querySelectorAll('.image-edit-fields input')].map(el => ({
+        value: el.value,
+        placeholder: el.getAttribute('placeholder'),
+      }));
+      const row2Buttons = [...document.querySelectorAll('.image-edit-actions button')].map(el => el.textContent || '');
+
+      log('leftClickPanel', {
+        exists: !!panel,
+        className: panel?.className || null,
+        styleTop: panel instanceof HTMLElement ? panel.style.top : null,
+        styleLeft: panel instanceof HTMLElement ? panel.style.left : null,
+        row1Labels,
+        row1Inputs,
+        row2Buttons,
+      });
+
+      img.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: 160, clientY: 160 }));
+      await sleep(200);
+
+      const menu = document.getElementById('image-context-menu');
+      const menuItems = [...document.querySelectorAll('#image-context-menu [data-action]')].map(el => ({
+        action: el.getAttribute('data-action'),
+        text: el.textContent || '',
+      }));
+
+      log('rightClickMenu', {
+        exists: !!menu,
+        hidden: menu ? menu.hidden : null,
+        items: menuItems,
+      });
+
+      const copyPathButton = document.querySelector('#image-context-menu [data-action="copy-path"]');
+      if (!copyPathButton) throw new Error('copy-path button missing');
+      copyPathButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await sleep(100);
+      log('copyPathAction', {
+        clipboardTexts: [...clipboardTexts],
+        toast: document.getElementById('toast')?.textContent || null,
+      });
+
+      img.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: 180, clientY: 180 }));
+      await sleep(100);
+      const saveImageButton = document.querySelector('#image-context-menu [data-action="save-image"]');
+      if (!saveImageButton) throw new Error('save-image button missing');
+      saveImageButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await sleep(200);
+      log('saveImageAction', {
+        saveCalls: invokeCalls.filter(call => call.cmd === 'save_image_export'),
+        toast: document.getElementById('toast')?.textContent || null,
+      });
+
+      resultsEl.textContent = JSON.stringify({ ok: true, observations, invokeCalls, clipboardTexts, clipboardWrites }, null, 2);
+    } catch (error) {
+      resultsEl.textContent = JSON.stringify({
+        ok: false,
+        error: String(error),
+        stack: error && error.stack ? String(error.stack) : null,
+        observations,
+        invokeCalls,
+        clipboardTexts,
+        clipboardWrites,
+      }, null, 2);
+    }
+  </script>
+</body>
+</html>

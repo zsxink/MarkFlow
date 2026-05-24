@@ -12,11 +12,14 @@ import Image from '@tiptap/extension-image';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
-import { pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
+import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
 import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
-import { resolveImagePath } from './pathUtils';
+import { getFileName, resolveImagePath } from './pathUtils';
+import { showMermaidContextMenu } from '../components/mermaidContextMenu';
+import { showImageContextMenu } from '../components/imageContextMenu';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const BlockImage = Image;
 
@@ -31,6 +34,7 @@ function mermaidCodeBlockExtension() {
         let draftSource = '';
         let renderVersion = 0;
         let destroyed = false;
+        let renderedSvg = '';
 
         const dom = document.createElement('div');
         let contentDOM: HTMLElement | null = null;
@@ -45,6 +49,7 @@ function mermaidCodeBlockExtension() {
         const isMermaid = () => getLanguage() === 'mermaid';
 
         const setCodeBlock = () => {
+          renderedSvg = '';
           dom.className = 'code-block-view';
           const language = getLanguage();
           if (!codeBlockPreEl || !codeBlockCodeEl) {
@@ -73,17 +78,20 @@ function mermaidCodeBlockExtension() {
         const renderPreview = async (code: string) => {
           if (!previewEl) return;
           const version = ++renderVersion;
+          renderedSvg = '';
           previewEl.className = 'mermaid-preview is-rendering';
           previewEl.textContent = '正在渲染 Mermaid 图表…';
           try {
             const svg = await renderMermaid(code);
             if (destroyed || version !== renderVersion || !previewEl) return;
+            renderedSvg = svg;
             syncError('');
             previewEl.className = 'mermaid-preview';
             previewEl.innerHTML = svg;
             previewEl.title = '左键点击编辑 Mermaid 源码';
           } catch (error) {
             if (destroyed || version !== renderVersion || !previewEl) return;
+            renderedSvg = '';
             const message = error instanceof Error ? error.message : 'Mermaid 渲染失败';
             syncError(message);
             previewEl.className = 'mermaid-preview is-error';
@@ -194,6 +202,15 @@ function mermaidCodeBlockExtension() {
               openEditor();
             }
           });
+          previewEl.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!renderedSvg) return;
+            showMermaidContextMenu(event.clientX, event.clientY, {
+              svg: renderedSvg,
+              defaultName: getMermaidExportBaseName(),
+            });
+          });
 
           previewPanel.append(errorEl, previewEl);
           return previewPanel;
@@ -302,84 +319,169 @@ function imageSrcResolverPlugin(): Extension {
 }
 
 function imageBubblePlugin(): Extension {
-  let bubble: HTMLElement | null = null;
+  let bubble: HTMLDivElement | null = null;
+  let hasDraftChanges: (() => boolean) | null = null;
 
   function removeBubble() {
     bubble?.remove();
     bubble = null;
+    hasDraftChanges = null;
+  }
+
+  function getOriginalSrc(src: string) {
+    return assetToOriginalMap.get(src) || src;
+  }
+
+  function getImageInfoFromTarget(view: any, target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) return null;
+    const img = target.closest('img');
+    if (!img) return null;
+    const basePos = view.posAtDOM(img, 0);
+    const candidates = [basePos, basePos - 1, basePos + 1].filter((value, index, array) => value >= 0 && array.indexOf(value) === index);
+    for (const pos of candidates) {
+      const node = view.state.doc.nodeAt(pos);
+      if (node?.type.name === 'image') {
+        return { img, node, pos };
+      }
+    }
+    return null;
+  }
+
+  async function applyImageChanges(view: any, pos: number, node: any, caption: string, pathValue: string) {
+    const trimmedPath = pathValue.trim();
+    if (!trimmedPath) return;
+
+    const oldSrc = node.attrs.src as string;
+
+    let nextSrc = trimmedPath;
+    let nextOriginalSrc: string | null = null;
+    if (trimmedPath.startsWith('http://') || trimmedPath.startsWith('https://')) {
+      const settings = await getImageSettings();
+      const docPath = getActiveDocPath();
+      const savedPath = await handleNetworkImage(trimmedPath, docPath, settings);
+      if (savedPath.startsWith('http://') || savedPath.startsWith('https://') || savedPath.startsWith('data:')) {
+        nextSrc = savedPath;
+      } else {
+        const absolutePath = docPath ? resolveImagePath(savedPath, docPath) : savedPath;
+        nextSrc = imagePathToSrc(absolutePath, null);
+        nextOriginalSrc = savedPath;
+      }
+    } else if (!trimmedPath.startsWith('data:')) {
+      const docPath = getActiveDocPath();
+      const absolutePath = docPath ? resolveImagePath(trimmedPath, docPath) : trimmedPath;
+      nextSrc = imagePathToSrc(absolutePath, null);
+      nextOriginalSrc = trimmedPath;
+    }
+
+    if (oldSrc !== nextSrc) {
+      assetToOriginalMap.delete(oldSrc);
+    }
+    if (nextOriginalSrc && nextOriginalSrc !== nextSrc) {
+      assetToOriginalMap.set(nextSrc, nextOriginalSrc);
+    } else {
+      assetToOriginalMap.delete(nextSrc);
+    }
+
+    const tr = view.state.tr;
+    tr.setNodeMarkup(pos, undefined, {
+      ...node.attrs,
+      src: nextSrc,
+      alt: caption.trim() || null,
+    });
+    view.dispatch(tr);
+    removeBubble();
+    view.focus();
   }
 
   function showBubble(view: any, pos: number, node: any) {
     removeBubble();
 
-    const dom = view.nodeDOM(pos) as HTMLElement;
+    const dom = view.nodeDOM(pos) as HTMLElement | null;
     if (!dom) return;
     const img = dom.querySelector('img') || (dom.tagName === 'IMG' ? dom : null);
     if (!img) return;
 
     const rect = img.getBoundingClientRect();
-    const editorRect = view.dom.closest('.editor-area')?.getBoundingClientRect();
-    if (!editorRect) return;
-
     bubble = document.createElement('div');
-    bubble.className = 'image-bubble';
+    bubble.className = 'image-bubble image-edit-panel';
     bubble.style.position = 'fixed';
     bubble.style.left = `${rect.left + rect.width / 2}px`;
-    bubble.style.top = `${rect.top - 8}px`;
+    bubble.style.top = `${rect.top - 12}px`;
     bubble.style.transform = 'translate(-50%, -100%)';
     bubble.style.zIndex = '150';
 
     const currentSrc = node.attrs.src as string;
-    const originalSrc = assetToOriginalMap.get(currentSrc) || currentSrc;
+    const originalSrc = getOriginalSrc(currentSrc);
+    const originalAlt = String(node.attrs.alt || '');
 
-    const inputEl = document.createElement('input');
-    inputEl.className = 'image-bubble-input';
-    inputEl.value = originalSrc;
-    inputEl.placeholder = '图片路径';
-    inputEl.style.cssText = 'width:320px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:var(--font-code);color:var(--fg);background:var(--surface);outline:none;';
-    inputEl.addEventListener('focus', () => { inputEl.style.borderColor = 'var(--accent)'; });
-    inputEl.addEventListener('blur', () => { inputEl.style.borderColor = 'var(--border)'; });
-    inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        applySrc(view, pos, node, inputEl.value);
-      }
-      if (e.key === 'Escape') {
-        removeBubble();
-        view.focus();
+    const row1 = document.createElement('div');
+    row1.className = 'image-edit-row image-edit-fields';
+
+    const captionLabel = document.createElement('label');
+    captionLabel.className = 'image-edit-label';
+    captionLabel.textContent = '图片注释';
+
+    const captionInput = document.createElement('input');
+    captionInput.className = 'image-edit-input';
+    captionInput.value = originalAlt;
+    captionInput.placeholder = '输入图片注释';
+
+    const pathLabel = document.createElement('label');
+    pathLabel.className = 'image-edit-label';
+    pathLabel.textContent = '路径';
+
+    const pathInput = document.createElement('input');
+    pathInput.className = 'image-edit-input image-edit-path-input';
+    pathInput.value = originalSrc;
+    pathInput.placeholder = '输入图片路径或 URL';
+
+    captionLabel.appendChild(captionInput);
+    pathLabel.appendChild(pathInput);
+    row1.append(captionLabel, pathLabel);
+
+    const row2 = document.createElement('div');
+    row2.className = 'image-edit-row image-edit-actions';
+
+    const chooseButton = document.createElement('button');
+    chooseButton.type = 'button';
+    chooseButton.className = 'image-edit-action';
+    chooseButton.textContent = '选择';
+    chooseButton.addEventListener('click', async () => {
+      const selected = await openDialog({
+        multiple: false,
+        filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }],
+      });
+      if (typeof selected === 'string') {
+        pathInput.value = selected;
       }
     });
-    const btn = document.createElement('button');
-    btn.textContent = '✓';
-    btn.style.cssText = 'padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--accent);color:white;cursor:pointer;font-size:13px;';
-    btn.addEventListener('click', () => applySrc(view, pos, node, inputEl.value));
 
-    bubble.append(inputEl, btn);
+    const confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'image-edit-action image-edit-confirm';
+    confirmButton.textContent = '确认';
+    confirmButton.addEventListener('click', async () => {
+      await applyImageChanges(view, pos, node, captionInput.value, pathInput.value);
+    });
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'image-edit-action';
+    cancelButton.textContent = '取消';
+    cancelButton.addEventListener('click', () => {
+      removeBubble();
+      view.focus();
+    });
+
+    row2.append(chooseButton, confirmButton, cancelButton);
+    bubble.append(row1, row2);
     document.body.appendChild(bubble);
 
-    requestAnimationFrame(() => inputEl.focus());
-  }
+    hasDraftChanges = () => {
+      return captionInput.value !== originalAlt || pathInput.value.trim() !== originalSrc;
+    };
 
-  function applySrc(view: any, pos: number, node: any, newSrc: string) {
-    if (!newSrc.trim()) return;
-    const trimmed = newSrc.trim();
-    const oldSrc = node.attrs.src as string;
-    assetToOriginalMap.delete(oldSrc);
-    if (trimmed.startsWith('http') || trimmed.startsWith('data:')) {
-      const tr = view.state.tr;
-      tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: trimmed });
-      view.dispatch(tr);
-    } else {
-      const docPath = getActiveDocPath();
-      const absolutePath = docPath ? resolveImagePath(trimmed, docPath) : trimmed;
-      const resolvedSrc = imagePathToSrc(absolutePath, null);
-      assetToOriginalMap.set(resolvedSrc, trimmed);
-      const tr = view.state.tr;
-      tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: resolvedSrc });
-      view.dispatch(tr);
-    }
-    removeBubble();
-    view.focus();
+    requestAnimationFrame(() => captionInput.focus());
   }
 
   return Extension.create({
@@ -389,33 +491,52 @@ function imageBubblePlugin(): Extension {
         new Plugin({
           key: new PluginKey('image-bubble'),
           view() {
-            document.addEventListener('mousedown', (e) => {
-              if (bubble && !bubble.contains(e.target as Node)) {
+            const handleMouseDown = (event: MouseEvent) => {
+              const target = event.target;
+              if (bubble && target instanceof Node && !bubble.contains(target) && !hasDraftChanges?.()) {
                 removeBubble();
               }
-            });
-            return {};
-          },
-          appendTransaction(_transactions, _oldState, newState) {
-            const sel = newState.selection;
-            const { $from } = sel;
-            const node = $from.parent;
-            if (node.type.name === 'image' && $from.parentOffset > 0) {
-              return;
-            }
-            if (newState.selection.empty) {
-              const nodeAtSel = newState.doc.nodeAt(sel.from);
-              if (nodeAtSel?.type.name === 'image') {
-                requestAnimationFrame(() => {
-                  if (editor) showBubble(editor.view, sel.from, nodeAtSel);
-                });
-                return undefined;
+            };
+            const handleKeyDown = (event: KeyboardEvent) => {
+              if (event.key === 'Escape' && bubble) {
+                removeBubble();
               }
-            }
-            if (bubble) {
-              requestAnimationFrame(() => removeBubble());
-            }
-            return undefined;
+            };
+            document.addEventListener('mousedown', handleMouseDown);
+            document.addEventListener('keydown', handleKeyDown);
+            return {
+              destroy() {
+                document.removeEventListener('mousedown', handleMouseDown);
+                document.removeEventListener('keydown', handleKeyDown);
+                removeBubble();
+              },
+            };
+          },
+          props: {
+            handleDOMEvents: {
+              click(view, event) {
+                if (event.button !== 0) return false;
+                const imageInfo = getImageInfoFromTarget(view, event.target);
+                if (!imageInfo) return false;
+                event.preventDefault();
+                event.stopPropagation();
+                showBubble(view, imageInfo.pos, imageInfo.node);
+                return true;
+              },
+              contextmenu(view, event) {
+                const imageInfo = getImageInfoFromTarget(view, event.target);
+                if (!imageInfo) return false;
+                event.preventDefault();
+                event.stopPropagation();
+                const currentSrc = imageInfo.node.attrs.src as string;
+                showImageContextMenu(event.clientX, event.clientY, {
+                  src: currentSrc,
+                  originalSrc: getOriginalSrc(currentSrc),
+                  docPath: getActiveDocPath(),
+                });
+                return true;
+              },
+            },
           },
         }),
       ];
@@ -704,6 +825,15 @@ export function switchToWysiwyg() {
 function getActiveDocPath(): string | null {
   const el = document.querySelector('.tree-file.active') as HTMLElement | null;
   return el?.dataset?.path || null;
+}
+
+function getMermaidExportBaseName() {
+  const activeDocPath = getActiveDocPath();
+  if (!activeDocPath) return 'mermaid-diagram';
+  const fileName = getFileName(activeDocPath);
+  const dotIndex = fileName.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+  return `${baseName || 'mermaid-diagram'}-mermaid`;
 }
 
 const DEFAULT_IMAGE_SETTINGS: ImageSettings = {

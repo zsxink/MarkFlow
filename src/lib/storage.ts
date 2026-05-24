@@ -7,12 +7,21 @@ export interface FileEntry {
   children?: FileEntry[];
 }
 
+export interface RemoteImageData {
+  data: string;
+  mimeType: string;
+}
+
 export async function readFile(path: string): Promise<string> {
   return invoke<string>('read_file', { path });
 }
 
 export async function writeFile(path: string, content: string): Promise<void> {
   return invoke('write_file', { path, content });
+}
+
+export async function saveMermaidSvgExport(svg: string, defaultName: string): Promise<boolean> {
+  return invoke<boolean>('save_mermaid_svg_export', { svg, defaultName });
 }
 
 export async function readDirRecursive(path: string): Promise<FileEntry[]> {
@@ -65,6 +74,18 @@ export async function readFileAsBase64(path: string): Promise<string> {
 
 export async function writeFileFromBase64(path: string, data: string): Promise<void> {
   return invoke('write_file_from_base64', { path, data });
+}
+
+export async function saveMermaidPngExport(data: string, defaultName: string): Promise<boolean> {
+  return invoke<boolean>('save_mermaid_png_export', { data, defaultName });
+}
+
+export async function saveImageExport(data: string, fileName: string, extension: string): Promise<boolean> {
+  return invoke<boolean>('save_image_export', { data, fileName, extension });
+}
+
+export async function fetchRemoteImageAsBase64(url: string): Promise<RemoteImageData> {
+  return invoke<RemoteImageData>('fetch_remote_image_as_base64', { url });
 }
 
 export async function downloadImage(url: string, dest: string): Promise<string> {

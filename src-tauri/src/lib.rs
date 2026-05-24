@@ -54,6 +54,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             files::read_file,
             files::write_file,
+            files::save_mermaid_svg_export,
+            files::save_mermaid_png_export,
+            files::save_image_export,
             files::read_dir_recursive,
             files::create_file,
             files::create_dir,
@@ -64,6 +67,7 @@ pub fn run() {
             files::file_exists,
             files::read_file_as_base64,
             files::write_file_from_base64,
+            files::fetch_remote_image_as_base64,
             files::download_image,
             settings::load_settings,
             settings::save_settings,

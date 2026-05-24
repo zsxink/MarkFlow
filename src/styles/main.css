@@ -606,31 +606,101 @@ html, body {
   margin: 1em 0;
 }
 
-/* Image bubble edit popup */
-.image-bubble {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px;
+/* Image edit popup */
+.image-bubble.image-edit-panel {
+  width: min(760px, calc(100vw - 32px));
+  padding: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: var(--shadow);
   pointer-events: auto;
 }
 
-.image-bubble::after {
+.image-bubble.image-edit-panel::after {
   content: '';
   position: absolute;
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border: 6px solid transparent;
+  border: 7px solid transparent;
   border-top-color: var(--border);
 }
 
-.image-bubble-input:focus {
-  border-color: var(--accent) !important;
+.image-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-edit-row + .image-edit-row {
+  margin-top: 10px;
+}
+
+.image-edit-fields {
+  align-items: stretch;
+}
+
+.image-edit-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.image-edit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background: var(--surface);
+  outline: none;
+}
+
+.image-edit-path-input {
+  font-family: var(--font-code);
+}
+
+.image-edit-input:focus {
+  border-color: var(--accent);
+}
+
+.image-edit-actions {
+  justify-content: flex-end;
+}
+
+.image-edit-action {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+.image-edit-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.image-edit-confirm {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.image-edit-confirm:hover {
+  color: white;
+  opacity: 0.92;
 }
 
 .ProseMirror .image-error-overlay {
@@ -842,6 +912,14 @@ html, body {
   padding: 4px 0;
   z-index: 200;
   min-width: 160px;
+}
+
+.mermaid-context-menu {
+  min-width: 190px;
+}
+
+.image-context-menu {
+  min-width: 170px;
 }
 
 .context-menu-item {

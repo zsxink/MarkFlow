@@ -4,9 +4,7 @@ mermaid.initialize({
   startOnLoad: false,
   theme: 'default',
   securityLevel: 'strict',
-  flowchart: {
-    htmlLabels: false,
-  },
+  htmlLabels: false,
 });
 
 let renderId = 0;

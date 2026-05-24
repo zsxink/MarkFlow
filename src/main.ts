@@ -7,7 +7,7 @@ import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
 import { getWorkspace, loadSettings } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath } from './components/fileTree';
-import { getActiveFilePath, saveActiveDocument } from './components/sidebar';
+import { getActiveFilePath, handleExternalDeletion, saveActiveDocument } from './components/sidebar';
 import { showToast } from './components/toast';
 import { listen } from '@tauri-apps/api/event';
 import './styles/variables.css';
@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activePath && path === activePath && kind === 'modify') {
       markExternalModification();
       showToast('文件已被外部修改，自动保存已暂停');
+    }
+    if (kind === 'delete' && handleExternalDeletion(path)) {
+      markExternalModification();
+      showToast('当前文件已被外部删除，自动保存已暂停');
     }
     if (kind === 'create' || kind === 'delete') {
       refreshFileTree();

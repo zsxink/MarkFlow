@@ -37,6 +37,20 @@ export function clearActiveDocumentIfMatches(path: string) {
   }
 }
 
+export function handleExternalDeletion(path: string) {
+  if (!activeFilePath) return false;
+  if (activeFilePath !== path && !activeFilePath.startsWith(`${path}/`)) return false;
+
+  if (isDocumentDirty() || hasExternalModification()) {
+    setActiveFilePath(null);
+    refreshOutline();
+    return true;
+  }
+
+  clearActiveDocument();
+  return true;
+}
+
 export function clearActiveDocument() {
   activeFilePath = null;
   setMarkdown('');

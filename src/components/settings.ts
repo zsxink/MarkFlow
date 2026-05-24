@@ -249,7 +249,6 @@ export function initSettings() {
                 <div class="shortcut-row"><span>切换侧边栏</span><span class="shortcut-key">Ctrl+\\</span></div>
                 <div class="shortcut-row"><span>专注模式</span><span class="shortcut-key">Ctrl+Shift+F</span></div>
                 <div class="shortcut-row"><span>源码模式</span><span class="shortcut-key">Ctrl+/</span></div>
-                <div class="shortcut-row"><span>新建文件</span><span class="shortcut-key">Ctrl+N</span></div>
               </div>
             </div>
             <div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">
@@ -399,10 +398,12 @@ function applyRuntimeSettings(settings: SettingsState) {
 }
 
 async function persistSettingsFromUI() {
-  currentSettings = buildSettingsFromUI();
-  applyRuntimeSettings(currentSettings);
+  const uiSettings = buildSettingsFromUI();
 
   try {
+    const persisted = await loadSettings();
+    currentSettings = { ...persisted, ...uiSettings };
+    applyRuntimeSettings(currentSettings);
     await saveSettings(currentSettings);
     document.dispatchEvent(new CustomEvent('settings-changed', {
       detail: { ...currentSettings },

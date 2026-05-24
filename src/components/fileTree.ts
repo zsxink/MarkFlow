@@ -208,13 +208,14 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
   folder.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showContextMenu(e.clientX, e.clientY, entry.path, 'folder');
+    const path = folder.dataset.path;
+    showContextMenu(e.clientX, e.clientY, path || null, 'folder');
   });
 
   // Mouse-drag: folder as drag source
   folder.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    dragSrcPath = entry.path;
+    dragSrcPath = folder.dataset.path || null;
     dragSrcEl = folder;
     isDragging = false;
   });
@@ -239,19 +240,23 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
 
   file.addEventListener('click', (e) => {
     e.stopPropagation();
-    openFileInEditor(entry.path);
+    const path = file.dataset.path;
+    if (path) {
+      openFileInEditor(path);
+    }
   });
 
   file.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showContextMenu(e.clientX, e.clientY, entry.path, 'file');
+    const path = file.dataset.path;
+    showContextMenu(e.clientX, e.clientY, path || null, 'file');
   });
 
   // Mouse-drag: file as drag source
   file.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    dragSrcPath = entry.path;
+    dragSrcPath = file.dataset.path || null;
     dragSrcEl = file;
     isDragging = false;
   });

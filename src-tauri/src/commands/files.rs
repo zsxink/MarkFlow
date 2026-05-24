@@ -373,17 +373,42 @@ pub fn write_file_from_base64(path: String, data: String, state: State<AppState>
 pub async fn download_image(url: String, dest: String, state: State<'_, AppState>) -> Result<String, String> {
     let dest_path = Path::new(&dest);
     validate_path_in_workspace(dest_path, &state)?;
-    let parsed_url = validate_remote_image_url(&url)?;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
-        .redirect(reqwest::redirect::Policy::limited(5))
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-    let response = client
-        .get(parsed_url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to download: {}", e))?;
+
+    let mut current_url = validate_remote_image_url(&url)?;
+    let mut redirects_remaining = 5;
+
+    let response = loop {
+        let response = client
+            .get(current_url.clone())
+            .send()
+            .await
+            .map_err(|e| format!("Failed to download: {}", e))?;
+
+        if response.status().is_redirection() {
+            if redirects_remaining == 0 {
+                return Err("Too many redirects".into());
+            }
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or("Redirect location missing")?;
+            let next_url = current_url
+                .join(location)
+                .map_err(|e| format!("Invalid redirect URL: {}", e))?;
+            current_url = validate_remote_image_url(next_url.as_ref())?;
+            redirects_remaining -= 1;
+            continue;
+        }
+
+        break response;
+    };
+
     if !response.status().is_success() {
         return Err(format!("HTTP error: {}", response.status()));
     }

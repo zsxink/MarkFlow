@@ -388,6 +388,184 @@ html, body {
   border-radius: 0;
 }
 
+.ProseMirror pre code.hljs {
+  display: block;
+}
+
+.ProseMirror pre code .hljs-comment,
+.ProseMirror pre code .hljs-quote {
+  color: #6b7280;
+}
+
+.ProseMirror pre code .hljs-keyword,
+.ProseMirror pre code .hljs-selector-tag,
+.ProseMirror pre code .hljs-subst {
+  color: #c2410c;
+}
+
+.ProseMirror pre code .hljs-string,
+.ProseMirror pre code .hljs-doctag,
+.ProseMirror pre code .hljs-regexp,
+.ProseMirror pre code .hljs-template-variable {
+  color: #047857;
+}
+
+.ProseMirror pre code .hljs-title,
+.ProseMirror pre code .hljs-section,
+.ProseMirror pre code .hljs-name,
+.ProseMirror pre code .hljs-selector-id,
+.ProseMirror pre code .hljs-selector-class {
+  color: #1d4ed8;
+}
+
+.ProseMirror pre code .hljs-attr,
+.ProseMirror pre code .hljs-attribute,
+.ProseMirror pre code .hljs-literal,
+.ProseMirror pre code .hljs-number,
+.ProseMirror pre code .hljs-symbol,
+.ProseMirror pre code .hljs-bullet,
+.ProseMirror pre code .hljs-link {
+  color: #7c3aed;
+}
+
+.ProseMirror pre code .hljs-built_in,
+.ProseMirror pre code .hljs-type,
+.ProseMirror pre code .hljs-class .hljs-title,
+.ProseMirror pre code .hljs-function .hljs-title {
+  color: #0f766e;
+}
+
+.ProseMirror pre code .hljs-meta,
+.ProseMirror pre code .hljs-meta .hljs-keyword {
+  color: #b45309;
+}
+
+.ProseMirror .mermaid-block {
+  margin-bottom: 1em;
+}
+
+.ProseMirror .mermaid-popup {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.ProseMirror .mermaid-popup .source-editor {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  max-width: none;
+  resize: vertical;
+  padding: 16px 18px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--fg);
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.ProseMirror .mermaid-popup .source-editor::selection {
+  background: rgba(59, 130, 246, 0.25);
+}
+
+.ProseMirror .mermaid-popup .source-editor:focus {
+  outline: none;
+}
+
+.ProseMirror .mermaid-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.ProseMirror .mermaid-action {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.ProseMirror .mermaid-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ProseMirror .mermaid-confirm {
+  border-color: var(--accent);
+  color: white;
+  background: var(--accent);
+}
+
+.ProseMirror .mermaid-confirm:hover {
+  color: white;
+}
+
+.ProseMirror .mermaid-preview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ProseMirror .mermaid-preview {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  overflow-x: auto;
+  background: var(--surface);
+}
+
+.ProseMirror .mermaid-preview:hover {
+  background: var(--accent-soft);
+}
+
+.ProseMirror .mermaid-preview.is-rendering {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ProseMirror .mermaid-preview.is-error {
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  font-family: var(--font-code);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.ProseMirror .mermaid-preview svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.ProseMirror .mermaid-error {
+  margin: 16px 18px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 6px;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  font-family: var(--font-code);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 .ProseMirror blockquote {
   border-left: 3px solid var(--accent);
   padding-left: 16px;
@@ -752,6 +930,102 @@ html, body {
 
 .modal-close:hover {
   color: var(--fg);
+}
+
+.external-conflict-modal {
+  width: 520px;
+}
+
+.external-conflict-body {
+  padding: 20px 24px 8px;
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.external-conflict-body p {
+  margin: 0 0 12px;
+}
+
+.external-conflict-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 24px 24px;
+}
+
+.external-conflict-action {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+.external-conflict-action.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.external-conflict-action.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.external-conflict-action.primary:hover {
+  opacity: 0.92;
+}
+
+.external-delete-modal {
+  width: 520px;
+}
+
+.external-delete-body {
+  padding: 20px 24px 8px;
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.external-delete-body p {
+  margin: 0 0 12px;
+}
+
+.external-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 24px 24px;
+}
+
+.external-delete-action {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+.external-delete-action.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.external-delete-action.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.external-delete-action.primary:hover {
+  opacity: 0.92;
 }
 
 /* Settings modal */

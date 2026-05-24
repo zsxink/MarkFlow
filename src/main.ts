@@ -7,7 +7,7 @@ import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
 import { getWorkspace, loadSettings } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath } from './components/fileTree';
-import { getActiveFilePath, handleExternalDeletion, saveActiveDocument } from './components/sidebar';
+import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, saveActiveDocument } from './components/sidebar';
 import { showToast } from './components/toast';
 import { listen } from '@tauri-apps/api/event';
 import './styles/variables.css';
@@ -50,17 +50,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     startAutoSave();
   });
 
-  listen<FileChangeEvent>('file-changed', (event) => {
+  listen<FileChangeEvent>('file-changed', async (event) => {
     const { path, kind } = event.payload;
     if (isSuppressedPath(path)) return;
     const activePath = getActiveFilePath();
     if (activePath && path === activePath && kind === 'modify') {
-      markExternalModification();
-      showToast('文件已被外部修改，自动保存已暂停');
+      const result = await handleActiveDocumentExternalModification();
+      if (result === 'reloaded') {
+        showToast('文件已从磁盘重新加载');
+      } else if (result === 'kept') {
+        showToast('已保留当前内容，自动保存已暂停');
+      } else if (result === 'failed') {
+        markExternalModification();
+        showToast('文件已被外部修改，自动保存已暂停');
+      }
     }
-    if (kind === 'delete' && handleExternalDeletion(path)) {
-      markExternalModification();
-      showToast('当前文件已被外部删除，自动保存已暂停');
+    if (kind === 'delete') {
+      const result = await handleExternalDeletion(path);
+      if (result === 'discarded') {
+        showToast('当前文件已删除并已放弃当前内容');
+      } else if (result === 'cleared') {
+        showToast('当前文件已被外部删除');
+      } else if (result === 'failed') {
+        showToast('重新保存失败，当前内容已保留');
+      }
     }
     if (kind === 'create' || kind === 'delete') {
       refreshFileTree();

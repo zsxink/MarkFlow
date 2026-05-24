@@ -1,4 +1,4 @@
-import { Editor } from '@tiptap/core';
+import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -13,14 +13,251 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
 import { pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
+import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
-import { Extension } from '@tiptap/core';
 import { resolveImagePath } from './pathUtils';
 
 const BlockImage = Image;
 
 const lowlight = createLowlight(common);
+
+function mermaidCodeBlockExtension() {
+  return CodeBlockLowlight.configure({ lowlight }).extend({
+    addNodeView() {
+      return ({ node, editor, getPos }) => {
+        let currentNode = node;
+        let isEditing = false;
+        let draftSource = '';
+        let renderVersion = 0;
+        let destroyed = false;
+
+        const dom = document.createElement('div');
+        let contentDOM: HTMLElement | null = null;
+        let codeBlockPreEl: HTMLPreElement | null = null;
+        let codeBlockCodeEl: HTMLElement | null = null;
+        let textareaEl: HTMLTextAreaElement | null = null;
+        let previewPanel: HTMLDivElement | null = null;
+        let previewEl: HTMLDivElement | null = null;
+        let errorEl: HTMLDivElement | null = null;
+
+        const getLanguage = () => String(currentNode.attrs.language || '').toLowerCase();
+        const isMermaid = () => getLanguage() === 'mermaid';
+
+        const setCodeBlock = () => {
+          dom.className = 'code-block-view';
+          const language = getLanguage();
+          if (!codeBlockPreEl || !codeBlockCodeEl) {
+            codeBlockPreEl = document.createElement('pre');
+            codeBlockCodeEl = document.createElement('code');
+            codeBlockPreEl.appendChild(codeBlockCodeEl);
+          }
+          codeBlockCodeEl.className = 'hljs';
+          if (language) codeBlockCodeEl.classList.add(`language-${language}`);
+          contentDOM = codeBlockCodeEl;
+          textareaEl = null;
+          previewPanel = null;
+          previewEl = null;
+          errorEl = null;
+          if (dom.firstChild !== codeBlockPreEl) {
+            dom.replaceChildren(codeBlockPreEl);
+          }
+        };
+
+        const syncError = (message: string) => {
+          if (!errorEl) return;
+          errorEl.hidden = !message;
+          errorEl.textContent = message;
+        };
+
+        const renderPreview = async (code: string) => {
+          if (!previewEl) return;
+          const version = ++renderVersion;
+          previewEl.className = 'mermaid-preview is-rendering';
+          previewEl.textContent = '正在渲染 Mermaid 图表…';
+          try {
+            const svg = await renderMermaid(code);
+            if (destroyed || version !== renderVersion || !previewEl) return;
+            syncError('');
+            previewEl.className = 'mermaid-preview';
+            previewEl.innerHTML = svg;
+            previewEl.title = '左键点击编辑 Mermaid 源码';
+          } catch (error) {
+            if (destroyed || version !== renderVersion || !previewEl) return;
+            const message = error instanceof Error ? error.message : 'Mermaid 渲染失败';
+            syncError(message);
+            previewEl.className = 'mermaid-preview is-error';
+            previewEl.textContent = message;
+            previewEl.title = 'Mermaid 渲染失败，左键点击编辑源码';
+          }
+        };
+
+        const applyMermaidSource = (source: string) => {
+          const pos = typeof getPos === 'function' ? getPos() : null;
+          if (pos === null || pos === undefined) return;
+          if (source !== currentNode.textContent) {
+            const tr = editor.view.state.tr.insertText(source, pos + 1, pos + currentNode.nodeSize - 1);
+            editor.view.dispatch(tr);
+            currentNode = editor.view.state.doc.nodeAt(pos) || currentNode;
+          }
+          draftSource = currentNode.textContent;
+          isEditing = false;
+          render();
+        };
+
+        const cancelEditing = () => {
+          draftSource = currentNode.textContent;
+          isEditing = false;
+          render();
+        };
+
+        const openEditor = () => {
+          draftSource = currentNode.textContent;
+          isEditing = true;
+          render();
+        };
+
+        const hasDraftChanges = () => {
+          const source = textareaEl?.value ?? draftSource;
+          return source !== currentNode.textContent;
+        };
+
+        const handleDocumentMouseDown = (event: MouseEvent) => {
+          if (!isEditing) return;
+          const target = event.target;
+          if (!(target instanceof Node) || dom.contains(target)) return;
+          if (!hasDraftChanges()) {
+            cancelEditing();
+          }
+        };
+
+        document.addEventListener('mousedown', handleDocumentMouseDown);
+
+        const createEditor = () => {
+          const editorWrap = document.createElement('div');
+          editorWrap.className = 'mermaid-popup';
+
+          textareaEl = document.createElement('textarea');
+          textareaEl.className = 'source-editor mermaid-popup-editor';
+          textareaEl.value = draftSource;
+          textareaEl.spellcheck = false;
+          textareaEl.addEventListener('input', () => {
+            if (textareaEl) draftSource = textareaEl.value;
+          });
+          textareaEl.addEventListener('keydown', (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+              event.preventDefault();
+              applyMermaidSource(textareaEl!.value);
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              cancelEditing();
+            }
+          });
+
+          const actions = document.createElement('div');
+          actions.className = 'mermaid-actions';
+
+          const confirmButton = document.createElement('button');
+          confirmButton.type = 'button';
+          confirmButton.className = 'mermaid-action mermaid-confirm';
+          confirmButton.textContent = '确认';
+          confirmButton.addEventListener('click', () => applyMermaidSource(textareaEl!.value));
+
+          const cancelButton = document.createElement('button');
+          cancelButton.type = 'button';
+          cancelButton.className = 'mermaid-action mermaid-cancel';
+          cancelButton.textContent = '取消';
+          cancelButton.addEventListener('click', cancelEditing);
+
+          actions.append(confirmButton, cancelButton);
+          editorWrap.append(textareaEl, actions);
+          return editorWrap;
+        };
+
+        const createPreviewPanel = () => {
+          previewPanel = document.createElement('div');
+          previewPanel.className = 'mermaid-preview-panel';
+
+          errorEl = document.createElement('div');
+          errorEl.className = 'mermaid-error';
+          errorEl.hidden = true;
+
+          previewEl = document.createElement('div');
+          previewEl.className = 'mermaid-preview is-rendering';
+          previewEl.title = '左键点击编辑 Mermaid 源码';
+          previewEl.addEventListener('mousedown', (event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (!isEditing) {
+              openEditor();
+            }
+          });
+
+          previewPanel.append(errorEl, previewEl);
+          return previewPanel;
+        };
+
+        const render = () => {
+          if (!isMermaid()) {
+            setCodeBlock();
+            return;
+          }
+
+          dom.className = `mermaid-block${isEditing ? ' is-editor-open' : ''}`;
+          contentDOM = null;
+
+          const children: HTMLElement[] = [];
+          if (isEditing) {
+            children.push(createEditor());
+          } else {
+            textareaEl = null;
+          }
+          children.push(createPreviewPanel());
+          dom.replaceChildren(...children);
+
+          if (isEditing && textareaEl) {
+            requestAnimationFrame(() => textareaEl?.focus());
+          }
+
+          void renderPreview(currentNode.textContent);
+        };
+
+        render();
+
+        return {
+          dom,
+          contentDOM: isMermaid() ? undefined : contentDOM || undefined,
+          update(updatedNode) {
+            if (updatedNode.type !== currentNode.type) return false;
+            const previousLanguage = getLanguage();
+            const wasMermaid = isMermaid();
+            currentNode = updatedNode;
+            if (wasMermaid !== isMermaid()) return false;
+            if (!isMermaid() && previousLanguage !== getLanguage()) return false;
+            if (!isEditing) {
+              draftSource = currentNode.textContent;
+            }
+            render();
+            return true;
+          },
+          stopEvent(event) {
+            return isMermaid() && dom.contains(event.target as Node);
+          },
+          ignoreMutation() {
+            return isMermaid();
+          },
+          destroy() {
+            destroyed = true;
+            renderVersion += 1;
+            document.removeEventListener('mousedown', handleDocumentMouseDown);
+          },
+        };
+      };
+    },
+  });
+}
 
 const assetToOriginalMap = new Map<string, string>();
 
@@ -361,9 +598,7 @@ export async function initEditor() {
           loading: 'lazy',
         },
       }),
-      CodeBlockLowlight.configure({
-        lowlight,
-      }),
+      mermaidCodeBlockExtension(),
       Markdown.configure({
         html: false,
         tightLists: true,

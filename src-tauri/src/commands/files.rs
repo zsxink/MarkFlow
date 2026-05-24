@@ -2,6 +2,7 @@ use crate::state::AppState;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
@@ -84,15 +85,23 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
         if name.starts_with('.') {
             continue;
         }
-        let is_dir = path.is_dir();
+        let metadata = fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+        let canonical = path.canonicalize().map_err(|e| format!("Failed to resolve path: {}", e))?;
+        if !canonical.starts_with(root) {
+            continue;
+        }
+        let is_dir = metadata.is_dir();
         let children = if is_dir {
-            Some(read_dir_inner(&path, root)?)
+            Some(read_dir_inner(&canonical, root)?)
         } else {
             None
         };
         entries.push(FileEntry {
             name,
-            path: normalize_path(&path),
+            path: normalize_path(&canonical),
             is_dir,
             children,
         });
@@ -184,6 +193,39 @@ fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<()
 
 const MAX_IMAGE_SIZE: u64 = 20 * 1024 * 1024; // 20MB
 
+fn validate_remote_image_url(raw: &str) -> Result<reqwest::Url, String> {
+    let url = reqwest::Url::parse(raw).map_err(|_| "Invalid URL")?;
+    match url.scheme() {
+        "http" | "https" => {}
+        _ => return Err("Only http/https URLs are allowed".into()),
+    }
+
+    let host = url.host_str().ok_or("URL host required")?;
+    if host.eq_ignore_ascii_case("localhost") {
+        return Err("Localhost URLs are not allowed".into());
+    }
+
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        let blocked = match ip {
+            IpAddr::V4(v4) => {
+                v4.is_private()
+                    || v4.is_loopback()
+                    || v4.is_link_local()
+                    || v4.is_multicast()
+                    || v4.is_unspecified()
+            }
+            IpAddr::V6(v6) => {
+                v6.is_loopback() || v6.is_multicast() || v6.is_unspecified() || v6.is_unique_local()
+            }
+        };
+        if blocked {
+            return Err("Private or local network URLs are not allowed".into());
+        }
+    }
+
+    Ok(url)
+}
+
 #[tauri::command]
 pub fn create_file(path: String, content: Option<String>, state: State<AppState>) -> Result<(), String> {
     let path = Path::new(&path);
@@ -231,8 +273,12 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
     for entry in fs::read_dir(from).map_err(|e| format!("Failed to read dir: {}", e))? {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let from_path = entry.path();
+        let metadata = fs::symlink_metadata(&from_path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
         let to_path = to.join(entry.file_name());
-        if from_path.is_dir() {
+        if metadata.is_dir() {
             copy_dir_recursive(&from_path, &to_path)?;
         } else {
             fs::copy(&from_path, &to_path).map_err(|e| format!("Failed to copy: {}", e))?;
@@ -268,10 +314,15 @@ pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileE
         if name.starts_with('.') {
             continue;
         }
+        let metadata = fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+        let canonical = path.canonicalize().map_err(|e| format!("Failed to resolve path: {}", e))?;
         entries.push(FileEntry {
             name,
-            path: normalize_path(&path),
-            is_dir: path.is_dir(),
+            path: normalize_path(&canonical),
+            is_dir: metadata.is_dir(),
             children: None,
         });
     }
@@ -322,13 +373,27 @@ pub fn write_file_from_base64(path: String, data: String, state: State<AppState>
 pub async fn download_image(url: String, dest: String, state: State<'_, AppState>) -> Result<String, String> {
     let dest_path = Path::new(&dest);
     validate_path_in_workspace(dest_path, &state)?;
+    let parsed_url = validate_remote_image_url(&url)?;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
+        .redirect(reqwest::redirect::Policy::limited(5))
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-    let response = client.get(&url).send().await.map_err(|e| format!("Failed to download: {}", e))?;
+    let response = client
+        .get(parsed_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download: {}", e))?;
     if !response.status().is_success() {
         return Err(format!("HTTP error: {}", response.status()));
+    }
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    if !content_type.starts_with("image/") {
+        return Err("Only image responses are allowed".into());
     }
     let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
     if bytes.len() as u64 > MAX_IMAGE_SIZE {

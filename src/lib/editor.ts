@@ -24,6 +24,13 @@ const lowlight = createLowlight(common);
 
 const assetToOriginalMap = new Map<string, string>();
 
+const documentState = {
+  dirty: false,
+  externallyModified: false,
+  programmaticUpdate: false,
+  lastPersistedMarkdown: '',
+};
+
 function imageSrcResolverPlugin(): Extension {
   return Extension.create({
     name: 'imageSrcResolver',
@@ -194,6 +201,24 @@ export function setMode(newMode: 'wysiwyg' | 'source') {
   mode = newMode;
 }
 
+export function isDocumentDirty() {
+  return documentState.dirty;
+}
+
+export function hasExternalModification() {
+  return documentState.externallyModified;
+}
+
+export function markExternalModification() {
+  documentState.externallyModified = true;
+}
+
+export function markDocumentPersisted(markdown: string) {
+  documentState.lastPersistedMarkdown = normalizeImageMarkdown(markdown);
+  documentState.dirty = false;
+  documentState.externallyModified = false;
+}
+
 function replaceAssetUrlsWithOriginal(markdown: string): string {
   let result = markdown;
   for (const [asset, original] of assetToOriginalMap) {
@@ -237,6 +262,10 @@ function normalizeImageMarkdown(markdown: string): string {
 }
 
 export function getMarkdown(): string {
+  if (mode === 'source') {
+    const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
+    return normalizeImageMarkdown(sourceEditor?.value || '');
+  }
   if (!editor) return '';
   return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown()));
 }
@@ -245,11 +274,14 @@ export function setMarkdown(content: string) {
   if (editor) {
     assetToOriginalMap.clear();
     const normalized = normalizeImageMarkdown(content);
+    documentState.programmaticUpdate = true;
     editor.commands.setContent(normalized);
     if (mode === 'source') {
       const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
       if (sourceEditor) sourceEditor.value = normalized;
     }
+    documentState.programmaticUpdate = false;
+    markDocumentPersisted(normalized);
   }
 }
 
@@ -344,6 +376,9 @@ export async function initEditor() {
     ],
     content: '',
     onUpdate: () => {
+      if (!documentState.programmaticUpdate) {
+        documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+      }
       document.dispatchEvent(new Event('editor-update'));
     },
     onSelectionUpdate: () => {
@@ -355,8 +390,8 @@ export async function initEditor() {
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   if (sourceEditor) {
     sourceEditor.addEventListener('input', () => {
-      if (editor && mode === 'source') {
-        editor.commands.setContent(normalizeImageMarkdown(sourceEditor.value));
+      if (mode === 'source') {
+        documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
       }
     });
   }

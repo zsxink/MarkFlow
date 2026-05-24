@@ -1,20 +1,35 @@
-import { getEditor, switchToSource, switchToWysiwyg, getMarkdown } from '../lib/editor';
+import { getEditor, switchToSource, switchToWysiwyg } from '../lib/editor';
 import { cycleTheme } from '../lib/theme';
 import { open } from '@tauri-apps/plugin-dialog';
-import { setWorkspacePath, refreshFileTree, getWorkspacePath, suppressNextWatcherRefresh } from './fileTree';
+import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree';
 import { showNewFileDialog } from './newFileDialog';
 import { showToast } from './toast';
-import { writeFile, loadSettings } from '../lib/storage';
-import { getActiveFilePath } from './sidebar';
+import { loadSettings } from '../lib/storage';
+import { clearActiveDocument, confirmDocumentTransition, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, type ImageSettings } from '../lib/imageUtils';
+
+function sanitizeLinkHref(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('#') || trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  try {
+    const url = new URL(trimmed);
+    if (['http:', 'https:', 'mailto:'].includes(url.protocol)) {
+      return url.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 export function initToolbar() {
   bindToolbarEvents();
 }
 
 function bindToolbarEvents() {
-  const editor = getEditor();
-
   bind('sidebar-toggle', () => {
     const sidebar = document.getElementById('sidebar');
     const btn = document.getElementById('sidebar-toggle');
@@ -32,7 +47,9 @@ function bindToolbarEvents() {
   bind('sidebar-open-folder', async () => {
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
+      if (!(await confirmDocumentTransition())) return;
       await setWorkspacePath(selected);
+      clearActiveDocument();
       await refreshFileTree();
       showToast('文件夹已打开');
     }
@@ -42,23 +59,27 @@ function bindToolbarEvents() {
     showNewFileDialog('file', getWorkspacePath());
   });
 
-  bind('btn-bold', () => editor?.chain().focus().toggleBold().run());
-  bind('btn-italic', () => editor?.chain().focus().toggleItalic().run());
-  bind('btn-strike', () => editor?.chain().focus().toggleStrike().run());
-  bind('btn-code', () => editor?.chain().focus().toggleCode().run());
-  bind('btn-h1', () => editor?.chain().focus().toggleHeading({ level: 1 }).run());
-  bind('btn-h2', () => editor?.chain().focus().toggleHeading({ level: 2 }).run());
-  bind('btn-quote', () => editor?.chain().focus().toggleBlockquote().run());
+  bind('btn-bold', () => getEditor()?.chain().focus().toggleBold().run());
+  bind('btn-italic', () => getEditor()?.chain().focus().toggleItalic().run());
+  bind('btn-strike', () => getEditor()?.chain().focus().toggleStrike().run());
+  bind('btn-code', () => getEditor()?.chain().focus().toggleCode().run());
+  bind('btn-h1', () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run());
+  bind('btn-h2', () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run());
+  bind('btn-quote', () => getEditor()?.chain().focus().toggleBlockquote().run());
   bind('btn-link', () => {
     const url = prompt('输入链接 URL:');
-    if (url && editor) {
-      editor.chain().focus().setLink({ href: url }).run();
+    const editor = getEditor();
+    const href = url ? sanitizeLinkHref(url) : null;
+    if (href && editor) {
+      editor.chain().focus().setLink({ href }).run();
+    } else if (url) {
+      showToast('不支持的链接协议');
     }
   });
-  bind('btn-ul', () => editor?.chain().focus().toggleBulletList().run());
-  bind('btn-ol', () => editor?.chain().focus().toggleOrderedList().run());
-  bind('btn-hr', () => editor?.chain().focus().setHorizontalRule().run());
-  bind('btn-codeblock', () => editor?.chain().focus().toggleCodeBlock().run());
+  bind('btn-ul', () => getEditor()?.chain().focus().toggleBulletList().run());
+  bind('btn-ol', () => getEditor()?.chain().focus().toggleOrderedList().run());
+  bind('btn-hr', () => getEditor()?.chain().focus().setHorizontalRule().run());
+  bind('btn-codeblock', () => getEditor()?.chain().focus().toggleCodeBlock().run());
 
   bind('btn-image', () => showImageInsertDialog());
 
@@ -88,20 +109,7 @@ function bindToolbarEvents() {
   });
 
   bind('btn-save', async () => {
-    const filePath = getActiveFilePath();
-    if (!filePath) {
-      showToast('没有打开的文件');
-      return;
-    }
-    try {
-      const content = getMarkdown();
-      suppressNextWatcherRefresh(filePath);
-      await writeFile(filePath, content);
-      showToast('已保存');
-    } catch (e) {
-      console.error('Save failed:', e);
-      showToast('保存失败');
-    }
+    await saveActiveDocument();
   });
 }
 

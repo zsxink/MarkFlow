@@ -16,6 +16,7 @@ export function getTheme(): Theme {
 export function setTheme(theme: Theme) {
   currentTheme = theme;
   document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('markflow-theme', theme);
   const icon = document.getElementById('theme-icon');
   if (icon) icon.textContent = THEME_ICONS[theme];
   const sbTheme = document.getElementById('sb-theme');

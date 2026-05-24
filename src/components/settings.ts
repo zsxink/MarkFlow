@@ -1,4 +1,35 @@
 import { setTheme } from '../lib/theme';
+import { loadSettings, saveSettings } from '../lib/storage';
+
+type Theme = 'light' | 'dark' | 'sepia';
+
+type SettingsState = Record<string, unknown>;
+
+const DEFAULT_SETTINGS: SettingsState = {
+  version: 1,
+  theme: 'light',
+  fontSize: 18,
+  lineHeight: 1.7,
+  autosave: true,
+  autosaveInterval: 10000,
+  spellcheck: true,
+  softWrap: true,
+  livePreview: true,
+  codeHighlight: true,
+  lineNumbers: false,
+  showSidebar: true,
+  showTooltips: true,
+  followSystemTheme: false,
+  lastWorkspace: null,
+  imageStorageMode: 'workspace-assets',
+  imageCustomPath: '',
+  imagePreferRelative: true,
+  imageAutoCopyLocal: true,
+  imageDownloadNetwork: false,
+  imageNamingStrategy: 'timestamp',
+};
+
+let currentSettings: SettingsState = { ...DEFAULT_SETTINGS };
 
 export function initSettings() {
   const overlay = document.getElementById('settings-modal');
@@ -231,23 +262,21 @@ export function initSettings() {
   `;
 
   bindSettingsEvents();
+  void hydrateSettingsUI();
 }
 
 function bindSettingsEvents() {
-  // Close
   document.getElementById('settings-close')?.addEventListener('click', () => {
     const modal = document.getElementById('settings-modal');
     if (modal) modal.hidden = true;
   });
 
-  // Click overlay to close
   document.getElementById('settings-modal')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) {
       (e.target as HTMLElement).hidden = true;
     }
   });
 
-  // Tab switching
   document.querySelectorAll('.settings-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       const panel = (tab as HTMLElement).dataset.panel;
@@ -259,29 +288,183 @@ function bindSettingsEvents() {
     });
   });
 
-  // Toggle switches
   document.querySelectorAll('.toggle').forEach(toggle => {
     toggle.addEventListener('click', () => {
       toggle.classList.toggle('active');
+      void persistSettingsFromUI();
     });
   });
 
-  // Theme swatches
   document.querySelectorAll('.theme-swatch').forEach(swatch => {
     swatch.addEventListener('click', () => {
-      const theme = (swatch as HTMLElement).dataset.theme as 'light' | 'dark' | 'sepia';
-      setTheme(theme);
+      const theme = (swatch as HTMLElement).dataset.theme as Theme;
       document.querySelectorAll('.theme-swatch').forEach(s => s.classList.remove('selected'));
       swatch.classList.add('selected');
+      setTheme(theme);
+      void persistSettingsFromUI();
     });
   });
 
-  // Image storage dropdown — show/hide custom path input
   const storageSelect = document.getElementById('setting-image-storage') as HTMLSelectElement | null;
   const customRow = document.getElementById('setting-image-custom-row');
   if (storageSelect && customRow) {
     storageSelect.addEventListener('change', () => {
       customRow.hidden = storageSelect.value !== 'custom';
+      void persistSettingsFromUI();
     });
   }
+
+  document.querySelectorAll('.settings-select').forEach(select => {
+    select.addEventListener('change', () => {
+      void persistSettingsFromUI();
+    });
+  });
+
+  document.getElementById('setting-image-custom-path')?.addEventListener('input', () => {
+    void persistSettingsFromUI();
+  });
+}
+
+async function hydrateSettingsUI() {
+  try {
+    const loaded = await loadSettings();
+    currentSettings = { ...DEFAULT_SETTINGS, ...loaded };
+  } catch (e) {
+    console.error('Failed to load settings UI state:', e);
+    currentSettings = { ...DEFAULT_SETTINGS };
+  }
+
+  applySettingsToUI(currentSettings);
+  applyRuntimeSettings(currentSettings);
+}
+
+function applySettingsToUI(settings: SettingsState) {
+  setToggleState('setting-autosave', settings.autosave !== false);
+  setSelectValue('setting-autosave-interval', String(settings.autosaveInterval ?? 10000));
+  setToggleState('setting-spellcheck', settings.spellcheck !== false);
+  setToggleState('setting-softwrap', settings.softWrap !== false);
+  setToggleState('setting-livepreview', settings.livePreview !== false);
+  setToggleState('setting-codehighlight', settings.codeHighlight !== false);
+  setToggleState('setting-linenumbers', settings.lineNumbers === true);
+  setToggleState('setting-sidebar', settings.showSidebar !== false);
+  setToggleState('setting-tooltips', settings.showTooltips !== false);
+  setToggleState('setting-follow-system', settings.followSystemTheme === true);
+
+  setSelectValue('setting-fontsize', String(settings.fontSize ?? 18));
+  setSelectValue('setting-lineheight', String(settings.lineHeight ?? 1.7));
+  setSelectValue('setting-image-storage', String(settings.imageStorageMode ?? 'workspace-assets'));
+  setInputValue('setting-image-custom-path', String(settings.imageCustomPath ?? ''));
+  setToggleState('setting-image-relative', settings.imagePreferRelative !== false);
+  setToggleState('setting-image-auto-copy', settings.imageAutoCopyLocal !== false);
+  setToggleState('setting-image-download', settings.imageDownloadNetwork === true);
+  setSelectValue('setting-image-naming', String(settings.imageNamingStrategy ?? 'timestamp'));
+
+  const selectedTheme = String(settings.theme ?? 'light') as Theme;
+  document.querySelectorAll('.theme-swatch').forEach(swatch => {
+    swatch.classList.toggle('selected', (swatch as HTMLElement).dataset.theme === selectedTheme);
+  });
+
+  const customRow = document.getElementById('setting-image-custom-row');
+  if (customRow) {
+    customRow.hidden = getSelectValue('setting-image-storage') !== 'custom';
+  }
+}
+
+function applyRuntimeSettings(settings: SettingsState) {
+  setTheme(String(settings.theme ?? 'light') as Theme);
+
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.classList.toggle('collapsed', settings.showSidebar === false);
+  }
+
+  const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
+  if (sourceEditor) {
+    sourceEditor.spellcheck = settings.spellcheck !== false;
+    sourceEditor.style.fontSize = `${Number(settings.fontSize ?? 18)}px`;
+    sourceEditor.style.lineHeight = String(settings.lineHeight ?? 1.7);
+    sourceEditor.style.whiteSpace = settings.softWrap === false ? 'pre' : 'pre-wrap';
+  }
+
+  const wysiwygEditor = document.getElementById('wysiwyg-editor');
+  if (wysiwygEditor) {
+    const root = wysiwygEditor.querySelector('.ProseMirror') as HTMLElement | null;
+    if (root) {
+      root.spellcheck = settings.spellcheck !== false;
+      root.style.fontSize = `${Number(settings.fontSize ?? 18)}px`;
+      root.style.lineHeight = String(settings.lineHeight ?? 1.7);
+      root.style.whiteSpace = settings.softWrap === false ? 'pre' : 'normal';
+    }
+  }
+}
+
+async function persistSettingsFromUI() {
+  currentSettings = buildSettingsFromUI();
+  applyRuntimeSettings(currentSettings);
+
+  try {
+    await saveSettings(currentSettings);
+    document.dispatchEvent(new CustomEvent('settings-changed', {
+      detail: { ...currentSettings },
+    }));
+  } catch (e) {
+    console.error('Failed to save settings:', e);
+  }
+}
+
+function buildSettingsFromUI(): SettingsState {
+  return {
+    ...currentSettings,
+    version: 1,
+    theme: getSelectedTheme(),
+    fontSize: Number(getSelectValue('setting-fontsize') || 18),
+    lineHeight: Number(getSelectValue('setting-lineheight') || 1.7),
+    autosave: getToggleState('setting-autosave'),
+    autosaveInterval: Number(getSelectValue('setting-autosave-interval') || 10000),
+    spellcheck: getToggleState('setting-spellcheck'),
+    softWrap: getToggleState('setting-softwrap'),
+    livePreview: getToggleState('setting-livepreview'),
+    codeHighlight: getToggleState('setting-codehighlight'),
+    lineNumbers: getToggleState('setting-linenumbers'),
+    showSidebar: getToggleState('setting-sidebar'),
+    showTooltips: getToggleState('setting-tooltips'),
+    followSystemTheme: getToggleState('setting-follow-system'),
+    imageStorageMode: getSelectValue('setting-image-storage') || 'workspace-assets',
+    imageCustomPath: getInputValue('setting-image-custom-path'),
+    imagePreferRelative: getToggleState('setting-image-relative'),
+    imageAutoCopyLocal: getToggleState('setting-image-auto-copy'),
+    imageDownloadNetwork: getToggleState('setting-image-download'),
+    imageNamingStrategy: getSelectValue('setting-image-naming') || 'timestamp',
+  };
+}
+
+function getSelectedTheme(): Theme {
+  const selected = document.querySelector('.theme-swatch.selected') as HTMLElement | null;
+  return (selected?.dataset.theme as Theme) || 'light';
+}
+
+function getToggleState(id: string) {
+  return document.getElementById(id)?.classList.contains('active') === true;
+}
+
+function setToggleState(id: string, active: boolean) {
+  document.getElementById(id)?.classList.toggle('active', active);
+}
+
+function getSelectValue(id: string) {
+  return (document.getElementById(id) as HTMLSelectElement | null)?.value || '';
+}
+
+function setSelectValue(id: string, value: string) {
+  const el = document.getElementById(id) as HTMLSelectElement | null;
+  if (el) el.value = value;
+}
+
+function getInputValue(id: string) {
+  return (document.getElementById(id) as HTMLInputElement | null)?.value || '';
+}
+
+function setInputValue(id: string, value: string) {
+  const el = document.getElementById(id) as HTMLInputElement | null;
+  if (el) el.value = value;
 }

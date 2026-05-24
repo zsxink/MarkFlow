@@ -1,8 +1,23 @@
-import { getEditor, switchToSource, switchToWysiwyg, getMode, getMarkdown } from '../lib/editor';
+import { getEditor, switchToSource, switchToWysiwyg, getMode } from '../lib/editor';
 import { showToast } from '../components/toast';
-import { writeFile } from '../lib/storage';
-import { getActiveFilePath } from '../components/sidebar';
-import { suppressNextWatcherRefresh } from '../components/fileTree';
+import { saveActiveDocument } from '../components/sidebar';
+
+function sanitizeLinkHref(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('#') || trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  try {
+    const url = new URL(trimmed);
+    if (['http:', 'https:', 'mailto:'].includes(url.protocol)) {
+      return url.toString();
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 export function initKeyboard() {
   document.addEventListener('keydown', async (e) => {
@@ -22,30 +37,19 @@ export function initKeyboard() {
         break;
       case 's':
         e.preventDefault();
-        {
-          const filePath = getActiveFilePath();
-          if (!filePath) {
-            showToast('没有打开的文件');
-            break;
-          }
-          try {
-            const content = getMarkdown();
-            suppressNextWatcherRefresh(filePath);
-            await writeFile(filePath, content);
-            showToast('已保存');
-          } catch (err) {
-            console.error('Save failed:', err);
-            showToast('保存失败');
-          }
-        }
+        await saveActiveDocument();
         break;
-      case 'k':
+      case 'k': {
         e.preventDefault();
         const url = prompt('输入链接 URL:');
-        if (url && editor) {
-          editor.chain().focus().setLink({ href: url }).run();
+        const href = url ? sanitizeLinkHref(url) : null;
+        if (href && editor) {
+          editor.chain().focus().setLink({ href }).run();
+        } else if (url) {
+          showToast('不支持的链接协议');
         }
         break;
+      }
       case '\\':
         e.preventDefault();
         document.getElementById('sidebar')?.classList.toggle('collapsed');

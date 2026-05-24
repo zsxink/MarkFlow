@@ -1,13 +1,13 @@
 import { initTheme } from './lib/theme';
-import { initEditor, getMarkdown } from './lib/editor';
+import { initEditor, markExternalModification } from './lib/editor';
 import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
 import { initStatusBar } from './components/statusbar';
 import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
-import { getWorkspace, writeFile, loadSettings } from './lib/storage';
-import { setWorkspacePath, refreshFileTree, isSuppressedPath, suppressNextWatcherRefresh } from './components/fileTree';
-import { getActiveFilePath } from './components/sidebar';
+import { getWorkspace, loadSettings } from './lib/storage';
+import { setWorkspacePath, refreshFileTree, isSuppressedPath } from './components/fileTree';
+import { getActiveFilePath, saveActiveDocument } from './components/sidebar';
 import { showToast } from './components/toast';
 import { listen } from '@tauri-apps/api/event';
 import './styles/variables.css';
@@ -32,12 +32,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   initTheme();
-  initToolbar();
   initSidebar();
   initStatusBar();
   initSettings();
-  initKeyboard();
   await initEditor();
+  initToolbar();
+  initKeyboard();
 
   const [loadedSettings] = await Promise.all([
     loadSettings().catch((e) => { console.error('Failed to load settings:', e); return {}; }),
@@ -45,12 +45,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   ]);
   settings = loadedSettings;
 
+  document.addEventListener('settings-changed', (event) => {
+    settings = (event as CustomEvent<Record<string, unknown>>).detail || {};
+    startAutoSave();
+  });
+
   listen<FileChangeEvent>('file-changed', (event) => {
     const { path, kind } = event.payload;
     if (isSuppressedPath(path)) return;
     const activePath = getActiveFilePath();
     if (activePath && path === activePath && kind === 'modify') {
-      showToast('文件已被外部修改');
+      markExternalModification();
+      showToast('文件已被外部修改，自动保存已暂停');
     }
     if (kind === 'create' || kind === 'delete') {
       refreshFileTree();
@@ -81,13 +87,7 @@ function startAutoSave() {
     autoSaveTimer = setInterval(async () => {
       const filePath = getActiveFilePath();
       if (filePath) {
-        try {
-          const content = getMarkdown();
-          suppressNextWatcherRefresh(filePath);
-          await writeFile(filePath, content);
-        } catch (e) {
-          console.error('Auto-save failed:', e);
-        }
+        await saveActiveDocument({ interactive: false });
       }
     }, interval);
   }

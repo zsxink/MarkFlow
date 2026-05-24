@@ -40,10 +40,15 @@ export function refreshOutline() {
     const item = document.createElement('div');
     item.className = 'outline-item';
     item.style.paddingLeft = `${16 + (h.level - 1) * 12}px`;
-    item.innerHTML = `
-      <span class="outline-level">H${h.level}</span>
-      <span>${h.text}</span>
-    `;
+
+    const level = document.createElement('span');
+    level.className = 'outline-level';
+    level.textContent = `H${h.level}`;
+
+    const text = document.createElement('span');
+    text.textContent = h.text;
+
+    item.append(level, text);
     item.addEventListener('click', () => {
       editor.commands.focus(h.pos);
       const editorEl = document.getElementById('wysiwyg-editor');

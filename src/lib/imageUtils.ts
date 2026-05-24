@@ -119,24 +119,33 @@ export async function pasteImageFile(
   return copyImageToStorage(raw, file.name || '', docPath, settings);
 }
 
+function validateRemoteImageUrl(url: string): string {
+  const parsed = new URL(url);
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Unsupported image URL protocol');
+  }
+  return parsed.toString();
+}
+
 export async function handleNetworkImage(
   url: string,
   docPath: string | null,
   settings: ImageSettings
 ): Promise<string> {
+  const normalizedUrl = validateRemoteImageUrl(url);
   if (settings.downloadNetwork) {
     const storageDir = await getStoragePath(settings, docPath);
     if (storageDir) {
       const name = await generateImageName(`download.${getExtension(url) || 'png'}`, settings.namingStrategy);
       const destPath = `${storageDir}/${name}`;
-      await downloadImage(url, destPath);
+      await downloadImage(normalizedUrl, destPath);
       if (settings.preferRelative && docPath) {
         return computeRelativePath(docPath, destPath);
       }
       return destPath.replace(/\\/g, '/');
     }
   }
-  return url;
+  return normalizedUrl;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

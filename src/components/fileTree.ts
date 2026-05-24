@@ -1,6 +1,6 @@
 import { readDirRecursive, setWorkspace as setWorkspaceIPC, createFile, createDir, renamePath, readSingleDir, type FileEntry } from '../lib/storage';
 import { getFileName } from '../lib/pathUtils';
-import { openFileInEditor, getActiveFilePath } from './sidebar';
+import { openFileInEditor, getActiveFilePath, rewriteActiveDocumentPath } from './sidebar';
 import { showContextMenu } from './contextMenu';
 import { showToast } from './toast';
 
@@ -227,6 +227,9 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
 function createFileNode(entry: FileEntry, depth: number): HTMLElement {
   const file = document.createElement('div');
   file.className = 'tree-file';
+  if (entry.path === getActiveFilePath()) {
+    file.classList.add('active');
+  }
   file.dataset.path = entry.path;
   file.style.paddingLeft = `${28 + depth * 12}px`;
   file.innerHTML = `
@@ -369,6 +372,7 @@ function initMouseDrag() {
           suppressNextWatcherRefresh(destPath);
           suppressAllDescendants(srcPath);
           await renamePath(srcPath, destPath);
+          rewriteActiveDocumentPath(srcPath, destPath);
           removeEntryFromTree(srcPath);
 
           if (srcIsFolder) {
@@ -404,6 +408,7 @@ export function startInlineRename(path: string) {
 
   const oldName = span.textContent || '';
   const input = createInlineInput(oldName, oldName);
+  const isFolder = el.classList.contains('tree-folder');
 
   const finishRename = async (newName: string) => {
     if (!newName || newName === oldName) {
@@ -419,29 +424,32 @@ export function startInlineRename(path: string) {
     try {
       suppressNextWatcherRefresh(path);
       suppressNextWatcherRefresh(newPath);
+      if (isFolder) {
+        suppressAllDescendants(path);
+        suppressAllDescendants(newPath);
+      }
       await renamePath(path, newPath);
+      rewriteActiveDocumentPath(path, newPath);
       span.textContent = newName;
       span.style.display = '';
       input.remove();
       el.dataset.path = newPath;
 
-      // Update active file path if this was the active file
-      if (getActiveFilePath() === path) {
-        const { setActiveFilePath } = await import('./sidebar');
-        setActiveFilePath(newPath);
+      if (isFolder) {
+        await refreshFileTree();
+        showToast('已重命名');
+        return;
       }
 
       // Re-sort within parent container
       const container = el.classList.contains('tree-file') ? el.parentElement : el.parentElement?.parentElement;
       if (container) {
-        const isDir = el.classList.contains('tree-folder');
         const siblings = Array.from(container.children).filter(c => c !== el && c !== el.parentElement);
         let target: Element | null = null;
         for (const sib of siblings) {
           const sibIsDir = sib.classList.contains('tree-folder') || sib.querySelector(':scope > .tree-folder') !== null;
           const sibName = (sib.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement)?.textContent || '';
-          if (isDir && !sibIsDir) continue;
-          if (!isDir && sibIsDir) { target = sib; break; }
+          if (sibIsDir) { target = sib; break; }
           if (sibName.localeCompare(newName) >= 0) { target = sib; break; }
         }
         const node = el.classList.contains('tree-file') ? el : el.parentElement!;

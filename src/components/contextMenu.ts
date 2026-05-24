@@ -1,6 +1,7 @@
 import { deletePath, copyFile, readSingleDir } from '../lib/storage';
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate } from './fileTree';
 import { showToast } from './toast';
+import { clearActiveDocumentIfMatches } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
 import { open } from '@tauri-apps/plugin-shell';
 import { ask } from '@tauri-apps/plugin-dialog';
@@ -125,6 +126,7 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         });
         if (confirmed) {
           await deletePath(path);
+          clearActiveDocumentIfMatches(path);
           removeEntryFromTree(path);
           showToast('已删除');
         }

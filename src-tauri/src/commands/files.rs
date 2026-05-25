@@ -1,3 +1,4 @@
+use crate::paths::normalize_path;
 use crate::state::AppState;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,7 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
+use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -38,17 +40,6 @@ fn validate_path(target: &Path, workspace_root: &Path) -> Result<PathBuf, String
     Ok(target)
 }
 
-/// Strip Windows `\\?\` prefix and normalize to forward slashes
-fn normalize_path(p: &Path) -> String {
-    let s = p.to_string_lossy().to_string();
-    let s = if s.starts_with(r"\\?\") {
-        &s[4..]
-    } else {
-        &s
-    };
-    s.replace('\\', "/")
-}
-
 fn resolve_path(raw: &str, state: &State<AppState>) -> Result<PathBuf, String> {
     let path = Path::new(raw);
     match state.get_workspace() {
@@ -71,7 +62,8 @@ pub fn read_file(path: String, state: State<AppState>) -> Result<String, String>
 #[tauri::command]
 pub fn write_file(path: String, content: String, state: State<AppState>) -> Result<(), String> {
     let path = resolve_path(&path, &state)?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))
+    fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))?;
+    Ok(())
 }
 
 fn select_export_path(
@@ -109,6 +101,7 @@ pub async fn save_mermaid_svg_export(
     };
 
     fs::write(&path, svg).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(&path), "Exported Mermaid SVG");
     Ok(true)
 }
 
@@ -131,6 +124,7 @@ pub async fn save_mermaid_png_export(
     };
 
     fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(&path), "Exported Mermaid PNG");
     Ok(true)
 }
 
@@ -159,6 +153,7 @@ pub async fn save_image_export(
     };
 
     fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(&path), extension = %ext, "Exported image");
     Ok(true)
 }
 
@@ -399,7 +394,9 @@ pub fn create_file(path: String, content: Option<String>, state: State<AppState>
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
     }
-    fs::write(path, content).map_err(|e| format!("Failed to create file: {}", e))
+    fs::write(path, content).map_err(|e| format!("Failed to create file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(path), "Created file");
+    Ok(())
 }
 
 #[tauri::command]
@@ -417,17 +414,21 @@ pub fn rename_path(from: String, to: String, state: State<AppState>) -> Result<(
     let from = resolve_path(&from, &state)?;
     let to = Path::new(&to);
     validate_parent_in_workspace(to, &state)?;
-    fs::rename(&from, to).map_err(|e| format!("Failed to rename: {}", e))
+    fs::rename(&from, to).map_err(|e| format!("Failed to rename: {}", e))?;
+    info!(target: "backend.files", from = %normalize_path(&from), to = %normalize_path(to), "Renamed path");
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_path(path: String, state: State<AppState>) -> Result<(), String> {
     let path = resolve_path(&path, &state)?;
     if path.is_dir() {
-        fs::remove_dir_all(&path).map_err(|e| format!("Failed to remove dir: {}", e))
+        fs::remove_dir_all(&path).map_err(|e| format!("Failed to remove dir: {}", e))?;
     } else {
-        fs::remove_file(&path).map_err(|e| format!("Failed to remove file: {}", e))
+        fs::remove_file(&path).map_err(|e| format!("Failed to remove file: {}", e))?;
     }
+    info!(target: "backend.files", path = %normalize_path(&path), "Deleted path");
+    Ok(())
 }
 
 fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
@@ -540,5 +541,6 @@ pub async fn download_image(url: String, dest: String, state: State<'_, AppState
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
     }
     fs::write(dest_path, &bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(dest_path), url = %url, bytes = bytes.len(), "Downloaded image");
     Ok(dest)
 }

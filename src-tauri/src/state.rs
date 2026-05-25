@@ -1,6 +1,8 @@
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
+use crate::paths::normalize_path;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use tracing::{debug, error};
 
 pub struct AppState {
     pub workspace_root: Mutex<Option<PathBuf>>,
@@ -16,17 +18,20 @@ impl AppState {
     }
 
     pub fn set_workspace(&self, path: PathBuf, event_handler: impl Fn(FileChangeEvent) + Send + 'static) {
-        // Stop previous watcher by dropping it
-        let mut watcher = self.watcher.lock().unwrap();
-        *watcher = None;
+        let path_display = normalize_path(&path);
 
-        // Start new watcher
+        let mut watcher = self.watcher.lock().unwrap();
+        if watcher.take().is_some() {
+            debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
+        }
+
         match FileWatcher::new(path.clone(), event_handler) {
             Ok(w) => {
                 *watcher = Some(w);
+                debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");
             }
-            Err(e) => {
-                eprintln!("Failed to start file watcher: {}", e);
+            Err(error) => {
+                error!(target: "backend.watcher", path = %path_display, error = %error, "Failed to start workspace watcher");
             }
         }
 

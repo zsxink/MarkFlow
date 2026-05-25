@@ -20,6 +20,7 @@ import { getFileName, resolveImagePath } from './pathUtils';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showImageContextMenu } from '../components/imageContextMenu';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { logException } from './logger';
 
 const BlockImage = Image;
 
@@ -765,7 +766,7 @@ export async function initEditor() {
         const src = await pasteImageFile(file, docPath, settings);
         editor?.chain().focus().setImage({ src }).run();
       } catch (e) {
-        console.error('Image paste failed:', e);
+        logException('editor.image', 'Image paste failed', e, { source: 'paste', fileName: file.name });
       }
     }
   });
@@ -788,7 +789,7 @@ export async function initEditor() {
         const src = await pasteImageFile(file, docPath, settings);
         editor?.chain().focus().setImage({ src }).run();
       } catch (e) {
-        console.error('Image drop failed:', e);
+        logException('editor.image', 'Image drop failed', e, { source: 'drop', fileName: file.name });
       }
     }
   });

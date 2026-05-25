@@ -5,6 +5,7 @@ import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, star
 import { initOutline, refreshOutline } from './outline';
 import { showContextMenu } from './contextMenu';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { logException, logInfo } from '../lib/logger';
 
 let activeFilePath: string | null = null;
 let externalConflictDialogPromise: Promise<'keep' | 'disk' | 'save-as'> | null = null;
@@ -335,10 +336,13 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     suppressNextWatcherRefresh(filePath);
     await writeFile(filePath, content);
     markDocumentPersisted(content);
-    if (interactive) showToast('已保存');
+    if (interactive) {
+      logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
+      showToast('已保存');
+    }
     return true;
   } catch (e) {
-    console.error('Save failed:', e);
+    logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
     if (interactive) showToast('保存失败');
     return false;
   }

@@ -1,5 +1,6 @@
 import { setTheme } from '../lib/theme';
 import { loadSettings, saveSettings } from '../lib/storage';
+import { logException } from '../lib/logger';
 
 type Theme = 'light' | 'dark' | 'sepia';
 
@@ -329,7 +330,7 @@ async function hydrateSettingsUI() {
     const loaded = await loadSettings();
     currentSettings = { ...DEFAULT_SETTINGS, ...loaded };
   } catch (e) {
-    console.error('Failed to load settings UI state:', e);
+    logException('settings.ui', 'Failed to load settings UI state', e);
     currentSettings = { ...DEFAULT_SETTINGS };
   }
 
@@ -409,7 +410,7 @@ async function persistSettingsFromUI() {
       detail: { ...currentSettings },
     }));
   } catch (e) {
-    console.error('Failed to save settings:', e);
+    logException('settings.ui', 'Failed to save settings', e);
   }
 }
 

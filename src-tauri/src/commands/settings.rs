@@ -1,22 +1,26 @@
 use crate::config::settings::Settings;
+use crate::paths::{normalize_path, settings_path};
 use std::fs;
-use std::path::PathBuf;
-
-fn settings_path() -> PathBuf {
-    let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-    path.push("MarkFlow");
-    path.push("settings.json");
-    path
-}
+use tracing::{debug, warn};
 
 pub fn load_settings_inner() -> Settings {
     let path = settings_path();
     if !path.exists() {
+        debug!(target: "backend.settings", path = %normalize_path(&path), "Settings file not found, using defaults");
         return Settings::default();
     }
     match fs::read_to_string(&path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
-        Err(_) => Settings::default(),
+        Ok(content) => match serde_json::from_str(&content) {
+            Ok(settings) => settings,
+            Err(error) => {
+                warn!(target: "backend.settings", path = %normalize_path(&path), error = %error, "Failed to parse settings, using defaults");
+                Settings::default()
+            }
+        },
+        Err(error) => {
+            warn!(target: "backend.settings", path = %normalize_path(&path), error = %error, "Failed to read settings, using defaults");
+            Settings::default()
+        }
     }
 }
 
@@ -27,7 +31,9 @@ pub fn save_settings_inner(settings: &Settings) -> Result<(), String> {
     }
     let content =
         serde_json::to_string_pretty(settings).map_err(|e| format!("Failed to serialize: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write settings: {}", e))
+    fs::write(&path, content).map_err(|e| format!("Failed to write settings: {}", e))?;
+    debug!(target: "backend.settings", path = %normalize_path(&path), "Saved settings");
+    Ok(())
 }
 
 #[tauri::command]

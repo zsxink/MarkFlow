@@ -3,6 +3,7 @@ import { getFileName } from '../lib/pathUtils';
 import { openFileInEditor, getActiveFilePath, rewriteActiveDocumentPath } from './sidebar';
 import { showContextMenu } from './contextMenu';
 import { showToast } from './toast';
+import { logException, logInfo } from '../lib/logger';
 
 let workspacePath: string | null = null;
 let expandedPaths: Set<string> = new Set();
@@ -39,8 +40,9 @@ export async function setWorkspacePath(path: string | null) {
   if (path) {
     try {
       await setWorkspaceIPC(path);
+      logInfo('file-tree.workspace', 'Workspace selected', { path: workspacePath });
     } catch (e) {
-      console.error('Failed to set workspace:', e);
+      logException('file-tree.workspace', 'Failed to set workspace', e, { path });
     }
   }
 }
@@ -82,7 +84,7 @@ export async function refreshFileTree() {
     renderFileTree(entries);
     restoreExpandedState();
   } catch (e) {
-    console.error('Failed to refresh file tree:', e);
+    logException('file-tree.refresh', 'Failed to refresh file tree', e, { path: workspacePath });
   }
 }
 
@@ -700,7 +702,7 @@ export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) 
       const children = await readDirRecursive(entry.path);
       resolvedEntry = { ...entry, children };
     } catch (e) {
-      console.error('Failed to read folder children:', e);
+      logException('file-tree.refresh', 'Failed to read folder children', e, { path: entry.path });
     }
   }
   const node = createTreeNode(resolvedEntry, depth);

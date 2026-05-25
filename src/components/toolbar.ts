@@ -7,6 +7,7 @@ import { showToast } from './toast';
 import { loadSettings } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, type ImageSettings } from '../lib/imageUtils';
+import { logException } from '../lib/logger';
 
 function sanitizeLinkHref(input: string): string | null {
   const trimmed = input.trim();
@@ -224,7 +225,7 @@ function showImageInsertDialog() {
       editor?.chain().focus().setImage({ src }).run();
       close();
     } catch (e) {
-      console.error('Image insert failed:', e);
+      logException('toolbar.image', 'Failed to insert local image', e, { source: 'local' });
       showToast('图片插入失败');
     }
   });
@@ -242,7 +243,7 @@ function showImageInsertDialog() {
         editor?.chain().focus().setImage({ src }).run();
         close();
       } catch (e) {
-        console.error('Image insert failed:', e);
+        logException('toolbar.image', 'Failed to insert network image', e, { source: 'url', url });
         showToast('图片插入失败');
       }
     } else {

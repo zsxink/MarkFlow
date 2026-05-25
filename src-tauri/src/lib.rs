@@ -1,10 +1,13 @@
 mod commands;
 mod config;
 mod fs;
+mod logger;
+mod paths;
 mod state;
 
 use commands::files;
 use commands::settings;
+use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use tauri::{Emitter, Manager};
@@ -17,33 +20,38 @@ fn set_workspace(
 ) -> Result<(), String> {
     let workspace = PathBuf::from(&path);
     if !workspace.is_dir() {
+        tracing::warn!(target: "backend.workspace", path = %path, "Rejected non-directory workspace path");
         return Err("Workspace path is not a directory".into());
     }
+
+    tracing::info!(target: "backend.workspace", path = %path, "Switching workspace");
 
     let app_handle = app.clone();
     state.set_workspace(workspace, move |event| {
         let _ = app_handle.emit("file-changed", &event);
     });
 
-    // Persist to settings
     let mut settings = settings::load_settings_inner();
-    settings.last_workspace = Some(path);
-    let _ = settings::save_settings_inner(&settings);
+    settings.last_workspace = Some(path.clone());
+    if let Err(error) = settings::save_settings_inner(&settings) {
+        tracing::warn!(target: "backend.workspace", path = %path, error = %error, "Failed to persist workspace setting");
+    }
 
+    tracing::info!(target: "backend.workspace", path = %path, "Workspace switched");
     Ok(())
 }
 
 #[tauri::command]
 fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, String> {
-    Ok(state.get_workspace().map(|p| {
-        let s = p.to_string_lossy().to_string();
-        // Strip Windows \\?\ prefix and normalize to /
-        let s = if s.starts_with(r"\\?\") { &s[4..] } else { &s };
-        s.replace('\\', "/")
-    }))
+    Ok(state.get_workspace().map(|p| normalize_path(&p)))
 }
 
 pub fn run() {
+    if let Err(error) = logger::init_logging() {
+        eprintln!("Failed to initialize logger: {}", error);
+    }
+    tracing::info!(target: "backend.app", "Application starting");
+
     let app_state = AppState::new();
 
     tauri::Builder::default()
@@ -71,11 +79,11 @@ pub fn run() {
             files::download_image,
             settings::load_settings,
             settings::save_settings,
+            logger::log_frontend_event,
             set_workspace,
             get_workspace,
         ])
         .setup(|app| {
-            // Restore last workspace on startup
             let settings = settings::load_settings_inner();
             if let Some(last_ws) = settings.last_workspace {
                 let path = PathBuf::from(&last_ws);
@@ -85,6 +93,9 @@ pub fn run() {
                     state.set_workspace(path, move |event| {
                         let _ = app_handle.emit("file-changed", &event);
                     });
+                    tracing::info!(target: "backend.workspace", path = %last_ws, "Restored last workspace");
+                } else {
+                    tracing::warn!(target: "backend.workspace", path = %last_ws, "Skipped missing last workspace");
                 }
             }
             Ok(())

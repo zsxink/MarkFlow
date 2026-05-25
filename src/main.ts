@@ -9,6 +9,7 @@ import { getWorkspace, loadSettings } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, saveActiveDocument } from './components/sidebar';
 import { showToast } from './components/toast';
+import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
 import './styles/variables.css';
 import './styles/main.css';
@@ -23,6 +24,8 @@ let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Record<string, unknown> = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
+  logInfo('app.lifecycle', 'Application boot started');
+
   // Block contextmenu outside sidebar (sidebar handles its own)
   document.addEventListener('contextmenu', (e) => {
     const target = e.target as HTMLElement;
@@ -40,7 +43,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initKeyboard();
 
   const [loadedSettings] = await Promise.all([
-    loadSettings().catch((e) => { console.error('Failed to load settings:', e); return {}; }),
+    loadSettings().catch((e) => {
+      logException('app.settings', 'Failed to load settings during startup', e);
+      return {};
+    }),
     restoreWorkspace(),
   ]);
   settings = loadedSettings;
@@ -89,9 +95,10 @@ async function restoreWorkspace() {
     if (lastWorkspace) {
       await setWorkspacePath(lastWorkspace);
       await refreshFileTree();
+      logInfo('app.workspace', 'Restored workspace', { path: lastWorkspace });
     }
   } catch (e) {
-    console.error('Failed to restore workspace:', e);
+    logException('app.workspace', 'Failed to restore workspace', e);
   }
 }
 
@@ -99,6 +106,7 @@ function startAutoSave() {
   stopAutoSave();
   const enabled = settings.autosave !== false;
   const interval = (settings.autosaveInterval as number) || 10000;
+  logDebug('app.autosave', 'Updated autosave schedule', { enabled, interval });
 
   if (enabled) {
     autoSaveTimer = setInterval(async () => {

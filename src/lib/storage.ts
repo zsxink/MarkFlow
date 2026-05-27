@@ -95,3 +95,7 @@ export async function downloadImage(url: string, dest: string): Promise<string> 
 export async function fileExists(path: string): Promise<boolean> {
   return invoke<boolean>('file_exists', { path });
 }
+
+export async function hasCliFile(): Promise<boolean> {
+  return invoke<boolean>('has_cli_file');
+}

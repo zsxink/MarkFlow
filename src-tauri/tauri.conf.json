@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
   "productName": "MarkFlow",
-  "version": "1.0.0",
-  "identifier": "com.markflow.app",
+  "version": "0.0.1",
+  "identifier": "com.markflow.editor",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -31,13 +31,37 @@
     }
   },
   "bundle": {
+    "active": true,
+    "targets": "all",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "displayLanguageSelector": true,
+        "languages": ["SimpChinese", "English"]
+      },
+      "wix": {
+        "language": ["zh-CN"]
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": ["md"],
+        "mimeType": "text/markdown",
+        "description": "Markdown 文件",
+        "role": "Editor"
+      }
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {}
   },
   "plugins": {
     "shell": {

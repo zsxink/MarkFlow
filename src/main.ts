@@ -5,9 +5,9 @@ import { initSidebar } from './components/sidebar';
 import { initStatusBar } from './components/statusbar';
 import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
-import { getWorkspace, loadSettings } from './lib/storage';
+import { getWorkspace, loadSettings, hasCliFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath } from './components/fileTree';
-import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, saveActiveDocument } from './components/sidebar';
+import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument } from './components/sidebar';
 import { showToast } from './components/toast';
 import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
@@ -42,14 +42,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   initToolbar();
   initKeyboard();
 
-  const [loadedSettings] = await Promise.all([
+  const [loadedSettings, cliFile] = await Promise.all([
     loadSettings().catch((e) => {
       logException('app.settings', 'Failed to load settings during startup', e);
       return {};
     }),
-    restoreWorkspace(),
+    hasCliFile(),
   ]);
   settings = loadedSettings;
+
+  if (!cliFile) {
+    await restoreWorkspace();
+  } else {
+    logInfo('app.lifecycle', 'Skipping workspace restore (single-file mode)');
+  }
 
   document.addEventListener('settings-changed', (event) => {
     settings = (event as CustomEvent<Record<string, unknown>>).detail || {};
@@ -84,6 +90,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (kind === 'create' || kind === 'delete') {
       refreshFileTree();
     }
+  });
+
+  // Handle file opened via CLI (file association / right-click "Open with")
+  listen<string>('open-file-from-cli', async (event) => {
+    const filePath = event.payload;
+    logInfo('app.lifecycle', 'Opening file from CLI', { path: filePath });
+    await openFileInEditor(filePath);
   });
 
   startAutoSave();

@@ -10,7 +10,10 @@ use commands::settings;
 use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Emitter, Manager};
+
+static HAS_CLI_FILE: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 fn set_workspace(
@@ -44,6 +47,11 @@ fn set_workspace(
 #[tauri::command]
 fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, String> {
     Ok(state.get_workspace().map(|p| normalize_path(&p)))
+}
+
+#[tauri::command]
+fn has_cli_file() -> bool {
+    HAS_CLI_FILE.load(Ordering::Relaxed)
 }
 
 pub fn run() {
@@ -82,10 +90,18 @@ pub fn run() {
             logger::log_frontend_event,
             set_workspace,
             get_workspace,
+            has_cli_file,
         ])
         .setup(|app| {
             let settings = settings::load_settings_inner();
-            if let Some(last_ws) = settings.last_workspace {
+
+            // Check CLI args for file path (opened via file association)
+            let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
+
+            if cli_file.is_some() {
+                HAS_CLI_FILE.store(true, Ordering::Relaxed);
+                tracing::info!(target: "backend.app", path = %cli_file.as_ref().unwrap().display(), "Opened via file association (single-file mode)");
+            } else if let Some(last_ws) = settings.last_workspace {
                 let path = PathBuf::from(&last_ws);
                 if path.is_dir() {
                     let state = app.state::<AppState>();
@@ -98,6 +114,18 @@ pub fn run() {
                     tracing::warn!(target: "backend.workspace", path = %last_ws, "Skipped missing last workspace");
                 }
             }
+
+            // Emit file path to frontend after a short delay to ensure it's ready
+            if let Some(file_path) = cli_file {
+                let app_handle = app.handle().clone();
+                let path_str = file_path.to_string_lossy().to_string();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    let _ = app_handle.emit("open-file-from-cli", &path_str);
+                    tracing::info!(target: "backend.app", "Emitted open-file-from-cli event");
+                });
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -626,7 +626,23 @@ export function getMarkdown(): string {
     return normalizeImageMarkdown(sourceEditor?.value || '');
   }
   if (!editor) return '';
-  return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown()));
+  // Temporarily remove error overlays so they don't get serialized into markdown
+  const overlays = editor.view.dom.querySelectorAll('.image-error-overlay');
+  const overlayData: { el: Element; parent: Element; sibling: Element | null }[] = [];
+  overlays.forEach(el => {
+    overlayData.push({ el, parent: el.parentElement!, sibling: el.nextElementSibling });
+    el.remove();
+  });
+  const md = editor.storage.markdown.getMarkdown();
+  // Restore overlays
+  overlayData.forEach(({ el, parent, sibling }) => {
+    if (sibling) {
+      parent.insertBefore(el, sibling);
+    } else {
+      parent.appendChild(el);
+    }
+  });
+  return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
 }
 
 export function setMarkdown(content: string) {

@@ -392,6 +392,47 @@ html, body {
   display: block;
 }
 
+/* Code block word wrap (default: on) */
+.ProseMirror pre code {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.ProseMirror.code-no-word-wrap pre code {
+  white-space: pre;
+  word-break: normal;
+  overflow-x: auto;
+}
+
+/* Code block line numbers */
+.ProseMirror.code-show-line-numbers pre {
+  position: relative;
+}
+
+.ProseMirror.code-show-line-numbers pre code {
+  display: block;
+  padding-left: 3.5em;
+  counter-reset: line;
+}
+
+.ProseMirror.code-show-line-numbers pre code > * {
+  counter-increment: line;
+}
+
+.ProseMirror.code-show-line-numbers pre code > *::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.5em;
+  margin-left: -3.5em;
+  margin-right: 1em;
+  text-align: right;
+  color: var(--muted);
+  opacity: 0.5;
+  font-size: 0.85em;
+  user-select: none;
+  pointer-events: none;
+}
+
 .ProseMirror pre code .hljs-comment,
 .ProseMirror pre code .hljs-quote {
   color: #6b7280;

@@ -28,6 +28,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   imageAutoCopyLocal: true,
   imageDownloadNetwork: false,
   imageNamingStrategy: 'timestamp',
+  codeLineNumbers: false,
+  codeWordWrap: true,
 };
 
 let currentSettings: SettingsState = { ...DEFAULT_SETTINGS };
@@ -156,6 +158,17 @@ export function initSettings() {
               <div class="settings-row">
                 <div class="settings-label">显示行号</div>
                 <button class="toggle" id="setting-linenumbers"></button>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">代码块</div>
+              <div class="settings-row">
+                <div class="settings-label">显示行号</div>
+                <button class="toggle" id="setting-code-linenumbers"></button>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">自动换行</div>
+                <button class="toggle active" id="setting-code-wordwrap"></button>
               </div>
             </div>
             <div class="settings-group">
@@ -356,6 +369,8 @@ function applySettingsToUI(settings: SettingsState) {
   setInputValue('setting-image-custom-path', String(settings.imageCustomPath ?? ''));
   setToggleState('setting-image-relative', settings.imagePreferRelative !== false);
   setToggleState('setting-image-auto-copy', settings.imageAutoCopyLocal !== false);
+  setToggleState('setting-code-linenumbers', settings.codeLineNumbers === true);
+  setToggleState('setting-code-wordwrap', settings.codeWordWrap !== false);
   setToggleState('setting-image-download', settings.imageDownloadNetwork === true);
   setSelectValue('setting-image-naming', String(settings.imageNamingStrategy ?? 'timestamp'));
 
@@ -428,6 +443,8 @@ function buildSettingsFromUI(): SettingsState {
     livePreview: getToggleState('setting-livepreview'),
     codeHighlight: getToggleState('setting-codehighlight'),
     lineNumbers: getToggleState('setting-linenumbers'),
+    codeLineNumbers: getToggleState('setting-code-linenumbers'),
+    codeWordWrap: getToggleState('setting-code-wordwrap'),
     showSidebar: getToggleState('setting-sidebar'),
     showTooltips: getToggleState('setting-tooltips'),
     followSystemTheme: getToggleState('setting-follow-system'),

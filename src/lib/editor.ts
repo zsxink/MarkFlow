@@ -819,6 +819,20 @@ export async function initEditor() {
     },
   });
 
+  // Apply code block settings (line numbers & word wrap)
+  async function applyCodeBlockSettings() {
+    const settings = await loadSettings();
+    const root = editor?.view.dom;
+    if (!root) return;
+    root.classList.toggle('code-show-line-numbers', settings.codeLineNumbers === true);
+    root.classList.toggle('code-no-word-wrap', settings.codeWordWrap === false);
+  }
+  applyCodeBlockSettings();
+
+  document.addEventListener('settings-changed', () => {
+    applyCodeBlockSettings();
+  });
+
   // Source editor sync
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   if (sourceEditor) {

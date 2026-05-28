@@ -826,11 +826,45 @@ export async function initEditor() {
     if (!root) return;
     root.classList.toggle('code-show-line-numbers', settings.codeLineNumbers === true);
     root.classList.toggle('code-no-word-wrap', settings.codeWordWrap === false);
+
+    // Inject or remove line number gutters
+    if (settings.codeLineNumbers === true) {
+      root.querySelectorAll('pre > code').forEach(codeEl => {
+        const pre = codeEl.parentElement!;
+        if (pre.querySelector('.line-numbers-gutter')) return;
+        const text = codeEl.textContent || '';
+        const lineCount = text.split('\n').length;
+        const gutter = document.createElement('span');
+        gutter.className = 'line-numbers-gutter';
+        gutter.textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
+        pre.insertBefore(gutter, codeEl);
+      });
+    } else {
+      root.querySelectorAll('.line-numbers-gutter').forEach(g => g.remove());
+    }
   }
   applyCodeBlockSettings();
 
   document.addEventListener('settings-changed', () => {
     applyCodeBlockSettings();
+  });
+
+  // Refresh line numbers on content change
+  let lineNumbersTimer: ReturnType<typeof setTimeout> | null = null;
+  document.addEventListener('editor-update', () => {
+    if (lineNumbersTimer) clearTimeout(lineNumbersTimer);
+    lineNumbersTimer = setTimeout(() => {
+      const root = editor?.view.dom;
+      if (!root?.classList.contains('code-show-line-numbers')) return;
+      root.querySelectorAll('pre > code').forEach(codeEl => {
+        const pre = codeEl.parentElement!;
+        let gutter = pre.querySelector('.line-numbers-gutter');
+        if (!gutter) return;
+        const text = codeEl.textContent || '';
+        const lineCount = text.split('\n').length;
+        gutter.textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
+      });
+    }, 300);
   });
 
   // Source editor sync

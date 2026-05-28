@@ -404,33 +404,27 @@ html, body {
   overflow-x: auto;
 }
 
-/* Code block line numbers */
+/* Code block line numbers (JS-injected gutter) */
 .ProseMirror.code-show-line-numbers pre {
+  display: flex;
   position: relative;
 }
 
-.ProseMirror.code-show-line-numbers pre code {
-  display: block;
-  padding-left: 3.5em;
-  counter-reset: line;
-}
-
-.ProseMirror.code-show-line-numbers pre code > * {
-  counter-increment: line;
-}
-
-.ProseMirror.code-show-line-numbers pre code > *::before {
-  content: counter(line);
-  display: inline-block;
-  width: 2.5em;
-  margin-left: -3.5em;
-  margin-right: 1em;
+.ProseMirror.code-show-line-numbers pre .line-numbers-gutter {
+  flex-shrink: 0;
+  padding-right: 12px;
+  margin-right: 12px;
+  border-right: 1px solid var(--border);
   text-align: right;
   color: var(--muted);
   opacity: 0.5;
-  font-size: 0.85em;
+  font-size: 12px;
+  line-height: 1.65;
+  font-family: var(--font-code);
   user-select: none;
   pointer-events: none;
+  white-space: pre;
+}
 }
 
 .ProseMirror pre code .hljs-comment,

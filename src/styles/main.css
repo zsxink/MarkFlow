@@ -703,25 +703,45 @@ html, body {
   opacity: 0.92;
 }
 
-.ProseMirror .image-error-overlay {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 200px;
-  height: 120px;
-  background: var(--code-bg);
-  border: 2px dashed var(--border);
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  cursor: pointer;
-  user-select: none;
+.image-node-view {
+  display: inline;
+  line-height: 0;
 }
 
-.ProseMirror .image-error-overlay:hover {
+.ProseMirror .image-error-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: baseline;
+}
+
+.ProseMirror .image-error-inline:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.ProseMirror .image-error-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.ProseMirror .image-error-label {
+  font-family: monospace;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 
 /* Image insert dialog */
 .image-insert-dialog .modal {

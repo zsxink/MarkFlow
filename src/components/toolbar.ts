@@ -162,37 +162,44 @@ function getActiveDocPath(): string | null {
   return el?.dataset?.path || null;
 }
 
-function showImageInsertDialog() {
+export function showImageInsertDialog(options?: { alt?: string; src?: string; onReplace?: (src: string, alt: string) => void }) {
   const overlay = document.getElementById('image-modal');
   if (!overlay) return;
 
+  const isEdit = !!options?.onReplace;
   overlay.innerHTML = `
     <div class="modal">
       <div class="modal-header">
-        <span>插入图片</span>
+        <span>${isEdit ? '编辑图片' : '插入图片'}</span>
         <button class="modal-close" id="image-close">✕</button>
       </div>
       <div style="padding:16px 24px;">
         <div class="image-source-tabs">
-          <button class="image-source-tab active" data-tab="local">本地文件</button>
-          <button class="image-source-tab" data-tab="url">网络图片</button>
+          <button class="image-source-tab${isEdit ? '' : ' active'}" data-tab="local">本地文件</button>
+          <button class="image-source-tab${isEdit ? ' active' : ''}" data-tab="url">网络图片</button>
         </div>
-        <div id="image-tab-local">
+        <div id="image-tab-local" ${isEdit ? 'hidden' : ''}>
           <button class="file-pick-btn" id="image-pick-local">点击选择图片文件</button>
         </div>
-        <div id="image-tab-url" hidden>
+        <div id="image-tab-url" ${isEdit ? '' : 'hidden'}>
           <input class="url-input" id="image-url-input" placeholder="https://example.com/image.png" />
         </div>
         <div class="modal-footer" style="padding-top:16px;display:flex;justify-content:flex-end;gap:8px;">
           <button class="btn-secondary" id="image-cancel">取消</button>
-          <button class="btn-primary" id="image-confirm">确定</button>
+          <button class="btn-primary" id="image-confirm">${isEdit ? '替换' : '确定'}</button>
         </div>
       </div>
     </div>
   `;
   overlay.hidden = false;
 
-  let activeTab: 'local' | 'url' = 'local';
+  let activeTab: 'local' | 'url' = isEdit ? 'url' : 'local';
+
+  // Pre-fill URL in edit mode
+  if (isEdit && options?.src) {
+    const urlInput = document.getElementById('image-url-input') as HTMLInputElement;
+    if (urlInput) urlInput.value = options.src;
+  }
 
   // Tab switching
   overlay.querySelectorAll('.image-source-tab').forEach(tab => {
@@ -236,15 +243,20 @@ function showImageInsertDialog() {
       const url = (document.getElementById('image-url-input') as HTMLInputElement).value.trim();
       if (!url) return;
       try {
-        const settings = await getImageSettings();
-        const docPath = getActiveDocPath();
-        const src = await handleNetworkImage(url, docPath, settings);
-        const editor = getEditor();
-        editor?.chain().focus().setImage({ src }).run();
-        close();
+        if (isEdit && options?.onReplace) {
+          options.onReplace(url, options.alt || '');
+          close();
+        } else {
+          const settings = await getImageSettings();
+          const docPath = getActiveDocPath();
+          const src = await handleNetworkImage(url, docPath, settings);
+          const editor = getEditor();
+          editor?.chain().focus().setImage({ src }).run();
+          close();
+        }
       } catch (e) {
         logException('toolbar.image', 'Failed to insert network image', e, { source: 'url', url });
-        showToast('图片插入失败');
+        showToast(isEdit ? '图片替换失败' : '图片插入失败');
       }
     } else {
       close();

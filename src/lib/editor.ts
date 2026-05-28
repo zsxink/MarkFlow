@@ -22,7 +22,77 @@ import { showImageContextMenu } from '../components/imageContextMenu';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logException } from './logger';
 
-const BlockImage = Image;
+const BlockImage = Image.extend({
+  addNodeView() {
+    return ({ node, HTMLAttributes }) => {
+      const img = document.createElement('img');
+      Object.entries(Image.options.HTMLAttributes).forEach(([key, value]) => {
+        if (key === 'class') return;
+        img.setAttribute(key, value as string);
+      });
+      Object.entries(HTMLAttributes).forEach(([key, value]) => {
+        if (value != null) img.setAttribute(key, value as string);
+      });
+      if (node.attrs.src) img.src = node.attrs.src;
+      if (node.attrs.alt) img.alt = node.attrs.alt;
+
+      const wrapper = document.createElement('span');
+      wrapper.className = 'image-node-view';
+      wrapper.appendChild(img);
+
+      let errorEl: HTMLSpanElement | null = null;
+
+      function showError() {
+        if (errorEl) return;
+        errorEl = document.createElement('span');
+        errorEl.className = 'image-error-inline';
+        errorEl.contentEditable = 'false';
+
+        const icon = document.createElement('span');
+        icon.className = 'image-error-icon';
+        icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>`;
+
+        const label = document.createElement('span');
+        label.className = 'image-error-label';
+        label.textContent = '图片加载失败';
+
+        errorEl.appendChild(icon);
+        errorEl.appendChild(label);
+
+        img.style.display = 'none';
+        wrapper.appendChild(errorEl);
+      }
+
+      function hideError() {
+        if (errorEl) {
+          errorEl.remove();
+          errorEl = null;
+        }
+        img.style.display = '';
+        img.classList.remove('image-error');
+      }
+
+      img.addEventListener('error', showError);
+      img.addEventListener('load', hideError);
+      if (img.complete && img.naturalWidth === 0) showError();
+
+      return {
+        dom: wrapper,
+        ignoreMutation: () => true,
+        stopEvent: (e: Event) => {
+          if (errorEl && (e.type === 'mousedown' || e.type === 'pointerdown')) {
+            const target = e.target as Node;
+            if (errorEl.contains(target)) {
+              e.preventDefault();
+              return true;
+            }
+          }
+          return false;
+        },
+      };
+    };
+  },
+});
 
 const lowlight = createLowlight(common);
 
@@ -94,7 +164,7 @@ function mermaidCodeBlockExtension() {
             if (destroyed || version !== renderVersion || !previewEl) return;
             renderedSvg = '';
             const message = error instanceof Error ? error.message : 'Mermaid 渲染失败';
-            syncError(message);
+            syncError('');
             previewEl.className = 'mermaid-preview is-error';
             previewEl.textContent = message;
             previewEl.title = 'Mermaid 渲染失败，左键点击编辑源码';
@@ -335,7 +405,11 @@ function imageBubblePlugin(): Extension {
 
   function getImageInfoFromTarget(view: any, target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) return null;
-    const img = target.closest('img');
+    let img = target.closest('img') as HTMLImageElement | null;
+    if (!img) {
+      const wrapper = target.closest('.image-node-view');
+      if (wrapper) img = wrapper.querySelector('img');
+    }
     if (!img) return null;
     const basePos = view.posAtDOM(img, 0);
     const candidates = [basePos, basePos - 1, basePos + 1].filter((value, index, array) => value >= 0 && array.indexOf(value) === index);
@@ -402,7 +476,7 @@ function imageBubblePlugin(): Extension {
     const img = dom.querySelector('img') || (dom.tagName === 'IMG' ? dom : null);
     if (!img) return;
 
-    const rect = img.getBoundingClientRect();
+    const rect = img.offsetHeight > 0 ? img.getBoundingClientRect() : dom.getBoundingClientRect();
     bubble = document.createElement('div');
     bubble.className = 'image-bubble image-edit-panel';
     bubble.style.position = 'fixed';
@@ -527,6 +601,7 @@ function imageBubblePlugin(): Extension {
               contextmenu(view, event) {
                 const imageInfo = getImageInfoFromTarget(view, event.target);
                 if (!imageInfo) return false;
+                if (imageInfo.img.style.display === 'none') return false;
                 event.preventDefault();
                 event.stopPropagation();
                 const currentSrc = imageInfo.node.attrs.src as string;
@@ -626,22 +701,7 @@ export function getMarkdown(): string {
     return normalizeImageMarkdown(sourceEditor?.value || '');
   }
   if (!editor) return '';
-  // Temporarily remove error overlays so they don't get serialized into markdown
-  const overlays = editor.view.dom.querySelectorAll('.image-error-overlay');
-  const overlayData: { el: Element; parent: Element; sibling: Element | null }[] = [];
-  overlays.forEach(el => {
-    overlayData.push({ el, parent: el.parentElement!, sibling: el.nextElementSibling });
-    el.remove();
-  });
   const md = editor.storage.markdown.getMarkdown();
-  // Restore overlays
-  overlayData.forEach(({ el, parent, sibling }) => {
-    if (sibling) {
-      parent.insertBefore(el, sibling);
-    } else {
-      parent.appendChild(el);
-    }
-  });
   return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
 }
 
@@ -810,8 +870,6 @@ export async function initEditor() {
     }
   });
 
-  // Image error handling via MutationObserver
-  setupImageErrorHandling(editorEl);
 }
 
 export function switchToSource() {
@@ -878,43 +936,3 @@ async function getImageSettings(): Promise<ImageSettings> {
   }
 }
 
-function setupImageErrorHandling(container: HTMLElement) {
-  const observer = new MutationObserver(() => {
-    const imgs = container.querySelectorAll('img:not([data-error-bound])');
-    imgs.forEach(el => {
-      const img = el as HTMLImageElement;
-      img.setAttribute('data-error-bound', 'true');
-      img.addEventListener('error', () => {
-        img.classList.add('image-error');
-        img.style.display = 'none';
-        if (!img.nextElementSibling?.classList.contains('image-error-overlay')) {
-          const overlay = document.createElement('div');
-          overlay.className = 'image-error-overlay';
-          overlay.textContent = '图片加载失败';
-          overlay.title = '点击重试';
-          overlay.addEventListener('click', () => {
-            const src = img.getAttribute('src');
-            if (src) {
-              img.removeAttribute('data-error-bound');
-              img.classList.remove('image-error');
-              img.style.display = '';
-              const sep = src.includes('?') ? '&' : '?';
-              img.src = `${src}${sep}_t=${Date.now()}`;
-            }
-            overlay.remove();
-          });
-          img.parentElement?.insertBefore(overlay, img.nextSibling);
-        }
-      });
-      img.addEventListener('load', () => {
-        img.classList.remove('image-error');
-        img.style.display = '';
-        const overlay = img.nextElementSibling;
-        if (overlay?.classList.contains('image-error-overlay')) {
-          overlay.remove();
-        }
-      });
-    });
-  });
-  observer.observe(container, { childList: true, subtree: true });
-}

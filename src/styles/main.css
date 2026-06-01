@@ -416,6 +416,12 @@ html, body {
   overflow-x: visible;
 }
 
+/* Ensure code fills remaining flex space so clientWidth is reliable */
+.ProseMirror.code-show-line-numbers pre code {
+  flex: 1;
+  min-width: 0;
+}
+
 .ProseMirror.code-show-line-numbers pre .line-numbers-gutter {
   flex-shrink: 0;
   padding-right: 12px;

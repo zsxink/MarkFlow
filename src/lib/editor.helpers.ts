@@ -10,6 +10,40 @@ export function computeLineNumbersText(text: string): string {
     .join('\n');
 }
 
+export function computeVisualLineNumbers(codeEl: Element): string {
+  const text = codeEl.textContent || '';
+  if (!text) return '';
+
+  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
+  const lines = trimmed.split('\n');
+  if (lines.length === 0) return '';
+
+  const codeWidth = codeEl.clientWidth;
+  if (codeWidth <= 0) return computeLineNumbersText(text);
+
+  const style = getComputedStyle(codeEl);
+  const measure = document.createElement('span');
+  measure.textContent = 'x'.repeat(100);
+  measure.style.cssText =
+    `position:fixed;left:-9999px;white-space:nowrap;font-size:${style.fontSize};font-family:${style.fontFamily};letter-spacing:${style.letterSpacing};visibility:hidden`;
+  document.body.appendChild(measure);
+  const charWidth = measure.offsetWidth / 100;
+  document.body.removeChild(measure);
+  if (charWidth <= 0) return computeLineNumbersText(text);
+
+  const charsPerLine = codeWidth / charWidth;
+  const numbers: string[] = [];
+
+  for (const line of lines) {
+    const len = line.length || 1;
+    const visualLines = Math.max(1, Math.ceil(len / charsPerLine));
+    numbers.push(String(numbers.length + 1));
+    for (let v = 1; v < visualLines; v++) numbers.push('');
+  }
+
+  return numbers.join('\n');
+}
+
 export function syncCodeLineNumberGutters(
   root: HTMLElement,
   enabled: boolean,
@@ -25,7 +59,7 @@ export function syncCodeLineNumberGutters(
         gutter.className = CODE_GUTTER_CLASS;
         pre.insertBefore(gutter, codeEl);
       }
-      gutter.textContent = computeLineNumbersText(codeEl.textContent || '');
+      gutter.textContent = computeVisualLineNumbers(codeEl);
     });
   } else {
     root.classList.remove('code-show-line-numbers');

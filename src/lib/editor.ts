@@ -15,6 +15,8 @@ import { common, createLowlight } from 'lowlight';
 import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
 import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
+import { syncCodeLineNumberGutters } from './editor.helpers';
+
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
 import { getFileName, resolveImagePath } from './pathUtils';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
@@ -333,8 +335,9 @@ function mermaidCodeBlockExtension() {
           stopEvent(event) {
             return isMermaid() && dom.contains(event.target as Node);
           },
-          ignoreMutation() {
-            return isMermaid();
+          ignoreMutation(mutation: any) {
+            if (isMermaid()) return true;
+            return !(contentDOM && (mutation.target === contentDOM || contentDOM.contains(mutation.target)));
           },
           destroy() {
             destroyed = true;
@@ -824,24 +827,9 @@ export async function initEditor() {
     const settings = await loadSettings();
     const root = editor?.view.dom;
     if (!root) return;
-    root.classList.toggle('code-show-line-numbers', settings.codeLineNumbers === true);
     root.classList.toggle('code-no-word-wrap', settings.codeWordWrap === false);
-
-    // Inject or remove line number gutters
-    if (settings.codeLineNumbers === true) {
-      root.querySelectorAll('pre > code').forEach(codeEl => {
-        const pre = codeEl.parentElement!;
-        if (pre.querySelector('.line-numbers-gutter')) return;
-        const text = codeEl.textContent || '';
-        const lineCount = text.split('\n').length;
-        const gutter = document.createElement('span');
-        gutter.className = 'line-numbers-gutter';
-        gutter.textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
-        pre.insertBefore(gutter, codeEl);
-      });
-    } else {
-      root.querySelectorAll('.line-numbers-gutter').forEach(g => g.remove());
-    }
+    const enabled = settings.codeLineNumbers === true;
+    syncCodeLineNumberGutters(root, enabled);
   }
   applyCodeBlockSettings();
 
@@ -856,14 +844,7 @@ export async function initEditor() {
     lineNumbersTimer = setTimeout(() => {
       const root = editor?.view.dom;
       if (!root?.classList.contains('code-show-line-numbers')) return;
-      root.querySelectorAll('pre > code').forEach(codeEl => {
-        const pre = codeEl.parentElement!;
-        let gutter = pre.querySelector('.line-numbers-gutter');
-        if (!gutter) return;
-        const text = codeEl.textContent || '';
-        const lineCount = text.split('\n').length;
-        gutter.textContent = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
-      });
+      syncCodeLineNumberGutters(root, true);
     }, 300);
   });
 

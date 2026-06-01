@@ -13,7 +13,8 @@ pub struct Settings {
     pub soft_wrap: bool,
     pub live_preview: bool,
     pub code_highlight: bool,
-    pub line_numbers: bool,
+    #[serde(default)]
+    pub line_numbers: Option<bool>,
     pub show_sidebar: bool,
     pub show_tooltips: bool,
     pub follow_system_theme: bool,
@@ -30,6 +31,10 @@ pub struct Settings {
     pub image_download_network: Option<bool>,
     #[serde(default)]
     pub image_naming_strategy: Option<String>,
+    #[serde(default)]
+    pub code_line_numbers: Option<bool>,
+    #[serde(default)]
+    pub code_word_wrap: Option<bool>,
 }
 
 impl Default for Settings {
@@ -45,7 +50,7 @@ impl Default for Settings {
             soft_wrap: true,
             live_preview: true,
             code_highlight: true,
-            line_numbers: false,
+            line_numbers: None,
             show_sidebar: true,
             show_tooltips: true,
             follow_system_theme: false,
@@ -56,6 +61,8 @@ impl Default for Settings {
             image_auto_copy_local: None,
             image_download_network: None,
             image_naming_strategy: None,
+            code_line_numbers: None,
+            code_word_wrap: None,
         }
     }
 }

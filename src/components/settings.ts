@@ -17,7 +17,6 @@ const DEFAULT_SETTINGS: SettingsState = {
   softWrap: true,
   livePreview: true,
   codeHighlight: true,
-  lineNumbers: false,
   showSidebar: true,
   showTooltips: true,
   followSystemTheme: false,
@@ -155,15 +154,14 @@ export function initSettings() {
                 <div class="settings-label">代码高亮</div>
                 <button class="toggle active" id="setting-codehighlight"></button>
               </div>
-              <div class="settings-row">
-                <div class="settings-label">显示行号</div>
-                <button class="toggle" id="setting-linenumbers"></button>
-              </div>
             </div>
             <div class="settings-group">
               <div class="settings-group-title">代码块</div>
               <div class="settings-row">
-                <div class="settings-label">显示行号</div>
+                <div>
+                  <div class="settings-label">代码块行号</div>
+                  <div class="settings-desc">在代码块左侧显示行号</div>
+                </div>
                 <button class="toggle" id="setting-code-linenumbers"></button>
               </div>
               <div class="settings-row">
@@ -358,7 +356,6 @@ function applySettingsToUI(settings: SettingsState) {
   setToggleState('setting-softwrap', settings.softWrap !== false);
   setToggleState('setting-livepreview', settings.livePreview !== false);
   setToggleState('setting-codehighlight', settings.codeHighlight !== false);
-  setToggleState('setting-linenumbers', settings.lineNumbers === true);
   setToggleState('setting-sidebar', settings.showSidebar !== false);
   setToggleState('setting-tooltips', settings.showTooltips !== false);
   setToggleState('setting-follow-system', settings.followSystemTheme === true);
@@ -419,6 +416,12 @@ async function persistSettingsFromUI() {
   try {
     const persisted = await loadSettings();
     currentSettings = { ...persisted, ...uiSettings };
+    // Strip unknown keys (e.g. legacy fields removed from DEFAULT_SETTINGS) so
+    // they don't accumulate in settings.json across saves.
+    const knownKeys = new Set(Object.keys(DEFAULT_SETTINGS));
+    for (const key of Object.keys(currentSettings)) {
+      if (!knownKeys.has(key)) delete currentSettings[key];
+    }
     applyRuntimeSettings(currentSettings);
     await saveSettings(currentSettings);
     document.dispatchEvent(new CustomEvent('settings-changed', {
@@ -442,7 +445,6 @@ function buildSettingsFromUI(): SettingsState {
     softWrap: getToggleState('setting-softwrap'),
     livePreview: getToggleState('setting-livepreview'),
     codeHighlight: getToggleState('setting-codehighlight'),
-    lineNumbers: getToggleState('setting-linenumbers'),
     codeLineNumbers: getToggleState('setting-code-linenumbers'),
     codeWordWrap: getToggleState('setting-code-wordwrap'),
     showSidebar: getToggleState('setting-sidebar'),

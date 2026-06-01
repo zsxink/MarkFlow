@@ -409,6 +409,12 @@ html, body {
   display: flex;
   position: relative;
 }
+.ProseMirror.code-show-line-numbers.code-no-word-wrap pre {
+  overflow-x: auto;
+}
+.ProseMirror.code-show-line-numbers.code-no-word-wrap pre code {
+  overflow-x: visible;
+}
 
 .ProseMirror.code-show-line-numbers pre .line-numbers-gutter {
   flex-shrink: 0;
@@ -418,7 +424,7 @@ html, body {
   text-align: right;
   color: var(--muted);
   opacity: 0.5;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.65;
   font-family: var(--font-code);
   user-select: none;

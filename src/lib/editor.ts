@@ -716,7 +716,10 @@ export function setMarkdown(content: string) {
     editor.commands.setContent(normalized);
     if (mode === 'source') {
       const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
-      if (sourceEditor) sourceEditor.value = normalized;
+      if (sourceEditor) {
+        sourceEditor.value = normalized;
+        autoGrowSourceEditor();
+      }
     }
     documentState.programmaticUpdate = false;
     markDocumentPersisted(normalized);
@@ -765,7 +768,7 @@ export async function initEditor() {
 
   const editorDiv = document.createElement('div');
   editorDiv.className = 'editor-container';
-  editorDiv.innerHTML = '<div id="wysiwyg-editor"></div><textarea id="source-editor" class="source-editor" hidden></textarea>';
+  editorDiv.innerHTML = '<div id="wysiwyg-editor"></div><div id="source-editor-wrapper" class="source-editor-wrapper" hidden><div class="source-editor-gutter" id="source-editor-gutter"></div><textarea id="source-editor" class="source-editor"></textarea></div>';
   container.appendChild(editorDiv);
 
   const editorEl = document.getElementById('wysiwyg-editor');
@@ -850,12 +853,22 @@ export async function initEditor() {
 
   // Source editor sync
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
-  if (sourceEditor) {
+  const sourceGutter = document.getElementById('source-editor-gutter') as HTMLElement;
+  if (sourceEditor && sourceGutter) {
+    const refreshSourceNumbers = () => {
+      if (mode === 'source') syncSourceEditorLineNumbers();
+    };
     sourceEditor.addEventListener('input', () => {
       if (mode === 'source') {
         documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+        syncSourceEditorLineNumbers();
+        autoGrowSourceEditor();
       }
     });
+    sourceEditor.addEventListener('click', refreshSourceNumbers);
+    sourceEditor.addEventListener('keyup', refreshSourceNumbers);
+    const ro = new ResizeObserver(refreshSourceNumbers);
+    ro.observe(sourceEditor);
   }
 
   // Image paste handler
@@ -901,28 +914,69 @@ export async function initEditor() {
 
 }
 
+export function syncSourceEditorLineNumbers() {
+  const gutter = document.getElementById('source-editor-gutter') as HTMLElement;
+  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
+  if (!gutter || !textarea) return;
+
+  const cs = getComputedStyle(textarea);
+  gutter.style.fontFamily = cs.fontFamily;
+  gutter.style.fontSize = cs.fontSize;
+  gutter.style.lineHeight = cs.lineHeight;
+  gutter.style.letterSpacing = cs.letterSpacing;
+
+  const lines = textarea.value.split('\n');
+  const cursorLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
+  const total = lines.length;
+  const lastLine = total;
+  const interval = 10;
+  const suppressThreshold = 4;
+  const nearestIntervalToLast = Math.floor(lastLine / interval) * interval;
+  const suppressLast = nearestIntervalToLast > 0 && (lastLine - nearestIntervalToLast) <= suppressThreshold;
+
+  const numbers = lines.map((_, i) => {
+    const num = i + 1;
+    if (num === 1 || num === lastLine || i === cursorLine) return String(num);
+    if (num % interval === 0 && !(suppressLast && num === nearestIntervalToLast)) return String(num);
+    return '';
+  });
+
+  gutter.textContent = numbers.join('\n');
+}
+
+function autoGrowSourceEditor() {
+  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
 export function switchToSource() {
   if (!editor) return;
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
-  if (!sourceEditor || !wysiwygEditor) return;
+  const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
+  if (!sourceEditor || !wysiwygEditor || !wrapper) return;
 
   sourceEditor.value = normalizeImageMarkdown(replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown()));
   wysiwygEditor.hidden = true;
-  sourceEditor.hidden = false;
+  wrapper.hidden = false;
   mode = 'source';
+  syncSourceEditorLineNumbers();
+  autoGrowSourceEditor();
 }
 
 export function switchToWysiwyg() {
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
-  if (!sourceEditor || !wysiwygEditor) return;
+  const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
+  if (!sourceEditor || !wysiwygEditor || !wrapper) return;
 
   if (editor) {
     editor.commands.setContent(normalizeImageMarkdown(sourceEditor.value));
   }
   wysiwygEditor.hidden = false;
-  sourceEditor.hidden = true;
+  wrapper.hidden = true;
   mode = 'wysiwyg';
 }
 

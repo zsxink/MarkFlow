@@ -31,7 +31,8 @@ export function computeVisualLineNumbers(codeEl: Element): string {
   document.body.removeChild(measure);
   if (charWidth <= 0) return computeLineNumbersText(text);
 
-  const charsPerLine = codeWidth / charWidth;
+  const charsPerLine = Math.floor(codeWidth / charWidth);
+  if (charsPerLine <= 0) return computeLineNumbersText(text);
   const numbers: string[] = [];
 
   for (const line of lines) {

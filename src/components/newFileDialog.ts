@@ -69,7 +69,9 @@ async function handleCreateNoWorkspace(type: 'file' | 'folder') {
     });
     if (path) {
       try {
-        await createFile(path, '');
+        const filePath = path.endsWith('.md') ? path : `${path}.md`;
+        await createFile(filePath, '');
+        await openFileInEditor(filePath);
         showToast('文件已创建');
       } catch (e) {
         showToast(`创建失败: ${e}`);

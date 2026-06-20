@@ -2,12 +2,13 @@ import { initTheme } from './lib/theme';
 import { initEditor, markExternalModification } from './lib/editor';
 import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
+import { initMenu } from './components/menu';
 import { initStatusBar } from './components/statusbar';
 import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
-import { getWorkspace, loadSettings, hasCliFile } from './lib/storage';
-import { setWorkspacePath, refreshFileTree, isSuppressedPath } from './components/fileTree';
-import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument } from './components/sidebar';
+import { getWorkspace, loadSettings, hasCliFile, addRecentFile } from './lib/storage';
+import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
+import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
 import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
@@ -36,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initTheme();
   initSidebar();
+  initMenu();
   initStatusBar();
   initSettings();
   await initEditor();
@@ -55,6 +57,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await restoreWorkspace();
   } else {
     logInfo('app.lifecycle', 'Skipping workspace restore (single-file mode)');
+  }
+
+  // Restore sidebar tab preference
+  const wsPath = getWorkspacePath();
+  const lastTab = (loadedSettings as any)?.lastSidebarTab as string | undefined;
+  if (lastTab && wsPath) {
+    switchSidebarTab(lastTab as 'files' | 'outline');
   }
 
   document.addEventListener('settings-changed', (event) => {
@@ -96,6 +105,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   listen<string>('open-file-from-cli', async (event) => {
     const filePath = event.payload;
     logInfo('app.lifecycle', 'Opening file from CLI', { path: filePath });
+    await addRecentFile(filePath);
+    await openFileInEditor(filePath);
+  });
+
+  // Handle file opened in a new window (via open_file_in_new_window Rust command)
+  listen<string>('open-file-in-window', async (event) => {
+    const filePath = event.payload;
+    logInfo('app.lifecycle', 'Opening file in new window', { path: filePath });
+    await addRecentFile(filePath);
     await openFileInEditor(filePath);
   });
 

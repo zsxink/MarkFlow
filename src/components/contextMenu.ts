@@ -1,9 +1,10 @@
-import { deletePath, copyFile, readSingleDir } from '../lib/storage';
-import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate } from './fileTree';
+import { deletePath, copyFile, readSingleDir, addRecentFile } from '../lib/storage';
+import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './fileTree';
 import { showToast } from './toast';
-import { clearActiveDocumentIfMatches } from './sidebar';
+import { clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
-import { open } from '@tauri-apps/plugin-shell';
+import { open as shellOpen } from '@tauri-apps/plugin-shell';
+import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
 import { ask } from '@tauri-apps/plugin-dialog';
 
 type TargetType = 'file' | 'folder' | 'empty';
@@ -34,10 +35,14 @@ export function showContextMenu(x: number, y: number, path: string | null, type:
     items.push(`<button class="context-menu-item" data-action="copy-relative">复制文件路径</button>`);
     items.push(`<button class="context-menu-item" data-action="copy-absolute">复制绝对路径</button>`);
   } else {
-    // Empty space — copy workspace path
+    // Empty space — add workspace-related items if available
     if (workspacePath) {
       items.push(`<hr style="border:none;border-top:1px solid var(--border);margin:4px 0">`);
       items.push(`<button class="context-menu-item" data-action="copy-workspace">复制工作区路径</button>`);
+    } else {
+      // No workspace — offer to open folder or file directly
+      items.push(`<button class="context-menu-item" data-action="open-folder">打开文件夹</button>`);
+      items.push(`<button class="context-menu-item" data-action="open-file">打开文件</button>`);
     }
   }
 
@@ -162,11 +167,34 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         }
         break;
       }
+      case 'open-folder': {
+        const folder = await dialogOpen({ directory: true, multiple: false });
+        if (folder) {
+          if (!(await confirmDocumentTransition())) return;
+          await setWorkspacePath(folder);
+          clearActiveDocumentIfMatches('');
+          await refreshFileTree();
+          showToast('文件夹已打开');
+        }
+        break;
+      }
+      case 'open-file': {
+        const file = await dialogOpen({
+          multiple: false,
+          filters: [{ name: 'Markdown', extensions: ['md'] }],
+        });
+        if (file) {
+          if (!(await confirmDocumentTransition())) return;
+          await addRecentFile(file);
+          await openFileInEditor(file);
+        }
+        break;
+      }
       case 'reveal': {
         const revealPath = path || getWorkspacePath();
         if (revealPath) {
           try {
-            await open(revealPath);
+            await shellOpen(revealPath);
           } catch (e) {
             showToast(`打开失败: ${e}`);
           }

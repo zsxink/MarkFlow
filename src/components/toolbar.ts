@@ -4,8 +4,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree';
 import { showNewFileDialog } from './newFileDialog';
 import { showToast } from './toast';
-import { loadSettings } from '../lib/storage';
-import { clearActiveDocument, confirmDocumentTransition, saveActiveDocument } from './sidebar';
+import { loadSettings, addRecentFile } from '../lib/storage';
+import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, type ImageSettings } from '../lib/imageUtils';
 import { logException } from '../lib/logger';
 
@@ -53,6 +53,18 @@ function bindToolbarEvents() {
       clearActiveDocument();
       await refreshFileTree();
       showToast('文件夹已打开');
+    }
+  });
+
+  bind('toolbar-open-file', async () => {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (selected) {
+      if (!(await confirmDocumentTransition())) return;
+      await addRecentFile(selected);
+      await openFileInEditor(selected);
     }
   });
 

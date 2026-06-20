@@ -1,7 +1,7 @@
 {
   "identifier": "main-capability",
   "description": "Main window capabilities",
-  "windows": ["main"],
+  "windows": ["*"],
   "permissions": [
     "core:default",
     "dialog:allow-open",

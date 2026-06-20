@@ -1,4 +1,4 @@
-import { readDirRecursive, setWorkspace as setWorkspaceIPC, createFile, createDir, renamePath, readSingleDir, type FileEntry } from '../lib/storage';
+import { readDirRecursive, setWorkspace as setWorkspaceIPC, createFile, createDir, renamePath, readSingleDir, openFileInNewWindow, type FileEntry } from '../lib/storage';
 import { getFileName } from '../lib/pathUtils';
 import { openFileInEditor, getActiveFilePath, rewriteActiveDocumentPath } from './sidebar';
 import { showContextMenu } from './contextMenu';
@@ -9,6 +9,7 @@ let workspacePath: string | null = null;
 let expandedPaths: Set<string> = new Set();
 const suppressPaths: Map<string, number> = new Map();
 const SUPPRESS_DURATION_MS = 3000;
+const dbClickTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
 
 function escapePathSelector(path: string): string {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -243,9 +244,31 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
   file.addEventListener('click', (e) => {
     e.stopPropagation();
     const path = file.dataset.path;
-    if (path) {
-      openFileInEditor(path);
+    if (!path) return;
+    // Delay single-click to distinguish from double-click
+    const existing = dbClickTimers.get(file);
+    if (existing) {
+      clearTimeout(existing);
+      dbClickTimers.delete(file);
+      return; // second click of a double-click — skip
     }
+    const timer = setTimeout(() => {
+      dbClickTimers.delete(file);
+      openFileInEditor(path);
+    }, 250);
+    dbClickTimers.set(file, timer);
+  });
+
+  file.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    const path = file.dataset.path;
+    if (!path) return;
+    const existing = dbClickTimers.get(file);
+    if (existing) {
+      clearTimeout(existing);
+      dbClickTimers.delete(file);
+    }
+    openFileInNewWindow(path);
   });
 
   file.addEventListener('contextmenu', (e) => {

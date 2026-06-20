@@ -1,4 +1,4 @@
-import { readFile, writeFile } from '../lib/storage';
+import { readFile, writeFile, addRecentFile, addRecentFolder, saveSettings } from '../lib/storage';
 import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, setMarkdown } from '../lib/editor';
 import { showToast } from './toast';
 import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate, suppressNextWatcherRefresh } from './fileTree';
@@ -75,8 +75,8 @@ export async function confirmDocumentTransition() {
 
   const shouldSave = window.confirm(
     conflicted
-      ? '当前文件已被外部修改。点击“确定”保存并覆盖磁盘版本后继续，点击“取消”查看放弃选项。'
-      : '当前文件有未保存更改。点击“确定”保存后继续，点击“取消”查看放弃选项。'
+      ? '当前文件已被外部修改。点击"确定"保存并覆盖磁盘版本后继续，点击"取消"查看放弃选项。'
+      : '当前文件有未保存更改。点击"确定"保存后继续，点击"取消"查看放弃选项。'
   );
 
   if (shouldSave) {
@@ -93,7 +93,7 @@ export function initSidebar() {
   initFileTree();
   initOutline();
 
-  // Right-click on sidebar (outside file tree nodes) shows empty context menu
+  // Right-click on sidebar (outside file tree nodes)
   sidebar.addEventListener('contextmenu', (e) => {
     if ((e.target as HTMLElement).closest('.tree-file, .tree-folder')) return;
     e.preventDefault();
@@ -108,6 +108,7 @@ export function initSidebar() {
       await setWorkspacePath(selected);
       clearActiveDocument();
       await refreshFileTree();
+      await addRecentFolder(selected);
       showToast('文件夹已打开');
     }
   });
@@ -121,15 +122,16 @@ export function initSidebar() {
     startInlineCreate('folder', workspacePath);
   });
 
-  // Tab switching
+  // Tab switching + save preference
   sidebar.querySelectorAll('.sidebar-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       const tabName = (tab as HTMLElement).dataset.tab as 'files' | 'outline';
       switchSidebarTab(tabName);
+      saveSettings({ lastSidebarTab: tabName } as unknown as Record<string, unknown>).catch(() => {});
     });
   });
 
-  // Add resize handle functionality
+  // Add resize handle
   const resizeHandle = document.querySelector('.sidebar-resize-handle');
 
   if (resizeHandle && sidebar) {
@@ -138,9 +140,7 @@ export function initSidebar() {
     let startWidth = 0;
 
     resizeHandle.addEventListener('mousedown', (e) => {
-      // Don't start resize if sidebar is collapsed
       if (sidebar.classList.contains('collapsed')) return;
-
       isResizing = true;
       startX = (e as MouseEvent).clientX;
       startWidth = sidebar.offsetWidth;
@@ -150,7 +150,6 @@ export function initSidebar() {
 
     document.addEventListener('mousemove', (e) => {
       if (!isResizing) return;
-
       const diff = e.clientX - startX;
       const newWidth = Math.max(200, Math.min(400, startWidth + diff));
       sidebar.style.width = `${newWidth}px`;
@@ -316,10 +315,31 @@ async function saveActiveDocumentAsNewFile() {
 
 export async function saveActiveDocument(options: { interactive?: boolean } = {}) {
   const { interactive = true } = options;
-  const filePath = getActiveFilePath();
+  let filePath = getActiveFilePath();
+
   if (!filePath) {
-    if (interactive) showToast('没有打开的文件');
-    return false;
+    if (!interactive) return false;
+    const targetPath = await save({
+      title: '保存文件',
+      defaultPath: 'untitled.md',
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (!targetPath) return false;
+    const content = getMarkdown();
+    try {
+      suppressNextWatcherRefresh(targetPath);
+      await writeFile(targetPath, content);
+      setActiveFilePath(targetPath);
+      markDocumentPersisted(content);
+      addRecentFile(targetPath).catch(() => {});
+      logInfo('sidebar.save', 'Saved new file', { path: targetPath });
+      showToast('已保存');
+      return true;
+    } catch (e) {
+      logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
+      showToast('保存失败');
+      return false;
+    }
   }
 
   if (hasExternalModification()) {

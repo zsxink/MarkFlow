@@ -99,3 +99,19 @@ export async function fileExists(path: string): Promise<boolean> {
 export async function hasCliFile(): Promise<boolean> {
   return invoke<boolean>('has_cli_file');
 }
+
+export async function openFileInNewWindow(path: string): Promise<void> {
+  return invoke('open_file_in_new_window', { path });
+}
+
+export async function addRecentFile(path: string): Promise<void> {
+  return invoke('add_recent_file', { path });
+}
+
+export async function addRecentFolder(path: string): Promise<void> {
+  return invoke('add_recent_folder', { path });
+}
+
+export async function clearRecentHistory(): Promise<void> {
+  return invoke('clear_recent_history');
+}

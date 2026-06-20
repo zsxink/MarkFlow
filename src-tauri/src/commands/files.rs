@@ -26,31 +26,13 @@ pub struct RemoteImageData {
     pub mime_type: String,
 }
 
-fn validate_path(target: &Path, workspace_root: &Path) -> Result<PathBuf, String> {
-    let target = target.canonicalize().map_err(|_| "Path does not exist")?;
-    let root = workspace_root
-        .canonicalize()
-        .map_err(|_| "Workspace not found")?;
-    if !target.starts_with(&root) {
-        return Err("Path outside workspace".into());
-    }
-    if target.is_symlink() {
-        return Err("Symlink not allowed".into());
-    }
-    Ok(target)
-}
-
-fn resolve_path(raw: &str, state: &State<AppState>) -> Result<PathBuf, String> {
+fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, String> {
+    // Simple path normalizer — no workspace scope check.
+    // Files outside the current workspace are allowed (Typora/MarkText model).
     let path = Path::new(raw);
-    match state.get_workspace() {
-        Some(root) => validate_path(path, &root),
-        None => {
-            // No workspace set — allow paths for initial setup (settings, etc.)
-            path.canonicalize()
-                .or_else(|_: std::io::Error| Ok(path.to_path_buf()))
-                .map_err(|e: std::io::Error| format!("Invalid path: {}", e))
-        }
-    }
+    path.canonicalize()
+        .or_else(|_: std::io::Error| Ok(path.to_path_buf()))
+        .map_err(|e: std::io::Error| format!("Invalid path: {}", e))
 }
 
 #[tauri::command]
@@ -386,7 +368,12 @@ pub async fn fetch_remote_image_as_base64(url: String) -> Result<RemoteImageData
 #[tauri::command]
 pub fn create_file(path: String, content: Option<String>, state: State<AppState>) -> Result<(), String> {
     let path = Path::new(&path);
-    validate_parent_in_workspace(path, &state)?;
+
+    // Only validate workspace when one is set — otherwise allow free-form creation
+    if state.get_workspace().is_some() {
+        validate_path_in_workspace(path, &state)?;
+    }
+
     if path.exists() {
         return Err("File already exists".into());
     }

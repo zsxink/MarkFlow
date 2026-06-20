@@ -35,6 +35,12 @@ pub struct Settings {
     pub code_line_numbers: Option<bool>,
     #[serde(default)]
     pub code_word_wrap: Option<bool>,
+    #[serde(default)]
+    pub last_sidebar_tab: Option<String>,
+    #[serde(default)]
+    pub recent_files: Vec<String>,
+    #[serde(default)]
+    pub recent_folders: Vec<String>,
 }
 
 impl Default for Settings {
@@ -63,6 +69,9 @@ impl Default for Settings {
             image_naming_strategy: None,
             code_line_numbers: None,
             code_word_wrap: None,
+            last_sidebar_tab: None,
+            recent_files: vec![],
+            recent_folders: vec![],
         }
     }
 }

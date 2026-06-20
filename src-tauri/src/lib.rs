@@ -11,9 +11,73 @@ use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 static HAS_CLI_FILE: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), String> {
+    let label = format!(
+        "window-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| "Time error".to_string())?
+            .as_millis()
+    );
+
+    let file_name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("MarkFlow")
+        .to_string();
+
+    if let Err(e) = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+        .title(&file_name)
+        .inner_size(900.0, 700.0)
+        .build()
+    {
+        return Err(format!("Failed to create window: {}", e));
+    }
+
+    // After a short delay, emit the file path to the new window's frontend
+    let app_handle = app.clone();
+    let win_label = label.clone();
+    let file_path = path.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if let Some(w) = app_handle.get_webview_window(&win_label) {
+            let _ = w.emit("open-file-in-window", &file_path);
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+fn add_recent_file(path: String) -> Result<(), String> {
+    let mut s = settings::load_settings_inner();
+    s.recent_files.retain(|p| p != &path);
+    s.recent_files.insert(0, path);
+    if s.recent_files.len() > 10 { s.recent_files.truncate(10); }
+    settings::save_settings_inner(&s)
+}
+
+#[tauri::command]
+fn add_recent_folder(path: String) -> Result<(), String> {
+    let mut s = settings::load_settings_inner();
+    s.recent_folders.retain(|p| p != &path);
+    s.recent_folders.insert(0, path);
+    if s.recent_folders.len() > 5 { s.recent_folders.truncate(5); }
+    settings::save_settings_inner(&s)
+}
+
+#[tauri::command]
+fn clear_recent_history() -> Result<(), String> {
+    let mut s = settings::load_settings_inner();
+    s.recent_files.clear();
+    s.recent_folders.clear();
+    settings::save_settings_inner(&s)
+}
 
 #[tauri::command]
 fn set_workspace(
@@ -88,6 +152,10 @@ pub fn run() {
             settings::load_settings,
             settings::save_settings,
             logger::log_frontend_event,
+            open_file_in_new_window,
+            add_recent_file,
+            add_recent_folder,
+            clear_recent_history,
             set_workspace,
             get_workspace,
             has_cli_file,

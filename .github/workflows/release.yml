@@ -52,24 +52,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Set platform-specific product name
-        shell: bash
-        run: |
-          SUFFIX=""
-          if [ "${{ matrix.platform }}" = "windows-latest" ]; then SUFFIX="Win"
-          elif [ "${{ matrix.platform }}" = "macos-latest" ]; then SUFFIX="macOS"
-          elif [ "${{ matrix.platform }}" = "ubuntu-22.04" ]; then SUFFIX="Linux"
-          fi
-          export SUFFIX
-          echo "Platform suffix: $SUFFIX"
-          node -e "
-            const fs = require('fs');
-            const path = 'src-tauri/tauri.conf.json';
-            const conf = JSON.parse(fs.readFileSync(path, 'utf8'));
-            conf.productName = 'MarkFlow-' + process.env.SUFFIX;
-            fs.writeFileSync(path, JSON.stringify(conf, null, 2) + '\n');
-          "
-
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:

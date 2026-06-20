@@ -425,9 +425,9 @@ export async function openFileInEditor(path: string) {
 
   try {
     const content = await readFile(path);
-    setMarkdown(content);
-    setActiveFilePath(path);
     setActiveDocumentPath(path);
+    setActiveFilePath(path);
+    setMarkdown(content);
     refreshOutline();
     showToast('已打开文件');
   } catch (e) {

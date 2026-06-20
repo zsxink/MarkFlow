@@ -1,12 +1,17 @@
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::paths::normalize_path;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use tracing::{debug, error};
 
 pub struct AppState {
     pub workspace_root: Mutex<Option<PathBuf>>,
     watcher: Mutex<Option<FileWatcher>>,
+    pub pending_file: Mutex<HashMap<String, String>>,
+    pub cli_file: Mutex<Option<String>>,
+    pub initial_file_handled: AtomicBool,
 }
 
 impl AppState {
@@ -14,6 +19,9 @@ impl AppState {
         Self {
             workspace_root: Mutex::new(None),
             watcher: Mutex::new(None),
+            pending_file: Mutex::new(HashMap::new()),
+            cli_file: Mutex::new(None),
+            initial_file_handled: AtomicBool::new(false),
         }
     }
 

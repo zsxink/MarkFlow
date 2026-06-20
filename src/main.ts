@@ -6,12 +6,14 @@ import { initMenu } from './components/menu';
 import { initStatusBar } from './components/statusbar';
 import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
-import { getWorkspace, loadSettings, hasCliFile, addRecentFile, openFileInNewWindow } from './lib/storage';
+import { invoke } from '@tauri-apps/api/core';
+import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
 import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import './styles/variables.css';
 import './styles/main.css';
 
@@ -44,20 +46,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   initToolbar();
   initKeyboard();
 
-  const [loadedSettings, cliFile] = await Promise.all([
-    loadSettings().catch((e) => {
-      logException('app.settings', 'Failed to load settings during startup', e);
-      return {};
-    }),
-    hasCliFile(),
-  ]);
+  // Pull model: fetch CLI file path from backend (replaces event-based model)
+  // macOS sends file via RunEvent::Opened which may arrive after DOMContentLoaded
+  const loadedSettings = await loadSettings().catch((e) => {
+    logException('app.settings', 'Failed to load settings during startup', e);
+    return {};
+  });
   settings = loadedSettings;
 
-  if (!cliFile) {
+  // Poll for CLI file with retries (macOS RunEvent may arrive late)
+  let cliFilePath: string | null = null;
+  for (let i = 0; i < 5; i++) {
+    cliFilePath = await invoke<string | null>('take_cli_file');
+    if (cliFilePath) break;
+    await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
+  }
+
+  if (!cliFilePath) {
     await restoreWorkspace();
   } else {
-    logInfo('app.lifecycle', 'Skipping workspace restore (single-file mode)');
+    logInfo('app.lifecycle', 'Opening CLI file in current window', { path: cliFilePath });
+    await addRecentFile(cliFilePath);
+    await openFileInEditor(cliFilePath);
   }
+
+  // Mark that initial file handling is done — subsequent RunEvent::Opened opens new windows
+  invoke('mark_initial_file_handled').catch(() => {});
 
   // Restore sidebar tab preference
   const wsPath = getWorkspacePath();
@@ -101,31 +115,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Handle file opened via CLI (first launch, file association)
-  listen<string>('open-file-from-cli', async (event) => {
-    const filePath = event.payload;
-    logInfo('app.lifecycle', 'Opening file from CLI', { path: filePath });
-    await addRecentFile(filePath);
-    await openFileInEditor(filePath);
+  // Pull pending file path if opened via open_file_in_new_window
+  try {
+    const winLabel = getCurrentWebviewWindow().label;
+    const pendingPath = await invoke<string | null>('take_pending_file', { windowLabel: winLabel });
+    if (pendingPath) {
+      logInfo('app.lifecycle', 'Opening pending file in new window', { path: pendingPath });
+      await addRecentFile(pendingPath);
+      await openFileInEditor(pendingPath);
+    }
+  } catch (e) {
+    logException('app.lifecycle', 'Failed to pull pending file', e);
+  }
+
+  // Save window state on close for next window to inherit
+  window.addEventListener('beforeunload', async () => {
+    try {
+      const win = getCurrentWebviewWindow();
+      const pos = await win.outerPosition();
+      const size = await win.outerSize();
+      const x = pos.x;
+      const y = pos.y;
+      const w = size.width;
+      const h = size.height;
+      invoke('save_last_window_state', { x, y, width: w, height: h }).catch(() => {});
+    } catch { /* ignore errors on close */ }
   });
 
-  // Handle file opened while app already running (macOS RunEvent::Opened)
-  listen<string>('open-file-from-system', async (event) => {
-    const filePath = event.payload;
-    logInfo('app.lifecycle', 'Opening file from system event', { path: filePath });
-    await addRecentFile(filePath);
-    await openFileInNewWindow(filePath);
-  });
-
-  // Handle file opened in a new window (retried event from Rust open_file_in_new_window)
-  listen<string>('open-file-in-window', async (event) => {
-    const filePath = event.payload;
-    logInfo('app.lifecycle', 'Opening file in new window', { path: filePath });
-    await addRecentFile(filePath);
-    await openFileInEditor(filePath);
-  });
-
-  startAutoSave();
+startAutoSave();
 });
 
 async function restoreWorkspace() {

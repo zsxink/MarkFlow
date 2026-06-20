@@ -100,8 +100,8 @@ export async function fileExists(path: string): Promise<boolean> {
   return invoke<boolean>('file_exists', { path });
 }
 
-export async function hasCliFile(): Promise<boolean> {
-  return invoke<boolean>('has_cli_file');
+export async function takeCliFile(): Promise<string | null> {
+  return invoke<string | null>('take_cli_file');
 }
 
 export async function openFileInNewWindow(path: string): Promise<void> {

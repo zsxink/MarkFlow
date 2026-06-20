@@ -10,13 +10,11 @@ use commands::settings;
 use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 #[cfg(target_os = "macos")]
 use tauri::RunEvent;
 use tauri_plugin_single_instance::init as single_instance_init;
-
-static HAS_CLI_FILE: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -34,35 +32,104 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         .unwrap_or("MarkFlow")
         .to_string();
 
+    // Determine window size and position by examining existing windows
+    let saved = settings::load_settings_inner();
+    let windows = app.webview_windows();
+
+    // Used to check if a window fills the screen
+    let monitor: Option<tauri::Monitor> = match app.primary_monitor() {
+        Ok(m) => m,
+        Err(_) => None,
+    };
+
+    let (win_w, win_h, pos_x, pos_y) = if windows.is_empty() {
+        (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+    } else {
+        // Check screen bounds using a standalone variable (avoid capture issues)
+        let can_offset = monitor.as_ref().is_some();
+        let mon_size = monitor.as_ref().map(|m| m.size());
+
+        let ref_window = windows.values().find(|w| {
+            if w.is_maximized().unwrap_or(false) { return false; }
+            if let (Ok(_pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
+                if let Some(ms) = mon_size {
+                    if size.width as i32 >= ms.width as i32 - 20 && size.height as i32 >= ms.height as i32 - 20 {
+                        return false;
+                    }
+                }
+            }
+            true
+        });
+        if let Some(w) = ref_window {
+            if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
+                let new_x = (pos.x + 80) as f64;
+                let new_y = (pos.y + 80) as f64;
+                if can_offset {
+                    if let Some(ms) = mon_size {
+                        if (new_x as i32) < ms.width as i32 && (new_y as i32) < ms.height as i32 {
+                            (size.width as f64, size.height as f64, new_x, new_y)
+                        } else {
+                            (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+                        }
+                    } else {
+                        (size.width as f64, size.height as f64, new_x, new_y)
+                    }
+                } else {
+                    (size.width as f64, size.height as f64, new_x, new_y)
+                }
+            } else {
+                (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+            }
+        } else {
+            (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+        }
+    };
+
     if let Err(e) = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
         .title(&file_name)
-        .inner_size(900.0, 700.0)
+        .inner_size(win_w, win_h)
+        .position(pos_x, pos_y)
         .build()
     {
         return Err(format!("Failed to create window: {}", e));
     }
 
-    // Retry emitting the file path until the frontend acknowledges it
-    let app_handle = app.clone();
-    let win_label = label.clone();
-    let file_path = path.clone();
-    std::thread::spawn(move || {
-        for i in 0..20 {
-            std::thread::sleep(std::time::Duration::from_millis(200));
-            if let Some(w) = app_handle.get_webview_window(&win_label) {
-                if w.emit("open-file-in-window", &file_path).is_ok() {
-                    return;
-                }
-            }
-            // After first 10 retries, log a warning
-            if i == 10 {
-                tracing::warn!(target: "backend.window", label = %win_label, "Still waiting for window to be ready");
-            }
-        }
-        tracing::error!(target: "backend.window", label = %win_label, "Failed to emit file path after 20 retries");
-    });
+    // Store pending file path for the new window's frontend to pull
+    {
+        let state = app.state::<AppState>();
+        let mut pending = state.pending_file.lock().unwrap();
+        pending.insert(label.clone(), path.clone());
+    }
 
     Ok(())
+}
+
+#[tauri::command]
+fn take_pending_file(window_label: String, state: tauri::State<AppState>) -> Option<String> {
+    let mut pending = state.pending_file.lock().unwrap();
+    pending.remove(&window_label)
+}
+
+#[tauri::command]
+fn take_cli_file(state: tauri::State<AppState>) -> Option<String> {
+    let mut cli_file = state.cli_file.lock().unwrap();
+    cli_file.take()
+}
+
+#[tauri::command]
+fn mark_initial_file_handled(state: tauri::State<AppState>) -> Result<(), String> {
+    state.initial_file_handled.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+#[tauri::command]
+fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(), String> {
+    let mut s = settings::load_settings_inner();
+    s.last_window_x = x;
+    s.last_window_y = y;
+    s.last_window_width = width;
+    s.last_window_height = height;
+    settings::save_settings_inner(&s)
 }
 
 #[tauri::command]
@@ -125,11 +192,6 @@ fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, String
     Ok(state.get_workspace().map(|p| normalize_path(&p)))
 }
 
-#[tauri::command]
-fn has_cli_file() -> bool {
-    HAS_CLI_FILE.load(Ordering::Relaxed)
-}
-
 pub fn run() {
     if let Err(error) = logger::init_logging() {
         eprintln!("Failed to initialize logger: {}", error);
@@ -147,7 +209,8 @@ pub fn run() {
                 let path = std::path::Path::new(file);
                 if path.is_file() {
                     let path_str = path.to_string_lossy().to_string();
-                    let _ = app.emit("open-file-from-system", &path_str);
+                    tracing::info!(target: "backend.app", path = %path_str, "File opened via single-instance plugin");
+                    let _ = open_file_in_new_window(path_str, app.clone());
                 }
             }
         }))
@@ -175,22 +238,26 @@ pub fn run() {
             settings::save_settings,
             logger::log_frontend_event,
             open_file_in_new_window,
+            take_pending_file,
+            take_cli_file,
+            mark_initial_file_handled,
+            save_last_window_state,
             add_recent_file,
             add_recent_folder,
             clear_recent_history,
             set_workspace,
             get_workspace,
-            has_cli_file,
         ])
         .setup(|app| {
             let settings = settings::load_settings_inner();
 
-            // Check CLI args for file path (opened via file association)
             let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
 
-            if cli_file.is_some() {
-                HAS_CLI_FILE.store(true, Ordering::Relaxed);
-                tracing::info!(target: "backend.app", path = %cli_file.as_ref().unwrap().display(), "Opened via file association (single-file mode)");
+            if let Some(file_path) = cli_file {
+                tracing::info!(target: "backend.app", path = %file_path.display(), "Opened via file association (single-file mode)");
+                let state = app.state::<AppState>();
+                let mut cli_file_lock = state.cli_file.lock().unwrap();
+                *cli_file_lock = Some(file_path.to_string_lossy().to_string());
             } else if let Some(last_ws) = settings.last_workspace {
                 let path = PathBuf::from(&last_ws);
                 if path.is_dir() {
@@ -205,31 +272,33 @@ pub fn run() {
                 }
             }
 
-            // Emit file path to frontend after a short delay to ensure it's ready
-            if let Some(file_path) = cli_file {
-                let app_handle = app.handle().clone();
-                let path_str = file_path.to_string_lossy().to_string();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
-                    let _ = app_handle.emit("open-file-from-cli", &path_str);
-                    tracing::info!(target: "backend.app", "Emitted open-file-from-cli event");
-                });
-            }
-
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building MarkFlow");
 
     app.run(|app_handle, event| {
-        // macOS: native file open requests come through here even when already running
         #[cfg(target_os = "macos")]
         if let RunEvent::Opened { urls } = event {
             for url in &urls {
-                // url.path() returns the percent-decoded path (strip file:// prefix automatically)
-                let path_str = url.path().to_string();
-                tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened");
-                let _ = app_handle.emit("open-file-from-system", &path_str);
+                let path_str = match url.to_file_path() {
+                    Ok(path) => path.to_string_lossy().to_string(),
+                    Err(_) => {
+                        tracing::warn!(target: "backend.app", url = %url, "Failed to convert URL to file path");
+                        continue;
+                    }
+                };
+
+                let state = app_handle.state::<AppState>();
+
+                if !state.initial_file_handled.load(Ordering::SeqCst) {
+                    tracing::info!(target: "backend.app", path = %path_str, "First RunEvent::Opened — storing to cli_file");
+                    let mut cli_file_lock = state.cli_file.lock().unwrap();
+                    *cli_file_lock = Some(path_str);
+                } else {
+                    tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened (new window)");
+                    let _ = open_file_in_new_window(path_str, app_handle.clone());
+                }
             }
         }
     });

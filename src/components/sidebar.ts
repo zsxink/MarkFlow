@@ -1,5 +1,5 @@
 import { readFile, writeFile, addRecentFile, addRecentFolder, saveSettings } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, setMarkdown } from '../lib/editor';
+import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, setMarkdown, setActiveDocumentPath } from '../lib/editor';
 import { showToast } from './toast';
 import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate, suppressNextWatcherRefresh } from './fileTree';
 import { initOutline, refreshOutline } from './outline';
@@ -64,6 +64,7 @@ export async function handleExternalDeletion(path: string) {
 export function clearActiveDocument() {
   activeFilePath = null;
   setMarkdown('');
+  setActiveDocumentPath(null);
   updateActiveTreeSelection(null);
   refreshOutline();
 }
@@ -426,6 +427,7 @@ export async function openFileInEditor(path: string) {
     const content = await readFile(path);
     setMarkdown(content);
     setActiveFilePath(path);
+    setActiveDocumentPath(path);
     refreshOutline();
     showToast('已打开文件');
   } catch (e) {

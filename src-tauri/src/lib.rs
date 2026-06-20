@@ -42,14 +42,24 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         return Err(format!("Failed to create window: {}", e));
     }
 
+    // Retry emitting the file path until the frontend acknowledges it
     let app_handle = app.clone();
     let win_label = label.clone();
     let file_path = path.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        if let Some(w) = app_handle.get_webview_window(&win_label) {
-            let _ = w.emit("open-file-in-window", &file_path);
+        for i in 0..20 {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            if let Some(w) = app_handle.get_webview_window(&win_label) {
+                if w.emit("open-file-in-window", &file_path).is_ok() {
+                    return;
+                }
+            }
+            // After first 10 retries, log a warning
+            if i == 10 {
+                tracing::warn!(target: "backend.window", label = %win_label, "Still waiting for window to be ready");
+            }
         }
+        tracing::error!(target: "backend.window", label = %win_label, "Failed to emit file path after 20 retries");
     });
 
     Ok(())

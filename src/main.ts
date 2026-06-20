@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await openFileInNewWindow(filePath);
   });
 
-  // Handle file opened in a new window (via open_file_in_new_window Rust command)
+  // Handle file opened in a new window (retried event from Rust open_file_in_new_window)
   listen<string>('open-file-in-window', async (event) => {
     const filePath = event.payload;
     logInfo('app.lifecycle', 'Opening file in new window', { path: filePath });

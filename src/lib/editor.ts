@@ -352,6 +352,9 @@ function mermaidCodeBlockExtension() {
 
 const assetToOriginalMap = new Map<string, string>();
 
+// Holds the active document path when outside a workspace tree
+let activeDocPathOverride: string | null = null;
+
 const documentState = {
   dirty: false,
   externallyModified: false,
@@ -982,7 +985,11 @@ export function switchToWysiwyg() {
 
 function getActiveDocPath(): string | null {
   const el = document.querySelector('.tree-file.active') as HTMLElement | null;
-  return el?.dataset?.path || null;
+  return el?.dataset?.path || activeDocPathOverride;
+}
+
+export function setActiveDocumentPath(path: string | null) {
+  activeDocPathOverride = path;
 }
 
 function getMermaidExportBaseName() {

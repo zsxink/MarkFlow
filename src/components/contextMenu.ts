@@ -1,7 +1,7 @@
 import { deletePath, copyFile, readSingleDir, addRecentFile } from '../lib/storage';
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './fileTree';
 import { showToast } from './toast';
-import { clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
+import { clearActiveDocument, clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
@@ -172,7 +172,7 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         if (folder) {
           if (!(await confirmDocumentTransition())) return;
           await setWorkspacePath(folder);
-          clearActiveDocumentIfMatches('');
+          clearActiveDocument();
           await refreshFileTree();
           showToast('文件夹已打开');
         }

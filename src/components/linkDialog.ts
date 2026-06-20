@@ -55,12 +55,14 @@ export function showLinkDialog() {
   const textInput = document.getElementById('link-text') as HTMLInputElement;
   const autofillCb = document.getElementById('link-autofill') as HTMLInputElement;
 
+  let aborted = false;
+
   autofillCb.addEventListener('change', () => {
     textInput.disabled = autofillCb.checked;
     textInput.placeholder = autofillCb.checked ? '自动获取中...' : '留空则使用 URL';
   });
 
-  const close = () => { overlay.hidden = true; };
+  const close = () => { aborted = true; overlay.hidden = true; };
 
   document.getElementById('link-close')!.addEventListener('click', close);
   document.getElementById('link-cancel')!.addEventListener('click', close);
@@ -103,6 +105,8 @@ export function showLinkDialog() {
         text = href;
       }
     }
+
+    if (aborted) return;
 
     if (mode === 'source') {
       // Source mode — insert Markdown syntax directly into textarea

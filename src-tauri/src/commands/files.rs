@@ -366,6 +366,59 @@ pub async fn fetch_remote_image_as_base64(url: String) -> Result<RemoteImageData
 }
 
 #[tauri::command]
+pub async fn fetch_page_title(url: String) -> Result<String, String> {
+    let validated_url = validate_remote_image_url(&url)?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client
+        .get(validated_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch URL: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP error: {}", response.status()));
+    }
+
+    let html = response
+        .text()
+        .await
+        .map_err(|_| "Failed to read response body".to_string())?;
+
+    // Find <title or <TITLE case-insensitively using positions
+    let lower = html.to_ascii_lowercase();
+    let tag_start = match lower.find("<title") {
+        Some(i) => i,
+        None => return Err("No title found".into()),
+    };
+
+    // Find > after <title...>
+    let rest = &lower[tag_start..];
+    let close = match rest.find('>') {
+        Some(i) => i,
+        None => return Err("Invalid title tag".into()),
+    };
+
+    let content_start = tag_start + close + 1;
+    let rest2 = &lower[content_start..];
+    let title_end = match rest2.find("</title>") {
+        Some(i) => content_start + i,
+        None => return Err("No title end found".into()),
+    };
+
+    let title = html[content_start..title_end].trim().to_string();
+    if title.is_empty() {
+        return Err("No title found".into());
+    }
+    Ok(title)
+}
+
+#[tauri::command]
 pub fn create_file(path: String, content: Option<String>, state: State<AppState>) -> Result<(), String> {
     let path = Path::new(&path);
 

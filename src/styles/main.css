@@ -927,7 +927,7 @@ html, body {
   padding-top: 16px;
 }
 
-.image-insert-dialog .btn-primary {
+.btn-primary, .image-insert-dialog .btn-primary {
   padding: 8px 20px;
   background: var(--accent);
   color: white;
@@ -938,7 +938,7 @@ html, body {
   font-family: var(--font-ui);
 }
 
-.image-insert-dialog .btn-secondary {
+.btn-secondary, .image-insert-dialog .btn-secondary {
   padding: 8px 20px;
   background: transparent;
   color: var(--fg);
@@ -1536,4 +1536,63 @@ html, body {
   text-align: center;
   color: var(--muted);
   font-size: 13px;
+}
+
+/* --- Link Dialog --- */
+.link-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.link-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+  min-width: 32px;
+  flex-shrink: 0;
+}
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background: var(--surface);
+  outline: none;
+}
+  border-color: var(--accent);
+}
+.link-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background: var(--surface);
+  outline: none;
+}
+.link-input:focus {
+  border-color: var(--accent);
+}
+.link-input:disabled {
+  background: var(--code-bg);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.link-autofill-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.link-autofill-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
 }

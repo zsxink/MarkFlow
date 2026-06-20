@@ -148,6 +148,7 @@ pub fn run() {
             files::read_file_as_base64,
             files::write_file_from_base64,
             files::fetch_remote_image_as_base64,
+            files::fetch_page_title,
             files::download_image,
             settings::load_settings,
             settings::save_settings,

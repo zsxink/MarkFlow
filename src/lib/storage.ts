@@ -88,6 +88,10 @@ export async function fetchRemoteImageAsBase64(url: string): Promise<RemoteImage
   return invoke<RemoteImageData>('fetch_remote_image_as_base64', { url });
 }
 
+export async function fetchPageTitle(url: string): Promise<string> {
+  return invoke<string>('fetch_page_title', { url });
+}
+
 export async function downloadImage(url: string, dest: string): Promise<string> {
   return invoke<string>('download_image', { url, dest });
 }

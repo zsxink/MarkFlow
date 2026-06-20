@@ -1,30 +1,14 @@
-import { getEditor, switchToSource, switchToWysiwyg } from '../lib/editor';
+import { getEditor, getMode, switchToSource, switchToWysiwyg } from '../lib/editor';
 import { cycleTheme } from '../lib/theme';
 import { open } from '@tauri-apps/plugin-dialog';
 import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree';
 import { showNewFileDialog } from './newFileDialog';
+import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
 import { loadSettings, addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, type ImageSettings } from '../lib/imageUtils';
 import { logException } from '../lib/logger';
-
-function sanitizeLinkHref(input: string): string | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('#') || trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('/')) {
-    return trimmed;
-  }
-  try {
-    const url = new URL(trimmed);
-    if (['http:', 'https:', 'mailto:'].includes(url.protocol)) {
-      return url.toString();
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 export function initToolbar() {
   bindToolbarEvents();
@@ -80,14 +64,7 @@ function bindToolbarEvents() {
   bind('btn-h2', () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run());
   bind('btn-quote', () => getEditor()?.chain().focus().toggleBlockquote().run());
   bind('btn-link', () => {
-    const url = prompt('输入链接 URL:');
-    const editor = getEditor();
-    const href = url ? sanitizeLinkHref(url) : null;
-    if (href && editor) {
-      editor.chain().focus().setLink({ href }).run();
-    } else if (url) {
-      showToast('不支持的链接协议');
-    }
+    showLinkDialog();
   });
   bind('btn-ul', () => getEditor()?.chain().focus().toggleBulletList().run());
   bind('btn-ol', () => getEditor()?.chain().focus().toggleOrderedList().run());
@@ -174,6 +151,32 @@ function getActiveDocPath(): string | null {
   return el?.dataset?.path || null;
 }
 
+/// Insert image Markdown in either WYSIWYG or source mode
+function insertImageSrc(src: string) {
+  const mode = getMode();
+  if (mode === 'source') {
+    const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;
+    if (!textarea) return;
+    // Strip Tauri asset protocol — source markdown should have filesystem paths
+    let fsPath = src;
+    if (src.startsWith('asset://localhost/')) {
+      const urlDecoded = decodeURIComponent(src.slice('asset://localhost/'.length));
+      fsPath = urlDecoded;
+      // On Windows asset://localhost/C:/ → /C:/ → C:/
+      if (fsPath.match(/^\/[A-Za-z]:\//)) fsPath = fsPath.slice(1);
+    }
+    const pos = textarea.selectionStart;
+    const before = textarea.value.substring(0, pos);
+    const after = textarea.value.substring(pos);
+    const md = `![](${fsPath})`;
+    textarea.value = before + md + after;
+    textarea.selectionStart = textarea.selectionEnd = pos + md.length;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  } else {
+    getEditor()?.chain().focus().setImage({ src }).run();
+  }
+}
+
 export function showImageInsertDialog(options?: { alt?: string; src?: string; onReplace?: (src: string, alt: string) => void }) {
   const overlay = document.getElementById('image-modal');
   if (!overlay) return;
@@ -240,8 +243,7 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
       const settings = await getImageSettings();
       const docPath = getActiveDocPath();
       const src = await copyLocalFileToStorage(selected as string, docPath, settings);
-      const editor = getEditor();
-      editor?.chain().focus().setImage({ src }).run();
+      insertImageSrc(src);
       close();
     } catch (e) {
       logException('toolbar.image', 'Failed to insert local image', e, { source: 'local' });
@@ -262,8 +264,7 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
           const settings = await getImageSettings();
           const docPath = getActiveDocPath();
           const src = await handleNetworkImage(url, docPath, settings);
-          const editor = getEditor();
-          editor?.chain().focus().setImage({ src }).run();
+          insertImageSrc(src);
           close();
         }
       } catch (e) {

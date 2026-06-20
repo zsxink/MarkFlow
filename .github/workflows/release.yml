@@ -55,17 +55,18 @@ jobs:
       - name: Set platform-specific product name
         shell: bash
         run: |
-          PLATFORM_SUFFIX=$(case ${{ matrix.platform }} in
-            windows-latest) echo "Win" ;;
-            macos-latest) echo "macOS" ;;
-            ubuntu-22.04) echo "Linux" ;;
-          esac)
-          echo "Platform suffix: $PLATFORM_SUFFIX"
+          SUFFIX=""
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then SUFFIX="Win"
+          elif [ "${{ matrix.platform }}" = "macos-latest" ]; then SUFFIX="macOS"
+          elif [ "${{ matrix.platform }}" = "ubuntu-22.04" ]; then SUFFIX="Linux"
+          fi
+          export SUFFIX
+          echo "Platform suffix: $SUFFIX"
           node -e "
             const fs = require('fs');
             const path = 'src-tauri/tauri.conf.json';
             const conf = JSON.parse(fs.readFileSync(path, 'utf8'));
-            conf.productName = 'MarkFlow-' + process.env.PLATFORM_SUFFIX;
+            conf.productName = 'MarkFlow-' + process.env.SUFFIX;
             fs.writeFileSync(path, JSON.stringify(conf, null, 2) + '\n');
           "
 

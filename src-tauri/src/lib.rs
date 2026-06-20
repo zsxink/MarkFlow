@@ -11,7 +11,9 @@ use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+#[cfg(target_os = "macos")]
+use tauri::RunEvent;
 use tauri_plugin_single_instance::init as single_instance_init;
 
 static HAS_CLI_FILE: AtomicBool = AtomicBool::new(false);
@@ -211,6 +213,7 @@ pub fn run() {
 
     app.run(|app_handle, event| {
         // macOS: native file open requests come through here even when already running
+        #[cfg(target_os = "macos")]
         if let RunEvent::Opened { urls } = event {
             for url in &urls {
                 let path_str = url.as_str().to_string();

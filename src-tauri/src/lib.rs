@@ -11,7 +11,8 @@ use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_single_instance::init as single_instance_init;
 
 static HAS_CLI_FILE: AtomicBool = AtomicBool::new(false);
 
@@ -39,7 +40,6 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         return Err(format!("Failed to create window: {}", e));
     }
 
-    // After a short delay, emit the file path to the new window's frontend
     let app_handle = app.clone();
     let win_label = label.clone();
     let file_path = path.clone();
@@ -126,10 +126,19 @@ pub fn run() {
 
     let app_state = AppState::new();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(single_instance_init(|app, args, _cwd| {
+            if let Some(file) = args.get(1) {
+                let path = std::path::Path::new(file);
+                if path.is_file() {
+                    let path_str = path.to_string_lossy().to_string();
+                    let _ = app.emit("open-file-from-system", &path_str);
+                }
+            }
+        }))
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             files::read_file,
@@ -197,6 +206,19 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running MarkFlow");
+        .build(tauri::generate_context!())
+        .expect("error while building MarkFlow");
+
+    app.run(|app_handle, event| {
+        // macOS: native file open requests come through here even when already running
+        if let RunEvent::Opened { urls } = event {
+            for url in &urls {
+                let path_str = url.as_str().to_string();
+                // Strip file:// scheme if present (macOS sends file:// URLs)
+                let path_str = path_str.strip_prefix("file://").unwrap_or(&path_str).to_string();
+                tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened");
+                let _ = app_handle.emit("open-file-from-system", &path_str);
+            }
+        }
+    });
 }

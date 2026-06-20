@@ -6,7 +6,7 @@ import { initMenu } from './components/menu';
 import { initStatusBar } from './components/statusbar';
 import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
-import { getWorkspace, loadSettings, hasCliFile, addRecentFile } from './lib/storage';
+import { getWorkspace, loadSettings, hasCliFile, addRecentFile, openFileInNewWindow } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
@@ -101,12 +101,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Handle file opened via CLI (file association / right-click "Open with")
+  // Handle file opened via CLI (first launch, file association)
   listen<string>('open-file-from-cli', async (event) => {
     const filePath = event.payload;
     logInfo('app.lifecycle', 'Opening file from CLI', { path: filePath });
     await addRecentFile(filePath);
     await openFileInEditor(filePath);
+  });
+
+  // Handle file opened while app already running (macOS RunEvent::Opened)
+  listen<string>('open-file-from-system', async (event) => {
+    const filePath = event.payload;
+    logInfo('app.lifecycle', 'Opening file from system event', { path: filePath });
+    await addRecentFile(filePath);
+    await openFileInNewWindow(filePath);
   });
 
   // Handle file opened in a new window (via open_file_in_new_window Rust command)

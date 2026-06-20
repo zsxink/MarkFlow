@@ -216,9 +216,8 @@ pub fn run() {
         #[cfg(target_os = "macos")]
         if let RunEvent::Opened { urls } = event {
             for url in &urls {
-                let path_str = url.as_str().to_string();
-                // Strip file:// scheme if present (macOS sends file:// URLs)
-                let path_str = path_str.strip_prefix("file://").unwrap_or(&path_str).to_string();
+                // url.path() returns the percent-decoded path (strip file:// prefix automatically)
+                let path_str = url.path().to_string();
                 tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened");
                 let _ = app_handle.emit("open-file-from-system", &path_str);
             }

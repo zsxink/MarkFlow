@@ -1,4 +1,4 @@
-import { Editor, Extension } from '@tiptap/core';
+import { Editor, Extension, InputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -7,7 +7,57 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
+import type { Mark } from '@tiptap/pm/model';
+import type { MarkdownSerializerState } from 'prosemirror-markdown';
+
 import Link from '@tiptap/extension-link';
+
+// Custom Link extension with paste rules disabled and explicit
+// [text](url) serialization (never <url> autolink syntax).
+//
+// The default Link.addPasteRules() has a markPasteRule that uses linkifyjs
+// to auto-detect URLs in pasted text and add link marks — this bypasses
+// linkOnPaste: false because it's a PasteRule, not the pasteHandler plugin.
+//
+// The default link mark serializer (prosemirror-markdown isPlainURL) outputs
+// <url> when link text == href, which would modify the source file.
+const CustomLink = Link.extend({
+  addPasteRules() {
+    return [];
+  },
+  addInputRules() {
+    return [
+      new InputRule({
+        // Match [text](url) typed inline — the $ anchors to cursor position
+        find: /\[([^\]]+)\]\(([^)]+)\)$/,
+        handler({ state, range, match }) {
+          const { tr } = state;
+          const text = match[1];
+          const url = match[2];
+          const { from, to } = range;
+          tr.replaceWith(from, to, state.schema.text(text));
+          tr.addMark(from, from + text.length, state.schema.marks.link.create({ href: url }));
+        },
+      }),
+    ];
+  },
+  addStorage() {
+    return {
+      markdown: {
+        serialize: {
+          open: '[',
+          close: (_state: MarkdownSerializerState, mark: Mark) => {
+            const href = mark.attrs.href.replace(/[\(\)"]/g, '\\$&');
+            const title = mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, '\\"')}"` : '';
+            return `](${href}${title})`;
+          },
+          mixable: true,
+        },
+        parse: {},
+      },
+    };
+  },
+});
 import Image from '@tiptap/extension-image';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from 'tiptap-markdown';
@@ -23,6 +73,7 @@ import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showImageContextMenu } from '../components/imageContextMenu';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logException } from './logger';
+import { createUrlDecorationPlugin } from './urlDecorationPlugin';
 
 const BlockImage = Image.extend({
   addNodeView() {
@@ -796,8 +847,10 @@ export async function initEditor() {
       TableRow,
       TableCell,
       TableHeader,
-      Link.configure({
+      CustomLink.configure({
         openOnClick: false,
+        autolink: false,        // 打字不自动加 link mark
+        linkOnPaste: false,     // 粘贴不自动加 link mark
       }),
       BlockImage.configure({
         allowBase64: true,
@@ -811,10 +864,16 @@ export async function initEditor() {
         tightLists: true,
         bulletListMarker: '-',
         transformPastedText: true,
-        transformCopiedText: true,
+        transformCopiedText: false,
       }),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
+      Extension.create({
+        name: 'urlAutoDetect',
+        addProseMirrorPlugins() {
+          return [createUrlDecorationPlugin()];
+        },
+      }),
     ],
     content: '',
     onUpdate: () => {

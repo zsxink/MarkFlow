@@ -454,6 +454,18 @@ html, body {
   border-radius: 3px;
 }
 
+/* Auto-detected bare URL decoration (no link mark on the document) */
+.ProseMirror .auto-link-deco {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  cursor: pointer;
+}
+.ProseMirror .auto-link-deco:hover {
+  text-decoration-thickness: 2px;
+}
+
 .ProseMirror pre {
   background: var(--code-bg);
   border: 1px solid var(--border);
@@ -1550,18 +1562,6 @@ html, body {
   color: var(--fg);
   min-width: 32px;
   flex-shrink: 0;
-}
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: var(--font-ui);
-  color: var(--fg);
-  background: var(--surface);
-  outline: none;
-}
-  border-color: var(--accent);
 }
 .link-input {
   flex: 1;

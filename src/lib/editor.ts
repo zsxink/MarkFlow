@@ -8,6 +8,16 @@ import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import Link from '@tiptap/extension-link';
+
+// Custom Link extension with paste rules disabled.
+// The default Link.addPasteRules() has a markPasteRule that uses linkifyjs
+// to auto-detect URLs in pasted text and add link marks — this bypasses
+// linkOnPaste: false because it's a PasteRule, not the pasteHandler plugin.
+const CustomLink = Link.extend({
+  addPasteRules() {
+    return [];
+  },
+});
 import Image from '@tiptap/extension-image';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from 'tiptap-markdown';
@@ -797,7 +807,7 @@ export async function initEditor() {
       TableRow,
       TableCell,
       TableHeader,
-      Link.configure({
+      CustomLink.configure({
         openOnClick: false,
         autolink: false,        // 打字不自动加 link mark
         linkOnPaste: false,     // 粘贴不自动加 link mark

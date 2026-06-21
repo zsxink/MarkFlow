@@ -1,4 +1,4 @@
-import { Editor, Extension } from '@tiptap/core';
+import { Editor, Extension, InputRule } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -24,6 +24,22 @@ import Link from '@tiptap/extension-link';
 const CustomLink = Link.extend({
   addPasteRules() {
     return [];
+  },
+  addInputRules() {
+    return [
+      new InputRule({
+        // Match [text](url) typed inline — the $ anchors to cursor position
+        find: /\[([^\]]+)\]\(([^)]+)\)$/,
+        handler({ state, range, match }) {
+          const { tr } = state;
+          const text = match[1];
+          const url = match[2];
+          const { from, to } = range;
+          tr.replaceWith(from, to, state.schema.text(text));
+          tr.addMark(from, from + text.length, state.schema.marks.link.create({ href: url }));
+        },
+      }),
+    ];
   },
   addStorage() {
     return {

@@ -798,6 +798,10 @@ export async function initEditor() {
       TableHeader,
       Link.configure({
         openOnClick: false,
+        // 禁用 autolink：纯文本 URL 在 markdown 中必须保持原样。
+        // 开启 autolink 后，序列化器 (prosemirror-markdown isPlainURL)
+        // 会将裸 URL 输出为 <url> 格式，导致源文件被静默修改。
+        autolink: false,
       }),
       BlockImage.configure({
         allowBase64: true,

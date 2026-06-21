@@ -1,11 +1,39 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Slice } from '@tiptap/pm/model';
 import { find } from 'linkifyjs';
 
 /**
  * Plugin key for the URL decoration plugin.
  */
 export const urlDecoKey = new PluginKey('url-decoration');
+
+/**
+ * Recursively serialize node content to plain text.
+ * For text nodes with a link mark, output the URL (href) instead of the visible text.
+ */
+function serializeNode(node: import('@tiptap/pm/model').Node): string {
+  if (node.isText) {
+    const linkMark = node.marks.find(m => m.type.name === 'link');
+    return linkMark ? linkMark.attrs.href : node.text!;
+  }
+  const parts: string[] = [];
+  node.forEach(child => parts.push(serializeNode(child)));
+  return parts.join('');
+}
+
+/**
+ * Serialize slice content to plain text for clipboard.
+ * Replaces link mark text with the URL href.
+ */
+function serializeSliceText(content: Slice): string {
+  const parts: string[] = [];
+  content.content.forEach(node => {
+    parts.push(serializeNode(node));
+    if (node.isBlock) parts.push('\n');
+  });
+  return parts.join('');
+}
 
 /**
  * Creates a ProseMirror plugin that:
@@ -90,6 +118,9 @@ export function createUrlDecorationPlugin() {
 
         // Let ProseMirror handle regular clicks (cursor placement)
         return false;
+      },
+      clipboardTextSerializer(content: Slice) {
+        return serializeSliceText(content);
       },
     },
   });

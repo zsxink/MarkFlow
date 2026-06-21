@@ -23,6 +23,7 @@ import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showImageContextMenu } from '../components/imageContextMenu';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logException } from './logger';
+import { createUrlDecorationPlugin } from './urlDecorationPlugin';
 
 const BlockImage = Image.extend({
   addNodeView() {
@@ -819,6 +820,12 @@ export async function initEditor() {
       }),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
+      Extension.create({
+        name: 'urlAutoDetect',
+        addProseMirrorPlugins() {
+          return [createUrlDecorationPlugin()];
+        },
+      }),
     ],
     content: '',
     onUpdate: () => {

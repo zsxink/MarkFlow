@@ -7,15 +7,39 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
+import type { Mark } from '@tiptap/pm/model';
+import type { MarkdownSerializerState } from 'prosemirror-markdown';
+
 import Link from '@tiptap/extension-link';
 
-// Custom Link extension with paste rules disabled.
+// Custom Link extension with paste rules disabled and explicit
+// [text](url) serialization (never <url> autolink syntax).
+//
 // The default Link.addPasteRules() has a markPasteRule that uses linkifyjs
 // to auto-detect URLs in pasted text and add link marks — this bypasses
 // linkOnPaste: false because it's a PasteRule, not the pasteHandler plugin.
+//
+// The default link mark serializer (prosemirror-markdown isPlainURL) outputs
+// <url> when link text == href, which would modify the source file.
 const CustomLink = Link.extend({
   addPasteRules() {
     return [];
+  },
+  addStorage() {
+    return {
+      markdown: {
+        serialize: {
+          open: '[',
+          close: (_state: MarkdownSerializerState, mark: Mark) => {
+            const href = mark.attrs.href.replace(/[\(\)"]/g, '\\$&');
+            const title = mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, '\\"')}"` : '';
+            return `](${href}${title})`;
+          },
+          mixable: true,
+        },
+        parse: {},
+      },
+    };
   },
 });
 import Image from '@tiptap/extension-image';

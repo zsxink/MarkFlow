@@ -13,7 +13,10 @@ src-tauri/gen/
 
 # OMC state
 .omc/
-.claude/
+.claude/*
+!.claude/rules/
+!.claude/memory/
+.claude/settings.local.json
 
 # OS files
 .DS_Store

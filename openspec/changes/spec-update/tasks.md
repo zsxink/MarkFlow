@@ -11,8 +11,8 @@
 
 ## Spec 迁移
 
-- [ ] 3.1 创建 OpenSpec change spec-update 的提案、设计、任务文档
-- [ ] 3.2 将 product-spec.md 精简去重后迁移到 openspec/specs/product-spec.md
-- [ ] 3.3 合并 architecture.md 到 openspec/specs/architecture.md（精简版）
-- [ ] 3.4 合并 technical-design.md 到 openspec/specs/technical-design.md（完整版）
-- [ ] 3.5 更新 README 中的文档链接
+- [x] 3.1 创建 OpenSpec change spec-update 的提案、设计、任务文档
+- [x] 3.2 将 product-spec.md 精简去重后迁移到 openspec/specs/product-spec.md
+- [x] 3.3 合并 architecture.md 到 openspec/specs/architecture.md（精简版）
+- [x] 3.4 合并 technical-design.md 到 openspec/specs/technical-design.md（完整版）
+- [x] 3.5 更新 README 中的文档链接

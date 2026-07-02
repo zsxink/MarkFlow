@@ -141,6 +141,20 @@ Settings file location:
 
 ---
 
+---
+
+## Project Documentation
+
+| Document | Description | Location |
+| --- | --- | --- |
+| Product Spec | Product positioning, feature list, acceptance criteria | `openspec/specs/product-spec.md` |
+| Architecture | Tech stack, project structure, architecture overview | `openspec/specs/architecture.md` |
+| Technical Design | Architecture details, component design, key implementations | `openspec/specs/technical-design.md` |
+| UI Design Spec | Pixel-level UI specification | `openspec/ui-design/SPEC.md` |
+| UI Fixes Record | CSS layout experience and fix checklist | `openspec/specs/ui-fixes-spec.md` |
+
+> `openspec/specs/` is the canonical spec source.
+
 ## License
 
 MIT

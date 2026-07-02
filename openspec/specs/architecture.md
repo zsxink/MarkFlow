@@ -1,6 +1,6 @@
 # MarkFlow 技术架构
 
-> 技术栈、项目结构与实现细节。
+> 技术栈、项目结构与核心架构设计。
 
 ---
 
@@ -11,6 +11,7 @@
 | 桌面框架 | Tauri v2 | 跨平台原生桌面应用，使用系统 WebView |
 | 前端语言 | TypeScript | UI 逻辑与编辑器编排 |
 | 编辑器引擎 | Tiptap / ProseMirror | 节点化 WYSIWYG 编辑，Markdown 双向同步 |
+| 源码编辑 | CodeMirror v6 | 源码模式编辑 |
 | 构建工具 | Vite | 开发服务器与生产构建 |
 | 后端 | Rust | 文件 I/O、文件监听、配置管理 |
 | 代码高亮 | highlight.js + lowlight | 代码块语法高亮 |
@@ -61,14 +62,18 @@ markflow/
 │   │   │   └── tree.rs           # 文件树构建
 │   │   ├── config/
 │   │   │   └── settings.rs       # Settings 结构体与持久化
+│   │   ├── logger.rs             # 日志配置
+│   │   ├── paths.rs              # 路径工具函数
 │   │   └── state.rs              # 应用状态管理
 │   ├── Cargo.toml
 │   ├── tauri.conf.json           # Tauri 配置
 │   └── capabilities/             # Tauri v2 权限声明
-├── docs/
-│   ├── product-spec.md           # 产品规格文档
-│   ├── architecture.md           # 本文档
-│   └── ui-design/                # UI 设计稿
+├── openspec/                     # 规范文档
+│   ├── specs/                    #   - 产品规格、架构、技术设计等
+│   ├── ui-design/                #   - UI 设计稿
+│   └── changes/                  #   - 变更追踪
+├── openspec/                     # OpenSpec 规范文档（canonical）
+│   └── specs/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
@@ -86,42 +91,32 @@ markflow/
 ### 编辑器架构
 
 - **Tiptap** 基于 ProseMirror，以节点树表示文档结构
-- **tiptap-markdown** 扩展负责 Markdown 的双向序列化（`![]()` ↔ `<img>`）
+- **tiptap-markdown** 扩展负责 Markdown 的双向序列化
 - **自定义 ProseMirror 插件**：
   - `imageSrcResolverPlugin` — 将相对路径转换为 Tauri asset protocol URL
   - `imageBubblePlugin` — 点击图片弹出路径编辑气泡
-- **DOM 级事件处理**：图片粘贴/拖拽通过 `paste`/`drop` 事件监听实现（Tiptap Image 扩展无内置处理）
+- **DOM 级事件处理**：图片粘贴/拖拽通过 `paste`/`drop` 事件监听实现
 
 ### 图片渲染
 
-1. Markdown 中的相对路径 `./assets/foo.png` 存储在 ProseMirror 节点的 `src` 属性中
+1. Markdown 中的相对路径存储在 ProseMirror 节点的 `src` 属性中
 2. `imageSrcResolverPlugin` 的 `appendTransaction` 将其转换为 `convertFileSrc()` 生成的 asset protocol URL
 3. 模块级 `assetToOriginalMap` 记录 `assetUrl → originalPath` 映射
-4. 保存时 `getMarkdown()` 将 asset URL 替换回原始路径，保证 Markdown 文件中不包含 asset URL
-
-### Asset Protocol
-
-Tauri v2 内置 asset protocol，用于将本地文件路径转换为 WebView 可加载的 URL：
-- **Windows**: `http://asset.localhost/{encoded-path}`
-- **macOS/Linux**: `asset://localhost/{encoded-path}`
-
-通过 `@tauri-apps/api/core` 的 `convertFileSrc()` 自动处理平台差异。
+4. 保存时 `getMarkdown()` 将 asset URL 替换回原始路径
 
 ### 文件监听
 
 Rust 端使用 `notify` crate 递归监听工作区目录。变更事件通过 Tauri `emit` 发送到前端。前端维护一个 suppress 集合，在自身写入文件前将路径加入集合，避免自身保存触发"外部修改"提示。
 
+### 主题系统
+
+CSS 变量架构：`variables.css` 定义三组主题变量（`[data-theme="light"]`、`[data-theme="dark"]`、`[data-theme="sepia"]`），通过切换 `data-theme` 属性实现主题切换。
+
 ---
 
 ## 配置
 
-### Tauri 配置 (`tauri.conf.json`)
-
-- Asset protocol 已启用，允许常见图片格式
-- CSP 允许 `asset:` 和 `http://asset.localhost` 作为图片来源
-- 窗口默认 1200×800，最小 800×600
-
-### Rust 依赖
+### Rust 关键依赖
 
 | 依赖 | 用途 |
 |------|------|
@@ -132,11 +127,12 @@ Rust 端使用 `notify` crate 递归监听工作区目录。变更事件通过 T
 | base64 | 图片二进制编码 |
 | reqwest | HTTP 图片下载 |
 
-### 前端依赖
+### 前端关键依赖
 
 | 依赖 | 用途 |
 |------|------|
 | @tiptap/core + 扩展 | WYSIWYG 编辑器 |
 | tiptap-markdown | Markdown 双向序列化 |
+| codemirror | 源码模式编辑器 |
 | lowlight + highlight.js | 代码高亮 |
 | mermaid | 图表渲染 |

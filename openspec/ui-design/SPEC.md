@@ -1,6 +1,6 @@
 # MarkFlow — 所见即所得 Markdown 编辑器 · 功能规格
 
-> **原型定位说明**：本设计稿作为视觉/交互参考，原型中的 `markdownToHtml()` 仅用于展示布局效果，不代表实际 Markdown 渲染能力。GFM 语法、表格、任务列表、代码高亮、Mermaid 等功能的技术实现和测试样例见 `docs/technical-design.md`。
+> **原型定位说明**：本设计稿作为视觉/交互参考，原型中的 `markdownToHtml()` 仅用于展示布局效果，不代表实际 Markdown 渲染能力。GFM 语法、表格、任务列表、代码高亮、Mermaid 等功能的技术实现和测试样例见 `openspec/specs/technical-design.md`。
 
 > 版本：1.0.0
 > 平台：桌面端（macOS / Windows / Linux）
@@ -583,4 +583,4 @@ var state = {
 - 完整 JavaScript 交互逻辑（~570 行，IIFE 包装，严格模式）
 - 示例文档内容
 
-> **原型说明：** `index.html` 使用 localStorage 模拟文件持久化，使用 `<input webkitdirectory>` 模拟文件夹选择，仅作视觉与交互演示。生产实现以 Tauri 文件系统 API + Rust 后端方案为准，详见 `docs/technical-design.md`。
+> **原型说明：** `index.html` 使用 localStorage 模拟文件持久化，使用 `<input webkitdirectory>` 模拟文件夹选择，仅作视觉与交互演示。生产实现以 Tauri 文件系统 API + Rust 后端方案为准，详见 `openspec/specs/technical-design.md`。

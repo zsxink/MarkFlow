@@ -141,6 +141,19 @@ npm run tauri build
 
 ---
 
+## 项目文档
+
+| 文档 | 描述 | 位置 |
+| --- | --- | --- |
+| 产品规格 | 产品定位、功能清单、验收标准 | `openspec/specs/product-spec.md` |
+| 技术架构 | 技术栈、项目结构、架构概览 | `openspec/specs/architecture.md` |
+| 技术设计 | 架构细节、组件设计、关键实现 | `openspec/specs/technical-design.md` |
+| UI 设计稿 | 像素级 UI 规格 | `openspec/ui-design/SPEC.md` |
+| UI 修复记录 | CSS 布局经验与修复清单 | `openspec/specs/ui-fixes-spec.md` |
+| UI 修复记录 | CSS 布局经验与修复清单 | `openspec/specs/ui-fixes-spec.md` |
+
+> `openspec/specs/` 为 canonical spec 来源。
+
 ## 许可证
 
 MIT

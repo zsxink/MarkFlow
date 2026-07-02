@@ -13,6 +13,9 @@ src-tauri/gen/
 
 # OMC state
 .omc/
+
+# CodeGraph (local machine index data)
+.codegraph/
 .claude/*
 !.claude/rules/
 !.claude/memory/

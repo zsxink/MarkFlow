@@ -427,7 +427,7 @@ function imageSrcResolverPlugin(): Extension {
             newState.doc.descendants((node, pos) => {
               if (node.type.name !== 'image') return;
               const src = node.attrs.src as string;
-              if (!src || src.startsWith('http') || src.startsWith('data:')) return;
+              if (!src || src.startsWith('http') || src.startsWith('data:') || src.startsWith('asset:')) return;
               const docPath = getActiveDocPath();
               if (!docPath) return;
               const absolutePath = resolveImagePath(src, docPath);

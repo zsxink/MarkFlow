@@ -65,7 +65,7 @@ import { common, createLowlight } from 'lowlight';
 import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
 import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
-import { syncCodeLineNumberGutters } from './editor.helpers';
+import { syncCodeLineNumberGutters, countTextWords } from './editor.helpers';
 
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
 import { getFileName, resolveImagePath } from './pathUtils';
@@ -780,17 +780,26 @@ export function setMarkdown(content: string) {
   }
 }
 
+function getSourceTextarea(): HTMLTextAreaElement | null {
+  return document.getElementById('source-editor') as HTMLTextAreaElement | null;
+}
+
 export function getWordCount(): number {
+  if (mode === 'source') {
+    const textarea = getSourceTextarea();
+    return countTextWords(textarea?.value || '');
+  }
   if (!editor) return 0;
-  const text = editor.state.doc.textContent;
-  if (!text) return 0;
-  const cjkChars = (text.match(/[\u4e00-\u9fa5\u3400-\u4dbf]/g) || []).length;
-  const nonCjkText = text.replace(/[\u4e00-\u9fa5\u3400-\u4dbf]/g, '');
-  const nonCjkWords = nonCjkText.split(/\s+/).filter(Boolean).length;
-  return cjkChars + nonCjkWords;
+  return countTextWords(editor.state.doc.textContent);
 }
 
 export function getLineCount(): number {
+  if (mode === 'source') {
+    const textarea = getSourceTextarea();
+    if (!textarea) return 1;
+    const lines = textarea.value.split('\n');
+    return lines.length;
+  }
   if (!editor) return 0;
   let count = 0;
   editor.state.doc.descendants((node) => {
@@ -800,10 +809,20 @@ export function getLineCount(): number {
 }
 
 export function getCursorPos(): { line: number; col: number } {
+  if (mode === 'source') {
+    const textarea = getSourceTextarea();
+    if (!textarea) return { line: 1, col: 1 };
+    const text = textarea.value;
+    const beforeCursor = text.substring(0, textarea.selectionStart);
+    const line = (beforeCursor.match(/\n/g) || []).length + 1;
+    const lastNewline = beforeCursor.lastIndexOf('\n');
+    const col = beforeCursor.length - lastNewline;
+    return { line, col };
+  }
   if (!editor) return { line: 1, col: 1 };
   const { from } = editor.state.selection;
   const doc = editor.state.doc;
-  let line = 1;
+  let line = 0;
   let blockStart = 0;
   doc.descendants((node, nodePos) => {
     if (nodePos > from) return false;
@@ -813,7 +832,7 @@ export function getCursorPos(): { line: number; col: number } {
     }
     return true;
   });
-  return { line, col: from - blockStart + 1 };
+  return { line: Math.max(line, 1), col: from - blockStart + 1 };
 }
 
 export async function initEditor() {
@@ -917,19 +936,27 @@ export async function initEditor() {
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   const sourceGutter = document.getElementById('source-editor-gutter') as HTMLElement;
   if (sourceEditor && sourceGutter) {
-    const refreshSourceNumbers = () => {
-      if (mode === 'source') syncSourceEditorLineNumbers();
-    };
     sourceEditor.addEventListener('input', () => {
       if (mode === 'source') {
         documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
         syncSourceEditorLineNumbers();
         autoGrowSourceEditor();
+        document.dispatchEvent(new Event('editor-update'));
       }
     });
-    sourceEditor.addEventListener('click', refreshSourceNumbers);
-    sourceEditor.addEventListener('keyup', refreshSourceNumbers);
-    const ro = new ResizeObserver(refreshSourceNumbers);
+    sourceEditor.addEventListener('click', () => {
+      if (mode === 'source') {
+        syncSourceEditorLineNumbers();
+        document.dispatchEvent(new Event('editor-update'));
+      }
+    });
+    sourceEditor.addEventListener('keyup', () => {
+      if (mode === 'source') {
+        syncSourceEditorLineNumbers();
+        document.dispatchEvent(new Event('editor-update'));
+      }
+    });
+    const ro = new ResizeObserver(() => { if (mode === 'source') syncSourceEditorLineNumbers(); });
     ro.observe(sourceEditor);
   }
 
@@ -1040,6 +1067,7 @@ export function switchToWysiwyg() {
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
   mode = 'wysiwyg';
+  document.dispatchEvent(new Event('editor-update'));
 }
 
 function getActiveDocPath(): string | null {

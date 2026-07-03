@@ -10,6 +10,14 @@ export function computeLineNumbersText(text: string): string {
     .join('\n');
 }
 
+export function countTextWords(text: string): number {
+  if (!text) return 0;
+  const cjkChars = (text.match(/[\u4e00-\u9fa5\u3400-\u4dbf]/g) || []).length;
+  const nonCjkText = text.replace(/[\u4e00-\u9fa5\u3400-\u4dbf]/g, '');
+  const nonCjkWords = nonCjkText.split(/\s+/).filter(Boolean).length;
+  return cjkChars + nonCjkWords;
+}
+
 export function computeVisualLineNumbers(codeEl: Element): string {
   const text = codeEl.textContent || '';
   if (!text) return '';

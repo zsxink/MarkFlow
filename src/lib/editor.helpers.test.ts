@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import {
   syncCodeLineNumberGutters,
   computeLineNumbersText,
+  countTextWords,
 } from './editor.helpers';
 
 function buildEditorRoot(): HTMLElement {
@@ -131,5 +132,31 @@ describe('syncCodeLineNumberGutters', () => {
     const gutter = pre.querySelector('.line-numbers-gutter');
     expect(gutter).not.toBeNull();
     expect(gutter?.textContent).toBe('1\n2\n3');
+  });
+});
+
+describe('countTextWords', () => {
+  it('counts CJK characters as individual words', () => {
+    expect(countTextWords('你好世界')).toBe(4);
+  });
+
+  it('splits non-CJK text by whitespace', () => {
+    expect(countTextWords('hello world foo')).toBe(3);
+  });
+
+  it('counts mixed CJK and ASCII correctly', () => {
+    expect(countTextWords('你好 world 世界 hello')).toBe(6);
+  });
+
+  it('returns 0 for empty string', () => {
+    expect(countTextWords('')).toBe(0);
+  });
+
+  it('handles trailing whitespace gracefully', () => {
+    expect(countTextWords('hello world ')).toBe(2);
+  });
+
+  it('handles only punctuation/symbols', () => {
+    expect(countTextWords('!!! @@@ ###')).toBe(3);
   });
 });

@@ -1,4 +1,4 @@
-import { getEditor } from '../lib/editor';
+import { getEditor, getMode } from '../lib/editor';
 
 export function initOutline() {
   const outlineTree = document.getElementById('outline-tree');
@@ -13,6 +13,11 @@ export function initOutline() {
 export function refreshOutline() {
   const outlineTree = document.getElementById('outline-tree');
   if (!outlineTree) return;
+
+  if (getMode() === 'source') {
+    outlineTree.innerHTML = '<div class="empty-state">源码模式</div>';
+    return;
+  }
 
   const editor = getEditor();
   if (!editor) return;

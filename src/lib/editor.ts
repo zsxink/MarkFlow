@@ -65,7 +65,7 @@ import { common, createLowlight } from 'lowlight';
 import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
 import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
-import { syncCodeLineNumberGutters } from './editor.helpers';
+import { syncCodeLineNumberGutters, countTextWords } from './editor.helpers';
 
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
 import { getFileName, resolveImagePath } from './pathUtils';
@@ -784,14 +784,6 @@ function getSourceTextarea(): HTMLTextAreaElement | null {
   return document.getElementById('source-editor') as HTMLTextAreaElement | null;
 }
 
-function countTextWords(text: string): number {
-  if (!text) return 0;
-  const cjkChars = (text.match(/[\u4e00-\u9fa5\u3400-\u4dbf]/g) || []).length;
-  const nonCjkText = text.replace(/[\u4e00-\u9fa5\u3400-\u4dbf]/g, '');
-  const nonCjkWords = nonCjkText.split(/\s+/).filter(Boolean).length;
-  return cjkChars + nonCjkWords;
-}
-
 export function getWordCount(): number {
   if (mode === 'source') {
     const textarea = getSourceTextarea();
@@ -944,9 +936,6 @@ export async function initEditor() {
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   const sourceGutter = document.getElementById('source-editor-gutter') as HTMLElement;
   if (sourceEditor && sourceGutter) {
-    const refreshSourceNumbers = () => {
-      if (mode === 'source') syncSourceEditorLineNumbers();
-    };
     sourceEditor.addEventListener('input', () => {
       if (mode === 'source') {
         documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
@@ -967,7 +956,7 @@ export async function initEditor() {
         document.dispatchEvent(new Event('editor-update'));
       }
     });
-    const ro = new ResizeObserver(refreshSourceNumbers);
+    const ro = new ResizeObserver(() => { if (mode === 'source') syncSourceEditorLineNumbers(); });
     ro.observe(sourceEditor);
   }
 
@@ -1078,6 +1067,7 @@ export function switchToWysiwyg() {
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
   mode = 'wysiwyg';
+  document.dispatchEvent(new Event('editor-update'));
 }
 
 function getActiveDocPath(): string | null {

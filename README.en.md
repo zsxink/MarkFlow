@@ -63,7 +63,7 @@ Build artifacts are placed in `src-tauri/target/release/bundle/`:
 | Platform | Output |
 | --- | --- |
 | Windows | `.exe` (NSIS installer), `.msi` |
-| macOS | `.dmg` (universal binary) |
+| macOS | `.dmg` (Apple Silicon) |
 | Linux | `.AppImage`, `.deb` |
 
 ---

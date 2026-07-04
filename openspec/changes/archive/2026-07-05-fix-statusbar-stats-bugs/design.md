@@ -17,18 +17,24 @@
 
 ## Decisions
 
-### Bug 1: `getCursorPos()` 行数多 1
+### Bug 1: `getCursorPos()` 列号应为 0-based
 
-**根因**：`blockStart` 初始化为 `0`，而第一个 block 的 `nodePos`（通常是 `1`）满足 `nodePos > blockStart`，导致第一个 block 触发 `line++`，从 1 变成 2。
+**背景**：`col` 是光标在 block 内的字符偏移，语义上应遵守大多数编辑器「列从 0 开始」的惯例（光标在行首时列为 0）。
 
-**方案**：将 `line` 初始值从 `1` 改为 `0`，让第一个 block 正确自增到 `1`。返回值用 `Math.max(line, 1)` 兜底空文档场景。
+**之前修复**：只修了 `line` 初始化（1→0），`col` 公式仍是 1-based（`from - blockStart + 1`）。
+
+**方案**：
+- WYSIWYG 模式：`col = from - blockStart - 1`（减去段落节点自身占的位置槽）
+- 源码模式：`col = beforeCursor.length - lastNewline - 1`（去掉缓存偏移的 +1）
+- `line` 保持当前的 1-based 显示（行号从 1 开始是 UI 惯例）
 
 ```
-// 修改前
-let line = 1;
-// 修改后
-let line = 0;
-return { line: Math.max(line, 1), col: from - blockStart + 1 };
+// WYSIWYG 模式 — col 改为 0-based
+// ProseMirror 中段落节点本身占一个位置，需再减 1
+return { line: Math.max(line, 1), col: Math.max(0, from - blockStart - 1) };
+
+// 源码模式 — col 改为 0-based
+const col = beforeCursor.length - lastNewline - 1;
 ```
 
 ### Bug 2: 源码模式状态栏不更新

@@ -811,15 +811,15 @@ export function getLineCount(): number {
 export function getCursorPos(): { line: number; col: number } {
   if (mode === 'source') {
     const textarea = getSourceTextarea();
-    if (!textarea) return { line: 1, col: 1 };
+    if (!textarea) return { line: 1, col: 0 };
     const text = textarea.value;
     const beforeCursor = text.substring(0, textarea.selectionStart);
     const line = (beforeCursor.match(/\n/g) || []).length + 1;
     const lastNewline = beforeCursor.lastIndexOf('\n');
-    const col = beforeCursor.length - lastNewline;
+    const col = beforeCursor.length - lastNewline - 1;
     return { line, col };
   }
-  if (!editor) return { line: 1, col: 1 };
+  if (!editor) return { line: 1, col: 0 };
   const { from } = editor.state.selection;
   const doc = editor.state.doc;
   let line = 0;
@@ -832,7 +832,7 @@ export function getCursorPos(): { line: number; col: number } {
     }
     return true;
   });
-  return { line: Math.max(line, 1), col: from - blockStart + 1 };
+  return { line: Math.max(line, 1), col: Math.max(0, from - blockStart - 1) };
 }
 
 export async function initEditor() {
@@ -905,6 +905,9 @@ export async function initEditor() {
       document.dispatchEvent(new Event('editor-update'));
     },
   });
+
+  // 编辑器创建后立即刷新状态栏，避免构造函数内统计函数因 editor 未赋值返回默认值
+  document.dispatchEvent(new Event('editor-update'));
 
   // Apply code block settings (line numbers & word wrap)
   async function applyCodeBlockSettings() {

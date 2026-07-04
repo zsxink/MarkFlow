@@ -3,7 +3,7 @@ use crate::paths::normalize_path;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tracing::{debug, error};
 
 pub struct AppState {
@@ -12,6 +12,7 @@ pub struct AppState {
     pub pending_file: Mutex<HashMap<String, String>>,
     pub cli_file: Mutex<Option<String>>,
     pub initial_file_handled: AtomicBool,
+    pub close_allowed: Arc<AtomicBool>,
 }
 
 impl AppState {
@@ -22,6 +23,7 @@ impl AppState {
             pending_file: Mutex::new(HashMap::new()),
             cli_file: Mutex::new(None),
             initial_file_handled: AtomicBool::new(false),
+            close_allowed: Arc::new(AtomicBool::new(false)),
         }
     }
 

@@ -1,5 +1,5 @@
 import { initTheme } from './lib/theme';
-import { initEditor, markExternalModification } from './lib/editor';
+import { initEditor, isDocumentDirty, markExternalModification } from './lib/editor';
 import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
 import { initMenu } from './components/menu';
@@ -11,6 +11,7 @@ import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
+import { showUnsavedDialog } from './components/unsavedDialog';
 import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -140,6 +141,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       const h = size.height;
       invoke('save_last_window_state', { x, y, width: w, height: h }).catch(() => {});
     } catch { /* ignore errors on close */ }
+  });
+
+  // Intercept close request: prompt to save if document is dirty
+  // Close requests are intercepted on the Rust side (WebviewWindow::on_window_event)
+  // which prevents the native close and emits a custom "close-requested" event.
+  // Uses a flag pattern: 1st close → prevent + emit, 2nd close → let through via confirm.
+  listen<null>('close-requested', async () => {
+    if (!isDocumentDirty()) {
+      await invoke('confirm_window_close');
+      return;
+    }
+    showUnsavedDialog(async () => {
+      await invoke('confirm_window_close');
+    });
   });
 
 startAutoSave();

@@ -85,14 +85,18 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         }
     };
 
-    if let Err(e) = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+    let window_result = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
         .title(&file_name)
         .inner_size(win_w, win_h)
         .position(pos_x, pos_y)
-        .build()
-    {
-        return Err(format!("Failed to create window: {}", e));
-    }
+        .build();
+
+    let window = match window_result {
+        Ok(w) => w,
+        Err(e) => return Err(format!("Failed to create window: {}", e)),
+    };
+
+    intercept_close_request(&window, app.state::<AppState>().close_allowed.clone());
 
     // Store pending file path for the new window's frontend to pull
     {
@@ -130,6 +134,31 @@ fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(),
     s.last_window_width = width;
     s.last_window_height = height;
     settings::save_settings_inner(&s)
+}
+
+/// Register close-request interception on a WebviewWindow.
+/// Uses a flag pattern to avoid macOS CloseRequested one-shot behavior:
+///   1st close → flag=false → prevent_close + emit "close-requested"
+///   2nd close → flag=true  → let it through (don't prevent)
+fn intercept_close_request(window: &tauri::WebviewWindow, close_allowed: std::sync::Arc<std::sync::atomic::AtomicBool>) {
+    let w = window.clone();
+    let _ = window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            if close_allowed.load(std::sync::atomic::Ordering::SeqCst) {
+                // User confirmed close via dialog — let it through
+                return;
+            }
+            api.prevent_close();
+            let _ = w.emit("close-requested", ());
+        }
+    });
+}
+
+#[tauri::command]
+fn confirm_window_close(window: tauri::WebviewWindow, state: tauri::State<AppState>) -> Result<(), String> {
+    state.close_allowed.store(true, std::sync::atomic::Ordering::SeqCst);
+    let _ = window.close(); // triggers CloseRequested again, but flag is now true → let it through
+    Ok(())
 }
 
 #[tauri::command]
@@ -234,6 +263,7 @@ pub fn run() {
             files::fetch_remote_image_as_base64,
             files::fetch_page_title,
             files::download_image,
+            confirm_window_close,
             settings::load_settings,
             settings::save_settings,
             logger::log_frontend_event,
@@ -272,6 +302,12 @@ pub fn run() {
                 }
             }
 
+            // Intercept close requests on all windows — emit to frontend for dirty check
+            let close_allowed = app.state::<AppState>().close_allowed.clone();
+            for (_, window) in app.webview_windows() {
+                intercept_close_request(&window, close_allowed.clone());
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -280,7 +316,7 @@ pub fn run() {
     app.run(|app_handle, event| {
         #[cfg(target_os = "macos")]
         if let RunEvent::Opened { urls } = event {
-            for url in &urls {
+            for url in urls {
                 let path_str = match url.to_file_path() {
                     Ok(path) => path.to_string_lossy().to_string(),
                     Err(_) => {

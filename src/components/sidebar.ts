@@ -69,22 +69,84 @@ export function clearActiveDocument() {
   refreshOutline();
 }
 
-export async function confirmDocumentTransition() {
+export async function confirmDocumentTransition(): Promise<boolean> {
   const dirty = isDocumentDirty();
   const conflicted = hasExternalModification();
   if (!dirty && !conflicted) return true;
 
-  const shouldSave = window.confirm(
-    conflicted
-      ? '当前文件已被外部修改。点击"确定"保存并覆盖磁盘版本后继续，点击"取消"查看放弃选项。'
-      : '当前文件有未保存更改。点击"确定"保存后继续，点击"取消"查看放弃选项。'
-  );
+  return new Promise<boolean>((resolve) => {
+    const overlay = document.getElementById('unsaved-modal');
+    if (!overlay) return resolve(true);
 
-  if (shouldSave) {
-    return saveActiveDocument();
-  }
+    let settled = false;
+    const title = conflicted ? '外部修改冲突' : '未保存的更改';
+    const body = conflicted
+      ? '当前文件已被外部修改。切换到其他文件前希望如何处理？'
+      : '当前文件有未保存的更改。切换到其他文件前希望如何处理？';
 
-  return window.confirm('是否放弃当前修改并继续？');
+    overlay.innerHTML = `
+      <div class="modal" style="width:360px;">
+        <div class="modal-header">
+          <span>${title}</span>
+          <button class="modal-close" id="confirm-dirty-close">✕</button>
+        </div>
+        <div style="padding:16px 24px;">
+          <p style="margin:0 0 16px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>
+          <div class="modal-footer" style="padding-top:0;">
+            <button class="btn-secondary" id="confirm-dirty-cancel">取消</button>
+            <button class="btn-secondary" id="confirm-dirty-discard">不保存</button>
+            <button class="btn-primary" id="confirm-dirty-save">保存</button>
+          </div>
+        </div>
+      </div>
+    `;
+    overlay.hidden = false;
+
+    const finish = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      overlay.hidden = true;
+      overlay.removeEventListener('click', backdropClick);
+      document.removeEventListener('keydown', keyHandler);
+      resolve(result);
+    };
+
+    const cancel = () => finish(false);
+    const discard = () => finish(true);
+
+    const saveAndProceed = async () => {
+      if (settled) return;
+      const saved = await saveActiveDocument({ interactive: true });
+      if (saved) finish(true);
+    };
+
+    // Bind button events
+    document.getElementById('confirm-dirty-close')!.addEventListener('click', cancel);
+    document.getElementById('confirm-dirty-cancel')!.addEventListener('click', cancel);
+    document.getElementById('confirm-dirty-discard')!.addEventListener('click', discard);
+    document.getElementById('confirm-dirty-save')!.addEventListener('click', saveAndProceed);
+
+    // Backdrop click → cancel
+    const backdropClick = (e: MouseEvent) => {
+      if (e.target === overlay) cancel();
+    };
+    overlay.addEventListener('click', backdropClick);
+
+    // Keyboard: Escape → cancel, Enter → save
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancel();
+      if (e.key === 'Enter' && !settled) {
+        document.getElementById('confirm-dirty-save')?.click();
+      }
+    };
+    document.addEventListener('keydown', keyHandler);
+
+    // Focus the save button
+    setTimeout(() => {
+      const saveBtn = document.getElementById('confirm-dirty-save');
+      if (saveBtn) saveBtn.focus();
+    }, 0);
+  });
 }
 
 export function initSidebar() {
@@ -103,9 +165,9 @@ export function initSidebar() {
 
   // Sidebar footer buttons
   document.getElementById('sidebar-open-btn')?.addEventListener('click', async () => {
+    if (!(await confirmDocumentTransition())) return;
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
-      if (!(await confirmDocumentTransition())) return;
       await setWorkspacePath(selected);
       clearActiveDocument();
       await refreshFileTree();

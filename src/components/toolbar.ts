@@ -30,9 +30,9 @@ function bindToolbarEvents() {
   });
 
   bind('sidebar-open-folder', async () => {
+    if (!(await confirmDocumentTransition())) return;
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
-      if (!(await confirmDocumentTransition())) return;
       await setWorkspacePath(selected);
       clearActiveDocument();
       await refreshFileTree();
@@ -41,12 +41,12 @@ function bindToolbarEvents() {
   });
 
   bind('toolbar-open-file', async () => {
+    if (!(await confirmDocumentTransition())) return;
     const selected = await open({
       multiple: false,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (selected) {
-      if (!(await confirmDocumentTransition())) return;
       await addRecentFile(selected);
       await openFileInEditor(selected);
     }

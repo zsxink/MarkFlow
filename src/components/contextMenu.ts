@@ -168,9 +168,9 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         break;
       }
       case 'open-folder': {
+        if (!(await confirmDocumentTransition())) return;
         const folder = await dialogOpen({ directory: true, multiple: false });
         if (folder) {
-          if (!(await confirmDocumentTransition())) return;
           await setWorkspacePath(folder);
           clearActiveDocument();
           await refreshFileTree();
@@ -179,12 +179,12 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         break;
       }
       case 'open-file': {
+        if (!(await confirmDocumentTransition())) return;
         const file = await dialogOpen({
           multiple: false,
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         });
         if (file) {
-          if (!(await confirmDocumentTransition())) return;
           await addRecentFile(file);
           await openFileInEditor(file);
         }

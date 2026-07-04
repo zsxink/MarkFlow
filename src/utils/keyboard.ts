@@ -1,6 +1,6 @@
 import { getEditor, switchToSource, switchToWysiwyg, getMode } from '../lib/editor';
 import { showToast } from '../components/toast';
-import { saveActiveDocument, openFileInEditor } from '../components/sidebar';
+import { saveActiveDocument, openFileInEditor, confirmDocumentTransition } from '../components/sidebar';
 import { showNewFileDialog } from '../components/newFileDialog';
 import { getWorkspacePath } from '../components/fileTree';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -45,6 +45,7 @@ export function initKeyboard() {
         break;
       case 'o':
         e.preventDefault();
+        if (!(await confirmDocumentTransition())) break;
         {
           const selected = await open({
             multiple: false,

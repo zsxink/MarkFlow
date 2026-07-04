@@ -54,8 +54,7 @@ brew install zsxink/tap/markflow
 
 | 平台 | 安装包 | 说明 |
 | --- | --- | --- |
-| macOS (Apple Silicon) | `_aarch64.dmg` | 拖入 Applications 文件夹 |
-| macOS (Intel) | `_x86_64.dmg` | 拖入 Applications 文件夹 |
+| macOS | `_aarch64.dmg` | 拖入 Applications 文件夹 |
 | Windows | `.exe` | NSIS 安装包 |
 | Linux | `.AppImage` / `.deb` | 直接运行或安装 |
 
@@ -84,7 +83,7 @@ npm run tauri build
 | 平台 | 输出 |
 | --- | --- |
 | Windows | `.exe`（NSIS 安装包）、`.msi` |
-| macOS | `.dmg`（通用二进制） |
+| macOS | `.dmg`（Apple Silicon） |
 | Linux | `.AppImage`、`.deb` |
 
 ---

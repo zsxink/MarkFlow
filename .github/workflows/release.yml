@@ -18,6 +18,8 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
           - platform: macos-latest
             rust_target: aarch64-apple-darwin
+          - platform: macos-13
+            rust_target: x86_64-apple-darwin
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
 
@@ -66,7 +68,30 @@ jobs:
 
             ### 下载说明
             - **Windows**: 下载 `.exe` 文件运行安装
-            - **macOS**: 下载 `.dmg` 文件，将 MarkFlow 拖入 Applications
+            - **macOS (Apple Silicon)**: 下载 `_aarch64.dmg` 文件，将 MarkFlow 拖入 Applications
+            - **macOS (Intel)**: 下载 `_x86_64.dmg` 文件，将 MarkFlow 拖入 Applications
             - **Linux**: 下载 `.AppImage` 或 `.deb` 文件安装
+
+            ### Homebrew (macOS)
+            ```bash
+            brew install zsxink/tap/markflow
+            ```
           releaseDraft: true
           prerelease: false
+
+  # Publish updated formula to zsxink/homebrew-tap on each release
+  homebrew:
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish to Homebrew tap
+        env:
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          chmod +x ./scripts/homebrew-publish.sh
+          ./scripts/homebrew-publish.sh "${{ github.ref_name }}"

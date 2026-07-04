@@ -7,3 +7,6 @@
 ## 调试经验
 - [代码块行号显示异常](debugging-code-block-line-numbers.md) — flex-grow 缺失导致 clientWidth 不可信 + charsPerLine 必须 floor
 - [源码编辑器布局问题](debugging-source-editor-layout.md) — hidden 属性被覆盖、gutter 定位、空 div 高度为 0
+
+## 流程规范
+- [工作流合规](workflow-compliance.md) — 必须遵守分支/PR/commit 规范，不能直接改 main

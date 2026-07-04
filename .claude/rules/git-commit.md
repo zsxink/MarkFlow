@@ -34,10 +34,10 @@ closes #N
 ## 分支命名
 
 ```
-type/#N-简短描述
+type/issue-N-简短描述
 ```
 
-- 示例：`fix/#12-line-number-bug`、`feat/#5-image-export`、`chore/#8-project-memory`
+- 示例：`fix/issue-12-line-number-bug`、`feat/issue-5-image-export`、`chore/issue-8-project-memory`
 - type 与提交 type 一致
 - `#N` 为关联 issue 号
 - 描述用英文短横线连接，3-5 个词

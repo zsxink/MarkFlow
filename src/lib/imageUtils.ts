@@ -35,8 +35,18 @@ export async function generateImageName(
   }
   const now = new Date();
   const ts = `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+  const ext = originalName ? getExtension(originalName) : 'png';
+
+  if (strategy === 'timestamp') {
+    const baseName = originalName ? stripExtension(originalName) : 'image';
+    const base = `${baseName}-${ts}`;
+    if (!existingNames) return `${base}.${ext}`;
+    let n = 1;
+    while (existingNames.includes(`${base}-${n}.${ext}`)) n++;
+    return `${base}-${n}.${ext}`;
+  }
+
   if (strategy === 'sequence' || !originalName) {
-    const ext = originalName ? getExtension(originalName) : 'png';
     const base = `image-${ts}`;
     if (!existingNames) return `${base}.${ext}`;
     let n = 1;
@@ -164,4 +174,9 @@ function pad2(n: number): string {
 function getExtension(name: string): string {
   const dot = name.lastIndexOf('.');
   return dot >= 0 ? name.substring(dot + 1).toLowerCase() : 'png';
+}
+
+function stripExtension(name: string): string {
+  const dot = name.lastIndexOf('.');
+  return dot >= 0 ? name.substring(0, dot) : name;
 }

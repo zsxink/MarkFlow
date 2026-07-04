@@ -1,0 +1,45 @@
+name: Auto PR
+
+on:
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'refactor/**'
+      - 'chore/**'
+      - 'docs/**'
+      - 'test/**'
+      - 'perf/**'
+      - 'style/**'
+      - 'ci/**'
+
+jobs:
+  create-pr:
+    if: github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${context.ref_name}`,
+              base: 'main',
+              state: 'open'
+            });
+            if (prs.length > 0) {
+              console.log('PR already exists:', prs[0].html_url);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: context.payload.head_commit?.message?.split('\n')[0] || context.ref_name,
+              head: context.ref_name,
+              base: 'main',
+              body: `Auto-created from branch \`${context.ref_name}\`.\n\n**Closes #${context.ref_name.match(/issue-(\d+)/)?.[1] ?? ''}**`
+            });
+            console.log('PR created:', pr.html_url);

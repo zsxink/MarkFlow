@@ -21,6 +21,7 @@ npm run tauri build  # 生产构建
 - `/opsx:propose <idea>` — 创建变更提案（生成 proposal/specs/design/tasks）
 - `/opsx:apply` — 按 checklist 逐步实施
 - `/opsx:archive` — 归档已完成变更，更新 main specs
+- **[重要] 先分支，再 SDD**：执行 `/opsx:propose` 或 `/opsx:apply` 前，必须先创建分支（`git checkout -b type/issue-N-slug main`），禁止在 `main` 上直接修改代码（见 `.claude/rules/branch-first.md`）
 
 CLI：`openspec new change <name>`、`openspec validate <change>`、`openspec archive <change>`
 

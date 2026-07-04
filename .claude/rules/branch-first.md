@@ -1,0 +1,5 @@
+- **Issue 处理第一步**：收到 Issue 或开始实施变更前，必须先从 `main` 拉新分支
+  - `git checkout -b type/issue-N-slug main`
+- **禁止在 `main` 上修改代码**：所有代码改动、`/opsx:propose`、`/opsx:apply` 都必须在分支上完成
+- **仅修改 spec 文档本身**（如 development-flow.md）可在 main 上操作，但仍需 PR 合入
+- **分支命名**：`type/issue-N-英文短横线描述`（如 `fix/issue-10-image-paste-filename`）

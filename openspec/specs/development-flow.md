@@ -1,6 +1,6 @@
 # MarkFlow 开发流程规范
 
-> 版本：1.0.1 ｜ 状态：已发布 ｜ 更新日期：2026-07-04
+> 版本：1.1.0 ｜ 状态：已发布 ｜ 更新日期：2026-07-04
 > 融合 Spec-Driven Development (SDD) 与 GitHub 协作流程
 
 ---
@@ -77,9 +77,22 @@ Issue 描述应包含：
 2. 在分支上完成 SDD 循环和编码
 3. 合并到 `main` 后删除分支
 
+### 3.3 硬性规则：先分支，再编码
+
+> **禁止在 `main` 分支上直接执行 `propose` 或 `apply`。**
+
+1. **Issue → 分支**：收到 Issue 或开始任何变更前，第一步必须从 `main` 创建新分支
+2. **分支之后才提议**：在分支上执行 `/opsx:propose`，不允许在 `main` 上创建 change 目录
+3. **分支之后才编码**：在分支上执行 `/opsx:apply`，代码改动必须发生在分支上
+4. **验证**：执行 `git branch --show-current` 确认不在 `main` 上
+
+**例外**：仅修改 spec 文档本身（如更新 development-flow.md）可在 `main` 上直接操作，但后续仍需通过 PR 合入。
+
 ---
 
 ## 4. SDD 开发循环
+
+> **前置条件：已在 feature 分支上（`git checkout -b <type>/<#issue>-<描述> main`）**
 
 在 feature 分支上执行：
 

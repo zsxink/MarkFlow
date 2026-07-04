@@ -1,3 +1,53 @@
+/* Source Serif 4 — 英文衬线，默认使用 proportional lining figures（等高数字） */
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('../assets/fonts/SourceSerif4-Regular.ttf.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('../assets/fonts/SourceSerif4SmText-It.ttf.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('../assets/fonts/SourceSerif4-Bold.ttf.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('../assets/fonts/SourceSerif4-BoldIt.ttf.woff2') format('woff2');
+  font-weight: 700;
+  font-style: italic;
+  font-display: block;
+}
+
+/* Source Han Serif SC (思源宋体) — 中文衬线，SIL OFL 协议 */
+@font-face {
+  font-family: 'Source Han Serif SC';
+  src: url('../assets/fonts/SourceHanSerifSC-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Source Han Serif SC';
+  src: url('../assets/fonts/SourceHanSerifSC-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   --toolbar-h: 44px;
   --sidebar-w: 240px;
@@ -14,7 +64,7 @@
   --selection: rgba(181, 71, 42, 0.12);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 
-  --font-body: Georgia, 'Times New Roman', serif;
+  --font-body: 'Source Serif 4', 'PingFang SC', 'Source Han Serif SC', 'Microsoft YaHei', serif;
   --font-code: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }

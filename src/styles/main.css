@@ -1482,6 +1482,11 @@ html, body {
   width: 360px;
 }
 
+/* Unsaved close prompt dialog */
+.unsaved-modal .modal {
+  width: 360px;
+}
+
 .newfile-input {
   width: 100%;
   padding: 10px 16px;

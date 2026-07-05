@@ -6,9 +6,12 @@ const charWidthCache = new Map<string, number>();
 
 export function computeLineNumbersText(text: string): string {
   if (!text) return '';
-  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
-  return trimmed
-    .split('\n')
+  // Split by newline — literal \n boundaries deliminate lines.
+  // A trailing \n represents an empty last line and is NOT stripped.
+  // e.g. "a\nb\n" → ["a", "b", ""] → 3 lines, last empty.
+  const lines = text.split('\n');
+  if (lines.length <= 1 && lines[0] === '') return ''; // truly empty (no content ever typed)
+  return lines
     .map((_, i) => String(i + 1))
     .join('\n');
 }
@@ -25,9 +28,9 @@ export function computeVisualLineNumbers(codeEl: Element): string {
   const text = codeEl.textContent || '';
   if (!text) return '';
 
-  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
-  const lines = trimmed.split('\n');
-  if (lines.length === 0) return '';
+  // Split by newline — see computeLineNumbersText. Trailing \n is NOT stripped.
+  const lines = text.split('\n');
+  if (lines.length <= 1 && lines[0] === '') return '';
 
   const codeWidth = codeEl.clientWidth;
   if (codeWidth <= 0) return computeLineNumbersText(text);

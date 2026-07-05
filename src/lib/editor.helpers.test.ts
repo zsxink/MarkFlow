@@ -32,8 +32,8 @@ describe('computeLineNumbersText', () => {
     expect(computeLineNumbersText('a\nb\nc')).toBe('1\n2\n3');
   });
 
-  it('does not count a trailing empty line', () => {
-    expect(computeLineNumbersText('a\nb\n')).toBe('1\n2');
+  it('counts a trailing newline as an empty last line', () => {
+    expect(computeLineNumbersText('a\nb\n')).toBe('1\n2\n3');
   });
 
   it('returns empty string for empty input', () => {
@@ -42,6 +42,10 @@ describe('computeLineNumbersText', () => {
 
   it('numbers a single line', () => {
     expect(computeLineNumbersText('hello')).toBe('1');
+  });
+
+  it('single newline means content + empty line = 2 lines', () => {
+    expect(computeLineNumbersText('\n')).toBe('1\n2');
   });
 });
 

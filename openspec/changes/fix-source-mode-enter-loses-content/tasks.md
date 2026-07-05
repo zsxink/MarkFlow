@@ -5,7 +5,7 @@
 - [x] 1.2 全面追踪 `getMarkdown()` 序列化链路：MarkdownSerializer → MarkdownSerializerState → renderContent → render，
 确认 `parent.forEach()` 遍历全部子节点
 - [x] 1.3 检查 tiptap-markdown 所有扩展的 toMarkdown 规则定义（bulletList/orderedList/listItem/taskItem/blockquote/table/codeBlock 等），确认全部有对应的 serializer
-- [ ] 1.4 进一步定位：基础测试无法复现，疑似与 `imageSrcResolverPlugin` appendTransaction 或特定时序有关，需真实 Tauri 环境手动测试
+- [x] 1.4 根因确认：`onUpdate` 每次 keystroke 调用 `getMarkdown()` 全文档序列化——主线程阻塞 + 编辑器滞后导致打字时光标跳到尾端。同步性能问题，非序列化截断。
 
 ## 2. 核心修复：Markdown 序列化完整性
 

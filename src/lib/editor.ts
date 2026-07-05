@@ -152,6 +152,22 @@ const lowlight = createLowlight(common);
 
 function mermaidCodeBlockExtension() {
   return CodeBlockLowlight.configure({ lowlight }).extend({
+    addStorage() {
+      return {
+        markdown: {
+          serialize(state: any, node: any) {
+            state.write("```" + (node.attrs.language || "") + "\n");
+            state.text(node.textContent, false);
+            state.ensureNewLine();
+            state.write("```");
+            state.closeBlock(node);
+          },
+          parse: {
+            // handled by markdown-it
+          },
+        },
+      };
+    },
     addNodeView() {
       return ({ node, editor, getPos }) => {
         let currentNode = node;

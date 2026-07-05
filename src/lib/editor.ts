@@ -765,7 +765,13 @@ function fixImageNewlines(markdown: string): string {
     out.push(line);
   }
 
-  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+  // Collapse 3+ consecutive blank lines to 2 — but protect content inside
+  // fenced code blocks (```...```) so multiple empty lines in code stay intact.
+  const joined = out.join('\n');
+  return joined.replace(/(```[\s\S]*?```)|(\n{3,})/g, (_match, codeFence) => {
+    if (codeFence) return codeFence;
+    return '\n\n';
+  });
 }
 
 function normalizeImageMarkdown(markdown: string): string {

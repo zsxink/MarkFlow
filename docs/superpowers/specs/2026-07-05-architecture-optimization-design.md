@@ -110,6 +110,75 @@ API：`store.on(type, cb)`、`store.emit(event)`、`store.off(type, cb)`
 
 对应 Issue: [#49](https://github.com/zsxink/MarkFlow/issues/49)
 
+## 6. 消除重复代码
+
+### 6.1 getImageSettings / getActiveDocPath 重复
+
+**现状**：`getImageSettings()` 和 `getActiveDocPath()` 在 `src/lib/editor.ts` 和 `src/components/toolbar.ts` 中完全重复实现。
+
+**方案**：
+- `getImageSettings()` 提取到 `src/lib/imageUtils.ts`
+- `getActiveDocPath()` 提取到 `src/lib/editor.ts`（它依赖 editor 模块的 DOM 查询逻辑，不宜放 pathUtils）
+- 删除两处重复代码，改为 import 共享版本
+
+对应 Issue: [#51](https://github.com/zsxink/MarkFlow/issues/51)
+
+### 6.2 Rust HTTP 客户端逻辑重复
+
+**现状**：`src-tauri/src/commands/files.rs` 中 `fetch_remote_image_bytes` 和 `fetch_page_title` 各自完整实现了 Client 创建、URL 校验、重定向跟踪（~80 行重复）。
+
+**方案**：提取 `src-tauri/src/http.rs`，含三个共享函数：
+- `create_http_client() -> Result<Client, String>`
+- `validate_url(url: &str) -> Result<Url, String>`
+- `fetch_with_redirects(client, url, max_redirects) -> Result<Response, String>`
+
+`fetch_remote_image_bytes` 和 `fetch_page_title` 改为调用共享函数。
+
+对应 Issue: [#52](https://github.com/zsxink/MarkFlow/issues/52)
+
+## 7. 类型安全：Settings 类型对齐
+
+**现状**：前端用 `Record<string, unknown>` 传递 settings，Rust 端有严格 `Settings` struct。新增字段需在 Rust struct + TS 两处加，少一端就静默丢失。`DEFAULT_SETTINGS` 在前端 `settings.ts` 中也重复定义。
+
+**方案**：
+1. `src/types/settings.ts` — 定义带完整字段的类型化 `Settings` interface（camelCase，与 Rust serde 对齐）
+2. `storage.ts` 中 `loadSettings`/`saveSettings` 改为 `Settings` 类型而非 `Record<string, unknown>`
+3. `settings.ts` 组件中 `DEFAULT_SETTINGS` 引用 types 定义
+4. 逐模块移除 `as Record<string, unknown>` 类型断言
+
+注意：这是纯前端类型增强，Rust 侧通过 serde camelCase 已正确反序列化，无需修改。
+
+对应 Issue: [#53](https://github.com/zsxink/MarkFlow/issues/53)
+
+## 8. 测试覆盖率
+
+**现状**：仅 265 行测试文件，覆盖率 < 5%。核心路径（序列化、文件操作、图片处理、冲突处理、状态管理）无测试。
+
+**方案**：
+
+| 优先级 | 模块 | 测试内容 |
+|--------|------|----------|
+| P0 | `editor.serializer.ts` | `normalizeImageMarkdown`、`fixImageNewlines`、`fixCorruptedImageNewlines`、`replaceAssetUrlsWithOriginal` |
+| P0 | `editor.state.ts` | `getMarkdown`、`setMarkdown`、dirty 检查 |
+| P1 | `imageUtils.ts` | `generateImageName`、`getStoragePath`、`imagePathToSrc` |
+| P1 | `pathUtils.ts` | `resolveImagePath`、`computeRelativePath`、`getFileName` |
+| P2 | `store.ts` | 发布订阅行为 |
+| P2 | `settings.ts` | `buildSettingsFromUI`、`applyRuntimeSettings` |
+
+不追求覆盖率数字指标，优先覆盖核心序列化/状态路径。
+
+对应 Issue: [#54](https://github.com/zsxink/MarkFlow/issues/54)
+
+## 9. 代码清理
+
+### 9.1 移除无用的 dom.ts
+
+**现状**：`src/utils/dom.ts`（8 行）导出 `$()` 和 `safe()`，其中 `safe()` 无人调用，`$()` 仅 2-3 处使用且直接写 `document.getElementById()` 更清晰。
+
+**方案**：删除文件，现有调用处改为直接使用 `document.getElementById()`。
+
+对应 Issue: [#55](https://github.com/zsxink/MarkFlow/issues/55)
+
 ## 不变原则
 
 - 不改运行时行为
@@ -119,6 +188,8 @@ API：`store.on(type, cb)`、`store.emit(event)`、`store.off(type, cb)`
 
 ## 优先级
 
+### 第一批（#42-#49）
+
 1. [#42](https://github.com/zsxink/MarkFlow/issues/42) — editor.ts 拆分（最核心、最痛）
 2. [#43](https://github.com/zsxink/MarkFlow/issues/43) — fileTree.ts 拆分
 3. [#44](https://github.com/zsxink/MarkFlow/issues/44) — sidebar.ts 拆分
@@ -127,3 +198,11 @@ API：`store.on(type, cb)`、`store.emit(event)`、`store.off(type, cb)`
 6. [#47](https://github.com/zsxink/MarkFlow/issues/47) — 类型系统（可并行）
 7. [#49](https://github.com/zsxink/MarkFlow/issues/49) — UI 模式统一（可独立）
 8. [#48](https://github.com/zsxink/MarkFlow/issues/48) — CodeMirror（可独立）
+
+### 第二批（#51-#55）
+
+9. [#51](https://github.com/zsxink/MarkFlow/issues/51) — 消除重复代码（简单直接）
+10. [#54](https://github.com/zsxink/MarkFlow/issues/54) — 测试覆盖率（可逐步推进）
+11. [#53](https://github.com/zsxink/MarkFlow/issues/53) — Settings 类型对齐（依赖 #47 类型系统）
+12. [#52](https://github.com/zsxink/MarkFlow/issues/52) — Rust HTTP 共享函数（独立）
+13. [#55](https://github.com/zsxink/MarkFlow/issues/55) — 清理 dom.ts（独立，1 分钟）

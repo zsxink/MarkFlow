@@ -534,7 +534,6 @@ html, body {
   pointer-events: none;
   white-space: pre;
 }
-}
 
 .ProseMirror pre code .hljs-comment,
 .ProseMirror pre code .hljs-quote {

@@ -681,6 +681,8 @@ function imageBubblePlugin(): Extension {
 
 let editor: Editor | null = null;
 let mode: 'wysiwyg' | 'source' = 'wysiwyg';
+let dirtyCheckTimer: ReturnType<typeof setTimeout> | null = null;
+let updateEventTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getEditor(): Editor | null {
   return editor;
@@ -898,12 +900,25 @@ export async function initEditor() {
     ],
     content: '',
     onUpdate: () => {
-      if (!documentState.programmaticUpdate) {
-        documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+      // Debounce dirty check — only matters when saving/switching files
+      if (dirtyCheckTimer) clearTimeout(dirtyCheckTimer);
+      dirtyCheckTimer = setTimeout(() => {
+        dirtyCheckTimer = null;
+        if (!documentState.programmaticUpdate) {
+          documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+        }
+      }, 400);
+
+      // Throttle editor-update dispatch — outline/statusbar don't need per-keystroke refresh
+      if (!updateEventTimer) {
+        updateEventTimer = setTimeout(() => {
+          updateEventTimer = null;
+          document.dispatchEvent(new Event('editor-update'));
+        }, 80);
       }
-      document.dispatchEvent(new Event('editor-update'));
     },
     onSelectionUpdate: () => {
+      // Selection changes need immediate dispatch (cursor position in status bar)
       document.dispatchEvent(new Event('editor-update'));
     },
   });
@@ -934,7 +949,7 @@ export async function initEditor() {
       const root = editor?.view.dom;
       if (!root?.classList.contains('code-show-line-numbers')) return;
       syncCodeLineNumberGutters(root, true);
-    }, 300);
+    }, 150);
   });
 
   // Source editor sync — consolidated handler with debounced line number sync
@@ -1009,16 +1024,27 @@ export async function initEditor() {
 
 }
 
+// Cached computed styles for source editor gutter (avoid getComputedStyle on every keypress)
+let cachedSourceGutterStyles: Record<string, string> | null = null;
+
 export function syncSourceEditorLineNumbers() {
   const gutter = document.getElementById('source-editor-gutter') as HTMLElement;
   const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
   if (!gutter || !textarea) return;
 
-  const cs = getComputedStyle(textarea);
-  gutter.style.fontFamily = cs.fontFamily;
-  gutter.style.fontSize = cs.fontSize;
-  gutter.style.lineHeight = cs.lineHeight;
-  gutter.style.letterSpacing = cs.letterSpacing;
+  if (!cachedSourceGutterStyles) {
+    const cs = getComputedStyle(textarea);
+    cachedSourceGutterStyles = {
+      fontFamily: cs.fontFamily,
+      fontSize: cs.fontSize,
+      lineHeight: cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
+    };
+  }
+  gutter.style.fontFamily = cachedSourceGutterStyles.fontFamily;
+  gutter.style.fontSize = cachedSourceGutterStyles.fontSize;
+  gutter.style.lineHeight = cachedSourceGutterStyles.lineHeight;
+  gutter.style.letterSpacing = cachedSourceGutterStyles.letterSpacing;
 
   const lines = textarea.value.split('\n');
   const cursorLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
@@ -1075,6 +1101,7 @@ export function switchToSource() {
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   mode = 'source';
+  cachedSourceGutterStyles = null; // Reset cache so styles are re-read in layout context
   syncSourceEditorLineNumbers();
   autoGrowSourceEditor();
 }

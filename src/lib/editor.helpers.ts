@@ -1,6 +1,9 @@
 const CODE_GUTTER_CLASS = 'line-numbers-gutter';
 const CODE_GUTTER_SELECTOR = '.line-numbers-gutter';
 
+// Cache charWidth measurements keyed by `${fontSize}|${fontFamily}|${letterSpacing}`
+const charWidthCache = new Map<string, number>();
+
 export function computeLineNumbersText(text: string): string {
   if (!text) return '';
   const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
@@ -30,13 +33,18 @@ export function computeVisualLineNumbers(codeEl: Element): string {
   if (codeWidth <= 0) return computeLineNumbersText(text);
 
   const style = getComputedStyle(codeEl);
-  const measure = document.createElement('span');
-  measure.textContent = 'x'.repeat(100);
-  measure.style.cssText =
-    `position:fixed;left:-9999px;white-space:nowrap;font-size:${style.fontSize};font-family:${style.fontFamily};letter-spacing:${style.letterSpacing};visibility:hidden`;
-  document.body.appendChild(measure);
-  const charWidth = measure.offsetWidth / 100;
-  document.body.removeChild(measure);
+  const cacheKey = `${style.fontSize}|${style.fontFamily}|${style.letterSpacing}`;
+  let charWidth = charWidthCache.get(cacheKey);
+  if (charWidth === undefined) {
+    const measure = document.createElement('span');
+    measure.textContent = 'x'.repeat(100);
+    measure.style.cssText =
+      `position:fixed;left:-9999px;white-space:nowrap;font-size:${style.fontSize};font-family:${style.fontFamily};letter-spacing:${style.letterSpacing};visibility:hidden`;
+    document.body.appendChild(measure);
+    charWidth = measure.offsetWidth / 100;
+    document.body.removeChild(measure);
+    charWidthCache.set(cacheKey, charWidth);
+  }
   if (charWidth <= 0) return computeLineNumbersText(text);
 
   const charsPerLine = Math.floor(codeWidth / charWidth);

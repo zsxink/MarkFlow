@@ -394,6 +394,12 @@ html, body {
   padding: 56px 48px 120px;
 }
 
+.editor-container::after {
+  content: '';
+  display: block;
+  height: 300px;
+}
+
 /* Tiptap editor styles */
 .ProseMirror {
   outline: none;

@@ -61,12 +61,22 @@ export async function getWorkspace(): Promise<string | null> {
 }
 
 export async function loadSettings(): Promise<Record<string, unknown>> {
-  return invoke('load_settings');
+  if (settingsCache) return settingsCache;
+  const s = await invoke('load_settings');
+  settingsCache = s as Record<string, unknown>;
+  return settingsCache;
 }
 
 export async function saveSettings(settings: Record<string, unknown>): Promise<void> {
-  return invoke('save_settings', { settings });
+  await invoke('save_settings', { settings });
+  settingsCache = settings;
 }
+
+export function clearSettingsCache(): void {
+  settingsCache = null;
+}
+
+let settingsCache: Record<string, unknown> | null = null;
 
 export async function readFileAsBase64(path: string): Promise<string> {
   return invoke<string>('read_file_as_base64', { path });

@@ -44,6 +44,13 @@ pub fn read_file(path: String, state: State<AppState>) -> Result<String, String>
 #[tauri::command]
 pub fn write_file(path: String, content: String, state: State<AppState>) -> Result<(), String> {
     let path = resolve_path(&path, &state)?;
+    // Validate path is within workspace when one is set
+    if state.get_workspace().is_some() {
+        validate_path_in_workspace(&path, &state)?;
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
+    }
     fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))?;
     Ok(())
 }
@@ -162,19 +169,17 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
         if metadata.file_type().is_symlink() {
             continue;
         }
-        let canonical = path.canonicalize().map_err(|e| format!("Failed to resolve path: {}", e))?;
-        if !canonical.starts_with(root) {
-            continue;
-        }
+        // Symlinks already filtered above; non-symlink entries from read_dir are
+        // inherently within the parent directory. Skip expensive canonicalize().
         let is_dir = metadata.is_dir();
         let children = if is_dir {
-            Some(read_dir_inner(&canonical, root)?)
+            Some(read_dir_inner(&path, root)?)
         } else {
             None
         };
         entries.push(FileEntry {
             name,
-            path: normalize_path(&canonical),
+            path: normalize_path(&path),
             is_dir,
             children,
         });
@@ -371,15 +376,38 @@ pub async fn fetch_page_title(url: String) -> Result<String, String> {
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(3))
-        .redirect(reqwest::redirect::Policy::limited(5))
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
-    let response = client
-        .get(validated_url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch URL: {}", e))?;
+    let mut current_url = validated_url;
+    let mut redirects_remaining = 5;
+    let response = loop {
+        let response = client
+            .get(current_url.clone())
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch URL: {}", e))?;
+
+        if response.status().is_redirection() {
+            if redirects_remaining == 0 {
+                return Err("Too many redirects".into());
+            }
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or("Redirect location missing")?;
+            let next_url = current_url
+                .join(location)
+                .map_err(|e| format!("Invalid redirect URL: {}", e))?;
+            current_url = validate_remote_image_url(next_url.as_ref())?;
+            redirects_remaining -= 1;
+            continue;
+        }
+
+        break response;
+    };
 
     if !response.status().is_success() {
         return Err(format!("HTTP error: {}", response.status()));
@@ -452,8 +480,15 @@ pub fn create_dir(path: String, state: State<AppState>) -> Result<(), String> {
 #[tauri::command]
 pub fn rename_path(from: String, to: String, state: State<AppState>) -> Result<(), String> {
     let from = resolve_path(&from, &state)?;
+    // Validate both source and destination are within workspace
+    if state.get_workspace().is_some() {
+        validate_path_in_workspace(&from, &state)?;
+    }
     let to = Path::new(&to);
     validate_parent_in_workspace(to, &state)?;
+    if !from.exists() {
+        return Err("Source path does not exist".into());
+    }
     fs::rename(&from, to).map_err(|e| format!("Failed to rename: {}", e))?;
     info!(target: "backend.files", from = %normalize_path(&from), to = %normalize_path(to), "Renamed path");
     Ok(())
@@ -462,6 +497,12 @@ pub fn rename_path(from: String, to: String, state: State<AppState>) -> Result<(
 #[tauri::command]
 pub fn delete_path(path: String, state: State<AppState>) -> Result<(), String> {
     let path = resolve_path(&path, &state)?;
+    if state.get_workspace().is_some() {
+        validate_path_in_workspace(&path, &state)?;
+    }
+    if !path.exists() {
+        return Err("Path does not exist".into());
+    }
     if path.is_dir() {
         fs::remove_dir_all(&path).map_err(|e| format!("Failed to remove dir: {}", e))?;
     } else {
@@ -475,6 +516,10 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
     fs::create_dir_all(to).map_err(|e| format!("Failed to create dir: {}", e))?;
     for entry in fs::read_dir(from).map_err(|e| format!("Failed to read dir: {}", e))? {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
         let from_path = entry.path();
         let metadata = fs::symlink_metadata(&from_path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
         if metadata.file_type().is_symlink() {
@@ -493,6 +538,12 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
 #[tauri::command]
 pub fn copy_file(from: String, to: String, state: State<AppState>) -> Result<(), String> {
     let from = resolve_path(&from, &state)?;
+    if state.get_workspace().is_some() {
+        validate_path_in_workspace(&from, &state)?;
+    }
+    if !from.exists() {
+        return Err("Source path does not exist".into());
+    }
     let to = Path::new(&to);
     validate_parent_in_workspace(to, &state)?;
     if from.is_dir() {
@@ -521,10 +572,9 @@ pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileE
         if metadata.file_type().is_symlink() {
             continue;
         }
-        let canonical = path.canonicalize().map_err(|e| format!("Failed to resolve path: {}", e))?;
         entries.push(FileEntry {
             name,
-            path: normalize_path(&canonical),
+            path: normalize_path(&path),
             is_dir: metadata.is_dir(),
             children: None,
         });

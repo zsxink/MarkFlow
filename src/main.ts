@@ -27,6 +27,16 @@ interface FileChangeEvent {
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Record<string, unknown> = {};
 
+// Debounced file tree refresh — coalesces rapid file-change events
+let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedRefreshFileTree() {
+  if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
+  treeRefreshTimer = setTimeout(() => {
+    treeRefreshTimer = null;
+    refreshFileTree();
+  }, 150);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   logInfo('app.lifecycle', 'Application boot started');
 
@@ -112,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     if (kind === 'create' || kind === 'delete') {
-      refreshFileTree();
+      debouncedRefreshFileTree();
     }
   });
 

@@ -24,7 +24,6 @@ export function setEditor(e: Editor | null) { editor = e; }
 export function setMode(newMode: 'wysiwyg' | 'source') { mode = newMode; }
 export function setDirtyCheckTimer(t: ReturnType<typeof setTimeout> | null) { dirtyCheckTimer = t; }
 export function setUpdateEventTimer(t: ReturnType<typeof setTimeout> | null) { updateEventTimer = t; }
-export function setActiveDocPathOverride(p: string | null) { activeDocPathOverride = p; }
 export function setCachedSourceGutterStyles(s: Record<string, string> | null) { cachedSourceGutterStyles = s; }
 
 // ── Getters / exported API (re-exported from editor.ts as barrel) ──────

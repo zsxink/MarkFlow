@@ -45,10 +45,6 @@ export function imageSrcResolverPlugin(): Extension {
   });
 }
 
-export function getOriginalSrc(src: string) {
-  return assetToOriginalMap.get(src) || src;
-}
-
 // ── Image settings helpers ─────────────────────────────────────────────
 
 export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {

@@ -126,7 +126,7 @@ export const BlockImage = Image.extend({
 
 // ── Mermaid code block extension ───────────────────────────────────────
 
-export const lowlight = createLowlight(common);
+const lowlight = createLowlight(common);
 
 export function mermaidCodeBlockExtension() {
   return CodeBlockLowlight.configure({ lowlight }).extend({

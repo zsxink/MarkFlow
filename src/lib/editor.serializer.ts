@@ -81,11 +81,3 @@ export function extractDocAsFallback(doc: PMNode): string {
   return lines.join('\n\n');
 }
 
-// ── Composite utility for switchToSource ───────────────────────────────
-
-/**
- * Full serialization pipeline: replace asset URLs, then normalize.
- */
-export function serializeMarkdown(markdown: string): string {
-  return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(markdown));
-}

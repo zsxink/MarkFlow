@@ -7,7 +7,7 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import type { Mark } from '@tiptap/pm/model';
+import type { Mark, Node as PMNode } from '@tiptap/pm/model';
 import type { MarkdownSerializerState } from 'prosemirror-markdown';
 
 import Link from '@tiptap/extension-link';
@@ -65,12 +65,13 @@ import { common, createLowlight } from 'lowlight';
 import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
 import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
-import { syncCodeLineNumberGutters, countTextWords } from './editor.helpers';
+import { syncCodeLineNumberGutters, countTextWords, checkSerializationIntegrity } from './editor.helpers';
 
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
 import { getFileName, resolveImagePath } from './pathUtils';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showImageContextMenu } from '../components/imageContextMenu';
+import { showToast } from '../components/toast';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
@@ -1052,12 +1053,64 @@ export function switchToSource() {
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
   if (!sourceEditor || !wysiwygEditor || !wrapper) return;
 
-  sourceEditor.value = normalizeImageMarkdown(replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown()));
+  const rawMarkdown = replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown());
+  const normalized = normalizeImageMarkdown(rawMarkdown);
+
+  // Integrity check: detect serialization truncation before it reaches textarea
+  const docText = editor.state.doc.textContent;
+  const integrity = checkSerializationIntegrity(docText, normalized);
+
+  if (integrity.truncated) {
+    logException('editor.serialize', 'Markdown serialization integrity failure', undefined, {
+      reason: integrity.reason,
+      docLen: docText.length,
+      mdLen: normalized.length,
+    });
+    showToast('Markdown 序列化异常，已保存全部内容');
+    sourceEditor.value = normalizeImageMarkdown(extractDocAsFallback(editor.state.doc));
+  } else {
+    sourceEditor.value = normalized;
+  }
+
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   mode = 'source';
   syncSourceEditorLineNumbers();
   autoGrowSourceEditor();
+}
+
+/**
+ * Emergency fallback: when the Markdown serializer produces truncated output,
+ * extract the doc content in a lossless (though not perfectly formatted) form.
+ */
+function extractDocAsFallback(doc: PMNode): string {
+  const lines: string[] = [];
+  doc.forEach((node) => {
+    if (node.type.name === 'paragraph') {
+      lines.push(node.textContent);
+    } else if (node.type.name === 'heading') {
+      const level = node.attrs.level || 1;
+      lines.push('#'.repeat(level) + ' ' + node.textContent);
+    } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList' || node.type.name === 'taskList') {
+      node.forEach((item, _pos) => {
+        const prefix = node.type.name === 'orderedList'
+          ? '1. '
+          : node.type.name === 'taskList'
+            ? `- [${item.attrs.checked ? 'x' : ' '}] `
+            : '- ';
+        lines.push(prefix + item.textContent);
+      });
+    } else if (node.type.name === 'blockquote') {
+      lines.push('> ' + node.textContent);
+    } else if (node.type.name === 'codeBlock') {
+      lines.push('```');
+      lines.push(node.textContent);
+      lines.push('```');
+    } else {
+      lines.push(node.textContent || '');
+    }
+  });
+  return lines.join('\n\n');
 }
 
 export function switchToWysiwyg() {

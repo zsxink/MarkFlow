@@ -10,3 +10,6 @@
 
 ## 流程规范
 - [工作流合规](workflow-compliance.md) — 必须遵守分支/PR/commit 规范，不能直接改 main
+
+## 踩坑记录
+- [tiptap-markdown 序列化器限制](troubleshooting-tiptap-markdown-serializer.md) — HTMLNode fallback 陷阱 + defense-in-depth 策略

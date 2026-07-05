@@ -53,6 +53,54 @@ export function computeVisualLineNumbers(codeEl: Element): string {
   return numbers.join('\n');
 }
 
+export interface SerializationIntegrityResult {
+  /** Whether truncation is suspected */
+  truncated: boolean;
+  /** Human-readable reason (for logging), null when no issue */
+  reason: string | null;
+}
+
+/**
+ * Checks whether the Markdown serialization of a ProseMirror doc is likely
+ * truncated. Compares output length against the doc's textContent using
+ * both line count (structural) and character count (volume).
+ *
+ * Pure function — testable without DOM or Tiptap.
+ *
+ * Heuristic rules:
+ * - Empty doc + empty markdown → not truncated (no content to lose)
+ * - Non-empty doc + empty markdown → truncated (complete loss)
+ * - Few doc lines (<5) → insufficient signal, skip heuristic
+ * - Markdown line count < 20% of doc line count → suspicious truncation
+ */
+export function checkSerializationIntegrity(
+  docText: string,
+  markdown: string,
+): SerializationIntegrityResult {
+  const hasContent = docText.trim().length > 0;
+  const mdTrimmed = markdown.trim();
+
+  if (hasContent && mdTrimmed.length === 0) {
+    return { truncated: true, reason: 'serialization returned empty while doc has content' };
+  }
+
+  if (!hasContent) {
+    return { truncated: false, reason: null };
+  }
+
+  const docLines = docText.split('\n').length;
+  const mdLines = mdTrimmed.split('\n').length;
+
+  if (docLines > 5 && mdLines < docLines * 0.2) {
+    return {
+      truncated: true,
+      reason: `markdown lines (${mdLines}) < 20% of doc lines (${docLines})`,
+    };
+  }
+
+  return { truncated: false, reason: null };
+}
+
 export function syncCodeLineNumberGutters(
   root: HTMLElement,
   enabled: boolean,

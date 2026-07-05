@@ -32,7 +32,13 @@ assignees: ''
 
 ## 日志
 
-<!-- 查看 C:/Users/xian/AppData/Roaming/MarkFlow/logs 中的日志 -->
+<!-- 查看应用配置目录下 logs 文件夹中的日志（路径由 app_config_dir() 根据平台自动决定） -->
+
+| 平台 | 默认路径 |
+|------|---------|
+| Windows | `%APPDATA%\MarkFlow\logs` |
+| macOS | `~/Library/Application Support/MarkFlow/logs` |
+| Linux | `~/.config/MarkFlow/logs` |
 
 ## 补充说明
 

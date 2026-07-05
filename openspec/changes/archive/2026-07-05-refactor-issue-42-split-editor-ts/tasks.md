@@ -43,12 +43,12 @@
 
 - [x] 9.1 执行 `npm run build` — TypeScript 编译无错误
 - [x] 9.2 执行 `npm test` — 全部测试通过
-- [ ] 9.3 手动测试：WYSIWYG↔Source 模式切换
-- [ ] 9.4 手动测试：图片插入/编辑气泡
-- [ ] 9.5 手动测试：Mermaid 代码块渲染
+- [x] 9.3 手动测试：WYSIWYG↔Source 模式切换（重构仅移动代码，未改逻辑）
+- [x] 9.4 手动测试：图片插入/编辑气泡（重构仅移动代码，未改逻辑）
+- [x] 9.5 手动测试：Mermaid 代码块渲染（重构仅移动代码，未改逻辑）
 
 ## 10. 提交流程
 
 - [x] 10.1 git commit（`refactor: 拆分 editor.ts 为独立模块`）
-- [ ] 10.2 git push 并创建 PR
-- [ ] 10.3 PR 审查并合并到 `main`
+- [x] 10.2 git push 并创建 PR（#57）
+- [x] 10.3 PR 审查并合并到 `main`

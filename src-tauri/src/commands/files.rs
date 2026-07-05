@@ -169,19 +169,17 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
         if metadata.file_type().is_symlink() {
             continue;
         }
-        let canonical = path.canonicalize().map_err(|e| format!("Failed to resolve path: {}", e))?;
-        if !canonical.starts_with(root) {
-            continue;
-        }
+        // Symlinks already filtered above; non-symlink entries from read_dir are
+        // inherently within the parent directory. Skip expensive canonicalize().
         let is_dir = metadata.is_dir();
         let children = if is_dir {
-            Some(read_dir_inner(&canonical, root)?)
+            Some(read_dir_inner(&path, root)?)
         } else {
             None
         };
         entries.push(FileEntry {
             name,
-            path: normalize_path(&canonical),
+            path: normalize_path(&path),
             is_dir,
             children,
         });
@@ -570,10 +568,9 @@ pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileE
         if metadata.file_type().is_symlink() {
             continue;
         }
-        let canonical = path.canonicalize().map_err(|e| format!("Failed to resolve path: {}", e))?;
         entries.push(FileEntry {
             name,
-            path: normalize_path(&canonical),
+            path: normalize_path(&path),
             is_dir: metadata.is_dir(),
             children: None,
         });

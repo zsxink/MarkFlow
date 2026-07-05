@@ -1090,8 +1090,14 @@ export function syncSourceEditorLineNumbers() {
 function autoGrowSourceEditor() {
   const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
   if (!textarea) return;
+  const newHeight = textarea.scrollHeight;
+  if (newHeight === textarea.offsetHeight) return;
+  const area = textarea.closest('.editor-area') as HTMLElement | null;
+  const prevScrollTop = area?.scrollTop ?? -1;
   textarea.style.height = 'auto';
-  textarea.style.height = textarea.scrollHeight + 'px';
+  textarea.style.height = newHeight + 'px';
+  // After collapse-grow cycle, restore scroll position to prevent visual jump
+  if (area && prevScrollTop >= 0) area.scrollTop = prevScrollTop;
 }
 
 export function switchToSource() {

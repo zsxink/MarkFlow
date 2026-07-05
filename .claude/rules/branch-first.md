@@ -1,4 +1,7 @@
-- **Issue 处理第一步**：收到 Issue 或开始实施变更前，必须先从 `main` 拉新分支
+- **Issue 处理第一步**：创建 GitHub Issue 获取 issue 号
+  - `gh issue create --title "type: 描述" --label "kind" --body "问题/需求说明"`
+  - 记录返回的 issue 号（如 `#40`）
+- **第二步**：从 `main` 拉新分支，issue 号必须来自真实 issue
   - `git checkout -b type/issue-N-slug main`
 - **禁止在 `main` 上修改代码**：所有代码改动、`/opsx:propose`、`/opsx:apply` 都必须在分支上完成
 - **仅修改 spec 文档本身**（如 development-flow.md）可在 main 上操作，但仍需 PR 合入

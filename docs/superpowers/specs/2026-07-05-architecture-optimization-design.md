@@ -152,20 +152,135 @@ API：`store.on(type, cb)`、`store.emit(event)`、`store.off(type, cb)`
 
 ## 8. 测试覆盖率
 
-**现状**：仅 265 行测试文件，覆盖率 < 5%。核心路径（序列化、文件操作、图片处理、冲突处理、状态管理）无测试。
+**现状**：仅 265 行测试文件（`editor.helpers.test.ts` 209 行 + `mermaidContextMenu.helpers.test.ts` 56 行），覆盖率 < 5%。核心路径无测试。
 
-**方案**：
+### 8.1 测试框架与 mock 策略
 
-| 优先级 | 模块 | 测试内容 |
-|--------|------|----------|
-| P0 | `editor.serializer.ts` | `normalizeImageMarkdown`、`fixImageNewlines`、`fixCorruptedImageNewlines`、`replaceAssetUrlsWithOriginal` |
-| P0 | `editor.state.ts` | `getMarkdown`、`setMarkdown`、dirty 检查 |
-| P1 | `imageUtils.ts` | `generateImageName`、`getStoragePath`、`imagePathToSrc` |
-| P1 | `pathUtils.ts` | `resolveImagePath`、`computeRelativePath`、`getFileName` |
-| P2 | `store.ts` | 发布订阅行为 |
-| P2 | `settings.ts` | `buildSettingsFromUI`、`applyRuntimeSettings` |
+- **框架**：vitest + happy-dom（已有配置，不动）
+- **mock 策略**：
+  - `@tauri-apps/api/core` 的 `invoke()` — `vi.mock` 全局替换
+  - `@tauri-apps/plugin-dialog`、`@tauri-apps/plugin-shell` — `vi.mock` 替换
+  - 各类 DOM API — happy-dom 原生支持
+- **happy-dom 局限性**：
+  - ❌ Canvas API（Mermaid SVG→PNG 测试不能做）
+  - ❌ ResizeObserver（需要 polyfill）
+  - ❌ `fetch()`（需要 polyfill）
+  - ✅ 足够的 DOM API（getElementById、classList、textContent、getBoundingClientRect）
+  - happy-dom v14+ 支持 Clipboard API
+  - **结论**：happy-dom 足够覆盖 P0 和 P1 的全部测试，P2 的 ProseMirror 集成测试需 Playwright（第一轮不做）
 
-不追求覆盖率数字指标，优先覆盖核心序列化/状态路径。
+### 8.2 模块可测性分级
+
+**P0 — 纯函数，无须 DOM / IPC：**
+
+| 模块 | 可测函数 | 估算测试行数 | 所需时间 |
+|------|----------|-------------|----------|
+| `pathUtils.ts` | `getFileName`、`getParentDir`、`resolveImagePath`、`computeRelativePath`、`getImageMimeType` | ~60 行 | 0.5天 |
+| `editor.helpers.ts`（补充） | `checkSerializationIntegrity`、`countTextWords`、`computeLineNumbersText`（补全边界 case） | ~50 行 | 0.5天 |
+| `editor.serializer.ts`（#42 拆分后） | `normalizeImageMarkdown`、`fixImageNewlines`、`fixCorruptedImageNewlines`、`replaceAssetUrlsWithOriginal` | ~80 行 | 0.5天 |
+| `theme.ts` | `getTheme`、`setTheme`、`cycleTheme` | ~30 行 | 0.2天 |
+| `mermaidContextMenu.helpers.ts`（补充） | `validatePngCanvasSize` 边界 case | ~20 行 | 0.2天 |
+
+**P1 — 依赖 Tauri IPC，需 mock `invoke()`：**
+
+| 模块 | Mock 策略 | 估算测试行数 | 所需时间 |
+|------|-----------|-------------|----------|
+| `logger.ts` | mock `@tauri-apps/api/core` 的 `invoke`，验证调用参数 | ~40 行 | 0.5天 |
+| `storage.ts` | mock `invoke`，验证各函数正确转发参数 | ~80 行 | 1天 |
+| `imageUtils.ts`（纯函数部分） | mock `getWorkspace`、`readSingleDir`、`writeFileFromBase64` | ~80 行 | 1天 |
+
+**P2 — DOM-heavy，需要复杂模拟或集成测试：**
+
+| 模块 | 说明 | 所需时间 |
+|------|------|----------|
+| `store.ts` | 纯逻辑，发布订阅行为 | 0.5天 |
+| `toast.ts` | DOM 测试，验证 hidden/timer | 0.2天 |
+| `settings.ts` | 格式逻辑 `buildSettingsFromUI` 可测试 | 0.5天 |
+| Tiptap/ProseMirror | 需要 Playwright 集成测试（第一轮不做） | — |
+
+### 8.3 新增目录结构
+
+```
+src/
+  test/
+    setup.ts               ← 全局 setup：mock Tauri plugins + DOM polyfill
+  lib/
+    __tests__/
+      editor.helpers.test.ts       ← 已有，补全边界 case
+      pathUtils.test.ts            ← 新增
+      editor.serializer.test.ts    ← 新增（#42 拆分后）
+      imageUtils.test.ts           ← 新增（纯函数部分）
+      logger.test.ts               ← 新增
+      theme.test.ts                ← 新增
+  components/
+    __tests__/
+      mermaidContextMenu.helpers.test.ts   ← 已有，补全
+      toast.test.ts                        ← 新增
+```
+
+### 8.4 mock 代码示例
+
+```typescript
+// src/test/setup.ts
+import { vi } from 'vitest';
+
+// Mock Tauri core invoke
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn().mockResolvedValue(null),
+}));
+
+// Mock Tauri plugins
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: vi.fn(),
+  save: vi.fn(),
+  ask: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock('@tauri-apps/plugin-shell', () => ({
+  open: vi.fn(),
+}));
+```
+
+### 8.5 logger 测试示例（mock invoke 验证调用参数）
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { invoke } from '@tauri-apps/api/core';
+import { logInfo, logError, logException } from '../logger';
+
+vi.mock('@tauri-apps/api/core');
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+describe('logInfo', () => {
+  it('calls invoke with correct args', () => {
+    logInfo('test.scope', 'test message', { key: 'value' });
+    expect(invoke).toHaveBeenCalledWith('log_frontend_event', {
+      level: 'info', scope: 'test.scope',
+      message: 'test message', context: { key: 'value' },
+    });
+  });
+});
+
+describe('logException', () => {
+  it('includes error details in context', () => {
+    logException('test.scope', 'failed', new Error('boom'));
+    expect(invoke).toHaveBeenCalledWith('log_frontend_event', {
+      level: 'error', scope: 'test.scope', message: 'failed',
+      context: expect.objectContaining({ name: 'Error', message: 'boom' }),
+    });
+  });
+});
+```
+
+### 8.6 执行计划
+
+1. **第一轮（~2天）**：纯函数测试 — `pathUtils`、`editor.helpers`（补充）、`theme`、`mermaidContextMenu.helpers`（补充）
+2. **第二轮（~2天）**：mock IPC 测试 — `logger`、`storage`、`imageUtils`（纯函数部分）
+3. **第三轮（~1天）**：Store、Toast、Settings 格式逻辑
+4. **CI 集成**：`.github/workflows/auto-pr.yml` 中增加 `npm test` 步骤
+
+目标：达到约 20-25% 覆盖率（核心纯函数 + IPC 包装全覆盖）。
 
 对应 Issue: [#54](https://github.com/zsxink/MarkFlow/issues/54)
 

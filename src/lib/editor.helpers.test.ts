@@ -3,6 +3,7 @@ import {
   syncCodeLineNumberGutters,
   computeLineNumbersText,
   countTextWords,
+  checkSerializationIntegrity,
 } from './editor.helpers';
 
 function buildEditorRoot(): HTMLElement {
@@ -31,8 +32,8 @@ describe('computeLineNumbersText', () => {
     expect(computeLineNumbersText('a\nb\nc')).toBe('1\n2\n3');
   });
 
-  it('does not count a trailing empty line', () => {
-    expect(computeLineNumbersText('a\nb\n')).toBe('1\n2');
+  it('counts a trailing newline as an empty last line', () => {
+    expect(computeLineNumbersText('a\nb\n')).toBe('1\n2\n3');
   });
 
   it('returns empty string for empty input', () => {
@@ -41,6 +42,10 @@ describe('computeLineNumbersText', () => {
 
   it('numbers a single line', () => {
     expect(computeLineNumbersText('hello')).toBe('1');
+  });
+
+  it('single newline means content + empty line = 2 lines', () => {
+    expect(computeLineNumbersText('\n')).toBe('1\n2');
   });
 });
 
@@ -158,5 +163,47 @@ describe('countTextWords', () => {
 
   it('handles only punctuation/symbols', () => {
     expect(countTextWords('!!! @@@ ###')).toBe(3);
+  });
+});
+
+describe('checkSerializationIntegrity', () => {
+  it('returns not truncated when doc is empty', () => {
+    const result = checkSerializationIntegrity('', '');
+    expect(result.truncated).toBe(false);
+    expect(result.reason).toBeNull();
+  });
+
+  it('returns not truncated when markdown matches doc length', () => {
+    const result = checkSerializationIntegrity('Line A\nLine B\nLine C', '- Line A\n- Line B\n- Line C');
+    expect(result.truncated).toBe(false);
+    expect(result.reason).toBeNull();
+  });
+
+  it('returns truncated when doc has content but markdown is empty', () => {
+    const result = checkSerializationIntegrity('Some content here', '');
+    expect(result.truncated).toBe(true);
+    expect(result.reason).toContain('empty');
+  });
+
+  it('returns truncated when markdown has far fewer lines than doc (heuristic)', () => {
+    const docLines = Array.from({ length: 10 }, (_, i) => `Line ${i + 1}`).join('\n');
+    const mdLines = 'Just one short line';
+    const result = checkSerializationIntegrity(docLines, mdLines);
+    expect(result.truncated).toBe(true);
+    expect(result.reason).toContain('20%');
+  });
+
+  it('returns not truncated for short docs (< 5 lines) even with sparse markdown', () => {
+    const result = checkSerializationIntegrity('A\nB\nC', 'short');
+    expect(result.truncated).toBe(false);
+    expect(result.reason).toBeNull();
+  });
+
+  it('returns not truncated when markdown has moderate content', () => {
+    const docLines = Array.from({ length: 10 }, (_, i) => `Line ${i + 1}`).join('\n');
+    const mdLines = Array.from({ length: 6 }, (_, i) => `- Item ${i + 1}`).join('\n');
+    const result = checkSerializationIntegrity(docLines, mdLines);
+    expect(result.truncated).toBe(false);
+    expect(result.reason).toBeNull();
   });
 });

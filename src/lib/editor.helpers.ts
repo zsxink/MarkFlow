@@ -1,11 +1,17 @@
 const CODE_GUTTER_CLASS = 'line-numbers-gutter';
 const CODE_GUTTER_SELECTOR = '.line-numbers-gutter';
 
+// Cache charWidth measurements keyed by `${fontSize}|${fontFamily}|${letterSpacing}`
+const charWidthCache = new Map<string, number>();
+
 export function computeLineNumbersText(text: string): string {
   if (!text) return '';
-  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
-  return trimmed
-    .split('\n')
+  // Split by newline — literal \n boundaries deliminate lines.
+  // A trailing \n represents an empty last line and is NOT stripped.
+  // e.g. "a\nb\n" → ["a", "b", ""] → 3 lines, last empty.
+  const lines = text.split('\n');
+  if (lines.length <= 1 && lines[0] === '') return ''; // truly empty (no content ever typed)
+  return lines
     .map((_, i) => String(i + 1))
     .join('\n');
 }
@@ -22,21 +28,26 @@ export function computeVisualLineNumbers(codeEl: Element): string {
   const text = codeEl.textContent || '';
   if (!text) return '';
 
-  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
-  const lines = trimmed.split('\n');
-  if (lines.length === 0) return '';
+  // Split by newline — see computeLineNumbersText. Trailing \n is NOT stripped.
+  const lines = text.split('\n');
+  if (lines.length <= 1 && lines[0] === '') return '';
 
   const codeWidth = codeEl.clientWidth;
   if (codeWidth <= 0) return computeLineNumbersText(text);
 
   const style = getComputedStyle(codeEl);
-  const measure = document.createElement('span');
-  measure.textContent = 'x'.repeat(100);
-  measure.style.cssText =
-    `position:fixed;left:-9999px;white-space:nowrap;font-size:${style.fontSize};font-family:${style.fontFamily};letter-spacing:${style.letterSpacing};visibility:hidden`;
-  document.body.appendChild(measure);
-  const charWidth = measure.offsetWidth / 100;
-  document.body.removeChild(measure);
+  const cacheKey = `${style.fontSize}|${style.fontFamily}|${style.letterSpacing}`;
+  let charWidth = charWidthCache.get(cacheKey);
+  if (charWidth === undefined) {
+    const measure = document.createElement('span');
+    measure.textContent = 'x'.repeat(100);
+    measure.style.cssText =
+      `position:fixed;left:-9999px;white-space:nowrap;font-size:${style.fontSize};font-family:${style.fontFamily};letter-spacing:${style.letterSpacing};visibility:hidden`;
+    document.body.appendChild(measure);
+    charWidth = measure.offsetWidth / 100;
+    document.body.removeChild(measure);
+    charWidthCache.set(cacheKey, charWidth);
+  }
   if (charWidth <= 0) return computeLineNumbersText(text);
 
   const charsPerLine = Math.floor(codeWidth / charWidth);
@@ -51,6 +62,54 @@ export function computeVisualLineNumbers(codeEl: Element): string {
   }
 
   return numbers.join('\n');
+}
+
+export interface SerializationIntegrityResult {
+  /** Whether truncation is suspected */
+  truncated: boolean;
+  /** Human-readable reason (for logging), null when no issue */
+  reason: string | null;
+}
+
+/**
+ * Checks whether the Markdown serialization of a ProseMirror doc is likely
+ * truncated. Compares output length against the doc's textContent using
+ * both line count (structural) and character count (volume).
+ *
+ * Pure function — testable without DOM or Tiptap.
+ *
+ * Heuristic rules:
+ * - Empty doc + empty markdown → not truncated (no content to lose)
+ * - Non-empty doc + empty markdown → truncated (complete loss)
+ * - Few doc lines (<5) → insufficient signal, skip heuristic
+ * - Markdown line count < 20% of doc line count → suspicious truncation
+ */
+export function checkSerializationIntegrity(
+  docText: string,
+  markdown: string,
+): SerializationIntegrityResult {
+  const hasContent = docText.trim().length > 0;
+  const mdTrimmed = markdown.trim();
+
+  if (hasContent && mdTrimmed.length === 0) {
+    return { truncated: true, reason: 'serialization returned empty while doc has content' };
+  }
+
+  if (!hasContent) {
+    return { truncated: false, reason: null };
+  }
+
+  const docLines = docText.split('\n').length;
+  const mdLines = mdTrimmed.split('\n').length;
+
+  if (docLines > 5 && mdLines < docLines * 0.2) {
+    return {
+      truncated: true,
+      reason: `markdown lines (${mdLines}) < 20% of doc lines (${docLines})`,
+    };
+  }
+
+  return { truncated: false, reason: null };
 }
 
 export function syncCodeLineNumberGutters(

@@ -7,7 +7,7 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import type { Mark } from '@tiptap/pm/model';
+import type { Mark, Node as PMNode } from '@tiptap/pm/model';
 import type { MarkdownSerializerState } from 'prosemirror-markdown';
 
 import Link from '@tiptap/extension-link';
@@ -65,12 +65,13 @@ import { common, createLowlight } from 'lowlight';
 import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
 import { renderMermaid } from './mermaid';
 import { loadSettings } from './storage';
-import { syncCodeLineNumberGutters, countTextWords } from './editor.helpers';
+import { syncCodeLineNumberGutters, countTextWords, checkSerializationIntegrity } from './editor.helpers';
 
 import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
 import { getFileName, resolveImagePath } from './pathUtils';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showImageContextMenu } from '../components/imageContextMenu';
+import { showToast } from '../components/toast';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
@@ -151,6 +152,22 @@ const lowlight = createLowlight(common);
 
 function mermaidCodeBlockExtension() {
   return CodeBlockLowlight.configure({ lowlight }).extend({
+    addStorage() {
+      return {
+        markdown: {
+          serialize(state: any, node: any) {
+            state.write("```" + (node.attrs.language || "") + "\n");
+            state.text(node.textContent, false);
+            state.ensureNewLine();
+            state.write("```");
+            state.closeBlock(node);
+          },
+          parse: {
+            // handled by markdown-it
+          },
+        },
+      };
+    },
     addNodeView() {
       return ({ node, editor, getPos }) => {
         let currentNode = node;
@@ -680,6 +697,8 @@ function imageBubblePlugin(): Extension {
 
 let editor: Editor | null = null;
 let mode: 'wysiwyg' | 'source' = 'wysiwyg';
+let dirtyCheckTimer: ReturnType<typeof setTimeout> | null = null;
+let updateEventTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getEditor(): Editor | null {
   return editor;
@@ -746,7 +765,13 @@ function fixImageNewlines(markdown: string): string {
     out.push(line);
   }
 
-  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+  // Collapse 3+ consecutive blank lines to 2 — but protect content inside
+  // fenced code blocks (```...```) so multiple empty lines in code stay intact.
+  const joined = out.join('\n');
+  return joined.replace(/(```[\s\S]*?```)|(\n{3,})/g, (_match, codeFence) => {
+    if (codeFence) return codeFence;
+    return '\n\n';
+  });
 }
 
 function normalizeImageMarkdown(markdown: string): string {
@@ -897,12 +922,25 @@ export async function initEditor() {
     ],
     content: '',
     onUpdate: () => {
-      if (!documentState.programmaticUpdate) {
-        documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+      // Debounce dirty check — only matters when saving/switching files
+      if (dirtyCheckTimer) clearTimeout(dirtyCheckTimer);
+      dirtyCheckTimer = setTimeout(() => {
+        dirtyCheckTimer = null;
+        if (!documentState.programmaticUpdate) {
+          documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+        }
+      }, 400);
+
+      // Throttle editor-update dispatch — outline/statusbar don't need per-keystroke refresh
+      if (!updateEventTimer) {
+        updateEventTimer = setTimeout(() => {
+          updateEventTimer = null;
+          document.dispatchEvent(new Event('editor-update'));
+        }, 80);
       }
-      document.dispatchEvent(new Event('editor-update'));
     },
     onSelectionUpdate: () => {
+      // Selection changes need immediate dispatch (cursor position in status bar)
       document.dispatchEvent(new Event('editor-update'));
     },
   });
@@ -933,7 +971,7 @@ export async function initEditor() {
       const root = editor?.view.dom;
       if (!root?.classList.contains('code-show-line-numbers')) return;
       syncCodeLineNumberGutters(root, true);
-    }, 300);
+    }, 150);
   });
 
   // Source editor sync — consolidated handler with debounced line number sync
@@ -1008,16 +1046,27 @@ export async function initEditor() {
 
 }
 
+// Cached computed styles for source editor gutter (avoid getComputedStyle on every keypress)
+let cachedSourceGutterStyles: Record<string, string> | null = null;
+
 export function syncSourceEditorLineNumbers() {
   const gutter = document.getElementById('source-editor-gutter') as HTMLElement;
   const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
   if (!gutter || !textarea) return;
 
-  const cs = getComputedStyle(textarea);
-  gutter.style.fontFamily = cs.fontFamily;
-  gutter.style.fontSize = cs.fontSize;
-  gutter.style.lineHeight = cs.lineHeight;
-  gutter.style.letterSpacing = cs.letterSpacing;
+  if (!cachedSourceGutterStyles) {
+    const cs = getComputedStyle(textarea);
+    cachedSourceGutterStyles = {
+      fontFamily: cs.fontFamily,
+      fontSize: cs.fontSize,
+      lineHeight: cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
+    };
+  }
+  gutter.style.fontFamily = cachedSourceGutterStyles.fontFamily;
+  gutter.style.fontSize = cachedSourceGutterStyles.fontSize;
+  gutter.style.lineHeight = cachedSourceGutterStyles.lineHeight;
+  gutter.style.letterSpacing = cachedSourceGutterStyles.letterSpacing;
 
   const lines = textarea.value.split('\n');
   const cursorLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
@@ -1052,12 +1101,65 @@ export function switchToSource() {
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
   if (!sourceEditor || !wysiwygEditor || !wrapper) return;
 
-  sourceEditor.value = normalizeImageMarkdown(replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown()));
+  const rawMarkdown = replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown());
+  const normalized = normalizeImageMarkdown(rawMarkdown);
+
+  // Integrity check: detect serialization truncation before it reaches textarea
+  const docText = editor.state.doc.textContent;
+  const integrity = checkSerializationIntegrity(docText, normalized);
+
+  if (integrity.truncated) {
+    logException('editor.serialize', 'Markdown serialization integrity failure', undefined, {
+      reason: integrity.reason,
+      docLen: docText.length,
+      mdLen: normalized.length,
+    });
+    showToast('Markdown 序列化异常，已保存全部内容');
+    sourceEditor.value = normalizeImageMarkdown(extractDocAsFallback(editor.state.doc));
+  } else {
+    sourceEditor.value = normalized;
+  }
+
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   mode = 'source';
+  cachedSourceGutterStyles = null; // Reset cache so styles are re-read in layout context
   syncSourceEditorLineNumbers();
   autoGrowSourceEditor();
+}
+
+/**
+ * Emergency fallback: when the Markdown serializer produces truncated output,
+ * extract the doc content in a lossless (though not perfectly formatted) form.
+ */
+function extractDocAsFallback(doc: PMNode): string {
+  const lines: string[] = [];
+  doc.forEach((node) => {
+    if (node.type.name === 'paragraph') {
+      lines.push(node.textContent);
+    } else if (node.type.name === 'heading') {
+      const level = node.attrs.level || 1;
+      lines.push('#'.repeat(level) + ' ' + node.textContent);
+    } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList' || node.type.name === 'taskList') {
+      node.forEach((item, _pos) => {
+        const prefix = node.type.name === 'orderedList'
+          ? '1. '
+          : node.type.name === 'taskList'
+            ? `- [${item.attrs.checked ? 'x' : ' '}] `
+            : '- ';
+        lines.push(prefix + item.textContent);
+      });
+    } else if (node.type.name === 'blockquote') {
+      lines.push('> ' + node.textContent);
+    } else if (node.type.name === 'codeBlock') {
+      lines.push('```');
+      lines.push(node.textContent);
+      lines.push('```');
+    } else {
+      lines.push(node.textContent || '');
+    }
+  });
+  return lines.join('\n\n');
 }
 
 export function switchToWysiwyg() {

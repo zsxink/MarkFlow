@@ -1,4 +1,4 @@
-import { Editor, Extension, InputRule } from '@tiptap/core';
+import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -7,776 +7,66 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import type { Mark, Node as PMNode } from '@tiptap/pm/model';
-import type { MarkdownSerializerState } from 'prosemirror-markdown';
-
-import Link from '@tiptap/extension-link';
-
-// Custom Link extension with paste rules disabled and explicit
-// [text](url) serialization (never <url> autolink syntax).
-//
-// The default Link.addPasteRules() has a markPasteRule that uses linkifyjs
-// to auto-detect URLs in pasted text and add link marks — this bypasses
-// linkOnPaste: false because it's a PasteRule, not the pasteHandler plugin.
-//
-// The default link mark serializer (prosemirror-markdown isPlainURL) outputs
-// <url> when link text == href, which would modify the source file.
-const CustomLink = Link.extend({
-  addPasteRules() {
-    return [];
-  },
-  addInputRules() {
-    return [
-      new InputRule({
-        // Match [text](url) typed inline — the $ anchors to cursor position
-        find: /\[([^\]]+)\]\(([^)]+)\)$/,
-        handler({ state, range, match }) {
-          const { tr } = state;
-          const text = match[1];
-          const url = match[2];
-          const { from, to } = range;
-          tr.replaceWith(from, to, state.schema.text(text));
-          tr.addMark(from, from + text.length, state.schema.marks.link.create({ href: url }));
-        },
-      }),
-    ];
-  },
-  addStorage() {
-    return {
-      markdown: {
-        serialize: {
-          open: '[',
-          close: (_state: MarkdownSerializerState, mark: Mark) => {
-            const href = mark.attrs.href.replace(/[\(\)"]/g, '\\$&');
-            const title = mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, '\\"')}"` : '';
-            return `](${href}${title})`;
-          },
-          mixable: true,
-        },
-        parse: {},
-      },
-    };
-  },
-});
-import Image from '@tiptap/extension-image';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { Markdown } from 'tiptap-markdown';
-import { common, createLowlight } from 'lowlight';
-import { handleNetworkImage, pasteImageFile, imagePathToSrc, type ImageSettings } from './imageUtils';
-import { renderMermaid } from './mermaid';
-import { loadSettings } from './storage';
-import { syncCodeLineNumberGutters, countTextWords, checkSerializationIntegrity } from './editor.helpers';
 
-import { Plugin, PluginKey, Transaction } from '@tiptap/pm/state';
-import { getFileName, resolveImagePath } from './pathUtils';
-import { showMermaidContextMenu } from '../components/mermaidContextMenu';
-import { showImageContextMenu } from '../components/imageContextMenu';
+import { pasteImageFile } from './imageUtils';
+import { loadSettings } from './storage';
+import { syncCodeLineNumberGutters, checkSerializationIntegrity } from './editor.helpers';
 import { showToast } from '../components/toast';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
 
-const BlockImage = Image.extend({
-  addNodeView() {
-    return ({ node, HTMLAttributes }) => {
-      const img = document.createElement('img');
-      Object.entries(Image.options.HTMLAttributes).forEach(([key, value]) => {
-        if (key === 'class') return;
-        img.setAttribute(key, value as string);
-      });
-      Object.entries(HTMLAttributes).forEach(([key, value]) => {
-        if (value != null) img.setAttribute(key, value as string);
-      });
-      if (node.attrs.src) img.src = node.attrs.src;
-      if (node.attrs.alt) img.alt = node.attrs.alt;
+// Sub-module imports
+import {
+  CustomLink,
+  BlockImage,
+  mermaidCodeBlockExtension,
+} from './editor.extensions';
+import { imageSrcResolverPlugin, getImageSettings } from './editor.image.store';
+import { imageBubblePlugin } from './editor.image.bubble';
+import {
+  normalizeImageMarkdown,
+  replaceAssetUrlsWithOriginal,
+  extractDocAsFallback,
+} from './editor.serializer';
 
-      const wrapper = document.createElement('span');
-      wrapper.className = 'image-node-view';
-      wrapper.appendChild(img);
+// Shared state
+import {
+  editor,
+  mode,
+  documentState,
+  dirtyCheckTimer,
+  updateEventTimer,
+  cachedSourceGutterStyles,
+  assetToOriginalMap,
+  setEditor,
+  setMode,
+  setDirtyCheckTimer,
+  setUpdateEventTimer,
+  setCachedSourceGutterStyles,
+  getEditor,
+  getMode,
+  isDocumentDirty,
+  hasExternalModification,
+  markExternalModification,
+  setActiveDocumentPath,
+  getActiveDocPath,
+} from './editor.state';
 
-      let errorEl: HTMLSpanElement | null = null;
+// ── Barrel re-exports for API compatibility ───────────────────────────
 
-      function showError() {
-        if (errorEl) return;
-        errorEl = document.createElement('span');
-        errorEl.className = 'image-error-inline';
-        errorEl.contentEditable = 'false';
-
-        const icon = document.createElement('span');
-        icon.className = 'image-error-icon';
-        icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>`;
-
-        const label = document.createElement('span');
-        label.className = 'image-error-label';
-        label.textContent = '图片加载失败';
-
-        errorEl.appendChild(icon);
-        errorEl.appendChild(label);
-
-        img.style.display = 'none';
-        wrapper.appendChild(errorEl);
-      }
-
-      function hideError() {
-        if (errorEl) {
-          errorEl.remove();
-          errorEl = null;
-        }
-        img.style.display = '';
-        img.classList.remove('image-error');
-      }
-
-      img.addEventListener('error', showError);
-      img.addEventListener('load', hideError);
-      if (img.complete && img.naturalWidth === 0) showError();
-
-      return {
-        dom: wrapper,
-        ignoreMutation: () => true,
-        stopEvent: (e: Event) => {
-          if (errorEl && (e.type === 'mousedown' || e.type === 'pointerdown')) {
-            const target = e.target as Node;
-            if (errorEl.contains(target)) {
-              e.preventDefault();
-              return true;
-            }
-          }
-          return false;
-        },
-      };
-    };
-  },
-});
-
-const lowlight = createLowlight(common);
-
-function mermaidCodeBlockExtension() {
-  return CodeBlockLowlight.configure({ lowlight }).extend({
-    addStorage() {
-      return {
-        markdown: {
-          serialize(state: any, node: any) {
-            state.write("```" + (node.attrs.language || "") + "\n");
-            state.text(node.textContent, false);
-            state.ensureNewLine();
-            state.write("```");
-            state.closeBlock(node);
-          },
-          parse: {
-            // handled by markdown-it
-          },
-        },
-      };
-    },
-    addNodeView() {
-      return ({ node, editor, getPos }) => {
-        let currentNode = node;
-        let isEditing = false;
-        let draftSource = '';
-        let renderVersion = 0;
-        let destroyed = false;
-        let renderedSvg = '';
-
-        const dom = document.createElement('div');
-        let contentDOM: HTMLElement | null = null;
-        let codeBlockPreEl: HTMLPreElement | null = null;
-        let codeBlockCodeEl: HTMLElement | null = null;
-        let textareaEl: HTMLTextAreaElement | null = null;
-        let previewPanel: HTMLDivElement | null = null;
-        let previewEl: HTMLDivElement | null = null;
-        let errorEl: HTMLDivElement | null = null;
-
-        const getLanguage = () => String(currentNode.attrs.language || '').toLowerCase();
-        const isMermaid = () => getLanguage() === 'mermaid';
-
-        const setCodeBlock = () => {
-          renderedSvg = '';
-          dom.className = 'code-block-view';
-          const language = getLanguage();
-          if (!codeBlockPreEl || !codeBlockCodeEl) {
-            codeBlockPreEl = document.createElement('pre');
-            codeBlockCodeEl = document.createElement('code');
-            codeBlockPreEl.appendChild(codeBlockCodeEl);
-          }
-          codeBlockCodeEl.className = 'hljs';
-          if (language) codeBlockCodeEl.classList.add(`language-${language}`);
-          contentDOM = codeBlockCodeEl;
-          textareaEl = null;
-          previewPanel = null;
-          previewEl = null;
-          errorEl = null;
-          if (dom.firstChild !== codeBlockPreEl) {
-            dom.replaceChildren(codeBlockPreEl);
-          }
-        };
-
-        const syncError = (message: string) => {
-          if (!errorEl) return;
-          errorEl.hidden = !message;
-          errorEl.textContent = message;
-        };
-
-        const renderPreview = async (code: string) => {
-          if (!previewEl) return;
-          const version = ++renderVersion;
-          renderedSvg = '';
-          previewEl.className = 'mermaid-preview is-rendering';
-          previewEl.textContent = '正在渲染 Mermaid 图表…';
-          try {
-            const svg = await renderMermaid(code);
-            if (destroyed || version !== renderVersion || !previewEl) return;
-            renderedSvg = svg;
-            syncError('');
-            previewEl.className = 'mermaid-preview';
-            previewEl.innerHTML = svg;
-            previewEl.title = '左键点击编辑 Mermaid 源码';
-          } catch (error) {
-            if (destroyed || version !== renderVersion || !previewEl) return;
-            renderedSvg = '';
-            const message = error instanceof Error ? error.message : 'Mermaid 渲染失败';
-            syncError('');
-            previewEl.className = 'mermaid-preview is-error';
-            previewEl.textContent = message;
-            previewEl.title = 'Mermaid 渲染失败，左键点击编辑源码';
-          }
-        };
-
-        const applyMermaidSource = (source: string) => {
-          const pos = typeof getPos === 'function' ? getPos() : null;
-          if (pos === null || pos === undefined) return;
-          if (source !== currentNode.textContent) {
-            const tr = editor.view.state.tr.insertText(source, pos + 1, pos + currentNode.nodeSize - 1);
-            editor.view.dispatch(tr);
-            currentNode = editor.view.state.doc.nodeAt(pos) || currentNode;
-          }
-          draftSource = currentNode.textContent;
-          isEditing = false;
-          render();
-        };
-
-        const cancelEditing = () => {
-          draftSource = currentNode.textContent;
-          isEditing = false;
-          render();
-        };
-
-        const openEditor = () => {
-          draftSource = currentNode.textContent;
-          isEditing = true;
-          render();
-        };
-
-        const hasDraftChanges = () => {
-          const source = textareaEl?.value ?? draftSource;
-          return source !== currentNode.textContent;
-        };
-
-        const handleDocumentMouseDown = (event: MouseEvent) => {
-          if (!isEditing) return;
-          const target = event.target;
-          if (!(target instanceof Node) || dom.contains(target)) return;
-          if (!hasDraftChanges()) {
-            cancelEditing();
-          }
-        };
-
-        document.addEventListener('mousedown', handleDocumentMouseDown);
-
-        const createEditor = () => {
-          const editorWrap = document.createElement('div');
-          editorWrap.className = 'mermaid-popup';
-
-          textareaEl = document.createElement('textarea');
-          textareaEl.className = 'source-editor mermaid-popup-editor';
-          textareaEl.value = draftSource;
-          textareaEl.spellcheck = false;
-          textareaEl.addEventListener('input', () => {
-            if (textareaEl) draftSource = textareaEl.value;
-          });
-          textareaEl.addEventListener('keydown', (event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-              event.preventDefault();
-              applyMermaidSource(textareaEl!.value);
-            }
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              cancelEditing();
-            }
-          });
-
-          const actions = document.createElement('div');
-          actions.className = 'mermaid-actions';
-
-          const confirmButton = document.createElement('button');
-          confirmButton.type = 'button';
-          confirmButton.className = 'mermaid-action mermaid-confirm';
-          confirmButton.textContent = '确认';
-          confirmButton.addEventListener('click', () => applyMermaidSource(textareaEl!.value));
-
-          const cancelButton = document.createElement('button');
-          cancelButton.type = 'button';
-          cancelButton.className = 'mermaid-action mermaid-cancel';
-          cancelButton.textContent = '取消';
-          cancelButton.addEventListener('click', cancelEditing);
-
-          actions.append(confirmButton, cancelButton);
-          editorWrap.append(textareaEl, actions);
-          return editorWrap;
-        };
-
-        const createPreviewPanel = () => {
-          previewPanel = document.createElement('div');
-          previewPanel.className = 'mermaid-preview-panel';
-
-          errorEl = document.createElement('div');
-          errorEl.className = 'mermaid-error';
-          errorEl.hidden = true;
-
-          previewEl = document.createElement('div');
-          previewEl.className = 'mermaid-preview is-rendering';
-          previewEl.title = '左键点击编辑 Mermaid 源码';
-          previewEl.addEventListener('mousedown', (event) => {
-            if (event.button !== 0) return;
-            event.preventDefault();
-            event.stopPropagation();
-            if (!isEditing) {
-              openEditor();
-            }
-          });
-          previewEl.addEventListener('contextmenu', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            if (!renderedSvg) return;
-            showMermaidContextMenu(event.clientX, event.clientY, {
-              svg: renderedSvg,
-              defaultName: getMermaidExportBaseName(),
-            });
-          });
-
-          previewPanel.append(errorEl, previewEl);
-          return previewPanel;
-        };
-
-        const render = () => {
-          if (!isMermaid()) {
-            setCodeBlock();
-            return;
-          }
-
-          dom.className = `mermaid-block${isEditing ? ' is-editor-open' : ''}`;
-          contentDOM = null;
-
-          const children: HTMLElement[] = [];
-          if (isEditing) {
-            children.push(createEditor());
-          } else {
-            textareaEl = null;
-          }
-          children.push(createPreviewPanel());
-          dom.replaceChildren(...children);
-
-          if (isEditing && textareaEl) {
-            requestAnimationFrame(() => textareaEl?.focus());
-          }
-
-          void renderPreview(currentNode.textContent);
-        };
-
-        render();
-
-        return {
-          dom,
-          contentDOM: isMermaid() ? undefined : contentDOM || undefined,
-          update(updatedNode) {
-            if (updatedNode.type !== currentNode.type) return false;
-            const previousLanguage = getLanguage();
-            const wasMermaid = isMermaid();
-            currentNode = updatedNode;
-            if (wasMermaid !== isMermaid()) return false;
-            if (!isMermaid() && previousLanguage !== getLanguage()) return false;
-            if (!isEditing) {
-              draftSource = currentNode.textContent;
-            }
-            render();
-            return true;
-          },
-          stopEvent(event) {
-            return isMermaid() && dom.contains(event.target as Node);
-          },
-          ignoreMutation(mutation: any) {
-            if (isMermaid()) return true;
-            return !(contentDOM && (mutation.target === contentDOM || contentDOM.contains(mutation.target)));
-          },
-          destroy() {
-            destroyed = true;
-            renderVersion += 1;
-            document.removeEventListener('mousedown', handleDocumentMouseDown);
-          },
-        };
-      };
-    },
-  });
-}
-
-const assetToOriginalMap = new Map<string, string>();
-
-// Holds the active document path when outside a workspace tree
-let activeDocPathOverride: string | null = null;
-
-const documentState = {
-  dirty: false,
-  externallyModified: false,
-  programmaticUpdate: false,
-  lastPersistedMarkdown: '',
+export {
+  getEditor,
+  getMode,
+  setMode,
+  isDocumentDirty,
+  hasExternalModification,
+  markExternalModification,
+  setActiveDocumentPath,
 };
+export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 
-function imageSrcResolverPlugin(): Extension {
-  return Extension.create({
-    name: 'imageSrcResolver',
-    addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          key: new PluginKey('image-src-resolver'),
-          appendTransaction(transactions, _oldState, newState) {
-            const tr = transactions.find(t => t.docChanged);
-            if (!tr) return;
-            // Quick bail: no doc path, nothing to resolve
-            const docPath = getActiveDocPath();
-            if (!docPath) return;
-            let imageTr: Transaction | null = null;
-            newState.doc.descendants((node, pos) => {
-              if (node.type.name !== 'image') return;
-              const src = node.attrs.src as string;
-              if (!src || src.startsWith('http') || src.startsWith('data:') || src.startsWith('asset:')) return;
-              const absolutePath = resolveImagePath(src, docPath);
-              const newSrc = imagePathToSrc(absolutePath, null);
-              if (newSrc !== src) {
-                assetToOriginalMap.set(newSrc, src);
-                if (!imageTr) imageTr = newState.tr;
-                imageTr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc });
-              }
-            });
-            return imageTr;
-          },
-        }),
-      ];
-    },
-  });
-}
-
-function imageBubblePlugin(): Extension {
-  let bubble: HTMLDivElement | null = null;
-  let hasDraftChanges: (() => boolean) | null = null;
-
-  function removeBubble() {
-    bubble?.remove();
-    bubble = null;
-    hasDraftChanges = null;
-  }
-
-  function getOriginalSrc(src: string) {
-    return assetToOriginalMap.get(src) || src;
-  }
-
-  function getImageInfoFromTarget(view: any, target: EventTarget | null) {
-    if (!(target instanceof HTMLElement)) return null;
-    let img = target.closest('img') as HTMLImageElement | null;
-    if (!img) {
-      const wrapper = target.closest('.image-node-view');
-      if (wrapper) img = wrapper.querySelector('img');
-    }
-    if (!img) return null;
-    const basePos = view.posAtDOM(img, 0);
-    const candidates = [basePos, basePos - 1, basePos + 1].filter((value, index, array) => value >= 0 && array.indexOf(value) === index);
-    for (const pos of candidates) {
-      const node = view.state.doc.nodeAt(pos);
-      if (node?.type.name === 'image') {
-        return { img, node, pos };
-      }
-    }
-    return null;
-  }
-
-  async function applyImageChanges(view: any, pos: number, node: any, caption: string, pathValue: string) {
-    const trimmedPath = pathValue.trim();
-    if (!trimmedPath) return;
-
-    const oldSrc = node.attrs.src as string;
-
-    let nextSrc = trimmedPath;
-    let nextOriginalSrc: string | null = null;
-    if (trimmedPath.startsWith('http://') || trimmedPath.startsWith('https://')) {
-      const settings = await getImageSettings();
-      const docPath = getActiveDocPath();
-      const savedPath = await handleNetworkImage(trimmedPath, docPath, settings);
-      if (savedPath.startsWith('http://') || savedPath.startsWith('https://') || savedPath.startsWith('data:')) {
-        nextSrc = savedPath;
-      } else {
-        const absolutePath = docPath ? resolveImagePath(savedPath, docPath) : savedPath;
-        nextSrc = imagePathToSrc(absolutePath, null);
-        nextOriginalSrc = savedPath;
-      }
-    } else if (!trimmedPath.startsWith('data:')) {
-      const docPath = getActiveDocPath();
-      const absolutePath = docPath ? resolveImagePath(trimmedPath, docPath) : trimmedPath;
-      nextSrc = imagePathToSrc(absolutePath, null);
-      nextOriginalSrc = trimmedPath;
-    }
-
-    if (oldSrc !== nextSrc) {
-      assetToOriginalMap.delete(oldSrc);
-    }
-    if (nextOriginalSrc && nextOriginalSrc !== nextSrc) {
-      assetToOriginalMap.set(nextSrc, nextOriginalSrc);
-    } else {
-      assetToOriginalMap.delete(nextSrc);
-    }
-
-    const tr = view.state.tr;
-    tr.setNodeMarkup(pos, undefined, {
-      ...node.attrs,
-      src: nextSrc,
-      alt: caption.trim() || null,
-    });
-    view.dispatch(tr);
-    removeBubble();
-    view.focus();
-  }
-
-  function showBubble(view: any, pos: number, node: any) {
-    removeBubble();
-
-    const dom = view.nodeDOM(pos) as HTMLElement | null;
-    if (!dom) return;
-    const img = dom.querySelector('img') || (dom.tagName === 'IMG' ? dom : null);
-    if (!img) return;
-
-    const rect = img.offsetHeight > 0 ? img.getBoundingClientRect() : dom.getBoundingClientRect();
-    bubble = document.createElement('div');
-    bubble.className = 'image-bubble image-edit-panel';
-    bubble.style.position = 'fixed';
-    bubble.style.left = `${rect.left + rect.width / 2}px`;
-    bubble.style.top = `${rect.top - 12}px`;
-    bubble.style.transform = 'translate(-50%, -100%)';
-    bubble.style.zIndex = '150';
-
-    const currentSrc = node.attrs.src as string;
-    const originalSrc = getOriginalSrc(currentSrc);
-    const originalAlt = String(node.attrs.alt || '');
-
-    const row1 = document.createElement('div');
-    row1.className = 'image-edit-row image-edit-fields';
-
-    const captionLabel = document.createElement('label');
-    captionLabel.className = 'image-edit-label';
-    captionLabel.textContent = '图片注释';
-
-    const captionInput = document.createElement('input');
-    captionInput.className = 'image-edit-input';
-    captionInput.value = originalAlt;
-    captionInput.placeholder = '输入图片注释';
-
-    const pathLabel = document.createElement('label');
-    pathLabel.className = 'image-edit-label';
-    pathLabel.textContent = '路径';
-
-    const pathInput = document.createElement('input');
-    pathInput.className = 'image-edit-input image-edit-path-input';
-    pathInput.value = originalSrc;
-    pathInput.placeholder = '输入图片路径或 URL';
-
-    captionLabel.appendChild(captionInput);
-    pathLabel.appendChild(pathInput);
-    row1.append(captionLabel, pathLabel);
-
-    const row2 = document.createElement('div');
-    row2.className = 'image-edit-row image-edit-actions';
-
-    const chooseButton = document.createElement('button');
-    chooseButton.type = 'button';
-    chooseButton.className = 'image-edit-action';
-    chooseButton.textContent = '选择';
-    chooseButton.addEventListener('click', async () => {
-      const selected = await openDialog({
-        multiple: false,
-        filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }],
-      });
-      if (typeof selected === 'string') {
-        pathInput.value = selected;
-      }
-    });
-
-    const confirmButton = document.createElement('button');
-    confirmButton.type = 'button';
-    confirmButton.className = 'image-edit-action image-edit-confirm';
-    confirmButton.textContent = '确认';
-    confirmButton.addEventListener('click', async () => {
-      await applyImageChanges(view, pos, node, captionInput.value, pathInput.value);
-    });
-
-    const cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.className = 'image-edit-action';
-    cancelButton.textContent = '取消';
-    cancelButton.addEventListener('click', () => {
-      removeBubble();
-      view.focus();
-    });
-
-    row2.append(chooseButton, confirmButton, cancelButton);
-    bubble.append(row1, row2);
-    document.body.appendChild(bubble);
-
-    hasDraftChanges = () => {
-      return captionInput.value !== originalAlt || pathInput.value.trim() !== originalSrc;
-    };
-
-    requestAnimationFrame(() => captionInput.focus());
-  }
-
-  return Extension.create({
-    name: 'imageBubble',
-    addProseMirrorPlugins() {
-      return [
-        new Plugin({
-          key: new PluginKey('image-bubble'),
-          view() {
-            const handleMouseDown = (event: MouseEvent) => {
-              const target = event.target;
-              if (bubble && target instanceof Node && !bubble.contains(target) && !hasDraftChanges?.()) {
-                removeBubble();
-              }
-            };
-            const handleKeyDown = (event: KeyboardEvent) => {
-              if (event.key === 'Escape' && bubble) {
-                removeBubble();
-              }
-            };
-            document.addEventListener('mousedown', handleMouseDown);
-            document.addEventListener('keydown', handleKeyDown);
-            return {
-              destroy() {
-                document.removeEventListener('mousedown', handleMouseDown);
-                document.removeEventListener('keydown', handleKeyDown);
-                removeBubble();
-              },
-            };
-          },
-          props: {
-            handleDOMEvents: {
-              click(view, event) {
-                if (event.button !== 0) return false;
-                const imageInfo = getImageInfoFromTarget(view, event.target);
-                if (!imageInfo) return false;
-                event.preventDefault();
-                event.stopPropagation();
-                showBubble(view, imageInfo.pos, imageInfo.node);
-                return true;
-              },
-              contextmenu(view, event) {
-                const imageInfo = getImageInfoFromTarget(view, event.target);
-                if (!imageInfo) return false;
-                if (imageInfo.img.style.display === 'none') return false;
-                event.preventDefault();
-                event.stopPropagation();
-                const currentSrc = imageInfo.node.attrs.src as string;
-                showImageContextMenu(event.clientX, event.clientY, {
-                  src: currentSrc,
-                  originalSrc: getOriginalSrc(currentSrc),
-                  docPath: getActiveDocPath(),
-                });
-                return true;
-              },
-            },
-          },
-        }),
-      ];
-    },
-  });
-}
-
-let editor: Editor | null = null;
-let mode: 'wysiwyg' | 'source' = 'wysiwyg';
-let dirtyCheckTimer: ReturnType<typeof setTimeout> | null = null;
-let updateEventTimer: ReturnType<typeof setTimeout> | null = null;
-
-export function getEditor(): Editor | null {
-  return editor;
-}
-
-export function getMode() {
-  return mode;
-}
-
-export function setMode(newMode: 'wysiwyg' | 'source') {
-  mode = newMode;
-}
-
-export function isDocumentDirty() {
-  return documentState.dirty;
-}
-
-export function hasExternalModification() {
-  return documentState.externallyModified;
-}
-
-export function markExternalModification() {
-  documentState.externallyModified = true;
-}
-
-export function markDocumentPersisted(markdown: string) {
-  documentState.lastPersistedMarkdown = normalizeImageMarkdown(markdown);
-  documentState.dirty = false;
-  documentState.externallyModified = false;
-}
-
-function replaceAssetUrlsWithOriginal(markdown: string): string {
-  let result = markdown;
-  for (const [asset, original] of assetToOriginalMap) {
-    result = result.split(asset).join(original);
-  }
-  return result;
-}
-
-// Repair legacy corruption where heading was glued after image.
-function fixCorruptedImageNewlines(markdown: string): string {
-  let result = markdown;
-  // ![](x)\## H2  -> ![](x)\n\n## H2
-  result = result.replace(/(^\s*!\[[^\]]*\]\([^\n)]*\))\s*\\\s*(#{1,6}\s+)/gm, '$1\n\n$2');
-  // ![](x)## H2   -> ![](x)\n\n## H2
-  result = result.replace(/(^\s*!\[[^\]]*\]\([^\n)]*\))\s*(#{1,6}\s+)/gm, '$1\n\n$2');
-  return result;
-}
-
-// Normalize standalone image blocks: image on its own line, blank line before and after.
-function fixImageNewlines(markdown: string): string {
-  const normalized = markdown.replace(/\r\n/g, '\n');
-  const lines = normalized.split('\n');
-  const out: string[] = [];
-  const isStandaloneImage = (line: string) => /^\s*!\[[^\]]*\]\([^\n)]*\)\s*$/.test(line);
-
-  for (const line of lines) {
-    if (isStandaloneImage(line)) {
-      if (out.length > 0 && out[out.length - 1] !== '') out.push('');
-      out.push(line.trim());
-      out.push('');
-      continue;
-    }
-    out.push(line);
-  }
-
-  // Collapse 3+ consecutive blank lines to 2 — but protect content inside
-  // fenced code blocks (```...```) so multiple empty lines in code stay intact.
-  const joined = out.join('\n');
-  return joined.replace(/(```[\s\S]*?```)|(\n{3,})/g, (_match, codeFence) => {
-    if (codeFence) return codeFence;
-    return '\n\n';
-  });
-}
-
-function normalizeImageMarkdown(markdown: string): string {
-  return fixImageNewlines(fixCorruptedImageNewlines(markdown));
-}
+// ── Markdown serialization ────────────────────────────────────────────
 
 export function getMarkdown(): string {
   if (mode === 'source') {
@@ -786,6 +76,12 @@ export function getMarkdown(): string {
   if (!editor) return '';
   const md = editor.storage.markdown.getMarkdown();
   return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
+}
+
+export function markDocumentPersisted(markdown: string) {
+  documentState.lastPersistedMarkdown = normalizeImageMarkdown(markdown);
+  documentState.dirty = false;
+  documentState.externallyModified = false;
 }
 
 export function setMarkdown(content: string) {
@@ -806,60 +102,62 @@ export function setMarkdown(content: string) {
   }
 }
 
-function getSourceTextarea(): HTMLTextAreaElement | null {
-  return document.getElementById('source-editor') as HTMLTextAreaElement | null;
-}
+// ── Source editor line numbers ────────────────────────────────────────
 
-export function getWordCount(): number {
-  if (mode === 'source') {
-    const textarea = getSourceTextarea();
-    return countTextWords(textarea?.value || '');
-  }
-  if (!editor) return 0;
-  return countTextWords(editor.state.doc.textContent);
-}
+export function syncSourceEditorLineNumbers() {
+  const gutter = document.getElementById('source-editor-gutter') as HTMLElement;
+  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
+  if (!gutter || !textarea) return;
 
-export function getLineCount(): number {
-  if (mode === 'source') {
-    const textarea = getSourceTextarea();
-    if (!textarea) return 1;
-    const lines = textarea.value.split('\n');
-    return lines.length;
+  let styles = cachedSourceGutterStyles;
+  if (!styles) {
+    const cs = getComputedStyle(textarea);
+    styles = {
+      fontFamily: cs.fontFamily,
+      fontSize: cs.fontSize,
+      lineHeight: cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
+    };
+    setCachedSourceGutterStyles(styles);
   }
-  if (!editor) return 0;
-  let count = 0;
-  editor.state.doc.descendants((node) => {
-    if (node.isBlock) count++;
+  gutter.style.fontFamily = styles.fontFamily;
+  gutter.style.fontSize = styles.fontSize;
+  gutter.style.lineHeight = styles.lineHeight;
+  gutter.style.letterSpacing = styles.letterSpacing;
+
+  const lines = textarea.value.split('\n');
+  const cursorLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
+  const total = lines.length;
+  const lastLine = total;
+  const interval = 10;
+  const suppressThreshold = 4;
+  const nearestIntervalToLast = Math.floor(lastLine / interval) * interval;
+  const suppressLast = nearestIntervalToLast > 0 && (lastLine - nearestIntervalToLast) <= suppressThreshold;
+
+  const numbers = lines.map((_, i) => {
+    const num = i + 1;
+    if (num === 1 || num === lastLine || i === cursorLine) return String(num);
+    if (num % interval === 0 && !(suppressLast && num === nearestIntervalToLast)) return String(num);
+    return '';
   });
-  return Math.max(count, 1);
+
+  gutter.textContent = numbers.join('\n');
 }
 
-export function getCursorPos(): { line: number; col: number } {
-  if (mode === 'source') {
-    const textarea = getSourceTextarea();
-    if (!textarea) return { line: 1, col: 0 };
-    const text = textarea.value;
-    const beforeCursor = text.substring(0, textarea.selectionStart);
-    const line = (beforeCursor.match(/\n/g) || []).length + 1;
-    const lastNewline = beforeCursor.lastIndexOf('\n');
-    const col = beforeCursor.length - lastNewline - 1;
-    return { line, col };
-  }
-  if (!editor) return { line: 1, col: 0 };
-  const { from } = editor.state.selection;
-  const doc = editor.state.doc;
-  let line = 0;
-  let blockStart = 0;
-  doc.descendants((node, nodePos) => {
-    if (nodePos > from) return false;
-    if (node.isBlock && nodePos >= blockStart) {
-      if (nodePos > blockStart) line++;
-      blockStart = nodePos;
-    }
-    return true;
-  });
-  return { line: Math.max(line, 1), col: Math.max(0, from - blockStart - 1) };
+function autoGrowSourceEditor() {
+  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
+  if (!textarea) return;
+  const newHeight = textarea.scrollHeight;
+  if (newHeight === textarea.offsetHeight) return;
+  const area = textarea.closest('.editor-area') as HTMLElement | null;
+  const prevScrollTop = area?.scrollTop ?? -1;
+  textarea.style.height = 'auto';
+  textarea.style.height = newHeight + 'px';
+  // After collapse-grow cycle, restore scroll position to prevent visual jump
+  if (area && prevScrollTop >= 0) area.scrollTop = prevScrollTop;
 }
+
+// ── Editor initialization ────────────────────────────────────────────
 
 export async function initEditor() {
   const container = document.getElementById('editor-area');
@@ -873,7 +171,7 @@ export async function initEditor() {
   const editorEl = document.getElementById('wysiwyg-editor');
   if (!editorEl) return;
 
-  editor = new Editor({
+  setEditor(new Editor({
     element: editorEl,
     extensions: [
       StarterKit.configure({
@@ -894,8 +192,8 @@ export async function initEditor() {
       TableHeader,
       CustomLink.configure({
         openOnClick: false,
-        autolink: false,        // 打字不自动加 link mark
-        linkOnPaste: false,     // 粘贴不自动加 link mark
+        autolink: false,
+        linkOnPaste: false,
       }),
       BlockImage.configure({
         allowBase64: true,
@@ -924,26 +222,26 @@ export async function initEditor() {
     onUpdate: () => {
       // Debounce dirty check — only matters when saving/switching files
       if (dirtyCheckTimer) clearTimeout(dirtyCheckTimer);
-      dirtyCheckTimer = setTimeout(() => {
-        dirtyCheckTimer = null;
+      setDirtyCheckTimer(setTimeout(() => {
+        setDirtyCheckTimer(null);
         if (!documentState.programmaticUpdate) {
           documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
         }
-      }, 400);
+      }, 400));
 
       // Throttle editor-update dispatch — outline/statusbar don't need per-keystroke refresh
       if (!updateEventTimer) {
-        updateEventTimer = setTimeout(() => {
-          updateEventTimer = null;
+        setUpdateEventTimer(setTimeout(() => {
+          setUpdateEventTimer(null);
           document.dispatchEvent(new Event('editor-update'));
-        }, 80);
+        }, 80));
       }
     },
     onSelectionUpdate: () => {
       // Selection changes need immediate dispatch (cursor position in status bar)
       document.dispatchEvent(new Event('editor-update'));
     },
-  });
+  }));
 
   // 编辑器创建后立即刷新状态栏，避免构造函数内统计函数因 editor 未赋值返回默认值
   document.dispatchEvent(new Event('editor-update'));
@@ -1043,62 +341,9 @@ export async function initEditor() {
       }
     }
   });
-
 }
 
-// Cached computed styles for source editor gutter (avoid getComputedStyle on every keypress)
-let cachedSourceGutterStyles: Record<string, string> | null = null;
-
-export function syncSourceEditorLineNumbers() {
-  const gutter = document.getElementById('source-editor-gutter') as HTMLElement;
-  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
-  if (!gutter || !textarea) return;
-
-  if (!cachedSourceGutterStyles) {
-    const cs = getComputedStyle(textarea);
-    cachedSourceGutterStyles = {
-      fontFamily: cs.fontFamily,
-      fontSize: cs.fontSize,
-      lineHeight: cs.lineHeight,
-      letterSpacing: cs.letterSpacing,
-    };
-  }
-  gutter.style.fontFamily = cachedSourceGutterStyles.fontFamily;
-  gutter.style.fontSize = cachedSourceGutterStyles.fontSize;
-  gutter.style.lineHeight = cachedSourceGutterStyles.lineHeight;
-  gutter.style.letterSpacing = cachedSourceGutterStyles.letterSpacing;
-
-  const lines = textarea.value.split('\n');
-  const cursorLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
-  const total = lines.length;
-  const lastLine = total;
-  const interval = 10;
-  const suppressThreshold = 4;
-  const nearestIntervalToLast = Math.floor(lastLine / interval) * interval;
-  const suppressLast = nearestIntervalToLast > 0 && (lastLine - nearestIntervalToLast) <= suppressThreshold;
-
-  const numbers = lines.map((_, i) => {
-    const num = i + 1;
-    if (num === 1 || num === lastLine || i === cursorLine) return String(num);
-    if (num % interval === 0 && !(suppressLast && num === nearestIntervalToLast)) return String(num);
-    return '';
-  });
-
-  gutter.textContent = numbers.join('\n');
-}
-
-function autoGrowSourceEditor() {
-  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
-  if (!textarea) return;
-  const newHeight = textarea.scrollHeight;
-  if (newHeight === textarea.offsetHeight) return;
-  const area = textarea.closest('.editor-area') as HTMLElement | null;
-  const prevScrollTop = area?.scrollTop ?? -1;
-  textarea.style.height = 'auto';
-  textarea.style.height = newHeight + 'px';
-  // After collapse-grow cycle, restore scroll position to prevent visual jump
-  if (area && prevScrollTop >= 0) area.scrollTop = prevScrollTop;
-}
+// ── Mode switching ────────────────────────────────────────────────────
 
 export function switchToSource() {
   if (!editor) return;
@@ -1128,44 +373,10 @@ export function switchToSource() {
 
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
-  mode = 'source';
-  cachedSourceGutterStyles = null; // Reset cache so styles are re-read in layout context
+  setMode('source');
+  setCachedSourceGutterStyles(null); // Reset cache so styles are re-read in layout context
   syncSourceEditorLineNumbers();
   autoGrowSourceEditor();
-}
-
-/**
- * Emergency fallback: when the Markdown serializer produces truncated output,
- * extract the doc content in a lossless (though not perfectly formatted) form.
- */
-function extractDocAsFallback(doc: PMNode): string {
-  const lines: string[] = [];
-  doc.forEach((node) => {
-    if (node.type.name === 'paragraph') {
-      lines.push(node.textContent);
-    } else if (node.type.name === 'heading') {
-      const level = node.attrs.level || 1;
-      lines.push('#'.repeat(level) + ' ' + node.textContent);
-    } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList' || node.type.name === 'taskList') {
-      node.forEach((item, _pos) => {
-        const prefix = node.type.name === 'orderedList'
-          ? '1. '
-          : node.type.name === 'taskList'
-            ? `- [${item.attrs.checked ? 'x' : ' '}] `
-            : '- ';
-        lines.push(prefix + item.textContent);
-      });
-    } else if (node.type.name === 'blockquote') {
-      lines.push('> ' + node.textContent);
-    } else if (node.type.name === 'codeBlock') {
-      lines.push('```');
-      lines.push(node.textContent);
-      lines.push('```');
-    } else {
-      lines.push(node.textContent || '');
-    }
-  });
-  return lines.join('\n\n');
 }
 
 export function switchToWysiwyg() {
@@ -1179,50 +390,10 @@ export function switchToWysiwyg() {
   }
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
-  mode = 'wysiwyg';
+  setMode('wysiwyg');
   document.dispatchEvent(new Event('editor-update'));
 }
 
-function getActiveDocPath(): string | null {
-  const el = document.querySelector('.tree-file.active') as HTMLElement | null;
-  return el?.dataset?.path || activeDocPathOverride;
-}
+// ── Image settings (re-export for external use if needed) ──────────────
 
-export function setActiveDocumentPath(path: string | null) {
-  activeDocPathOverride = path;
-}
-
-function getMermaidExportBaseName() {
-  const activeDocPath = getActiveDocPath();
-  if (!activeDocPath) return 'mermaid-diagram';
-  const fileName = getFileName(activeDocPath);
-  const dotIndex = fileName.lastIndexOf('.');
-  const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
-  return `${baseName || 'mermaid-diagram'}-mermaid`;
-}
-
-const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
-  storageMode: 'workspace-assets',
-  customPath: '',
-  preferRelative: true,
-  autoCopyLocal: true,
-  downloadNetwork: false,
-  namingStrategy: 'timestamp',
-};
-
-async function getImageSettings(): Promise<ImageSettings> {
-  try {
-    const s = await loadSettings() as Record<string, unknown>;
-    return {
-      storageMode: (s.imageStorageMode as string) || DEFAULT_IMAGE_SETTINGS.storageMode,
-      customPath: (s.imageCustomPath as string) || DEFAULT_IMAGE_SETTINGS.customPath,
-      preferRelative: s.imagePreferRelative !== false,
-      autoCopyLocal: s.imageAutoCopyLocal !== false,
-      downloadNetwork: s.imageDownloadNetwork === true,
-      namingStrategy: (s.imageNamingStrategy as string) || DEFAULT_IMAGE_SETTINGS.namingStrategy,
-    };
-  } catch {
-    return DEFAULT_IMAGE_SETTINGS;
-  }
-}
-
+export { DEFAULT_IMAGE_SETTINGS } from './editor.image.store';

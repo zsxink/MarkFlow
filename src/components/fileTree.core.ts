@@ -14,7 +14,7 @@ export const dragState: { srcPath: string | null; srcEl: HTMLElement | null; isD
 // --- Module-level state ---
 
 export let workspacePath: string | null = null;
-export const dbClickTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
+const dbClickTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
 const expandedPaths: Set<string> = new Set();
 const suppressPaths: Map<string, number> = new Map();
 const SUPPRESS_DURATION_MS = 3000;
@@ -110,7 +110,7 @@ function saveExpandedState() {
   });
 }
 
-export function buildPathFromNode(folderEl: Element): string | null {
+function buildPathFromNode(folderEl: Element): string | null {
   const parts: string[] = [];
   let current: Element | null = folderEl;
 

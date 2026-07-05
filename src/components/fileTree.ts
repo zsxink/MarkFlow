@@ -6,7 +6,6 @@
 import { initMouseDrag } from './fileTree.dragdrop';
 
 export {
-  workspacePath,
   getWorkspacePath,
   setWorkspacePath,
   suppressNextWatcherRefresh,

@@ -423,13 +423,14 @@ function imageSrcResolverPlugin(): Extension {
           appendTransaction(transactions, _oldState, newState) {
             const tr = transactions.find(t => t.docChanged);
             if (!tr) return;
+            // Quick bail: no doc path, nothing to resolve
+            const docPath = getActiveDocPath();
+            if (!docPath) return;
             let imageTr: Transaction | null = null;
             newState.doc.descendants((node, pos) => {
               if (node.type.name !== 'image') return;
               const src = node.attrs.src as string;
               if (!src || src.startsWith('http') || src.startsWith('data:') || src.startsWith('asset:')) return;
-              const docPath = getActiveDocPath();
-              if (!docPath) return;
               const absolutePath = resolveImagePath(src, docPath);
               const newSrc = imagePathToSrc(absolutePath, null);
               if (newSrc !== src) {
@@ -935,31 +936,32 @@ export async function initEditor() {
     }, 300);
   });
 
-  // Source editor sync
+  // Source editor sync — consolidated handler with debounced line number sync
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   const sourceGutter = document.getElementById('source-editor-gutter') as HTMLElement;
   if (sourceEditor && sourceGutter) {
+    let lineNumTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleLineNumbers = () => {
+      if (lineNumTimer) clearTimeout(lineNumTimer);
+      lineNumTimer = setTimeout(() => {
+        lineNumTimer = null;
+        if (mode === 'source') {
+          syncSourceEditorLineNumbers();
+          document.dispatchEvent(new Event('editor-update'));
+        }
+      }, 50);
+    };
+
     sourceEditor.addEventListener('input', () => {
       if (mode === 'source') {
         documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
-        syncSourceEditorLineNumbers();
         autoGrowSourceEditor();
-        document.dispatchEvent(new Event('editor-update'));
+        scheduleLineNumbers();
       }
     });
-    sourceEditor.addEventListener('click', () => {
-      if (mode === 'source') {
-        syncSourceEditorLineNumbers();
-        document.dispatchEvent(new Event('editor-update'));
-      }
-    });
-    sourceEditor.addEventListener('keyup', () => {
-      if (mode === 'source') {
-        syncSourceEditorLineNumbers();
-        document.dispatchEvent(new Event('editor-update'));
-      }
-    });
-    const ro = new ResizeObserver(() => { if (mode === 'source') syncSourceEditorLineNumbers(); });
+    sourceEditor.addEventListener('click', scheduleLineNumbers);
+    sourceEditor.addEventListener('keyup', scheduleLineNumbers);
+    const ro = new ResizeObserver(scheduleLineNumbers);
     ro.observe(sourceEditor);
   }
 

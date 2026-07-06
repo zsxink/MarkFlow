@@ -1,15 +1,16 @@
-import { readFile, writeFile, addRecentFile, addRecentFolder, saveSettings } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, setMarkdown, setActiveDocumentPath } from '../lib/editor';
+import { isDocumentDirty, hasExternalModification, setMarkdown, setActiveDocumentPath } from '../lib/editor';
 import { showToast } from './toast';
-import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate, suppressNextWatcherRefresh } from './fileTree';
+import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
 import { initOutline, refreshOutline } from './outline';
 import { showContextMenu } from './contextMenu';
-import { open, save } from '@tauri-apps/plugin-dialog';
-import { logException, logInfo } from '../lib/logger';
+import { open } from '@tauri-apps/plugin-dialog';
+import { addRecentFolder, saveSettings } from '../lib/storage';
+
+// Re-export functions from split modules for backward compatibility
+export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor } from './sidebar.fileops';
+export { handleExternalDeletion, handleActiveDocumentExternalModification } from './sidebar.conflict';
 
 let activeFilePath: string | null = null;
-let externalConflictDialogPromise: Promise<'keep' | 'disk' | 'save-as'> | null = null;
-let externalDeletionDialogPromise: Promise<'resave' | 'discard'> | null = null;
 
 function updateActiveTreeSelection(path: string | null) {
   document.querySelectorAll('.tree-file').forEach(el => {
@@ -38,27 +39,6 @@ export function clearActiveDocumentIfMatches(path: string) {
   if (activeFilePath === path || activeFilePath.startsWith(`${path}/`)) {
     clearActiveDocument();
   }
-}
-
-export async function handleExternalDeletion(path: string) {
-  if (!activeFilePath) return 'ignored' as const;
-  if (activeFilePath !== path && !activeFilePath.startsWith(`${path}/`)) return 'ignored' as const;
-
-  if (!isDocumentDirty() && !hasExternalModification()) {
-    clearActiveDocument();
-    return 'cleared' as const;
-  }
-
-  markExternalModification();
-  const choice = await showExternalDeletionDialog();
-
-  if (choice === 'discard') {
-    clearActiveDocument();
-    return 'discarded' as const;
-  }
-
-  const restored = await restoreDeletedActiveDocument();
-  return restored ? 'resaved' as const : 'failed' as const;
 }
 
 export function clearActiveDocument() {
@@ -116,6 +96,8 @@ export async function confirmDocumentTransition(): Promise<boolean> {
 
     const saveAndProceed = async () => {
       if (settled) return;
+      // Dynamic import to avoid circular dependency at resolution time
+      const { saveActiveDocument } = await import('./sidebar.fileops');
       const saved = await saveActiveDocument({ interactive: true });
       if (saved) finish(true);
     };
@@ -243,256 +225,4 @@ export function switchSidebarTab(tab: 'files' | 'outline') {
   if (fileTree) fileTree.hidden = tab !== 'files';
   if (outlineTree) outlineTree.hidden = tab !== 'outline';
   if (footer) footer.style.display = tab === 'files' ? 'flex' : 'none';
-}
-
-function getConflictSavePath(path: string) {
-  return path.endsWith('.md') ? `${path.slice(0, -3)}.conflict.md` : `${path}.conflict.md`;
-}
-
-function showExternalConflictDialog() {
-  if (externalConflictDialogPromise) return externalConflictDialogPromise;
-
-  externalConflictDialogPromise = new Promise<'keep' | 'disk' | 'save-as'>((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay external-conflict-dialog';
-    overlay.innerHTML = `
-      <div class="modal external-conflict-modal" role="dialog" aria-modal="true" aria-labelledby="external-conflict-title">
-        <div class="modal-header">
-          <span id="external-conflict-title">检测到外部修改</span>
-        </div>
-        <div class="external-conflict-body">
-          <p>当前文件在磁盘上已发生变化。</p>
-          <p>你在编辑器中也有未保存改动，请选择接下来要保留哪一份内容。</p>
-        </div>
-        <div class="external-conflict-actions">
-          <button type="button" class="external-conflict-action secondary" data-action="keep">保留当前</button>
-          <button type="button" class="external-conflict-action secondary" data-action="disk">加载磁盘版本</button>
-          <button type="button" class="external-conflict-action primary" data-action="save-as">另存为</button>
-        </div>
-      </div>
-    `;
-
-    const finish = (choice: 'keep' | 'disk' | 'save-as') => {
-      overlay.remove();
-      externalConflictDialogPromise = null;
-      resolve(choice);
-    };
-
-    overlay.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) => {
-      button.addEventListener('click', () => finish(button.dataset.action as 'keep' | 'disk' | 'save-as'));
-    });
-
-    document.body.appendChild(overlay);
-  });
-
-  return externalConflictDialogPromise;
-}
-
-function showExternalDeletionDialog() {
-  if (externalDeletionDialogPromise) return externalDeletionDialogPromise;
-
-  externalDeletionDialogPromise = new Promise<'resave' | 'discard'>((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay external-delete-dialog';
-    overlay.innerHTML = `
-      <div class="modal external-delete-modal" role="dialog" aria-modal="true" aria-labelledby="external-delete-title">
-        <div class="modal-header">
-          <span id="external-delete-title">当前文件已被删除</span>
-        </div>
-        <div class="external-delete-body">
-          <p>当前打开的文件已在磁盘上被删除。</p>
-          <p>你在编辑器中的内容还在，是否要重新保存当前内容，还是直接删除掉？</p>
-        </div>
-        <div class="external-delete-actions">
-          <button type="button" class="external-delete-action secondary" data-action="discard">删除掉</button>
-          <button type="button" class="external-delete-action primary" data-action="resave">重新保存</button>
-        </div>
-      </div>
-    `;
-
-    const finish = (choice: 'resave' | 'discard') => {
-      overlay.remove();
-      externalDeletionDialogPromise = null;
-      resolve(choice);
-    };
-
-    overlay.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) => {
-      button.addEventListener('click', () => finish(button.dataset.action as 'resave' | 'discard'));
-    });
-
-    document.body.appendChild(overlay);
-  });
-
-  return externalDeletionDialogPromise;
-}
-
-async function restoreDeletedActiveDocument() {
-  if (!activeFilePath) return false;
-
-  const filePath = activeFilePath;
-  const content = getMarkdown();
-
-  try {
-    suppressNextWatcherRefresh(filePath);
-    await writeFile(filePath, content);
-    markDocumentPersisted(content);
-    await refreshFileTree();
-    refreshOutline();
-    showToast('已重新保存当前文件');
-    return true;
-  } catch {
-    return saveActiveDocumentAsNewFile();
-  }
-}
-
-async function saveActiveDocumentAsNewFile() {
-  if (!activeFilePath) return false;
-
-  const currentContent = getMarkdown();
-  const targetPath = await save({
-    title: '另存为',
-    defaultPath: getConflictSavePath(activeFilePath),
-    filters: [{ name: 'Markdown', extensions: ['md'] }],
-  });
-
-  if (!targetPath) return false;
-  if (targetPath === activeFilePath) {
-    showToast('请另选一个新文件名');
-    return false;
-  }
-
-  try {
-    suppressNextWatcherRefresh(targetPath);
-    await writeFile(targetPath, currentContent);
-    setActiveFilePath(targetPath);
-    markDocumentPersisted(currentContent);
-    await refreshFileTree();
-    refreshOutline();
-    showToast('已另存为新文件');
-    return true;
-  } catch (e) {
-    showToast(`另存为失败: ${e}`);
-    return false;
-  }
-}
-
-export async function saveActiveDocument(options: { interactive?: boolean } = {}) {
-  const { interactive = true } = options;
-  let filePath = getActiveFilePath();
-
-  if (!filePath) {
-    if (!interactive) return false;
-    const targetPath = await save({
-      title: '保存文件',
-      defaultPath: 'untitled.md',
-      filters: [{ name: 'Markdown', extensions: ['md'] }],
-    });
-    if (!targetPath) return false;
-    const content = getMarkdown();
-    try {
-      suppressNextWatcherRefresh(targetPath);
-      await writeFile(targetPath, content);
-      setActiveFilePath(targetPath);
-      markDocumentPersisted(content);
-      addRecentFile(targetPath).catch(() => {});
-      logInfo('sidebar.save', 'Saved new file', { path: targetPath });
-      showToast('已保存');
-      return true;
-    } catch (e) {
-      logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
-      showToast('保存失败');
-      return false;
-    }
-  }
-
-  if (hasExternalModification()) {
-    if (!interactive) return false;
-    const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
-    if (!confirmed) {
-      showToast('已取消保存');
-      return false;
-    }
-  }
-
-  try {
-    const content = getMarkdown();
-    suppressNextWatcherRefresh(filePath);
-    await writeFile(filePath, content);
-    markDocumentPersisted(content);
-    if (interactive) {
-      logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
-      showToast('已保存');
-    }
-    return true;
-  } catch (e) {
-    logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
-    if (interactive) showToast('保存失败');
-    return false;
-  }
-}
-
-export async function reloadActiveDocumentFromDisk(options: { force?: boolean } = {}) {
-  const { force = false } = options;
-  if (!activeFilePath) return false;
-  if (!force && isDocumentDirty()) return false;
-  if (!force && hasExternalModification()) return false;
-
-  try {
-    const content = await readFile(activeFilePath);
-    setMarkdown(content);
-    refreshOutline();
-    return true;
-  } catch (e) {
-    showToast(`重新加载失败: ${e}`);
-    return false;
-  }
-}
-
-export async function handleActiveDocumentExternalModification() {
-  if (!activeFilePath) return 'ignored' as const;
-
-  if (!isDocumentDirty()) {
-    const reloaded = await reloadActiveDocumentFromDisk({ force: true });
-    return reloaded ? 'reloaded' as const : 'failed' as const;
-  }
-
-  markExternalModification();
-  const choice = await showExternalConflictDialog();
-
-  if (choice === 'disk') {
-    const reloaded = await reloadActiveDocumentFromDisk({ force: true });
-    return reloaded ? 'reloaded' as const : 'failed' as const;
-  }
-
-  if (choice === 'save-as') {
-    const saved = await saveActiveDocumentAsNewFile();
-    return saved ? 'saved-as' as const : 'kept' as const;
-  }
-
-  return 'kept' as const;
-}
-
-export async function openFileInEditor(path: string) {
-  if (path === activeFilePath) {
-    if (hasExternalModification() && !isDocumentDirty()) {
-      const reloaded = await reloadActiveDocumentFromDisk({ force: true });
-      if (reloaded) showToast('已从磁盘重新加载');
-    } else if (hasExternalModification()) {
-      const result = await handleActiveDocumentExternalModification();
-      if (result === 'reloaded') showToast('已加载磁盘版本');
-    }
-    return;
-  }
-  if (!(await confirmDocumentTransition())) return;
-
-  try {
-    const content = await readFile(path);
-    setActiveDocumentPath(path);
-    setActiveFilePath(path);
-    setMarkdown(content);
-    refreshOutline();
-    showToast('已打开文件');
-  } catch (e) {
-    showToast(`打开失败: ${e}`);
-  }
 }

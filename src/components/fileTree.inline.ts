@@ -55,7 +55,8 @@ export function startInlineRename(path: string) {
         for (const sib of siblings) {
           const sibIsDir = sib.classList.contains('tree-folder') || sib.querySelector(':scope > .tree-folder') !== null;
           const sibName = (sib.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement)?.textContent || '';
-          if (sibIsDir) { target = sib; break; }
+          if (isFolder && !sibIsDir) continue;
+          if (!isFolder && sibIsDir) { target = sib; break; }
           if (sibName.localeCompare(newName) >= 0) { target = sib; break; }
         }
         const node = el.classList.contains('tree-file') ? el : el.parentElement!;

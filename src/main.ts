@@ -16,7 +16,11 @@ import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import './styles/variables.css';
-import './styles/main.css';
+import './styles/app.css';
+import './styles/toolbar.css';
+import './styles/sidebar.css';
+import './styles/editor.css';
+import './styles/components.css';
 
 interface FileChangeEvent {
   path: string;

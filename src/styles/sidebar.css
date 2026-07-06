@@ -1,0 +1,197 @@
+/* Sidebar */
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  width: 250px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: width 200ms;
+  position: relative;
+}
+
+.sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  border-right: none;
+  flex-shrink: 0;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 150ms;
+  z-index: 10;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--accent);
+}
+
+.sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-tab {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.sidebar-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  display: flex;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.sidebar-footer-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  white-space: nowrap;
+}
+
+.sidebar-footer-action:hover {
+  color: var(--fg);
+}
+
+/* File tree */
+.tree-folder, .tree-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fg);
+  user-select: none;
+}
+
+.tree-folder:hover, .tree-file:hover {
+  background: var(--accent-soft);
+}
+
+.tree-file.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-left: 2px solid var(--accent);
+}
+
+.tree-chevron {
+  width: 12px;
+  height: 12px;
+  transition: transform 150ms;
+}
+
+.tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.tree-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.tree-folder .tree-icon {
+  color: #F59E0B;
+}
+
+.tree-file .tree-icon {
+  color: #60A5FA;
+}
+
+.tree-children {
+  padding-left: 12px;
+}
+
+/* Outline */
+.outline-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.outline-item:hover {
+  background: var(--accent-soft);
+}
+
+.outline-level {
+  font-family: var(--font-code);
+  font-size: 9px;
+  color: var(--muted);
+  background: var(--code-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Inline edit input in file tree */
+.tree-inline-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--fg);
+  background: var(--surface);
+  outline: none;
+}
+
+/* Drag-drop states */
+.tree-file.dragging,
+.tree-folder.dragging {
+  opacity: 0.4;
+}
+
+.tree-folder-wrapper.dragover {
+  background: var(--accent-soft);
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+

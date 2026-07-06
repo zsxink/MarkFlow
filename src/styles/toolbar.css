@@ -1,0 +1,167 @@
+/* Toolbar */
+.toolbar {
+  grid-area: toolbar;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.toolbar-brand {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-right: 12px;
+}
+
+.toolbar-brand span {
+  color: var(--accent);
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+/* --- App Menu (dropdown from brand) --- */
+
+.toolbar-brand {
+  cursor: pointer;
+  position: relative;
+}
+
+.app-menu {
+  position: absolute;
+  top: 100%;
+  left: 8px;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 1000;
+  padding: 6px 0;
+}
+
+.app-menu-section {
+  padding: 4px 0;
+}
+
+.app-menu-section + .app-menu-section {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.app-menu-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app-menu-empty {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 12px;
+}
+
+.app-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 13px;
+  padding: 6px 12px;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-menu-item:hover {
+  background: var(--accent-soft);
+}
+
+.app-menu-footer {
+  border-top: 1px solid var(--border);
+  padding: 6px 12px 0;
+}
+
+.app-menu-footer button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--fg-danger, #e74c3c);
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.app-menu-footer button:hover {
+  color: var(--fg);
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  position: relative;
+}
+
+.toolbar-btn:hover {
+  background: var(--code-bg);
+}
+
+.toolbar-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.toolbar-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+}

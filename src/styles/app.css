@@ -1,0 +1,90 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  display: grid;
+  grid-template-rows: var(--toolbar-h) 1fr var(--statusbar-h);
+  grid-template-columns: auto 1fr;
+  height: 100vh;
+  grid-template-areas:
+    "toolbar toolbar"
+    "sidebar editor"
+    "statusbar statusbar";
+}
+
+#app.focus-mode #toolbar,
+#app.focus-mode #sidebar,
+#app.focus-mode #statusbar {
+  opacity: 0.05;
+  transition: opacity 400ms;
+}
+
+#app.focus-mode #toolbar:hover,
+#app.focus-mode #sidebar:hover,
+#app.focus-mode #statusbar:hover {
+  opacity: 1;
+}
+
+/* Status bar */
+.statusbar {
+  grid-area: statusbar;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  gap: 16px;
+}
+
+.statusbar-spacer {
+  flex: 1;
+}
+
+.statusbar-item {
+  cursor: default;
+}
+
+.statusbar-action {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.statusbar-action:hover {
+  background: var(--code-bg);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

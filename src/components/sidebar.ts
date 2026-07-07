@@ -1,16 +1,15 @@
-import { isDocumentDirty, hasExternalModification, setMarkdown, setActiveDocumentPath } from '../lib/editor';
+import { isDocumentDirty, hasExternalModification, setMarkdown } from '../lib/editor';
 import { showToast } from './toast';
 import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
 import { initOutline, refreshOutline } from './outline';
 import { showContextMenu } from './contextMenu';
 import { open } from '@tauri-apps/plugin-dialog';
 import { addRecentFolder, saveSettings } from '../lib/storage';
+import { store } from '../lib/store';
 
 // Re-export functions from split modules for backward compatibility
 export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor } from './sidebar.fileops';
 export { handleExternalDeletion, handleActiveDocumentExternalModification } from './sidebar.conflict';
-
-let activeFilePath: string | null = null;
 
 function updateActiveTreeSelection(path: string | null) {
   document.querySelectorAll('.tree-file').forEach(el => {
@@ -19,32 +18,33 @@ function updateActiveTreeSelection(path: string | null) {
 }
 
 export function getActiveFilePath() {
-  return activeFilePath;
+  return store.getState().activeFilePath;
 }
 
 export function setActiveFilePath(path: string | null) {
-  activeFilePath = path;
+  store.setState({ activeFilePath: path });
   updateActiveTreeSelection(path);
 }
 
 export function rewriteActiveDocumentPath(from: string, to: string) {
-  if (!activeFilePath) return;
-  if (activeFilePath !== from && !activeFilePath.startsWith(`${from}/`)) return;
-  const suffix = activeFilePath === from ? '' : activeFilePath.slice(from.length);
+  const currentPath = getActiveFilePath();
+  if (!currentPath) return;
+  if (currentPath !== from && !currentPath.startsWith(`${from}/`)) return;
+  const suffix = currentPath === from ? '' : currentPath.slice(from.length);
   setActiveFilePath(`${to}${suffix}`);
 }
 
 export function clearActiveDocumentIfMatches(path: string) {
-  if (!activeFilePath) return;
-  if (activeFilePath === path || activeFilePath.startsWith(`${path}/`)) {
+  const currentPath = getActiveFilePath();
+  if (!currentPath) return;
+  if (currentPath === path || currentPath.startsWith(`${path}/`)) {
     clearActiveDocument();
   }
 }
 
 export function clearActiveDocument() {
-  activeFilePath = null;
   setMarkdown('');
-  setActiveDocumentPath(null);
+  store.setState({ activeFilePath: null });
   updateActiveTreeSelection(null);
   refreshOutline();
 }

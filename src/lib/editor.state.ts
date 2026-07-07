@@ -1,44 +1,44 @@
 import type { Editor } from '@tiptap/core';
 import { getFileName } from './pathUtils';
+import { store } from './store';
 
-// ── Shared module-level state ──────────────────────────────────────────
+// ── Module-level state (editor-internal, not in global Store) ────────
 
 export let editor: Editor | null = null;
-export let mode: 'wysiwyg' | 'source' = 'wysiwyg';
 export let dirtyCheckTimer: ReturnType<typeof setTimeout> | null = null;
 export let updateEventTimer: ReturnType<typeof setTimeout> | null = null;
-export let activeDocPathOverride: string | null = null;
-export let cachedSourceGutterStyles: Record<string, string> | null = null;
 export const assetToOriginalMap = new Map<string, string>();
 
 export const documentState = {
-  dirty: false,
   externallyModified: false,
   programmaticUpdate: false,
   lastPersistedMarkdown: '',
 };
 
-// ── Setters ────────────────────────────────────────────────────────────
+// ── Setters (module-local) ──────────────────────────────────────────
 
 export function setEditor(e: Editor | null) { editor = e; }
-export function setMode(newMode: 'wysiwyg' | 'source') { mode = newMode; }
+export function getEditor(): Editor | null { return editor; }
 export function setDirtyCheckTimer(t: ReturnType<typeof setTimeout> | null) { dirtyCheckTimer = t; }
 export function setUpdateEventTimer(t: ReturnType<typeof setTimeout> | null) { updateEventTimer = t; }
-export function setCachedSourceGutterStyles(s: Record<string, string> | null) { cachedSourceGutterStyles = s; }
 
-// ── Getters / exported API (re-exported from editor.ts as barrel) ──────
+// ── Mode (migrated to Store) ─────────────────────────────────────────
 
-export function getEditor(): Editor | null {
-  return editor;
+export function setMode(newMode: 'wysiwyg' | 'source') {
+  store.setState({ mode: newMode });
 }
 
 export function getMode() {
-  return mode;
+  return store.getState().mode;
 }
 
+// ── Dirty flag (migrated to Store) ──────────────────────────────────
+
 export function isDocumentDirty() {
-  return documentState.dirty;
+  return store.getState().dirty;
 }
+
+// ── External modification flag (module-local) ───────────────────────
 
 export function hasExternalModification() {
   return documentState.externallyModified;
@@ -48,16 +48,28 @@ export function markExternalModification() {
   documentState.externallyModified = true;
 }
 
-export function setActiveDocumentPath(path: string | null) {
-  activeDocPathOverride = path;
-}
+// ── Active document path (migrated to Store) ────────────────────────
 
-// ── Shared utility functions (used across multiple sub-modules) ────────
+export function setActiveDocumentPath(path: string | null) {
+  store.setState({ activeFilePath: path });
+}
 
 export function getActiveDocPath(): string | null {
   const el = document.querySelector('.tree-file.active') as HTMLElement | null;
-  return el?.dataset?.path || activeDocPathOverride;
+  return el?.dataset?.path || store.getState().activeFilePath;
 }
+
+// ── Cached gutter styles (migrated to Store) ────────────────────────
+
+export function setCachedSourceGutterStyles(s: Record<string, string> | null) {
+  store.setState({ cachedSourceGutterStyles: s });
+}
+
+export function getCachedSourceGutterStyles() {
+  return store.getState().cachedSourceGutterStyles;
+}
+
+// ── Shared utilities ────────────────────────────────────────────────
 
 export function getMermaidExportBaseName() {
   const docPath = getActiveDocPath();

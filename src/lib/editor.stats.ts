@@ -1,4 +1,4 @@
-import { editor, mode } from './editor.state';
+import { editor, getMode } from './editor.state';
 import { countTextWords } from './editor.helpers';
 
 function getSourceTextarea(): HTMLTextAreaElement | null {
@@ -6,7 +6,7 @@ function getSourceTextarea(): HTMLTextAreaElement | null {
 }
 
 export function getWordCount(): number {
-  if (mode === 'source') {
+  if (getMode() === 'source') {
     const textarea = getSourceTextarea();
     return countTextWords(textarea?.value || '');
   }
@@ -15,7 +15,7 @@ export function getWordCount(): number {
 }
 
 export function getLineCount(): number {
-  if (mode === 'source') {
+  if (getMode() === 'source') {
     const textarea = getSourceTextarea();
     if (!textarea) return 1;
     const lines = textarea.value.split('\n');
@@ -30,7 +30,7 @@ export function getLineCount(): number {
 }
 
 export function getCursorPos(): { line: number; col: number } {
-  if (mode === 'source') {
+  if (getMode() === 'source') {
     const textarea = getSourceTextarea();
     if (!textarea) return { line: 1, col: 0 };
     const text = textarea.value;

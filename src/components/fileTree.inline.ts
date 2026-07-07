@@ -1,4 +1,4 @@
-import { workspacePath, escapePathSelector, createTreeNode, insertSorted, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree } from './fileTree.core';
+import { getWorkspacePath, escapePathSelector, createTreeNode, insertSorted, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree } from './fileTree.core';
 import { readSingleDir, createFile, createDir, renamePath } from '../lib/storage';
 import { openFileInEditor, rewriteActiveDocumentPath } from './sidebar';
 import { showToast } from './toast';
@@ -84,7 +84,7 @@ export function startInlineRename(path: string) {
 // --- Inline create ---
 
 export function startInlineCreate(type: 'file' | 'folder', targetDir: string) {
-  if (!workspacePath) {
+  if (!getWorkspacePath()) {
     showToast('请先打开工作区');
     return;
   }
@@ -92,7 +92,7 @@ export function startInlineCreate(type: 'file' | 'folder', targetDir: string) {
   let container: HTMLElement | null;
   let depth: number;
 
-  if (targetDir === workspacePath) {
+  if (targetDir === getWorkspacePath()) {
     container = document.getElementById('file-tree');
     depth = 0;
   } else {

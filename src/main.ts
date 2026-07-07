@@ -11,6 +11,7 @@ import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
+import { store } from './lib/store';
 import { showUnsavedDialog } from './components/unsavedDialog';
 import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
@@ -95,8 +96,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     switchSidebarTab(lastTab as 'files' | 'outline');
   }
 
-  document.addEventListener('settings-changed', (event) => {
-    settings = (event as CustomEvent<Record<string, unknown>>).detail || {};
+  store.on('settings:changed', (event) => {
+    settings = event.settings || {};
     startAutoSave();
   });
 

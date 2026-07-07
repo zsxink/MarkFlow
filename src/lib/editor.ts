@@ -33,11 +33,9 @@ import {
 // Shared state
 import {
   editor,
-  mode,
   documentState,
   dirtyCheckTimer,
   updateEventTimer,
-  cachedSourceGutterStyles,
   assetToOriginalMap,
   setEditor,
   setMode,
@@ -46,12 +44,14 @@ import {
   setCachedSourceGutterStyles,
   getEditor,
   getMode,
+  getCachedSourceGutterStyles,
   isDocumentDirty,
   hasExternalModification,
   markExternalModification,
   setActiveDocumentPath,
   getActiveDocPath,
 } from './editor.state';
+import { store } from './store';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -69,7 +69,7 @@ export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 // ── Markdown serialization ────────────────────────────────────────────
 
 export function getMarkdown(): string {
-  if (mode === 'source') {
+  if (getMode() === 'source') {
     const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
     return normalizeImageMarkdown(sourceEditor?.value || '');
   }
@@ -80,7 +80,7 @@ export function getMarkdown(): string {
 
 export function markDocumentPersisted(markdown: string) {
   documentState.lastPersistedMarkdown = normalizeImageMarkdown(markdown);
-  documentState.dirty = false;
+  store.setState({ dirty: false });
   documentState.externallyModified = false;
 }
 
@@ -90,7 +90,7 @@ export function setMarkdown(content: string) {
     const normalized = normalizeImageMarkdown(content);
     documentState.programmaticUpdate = true;
     editor.commands.setContent(normalized);
-    if (mode === 'source') {
+    if (getMode() === 'source') {
       const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
       if (sourceEditor) {
         sourceEditor.value = normalized;
@@ -109,7 +109,7 @@ export function syncSourceEditorLineNumbers() {
   const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
   if (!gutter || !textarea) return;
 
-  let styles = cachedSourceGutterStyles;
+  let styles = getCachedSourceGutterStyles();
   if (!styles) {
     const cs = getComputedStyle(textarea);
     styles = {
@@ -225,7 +225,7 @@ export async function initEditor() {
       setDirtyCheckTimer(setTimeout(() => {
         setDirtyCheckTimer(null);
         if (!documentState.programmaticUpdate) {
-          documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+          store.setState({ dirty: getMarkdown() !== documentState.lastPersistedMarkdown });
         }
       }, 400));
 
@@ -233,18 +233,18 @@ export async function initEditor() {
       if (!updateEventTimer) {
         setUpdateEventTimer(setTimeout(() => {
           setUpdateEventTimer(null);
-          document.dispatchEvent(new Event('editor-update'));
+          store.emit({ type: 'editor:update' });
         }, 80));
       }
     },
     onSelectionUpdate: () => {
       // Selection changes need immediate dispatch (cursor position in status bar)
-      document.dispatchEvent(new Event('editor-update'));
+      store.emit({ type: 'editor:update' });
     },
   }));
 
   // 编辑器创建后立即刷新状态栏，避免构造函数内统计函数因 editor 未赋值返回默认值
-  document.dispatchEvent(new Event('editor-update'));
+  store.emit({ type: 'editor:update' });
 
   // Apply code block settings (line numbers & word wrap)
   async function applyCodeBlockSettings() {
@@ -257,13 +257,13 @@ export async function initEditor() {
   }
   applyCodeBlockSettings();
 
-  document.addEventListener('settings-changed', () => {
+  store.on('settings:changed', () => {
     applyCodeBlockSettings();
   });
 
   // Refresh line numbers on content change
   let lineNumbersTimer: ReturnType<typeof setTimeout> | null = null;
-  document.addEventListener('editor-update', () => {
+  store.on('editor:update', () => {
     if (lineNumbersTimer) clearTimeout(lineNumbersTimer);
     lineNumbersTimer = setTimeout(() => {
       const root = editor?.view.dom;
@@ -281,16 +281,16 @@ export async function initEditor() {
       if (lineNumTimer) clearTimeout(lineNumTimer);
       lineNumTimer = setTimeout(() => {
         lineNumTimer = null;
-        if (mode === 'source') {
+        if (getMode() === 'source') {
           syncSourceEditorLineNumbers();
-          document.dispatchEvent(new Event('editor-update'));
+          store.emit({ type: 'editor:update' });
         }
       }, 50);
     };
 
     sourceEditor.addEventListener('input', () => {
-      if (mode === 'source') {
-        documentState.dirty = getMarkdown() !== documentState.lastPersistedMarkdown;
+      if (getMode() === 'source') {
+        store.setState({ dirty: getMarkdown() !== documentState.lastPersistedMarkdown });
         autoGrowSourceEditor();
         scheduleLineNumbers();
       }
@@ -391,7 +391,7 @@ export function switchToWysiwyg() {
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
   setMode('wysiwyg');
-  document.dispatchEvent(new Event('editor-update'));
+  store.emit({ type: 'editor:update' });
 }
 
 // ── Image settings (re-export for external use if needed) ──────────────

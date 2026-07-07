@@ -1,11 +1,12 @@
 import { getEditor, getMode } from '../lib/editor';
+import { store } from '../lib/store';
 
 export function initOutline() {
   const outlineTree = document.getElementById('outline-tree');
   if (!outlineTree) return;
   outlineTree.innerHTML = '<div class="empty-state">当前文档无标题</div>';
 
-  document.addEventListener('editor-update', () => {
+  store.on('editor:update', () => {
     refreshOutline();
   });
 }

@@ -1,3 +1,4 @@
+import type { EditorMode } from '../types/editor';
 import type { Editor } from '@tiptap/core';
 import { getFileName } from './pathUtils';
 import { store } from './store';
@@ -24,7 +25,7 @@ export function setUpdateEventTimer(t: ReturnType<typeof setTimeout> | null) { u
 
 // ── Mode (migrated to Store) ─────────────────────────────────────────
 
-export function setMode(newMode: 'wysiwyg' | 'source') {
+export function setMode(newMode: EditorMode) {
   store.setState({ mode: newMode });
 }
 

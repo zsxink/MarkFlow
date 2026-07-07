@@ -1,16 +1,5 @@
+import type { FileEntry, RemoteImageData } from '../types/fileTree';
 import { invoke } from '@tauri-apps/api/core';
-
-export interface FileEntry {
-  name: string;
-  path: string;
-  isDir: boolean;
-  children?: FileEntry[];
-}
-
-export interface RemoteImageData {
-  data: string;
-  mimeType: string;
-}
 
 export async function readFile(path: string): Promise<string> {
   return invoke<string>('read_file', { path });

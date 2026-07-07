@@ -3,7 +3,8 @@ import type { Transaction } from '@tiptap/pm/state';
 import { Extension } from '@tiptap/core';
 import { assetToOriginalMap, getActiveDocPath } from './editor.state';
 import { resolveImagePath } from './pathUtils';
-import { imagePathToSrc, type ImageSettings } from './imageUtils';
+import { imagePathToSrc } from './imageUtils';
+import type { ImageSettings } from '../types/editor';
 import { loadSettings } from './storage';
 
 /**

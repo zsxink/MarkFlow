@@ -1,4 +1,5 @@
-import { readDirRecursive, setWorkspace as setWorkspaceIPC, openFileInNewWindow, type FileEntry } from '../lib/storage';
+import type { FileEntry, DragState } from '../types/fileTree';
+import { readDirRecursive, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
 import { openFileInEditor, getActiveFilePath } from './sidebar';
 import { showContextMenu } from './contextMenu';
 import { logException, logInfo } from '../lib/logger';
@@ -6,7 +7,7 @@ import { store } from '../lib/store';
 
 // --- Drag state (shared with fileTree.dragdrop.ts) ---
 
-export const dragState: { srcPath: string | null; srcEl: HTMLElement | null; isDragging: boolean } = {
+export const dragState: DragState = {
   srcPath: null,
   srcEl: null,
   isDragging: false,

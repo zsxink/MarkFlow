@@ -1,15 +1,7 @@
+import type { ImageSettings } from '../types/editor';
 import { resolveImagePath, computeRelativePath, getParentDir, getImageMimeType } from './pathUtils';
 import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64 } from './storage';
 import { convertFileSrc } from '@tauri-apps/api/core';
-
-export interface ImageSettings {
-  storageMode: string;
-  customPath: string;
-  preferRelative: boolean;
-  autoCopyLocal: boolean;
-  downloadNetwork: boolean;
-  namingStrategy: string;
-}
 
 export function isImageUrl(path: string): boolean {
   return path.startsWith('http://') || path.startsWith('https://');

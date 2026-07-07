@@ -1,3 +1,4 @@
+import type { CursorPos } from '../types/editor';
 import { editor, getMode } from './editor.state';
 import { countTextWords } from './editor.helpers';
 
@@ -29,7 +30,7 @@ export function getLineCount(): number {
   return Math.max(count, 1);
 }
 
-export function getCursorPos(): { line: number; col: number } {
+export function getCursorPos(): CursorPos {
   if (getMode() === 'source') {
     const textarea = getSourceTextarea();
     if (!textarea) return { line: 1, col: 0 };

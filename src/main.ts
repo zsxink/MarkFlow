@@ -22,12 +22,7 @@ import './styles/toolbar.css';
 import './styles/sidebar.css';
 import './styles/editor.css';
 import './styles/components.css';
-
-interface FileChangeEvent {
-  path: string;
-  kind: string;
-  timestamp: number;
-}
+import type { FileChangeEvent } from './types/events';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Record<string, unknown> = {};

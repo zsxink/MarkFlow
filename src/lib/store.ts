@@ -1,27 +1,7 @@
-// ── Event types ──────────────────────────────────────────────────────
-
-export type StoreEvent =
-  | { type: 'editor:update' }
-  | { type: 'editor:dirty'; dirty: boolean }
-  | { type: 'editor:mode'; mode: 'wysiwyg' | 'source' }
-  | { type: 'file:active'; path: string | null }
-  | { type: 'settings:changed'; settings: Record<string, unknown> }
-  | { type: 'workspace:set'; path: string | null };
+import type { StoreEvent, StoreState } from '../types/events';
 
 type EventType = StoreEvent['type'];
 type Callback = (event: StoreEvent) => void;
-
-// ── State ────────────────────────────────────────────────────────────
-
-export interface StoreState {
-  mode: 'wysiwyg' | 'source';
-  activeFilePath: string | null;
-  workspacePath: string | null;
-  expandedPaths: string[];
-  dirty: boolean;
-  cachedSourceGutterStyles: Record<string, string> | null;
-  settings: Record<string, unknown>;
-}
 
 const DEFAULT_STATE: StoreState = {
   mode: 'wysiwyg',

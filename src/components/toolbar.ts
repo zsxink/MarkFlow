@@ -7,7 +7,8 @@ import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
 import { loadSettings, addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
-import { copyLocalFileToStorage, handleNetworkImage, type ImageSettings } from '../lib/imageUtils';
+import { copyLocalFileToStorage, handleNetworkImage } from '../lib/imageUtils';
+import type { ImageSettings } from '../types/editor';
 import { logException } from '../lib/logger';
 
 export function initToolbar() {

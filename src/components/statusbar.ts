@@ -1,8 +1,10 @@
 import { getWordCount, getLineCount, getCursorPos } from '../lib/editor';
 import { cycleTheme } from '../lib/theme';
 
+import { store } from '../lib/store';
+
 export function initStatusBar() {
-  document.addEventListener('editor-update', updateStats);
+  store.on('editor:update', updateStats);
 
   document.getElementById('sb-settings')?.addEventListener('click', () => {
     const modal = document.getElementById('settings-modal');

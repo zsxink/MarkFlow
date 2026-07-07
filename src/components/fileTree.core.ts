@@ -2,6 +2,7 @@ import { readDirRecursive, setWorkspace as setWorkspaceIPC, openFileInNewWindow,
 import { openFileInEditor, getActiveFilePath } from './sidebar';
 import { showContextMenu } from './contextMenu';
 import { logException, logInfo } from '../lib/logger';
+import { store } from '../lib/store';
 
 // --- Drag state (shared with fileTree.dragdrop.ts) ---
 
@@ -13,9 +14,7 @@ export const dragState: { srcPath: string | null; srcEl: HTMLElement | null; isD
 
 // --- Module-level state ---
 
-export let workspacePath: string | null = null;
 const dbClickTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
-const expandedPaths: Set<string> = new Set();
 const suppressPaths: Map<string, number> = new Map();
 const SUPPRESS_DURATION_MS = 3000;
 
@@ -40,15 +39,16 @@ function escapeHtml(text: string): string {
 // --- Public API: workspace path ---
 
 export function getWorkspacePath() {
-  return workspacePath;
+  return store.getState().workspacePath;
 }
 
 export async function setWorkspacePath(path: string | null) {
-  workspacePath = path ? path.replace(/\\/g, '/') : null;
+  const normalized = path ? path.replace(/\\/g, '/') : null;
+  store.setState({ workspacePath: normalized });
   if (path) {
     try {
       await setWorkspaceIPC(path);
-      logInfo('file-tree.workspace', 'Workspace selected', { path: workspacePath });
+      logInfo('file-tree.workspace', 'Workspace selected', { path: normalized });
     } catch (e) {
       logException('file-tree.workspace', 'Failed to set workspace', e, { path });
     }
@@ -84,19 +84,20 @@ export function suppressAllDescendants(path: string) {
 // --- Tree rendering ---
 
 export async function refreshFileTree() {
-  if (!workspacePath) return;
+  const wsPath = getWorkspacePath();
+  if (!wsPath) return;
   try {
     saveExpandedState();
-    const entries = await readDirRecursive(workspacePath);
+    const entries = await readDirRecursive(wsPath);
     renderFileTree(entries);
     restoreExpandedState();
   } catch (e) {
-    logException('file-tree.refresh', 'Failed to refresh file tree', e, { path: workspacePath });
+    logException('file-tree.refresh', 'Failed to refresh file tree', e, { path: wsPath });
   }
 }
 
 function saveExpandedState() {
-  expandedPaths.clear();
+  const paths: string[] = [];
   document.querySelectorAll('.tree-folder').forEach(el => {
     const chevron = el.querySelector('.tree-chevron');
     const children = el.parentElement?.querySelector('.tree-children');
@@ -104,10 +105,11 @@ function saveExpandedState() {
       const span = el.querySelector('span');
       if (span) {
         const path = buildPathFromNode(el);
-        if (path) expandedPaths.add(path);
+        if (path) paths.push(path);
       }
     }
   });
+  store.setState({ expandedPaths: paths });
 }
 
 function buildPathFromNode(folderEl: Element): string | null {
@@ -125,18 +127,19 @@ function buildPathFromNode(folderEl: Element): string | null {
     if (!current) break;
   }
 
-  if (parts.length === 0 || !workspacePath) return null;
-  return `${workspacePath}/${parts.join('/')}`;
+  if (parts.length === 0 || !getWorkspacePath()) return null;
+  return `${getWorkspacePath()}/${parts.join('/')}`;
 }
 
 function restoreExpandedState() {
-  expandedPaths.forEach(path => {
+  store.getState().expandedPaths.forEach(path => {
     const fileTree = document.getElementById('file-tree');
-    if (!fileTree || !workspacePath) return;
+    const wsPath = getWorkspacePath();
+    if (!fileTree || !wsPath) return;
 
     let relativePath = path;
-    if (relativePath.startsWith(workspacePath)) {
-      relativePath = relativePath.substring(workspacePath.length);
+    if (relativePath.startsWith(wsPath)) {
+      relativePath = relativePath.substring(wsPath.length);
       if (relativePath.startsWith('/')) relativePath = relativePath.substring(1);
     }
     const folders = relativePath.split('/');
@@ -296,8 +299,8 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
 // --- Surgical DOM operations ---
 
 function getChildrenContainer(parentPath: string): HTMLElement | null {
-  if (!workspacePath) return null;
-  if (parentPath === workspacePath) {
+  if (!getWorkspacePath()) return null;
+  if (parentPath === getWorkspacePath()) {
     return document.getElementById('file-tree');
   }
   const folderEl = document.querySelector(`.tree-folder[data-path="${escapePathSelector(parentPath)}"]`);
@@ -345,7 +348,7 @@ export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) 
   }
   if (!inserted) container.appendChild(node);
 
-  if (parentPath !== workspacePath) {
+  if (parentPath !== getWorkspacePath()) {
     const folderEl = document.querySelector(`.tree-folder[data-path="${escapePathSelector(parentPath)}"]`);
     if (folderEl) {
       const chevron = folderEl.querySelector('.tree-chevron');

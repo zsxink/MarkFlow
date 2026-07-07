@@ -1,6 +1,7 @@
 import { setTheme } from '../lib/theme';
 import { loadSettings, saveSettings } from '../lib/storage';
 import { logException } from '../lib/logger';
+import { store } from '../lib/store';
 
 type Theme = 'light' | 'dark' | 'sepia';
 
@@ -424,9 +425,7 @@ async function persistSettingsFromUI() {
     }
     applyRuntimeSettings(currentSettings);
     await saveSettings(currentSettings);
-    document.dispatchEvent(new CustomEvent('settings-changed', {
-      detail: { ...currentSettings },
-    }));
+    store.emit({ type: 'settings:changed', settings: { ...currentSettings } });
   } catch (e) {
     logException('settings.ui', 'Failed to save settings', e);
   }

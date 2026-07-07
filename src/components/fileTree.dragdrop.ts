@@ -1,4 +1,4 @@
-import { dragState, workspacePath, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree, removeEntryFromTree, insertEntryIntoTree } from './fileTree.core';
+import { dragState, getWorkspacePath, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree, removeEntryFromTree, insertEntryIntoTree } from './fileTree.core';
 import { getFileName } from '../lib/pathUtils';
 import { renamePath, readSingleDir } from '../lib/storage';
 import { rewriteActiveDocumentPath } from './sidebar';
@@ -84,7 +84,7 @@ export function initMouseDrag() {
       const folderEl = wrapper.querySelector('.tree-folder') as HTMLElement | null;
       if (folderEl) destDir = folderEl.dataset.path || null;
     } else if (target === fileTree || target?.closest('#file-tree') === fileTree) {
-      destDir = workspacePath;
+      destDir = getWorkspacePath();
     }
 
     const srcIsFolder = dragState.srcEl?.classList.contains('tree-folder') === true;

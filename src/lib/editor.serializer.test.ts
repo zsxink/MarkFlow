@@ -89,10 +89,20 @@ describe('replaceAssetUrlsWithOriginal', () => {
       '![a](asset://abc) ![ab](asset://abc123)',
     );
 
-    // Each find-and-replace runs `split(asset).join(original)`, which is a
-    // literal substring replacement.  `asset://abc` matches inside
-    // `asset://abc123` too. This is the current behaviour – document it.
+    // `new RegExp(escaped, 'g')` performs literal substring matching after
+    // escaping regex special characters. `asset://abc` still matches inside
+    // `asset://abc123` because no word boundaries are enforced.
     expect(result).toBe('![a](images/a.png) ![ab](images/a.png123)');
+  });
+
+  it('escapes regex special characters in asset URLs', () => {
+    assetToOriginalMap.set('asset://img/photo(1).png?size=300', 'images/photo.png');
+
+    const result = replaceAssetUrlsWithOriginal(
+      '![photo](asset://img/photo(1).png?size=300)',
+    );
+
+    expect(result).toBe('![photo](images/photo.png)');
   });
 });
 

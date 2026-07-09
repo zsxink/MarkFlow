@@ -6,7 +6,8 @@ import { assetToOriginalMap } from './editor.state';
 export function replaceAssetUrlsWithOriginal(markdown: string): string {
   let result = markdown;
   for (const [asset, original] of assetToOriginalMap) {
-    result = result.split(asset).join(original);
+    const escaped = asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escaped, 'g'), original);
   }
   return result;
 }

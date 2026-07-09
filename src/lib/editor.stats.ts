@@ -1,5 +1,5 @@
 import type { CursorPos } from '../types/editor';
-import { editor, getMode } from './editor.state';
+import { getEditor, getMode } from './editor.state';
 import { countTextWords } from './editor.helpers';
 import { getSourceView } from './editor.source';
 
@@ -8,8 +8,9 @@ export function getWordCount(): number {
     const view = getSourceView();
     return countTextWords(view?.state.doc.toString() || '');
   }
-  if (!editor) return 0;
-  return countTextWords(editor.state.doc.textContent);
+  const ed = getEditor();
+  if (!ed) return 0;
+  return countTextWords(ed.state.doc.textContent);
 }
 
 export function getLineCount(): number {
@@ -18,9 +19,10 @@ export function getLineCount(): number {
     if (!view) return 1;
     return view.state.doc.lines;
   }
-  if (!editor) return 0;
+  const ed = getEditor();
+  if (!ed) return 0;
   let count = 0;
-  editor.state.doc.descendants((node) => {
+  ed.state.doc.descendants((node) => {
     if (node.isBlock) count++;
   });
   return Math.max(count, 1);
@@ -37,9 +39,10 @@ export function getCursorPos(): CursorPos {
     const col = head - line.from;
     return { line: line.number, col };
   }
-  if (!editor) return { line: 1, col: 0 };
-  const { from } = editor.state.selection;
-  const doc = editor.state.doc;
+  const ed = getEditor();
+  if (!ed) return { line: 1, col: 0 };
+  const { from } = ed.state.selection;
+  const doc = ed.state.doc;
   let line = 0;
   let blockStart = 0;
   doc.descendants((node, nodePos) => {

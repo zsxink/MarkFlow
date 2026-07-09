@@ -5,12 +5,12 @@ import { store } from './store';
 
 // ── Module-level state (editor-internal, not in global Store) ────────
 
-export let editor: Editor | null = null;
-export let dirtyCheckTimer: ReturnType<typeof setTimeout> | null = null;
-export let updateEventTimer: ReturnType<typeof setTimeout> | null = null;
+let editor: Editor | null = null;
+let dirtyCheckTimer: ReturnType<typeof setTimeout> | null = null;
+let updateEventTimer: ReturnType<typeof setTimeout> | null = null;
 export const assetToOriginalMap = new Map<string, string>();
 
-export const documentState = {
+const documentState = {
   externallyModified: false,
   programmaticUpdate: false,
   lastPersistedMarkdown: '',
@@ -21,7 +21,10 @@ export const documentState = {
 export function setEditor(e: Editor | null) { editor = e; }
 export function getEditor(): Editor | null { return editor; }
 export function setDirtyCheckTimer(t: ReturnType<typeof setTimeout> | null) { dirtyCheckTimer = t; }
+export function getDirtyCheckTimer(): ReturnType<typeof setTimeout> | null { return dirtyCheckTimer; }
 export function setUpdateEventTimer(t: ReturnType<typeof setTimeout> | null) { updateEventTimer = t; }
+export function getUpdateEventTimer(): ReturnType<typeof setTimeout> | null { return updateEventTimer; }
+export function getDocumentState() { return documentState; }
 
 // ── Mode (migrated to Store) ─────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import {
   hasExternalModification,
   markExternalModification,
   getMermaidExportBaseName,
-  documentState,
+  getDocumentState,
 } from './editor.state';
 import { store } from './store';
 
@@ -22,9 +22,9 @@ beforeEach(() => {
     dirty: false,
   });
   // Reset module-level mutable state.
-  documentState.externallyModified = false;
-  documentState.programmaticUpdate = false;
-  documentState.lastPersistedMarkdown = '';
+  getDocumentState().externallyModified = false;
+  getDocumentState().programmaticUpdate = false;
+  getDocumentState().lastPersistedMarkdown = '';
   // Clear DOM so getActiveDocPath() does not pick up stale elements.
   document.body.innerHTML = '';
 });

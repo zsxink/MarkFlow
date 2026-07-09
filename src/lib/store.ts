@@ -9,7 +9,6 @@ const DEFAULT_STATE: StoreState = {
   workspacePath: null,
   expandedPaths: [],
   dirty: false,
-  cachedSourceGutterStyles: null,
   settings: {},
 };
 

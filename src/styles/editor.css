@@ -620,7 +620,7 @@
   height: 0;
 }
 
-/* Source editor */
+/* Source editor — CM6 container wrapper */
 .source-editor-wrapper {
   width: 100%;
   position: relative;
@@ -630,31 +630,99 @@
   display: none;
 }
 
-.source-editor-gutter {
-  position: absolute;
-  top: 0;
-  right: calc(100% + 5px);
-  padding-right: 12px;
-  box-sizing: border-box;
-  text-align: right;
-  color: var(--muted);
-  opacity: 0.40;
-  user-select: none;
-  white-space: pre;
-}
+/* ── CM6 主题覆盖（适配 app CSS 变量） ─────────────────────────── */
 
-.source-editor-gutter div {
-  box-sizing: border-box;
-}
-
-.source-editor {
-  width: 100%;
-  min-height: calc(100vh - 248px);
-  border: none;
+.source-editor-wrapper .cm-editor {
   outline: none;
-  resize: none;
-  overflow: hidden;
-  color: var(--fg);
+  height: 100%;
   background: transparent;
+  color: var(--fg);
+}
+
+.source-editor-wrapper .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* 内容区域 — 对齐 WYSIWYG 的字体节奏和编辑内边距 */
+.source-editor-wrapper .cm-scroller {
+  font-family: var(--font-code);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.source-editor-wrapper .cm-content {
+  font-family: inherit;
   padding: 0;
+  caret-color: var(--fg);
+}
+
+/* 选中区域 */
+.source-editor-wrapper .cm-editor .cm-selectionBackground,
+.source-editor-wrapper .cm-editor.cm-focused .cm-selectionBackground {
+  background: var(--selection) !important;
+}
+
+.source-editor-wrapper .cm-editor ::selection {
+  background: var(--selection);
+}
+
+/* 活动行高亮 — 极淡背景 */
+.source-editor-wrapper .cm-editor .cm-activeLine {
+  background: var(--accent-soft);
+}
+
+.source-editor-wrapper .cm-editor .cm-activeLineGutter {
+  background: var(--accent-soft);
+}
+
+/* ── Gutter（行号区） ────────────────────────────────── */
+
+.source-editor-wrapper .cm-gutters {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  /* 行号在 gutter 内靠右对齐 */
+  padding-right: 4px;
+}
+
+.source-editor-wrapper .cm-gutterElement {
+  color: var(--muted);
+}
+
+.source-editor-wrapper .cm-activeLineGutter .cm-gutterElement {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* 括号匹配 */
+.source-editor-wrapper .cm-editor .cm-matchingBracket {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent);
+  color: var(--fg) !important;
+}
+
+.source-editor-wrapper .cm-editor .cm-nonmatchingBracket {
+  background: rgba(231, 76, 60, 0.2);
+  outline: 1px solid #e74c3c;
+  color: #e74c3c !important;
+}
+
+/* 折叠标记 */
+.source-editor-wrapper .cm-foldGutter .cm-gutterElement {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.source-editor-wrapper .cm-foldGutter .cm-gutterElement:hover {
+  color: var(--accent);
+}
+
+/* 光标色 */
+.source-editor-wrapper .cm-editor .cm-cursor {
+  border-left-color: var(--accent);
+}
+
+/* 高亮选中词（双点击词） */
+.source-editor-wrapper .cm-editor .cm-selectionMatch {
+  background: var(--accent-soft);
 }

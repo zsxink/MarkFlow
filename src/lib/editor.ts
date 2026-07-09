@@ -41,10 +41,8 @@ import {
   setMode,
   setDirtyCheckTimer,
   setUpdateEventTimer,
-  setCachedSourceGutterStyles,
   getEditor,
   getMode,
-  getCachedSourceGutterStyles,
   isDocumentDirty,
   hasExternalModification,
   markExternalModification,
@@ -52,6 +50,16 @@ import {
   getActiveDocPath,
 } from './editor.state';
 import { store } from './store';
+import {
+  createSourceEditor,
+  destroySourceEditor,
+  getSourceContent,
+  setSourceContent,
+} from './editor.source';
+
+// ── Source editor debounce timer (module-level to allow cleanup on re-entry) ─
+
+let sourceUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -70,8 +78,7 @@ export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 
 export function getMarkdown(): string {
   if (getMode() === 'source') {
-    const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
-    return normalizeImageMarkdown(sourceEditor?.value || '');
+    return normalizeImageMarkdown(getSourceContent());
   }
   if (!editor) return '';
   const md = editor.storage.markdown.getMarkdown();
@@ -91,70 +98,11 @@ export function setMarkdown(content: string) {
     documentState.programmaticUpdate = true;
     editor.commands.setContent(normalized);
     if (getMode() === 'source') {
-      const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
-      if (sourceEditor) {
-        sourceEditor.value = normalized;
-        autoGrowSourceEditor();
-      }
+      setSourceContent(normalized);
     }
     documentState.programmaticUpdate = false;
     markDocumentPersisted(normalized);
   }
-}
-
-// ── Source editor line numbers ────────────────────────────────────────
-
-export function syncSourceEditorLineNumbers() {
-  const gutter = document.getElementById('source-editor-gutter') as HTMLElement;
-  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
-  if (!gutter || !textarea) return;
-
-  let styles = getCachedSourceGutterStyles();
-  if (!styles) {
-    const cs = getComputedStyle(textarea);
-    styles = {
-      fontFamily: cs.fontFamily,
-      fontSize: cs.fontSize,
-      lineHeight: cs.lineHeight,
-      letterSpacing: cs.letterSpacing,
-    };
-    setCachedSourceGutterStyles(styles);
-  }
-  gutter.style.fontFamily = styles.fontFamily;
-  gutter.style.fontSize = styles.fontSize;
-  gutter.style.lineHeight = styles.lineHeight;
-  gutter.style.letterSpacing = styles.letterSpacing;
-
-  const lines = textarea.value.split('\n');
-  const cursorLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
-  const total = lines.length;
-  const lastLine = total;
-  const interval = 10;
-  const suppressThreshold = 4;
-  const nearestIntervalToLast = Math.floor(lastLine / interval) * interval;
-  const suppressLast = nearestIntervalToLast > 0 && (lastLine - nearestIntervalToLast) <= suppressThreshold;
-
-  const numbers = lines.map((_, i) => {
-    const num = i + 1;
-    if (num === 1 || num === lastLine || i === cursorLine) return String(num);
-    if (num % interval === 0 && !(suppressLast && num === nearestIntervalToLast)) return String(num);
-    return '';
-  });
-
-  gutter.textContent = numbers.join('\n');
-}
-
-function autoGrowSourceEditor() {
-  const textarea = document.getElementById('source-editor') as HTMLTextAreaElement;
-  if (!textarea) return;
-  const newHeight = textarea.scrollHeight;
-  if (newHeight === textarea.offsetHeight) return;
-  const area = textarea.closest('.editor-area') as HTMLElement | null;
-  const prevScrollTop = area?.scrollTop ?? -1;
-  textarea.style.height = 'auto';
-  textarea.style.height = newHeight + 'px';
-  // After collapse-grow cycle, restore scroll position to prevent visual jump
-  if (area && prevScrollTop >= 0) area.scrollTop = prevScrollTop;
 }
 
 // ── Editor initialization ────────────────────────────────────────────
@@ -165,7 +113,7 @@ export async function initEditor() {
 
   const editorDiv = document.createElement('div');
   editorDiv.className = 'editor-container';
-  editorDiv.innerHTML = '<div id="wysiwyg-editor"></div><div id="source-editor-wrapper" class="source-editor-wrapper" hidden><div class="source-editor-gutter" id="source-editor-gutter"></div><textarea id="source-editor" class="source-editor"></textarea></div>';
+  editorDiv.innerHTML = '<div id="wysiwyg-editor"></div><div id="source-editor-wrapper" class="source-editor-wrapper" hidden></div>';
   container.appendChild(editorDiv);
 
   const editorEl = document.getElementById('wysiwyg-editor');
@@ -272,35 +220,6 @@ export async function initEditor() {
     }, 150);
   });
 
-  // Source editor sync — consolidated handler with debounced line number sync
-  const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
-  const sourceGutter = document.getElementById('source-editor-gutter') as HTMLElement;
-  if (sourceEditor && sourceGutter) {
-    let lineNumTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleLineNumbers = () => {
-      if (lineNumTimer) clearTimeout(lineNumTimer);
-      lineNumTimer = setTimeout(() => {
-        lineNumTimer = null;
-        if (getMode() === 'source') {
-          syncSourceEditorLineNumbers();
-          store.emit({ type: 'editor:update' });
-        }
-      }, 50);
-    };
-
-    sourceEditor.addEventListener('input', () => {
-      if (getMode() === 'source') {
-        store.setState({ dirty: getMarkdown() !== documentState.lastPersistedMarkdown });
-        autoGrowSourceEditor();
-        scheduleLineNumbers();
-      }
-    });
-    sourceEditor.addEventListener('click', scheduleLineNumbers);
-    sourceEditor.addEventListener('keyup', scheduleLineNumbers);
-    const ro = new ResizeObserver(scheduleLineNumbers);
-    ro.observe(sourceEditor);
-  }
-
   // Image paste handler
   editorEl.addEventListener('paste', async (event) => {
     const files = Array.from(event.clipboardData?.files || []);
@@ -347,15 +266,15 @@ export async function initEditor() {
 
 export function switchToSource() {
   if (!editor) return;
-  const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
-  const wysiwygEditor = document.getElementById('wysiwyg-editor');
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
-  if (!sourceEditor || !wysiwygEditor || !wrapper) return;
+  const wysiwygEditor = document.getElementById('wysiwyg-editor');
+  if (!wysiwygEditor || !wrapper) return;
 
   const rawMarkdown = replaceAssetUrlsWithOriginal(editor.storage.markdown.getMarkdown());
   const normalized = normalizeImageMarkdown(rawMarkdown);
 
-  // Integrity check: detect serialization truncation before it reaches textarea
+  // Determine the content to populate CM6 with
+  let content: string;
   const docText = editor.state.doc.textContent;
   const integrity = checkSerializationIntegrity(docText, normalized);
 
@@ -366,32 +285,53 @@ export function switchToSource() {
       mdLen: normalized.length,
     });
     showToast('Markdown 序列化异常，已保存全部内容');
-    sourceEditor.value = normalizeImageMarkdown(extractDocAsFallback(editor.state.doc));
+    content = normalizeImageMarkdown(extractDocAsFallback(editor.state.doc));
   } else {
-    sourceEditor.value = normalized;
+    content = normalized;
   }
 
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   setMode('source');
-  setCachedSourceGutterStyles(null); // Reset cache so styles are re-read in layout context
-  syncSourceEditorLineNumbers();
-  autoGrowSourceEditor();
+
+  // Clear stale debounce timer from any previous CM6 session
+  if (sourceUpdateTimer) clearTimeout(sourceUpdateTimer);
+
+  // Create CM6 inside wrapper
+  const view = createSourceEditor(wrapper, content, (doc) => {
+    store.setState({ dirty: normalizeImageMarkdown(doc) !== documentState.lastPersistedMarkdown });
+    if (!sourceUpdateTimer) {
+      sourceUpdateTimer = setTimeout(() => {
+        sourceUpdateTimer = null;
+        store.emit({ type: 'editor:update' });
+      }, 50);
+    }
+  });
+
+  // Focus CM6 editor so user can type immediately
+  view.focus();
 }
 
 export function switchToWysiwyg() {
-  const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
-  if (!sourceEditor || !wysiwygEditor || !wrapper) return;
+  if (!wysiwygEditor || !wrapper) return;
 
-  if (editor) {
-    editor.commands.setContent(normalizeImageMarkdown(sourceEditor.value));
+  try {
+    if (editor) {
+      documentState.programmaticUpdate = true;
+      editor.commands.setContent(normalizeImageMarkdown(getSourceContent()));
+    }
+  } finally {
+    documentState.programmaticUpdate = false;
+    wysiwygEditor.hidden = false;
+    wrapper.hidden = true;
+    destroySourceEditor();
+    setMode('wysiwyg');
+    editor?.commands.focus();
+    // Immediate refresh so outline/statusbar show WYSIWYG data right away
+    store.emit({ type: 'editor:update' });
   }
-  wysiwygEditor.hidden = false;
-  wrapper.hidden = true;
-  setMode('wysiwyg');
-  store.emit({ type: 'editor:update' });
 }
 
 // ── Image settings (re-export for external use if needed) ──────────────

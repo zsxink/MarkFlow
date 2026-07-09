@@ -60,16 +60,6 @@ export function getActiveDocPath(): string | null {
   return el?.dataset?.path || store.getState().activeFilePath;
 }
 
-// ── Cached gutter styles (migrated to Store) ────────────────────────
-
-export function setCachedSourceGutterStyles(s: Record<string, string> | null) {
-  store.setState({ cachedSourceGutterStyles: s });
-}
-
-export function getCachedSourceGutterStyles() {
-  return store.getState().cachedSourceGutterStyles;
-}
-
 // ── Shared utilities ────────────────────────────────────────────────
 
 export function getMermaidExportBaseName() {

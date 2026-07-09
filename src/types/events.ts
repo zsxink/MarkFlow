@@ -18,7 +18,6 @@ export interface StoreState {
   workspacePath: string | null;
   expandedPaths: string[];
   dirty: boolean;
-  cachedSourceGutterStyles: Record<string, string> | null;
   settings: Record<string, unknown>;
 }
 

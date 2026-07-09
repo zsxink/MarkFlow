@@ -141,7 +141,16 @@ export function mermaidCodeBlockExtension() {
             state.closeBlock(node);
           },
           parse: {
-            // handled by markdown-it
+            updateDOM(el: HTMLElement) {
+              // markdown-it's fence parser always appends a trailing \n to fence
+              // token content, causing code blocks to gain an extra empty line
+              // when parsed into ProseMirror. Strip it here.
+              el.querySelectorAll('pre code').forEach((code) => {
+                if (code.textContent.endsWith('\n')) {
+                  code.textContent = code.textContent.slice(0, -1);
+                }
+              });
+            },
           },
         },
       };

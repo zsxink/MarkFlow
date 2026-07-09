@@ -23,9 +23,11 @@ import './styles/sidebar.css';
 import './styles/editor.css';
 import './styles/components.css';
 import type { FileChangeEvent } from './types/events';
+import type { Settings } from './types/settings';
+import { DEFAULT_SETTINGS } from './types/settings';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
-let settings: Record<string, unknown> = {};
+let settings: Settings = { ...DEFAULT_SETTINGS };
 
 // Debounced file tree refresh — coalesces rapid file-change events
 let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -61,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // macOS sends file via RunEvent::Opened which may arrive after DOMContentLoaded
   const loadedSettings = await loadSettings().catch((e) => {
     logException('app.settings', 'Failed to load settings during startup', e);
-    return {};
+    return DEFAULT_SETTINGS;
   });
   settings = loadedSettings;
 
@@ -86,13 +88,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Restore sidebar tab preference
   const wsPath = getWorkspacePath();
-  const lastTab = (loadedSettings as any)?.lastSidebarTab as string | undefined;
+  const lastTab = loadedSettings.lastSidebarTab;
   if (lastTab && wsPath) {
     switchSidebarTab(lastTab as 'files' | 'outline');
   }
 
   store.on('settings:changed', (event) => {
-    settings = event.settings || {};
+    settings = event.settings;
     startAutoSave();
   });
 
@@ -186,7 +188,7 @@ async function restoreWorkspace() {
 function startAutoSave() {
   stopAutoSave();
   const enabled = settings.autosave !== false;
-  const interval = (settings.autosaveInterval as number) || 10000;
+  const interval = settings.autosaveInterval || 10000;
   logDebug('app.autosave', 'Updated autosave schedule', { enabled, interval });
 
   if (enabled) {

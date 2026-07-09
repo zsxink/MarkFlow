@@ -124,7 +124,7 @@ export function initSidebar() {
     tab.addEventListener('click', () => {
       const tabName = (tab as HTMLElement).dataset.tab as 'files' | 'outline';
       switchSidebarTab(tabName);
-      saveSettings({ lastSidebarTab: tabName } as unknown as Record<string, unknown>).catch(() => {});
+      saveSettings({ lastSidebarTab: tabName }).catch(() => {});
     });
   });
 

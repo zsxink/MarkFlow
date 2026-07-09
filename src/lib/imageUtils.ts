@@ -1,7 +1,34 @@
 import type { ImageSettings } from '../types/editor';
 import { resolveImagePath, computeRelativePath, getParentDir, getImageMimeType } from './pathUtils';
-import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64 } from './storage';
+import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64, loadSettings } from './storage';
 import { convertFileSrc } from '@tauri-apps/api/core';
+
+// ── Image settings helpers ─────────────────────────────────────────────
+
+export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
+  storageMode: 'workspace-assets',
+  customPath: '',
+  preferRelative: true,
+  autoCopyLocal: true,
+  downloadNetwork: false,
+  namingStrategy: 'timestamp',
+};
+
+export async function getImageSettings(): Promise<ImageSettings> {
+  try {
+    const s = await loadSettings();
+    return {
+      storageMode: s.imageStorageMode || DEFAULT_IMAGE_SETTINGS.storageMode,
+      customPath: s.imageCustomPath || DEFAULT_IMAGE_SETTINGS.customPath,
+      preferRelative: s.imagePreferRelative !== false,
+      autoCopyLocal: s.imageAutoCopyLocal !== false,
+      downloadNetwork: s.imageDownloadNetwork === true,
+      namingStrategy: s.imageNamingStrategy || DEFAULT_IMAGE_SETTINGS.namingStrategy,
+    };
+  } catch {
+    return DEFAULT_IMAGE_SETTINGS;
+  }
+}
 
 export function isImageUrl(path: string): boolean {
   return path.startsWith('http://') || path.startsWith('https://');

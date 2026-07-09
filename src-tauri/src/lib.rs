@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod fs;
+mod http;
 mod logger;
 mod paths;
 mod state;

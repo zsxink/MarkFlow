@@ -1,0 +1,63 @@
+export interface Settings {
+  version: number;
+  theme: string;
+  fontSize: number;
+  lineHeight: number;
+  autosave: boolean;
+  autosaveInterval: number;
+  spellcheck: boolean;
+  softWrap: boolean;
+  livePreview: boolean;
+  codeHighlight: boolean;
+  lineNumbers?: boolean;
+  showSidebar: boolean;
+  showTooltips: boolean;
+  followSystemTheme: boolean;
+  lastWorkspace?: string | null;
+  imageStorageMode?: string;
+  imageCustomPath?: string;
+  imagePreferRelative?: boolean;
+  imageAutoCopyLocal?: boolean;
+  imageDownloadNetwork?: boolean;
+  imageNamingStrategy?: string;
+  codeLineNumbers?: boolean;
+  codeWordWrap?: boolean;
+  lastSidebarTab?: string;
+  recentFiles?: string[];
+  recentFolders?: string[];
+  lastWindowWidth?: number;
+  lastWindowHeight?: number;
+  lastWindowX?: number;
+  lastWindowY?: number;
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  version: 1,
+  theme: 'light',
+  fontSize: 18,
+  lineHeight: 1.7,
+  autosave: true,
+  autosaveInterval: 10000,
+  spellcheck: true,
+  softWrap: true,
+  livePreview: true,
+  codeHighlight: true,
+  showSidebar: true,
+  showTooltips: true,
+  followSystemTheme: false,
+  lastWorkspace: null,
+  imageStorageMode: 'workspace-assets',
+  imageCustomPath: '',
+  imagePreferRelative: true,
+  imageAutoCopyLocal: true,
+  imageDownloadNetwork: false,
+  imageNamingStrategy: 'timestamp',
+  codeLineNumbers: false,
+  codeWordWrap: true,
+  recentFiles: [],
+  recentFolders: [],
+  lastWindowWidth: 1200,
+  lastWindowHeight: 800,
+  lastWindowX: 0,
+  lastWindowY: 0,
+};

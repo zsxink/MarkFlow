@@ -15,7 +15,7 @@ import { syncCodeLineNumberGutters } from './editor.helpers';
 import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
 import { getImageSettings } from './imageUtils';
-import { imageSrcResolverPlugin } from './editor.image.store';
+import { imageSrcResolverPlugin } from './editor.image.resolver';
 import { imageBubblePlugin } from './editor.image.bubble';
 
 import {

@@ -117,11 +117,6 @@ export function getSourceContent(): string {
   return currentView?.state.doc.toString() ?? '';
 }
 
-/** Get raw content without trailing newline removal (for dirty checks where exact match matters) */
-export function getRawSourceContent(): string {
-  return currentView?.state.doc.toString() ?? '';
-}
-
 // ── Write ─────────────────────────────────────────────────────────────
 
 export function setSourceContent(content: string): void {

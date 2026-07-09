@@ -22,7 +22,7 @@ import {
   BlockImage,
   mermaidCodeBlockExtension,
 } from './editor.extensions';
-import { imageSrcResolverPlugin } from './editor.image.store';
+import { imageSrcResolverPlugin } from './editor.image.resolver';
 import { getImageSettings } from './imageUtils';
 import { imageBubblePlugin } from './editor.image.bubble';
 import {

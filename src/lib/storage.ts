@@ -1,5 +1,6 @@
 import type { FileEntry, RemoteImageData } from '../types/fileTree';
 import type { Settings } from '../types/settings';
+import { DEFAULT_SETTINGS } from '../types/settings';
 import { invoke } from '@tauri-apps/api/core';
 
 export async function readFile(path: string): Promise<string> {
@@ -58,8 +59,9 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 export async function saveSettings(settings: Partial<Settings>): Promise<void> {
-  await invoke('save_settings', { settings });
-  settingsCache = settings as Settings;
+  const merged = { ...(settingsCache ?? DEFAULT_SETTINGS), ...settings };
+  await invoke('save_settings', { settings: merged });
+  settingsCache = merged;
 }
 
 export function clearSettingsCache(): void {

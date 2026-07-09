@@ -1,9 +1,11 @@
 import type { FileEntry, DragState } from '../types/fileTree';
 import { readDirRecursive, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
-import { openFileInEditor, getActiveFilePath } from './sidebar';
+import { openFileInEditor } from './sidebar';
+import { getActiveFilePath } from './activeDoc';
 import { showContextMenu } from './contextMenu';
 import { logException, logInfo } from '../lib/logger';
 import { store } from '../lib/store';
+import { initMouseDrag } from './fileTree.dragdrop';
 
 // --- Drag state (shared with fileTree.dragdrop.ts) ---
 
@@ -421,4 +423,8 @@ export function renameEntryInTree(oldPath: string, newName: string) {
   } else {
     container.appendChild(node);
   }
+}
+
+export function initFileTree() {
+  initMouseDrag();
 }

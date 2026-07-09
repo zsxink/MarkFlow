@@ -1,7 +1,7 @@
 import { dragState, getWorkspacePath, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree, removeEntryFromTree, insertEntryIntoTree } from './fileTree.core';
 import { getFileName } from '../lib/pathUtils';
 import { renamePath, readSingleDir } from '../lib/storage';
-import { rewriteActiveDocumentPath } from './sidebar';
+import { rewriteActiveDocumentPath } from './activeDoc';
 import { showToast } from './toast';
 
 export function initMouseDrag() {

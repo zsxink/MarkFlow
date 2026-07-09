@@ -5,7 +5,8 @@ import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
 import { refreshOutline } from './outline';
 import { logException, logInfo } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
-import { getActiveFilePath, setActiveFilePath, confirmDocumentTransition } from './sidebar';
+import { getActiveFilePath, setActiveFilePath } from './activeDoc';
+import { confirmDocumentTransition } from './sidebar';
 
 function getConflictSavePath(path: string) {
   return path.endsWith('.md') ? `${path.slice(0, -3)}.conflict.md` : `${path}.conflict.md`;

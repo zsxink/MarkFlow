@@ -1,4 +1,5 @@
 import type { FileEntry, RemoteImageData } from '../types/fileTree';
+import type { Settings } from '../types/settings';
 import { invoke } from '@tauri-apps/api/core';
 
 export async function readFile(path: string): Promise<string> {
@@ -49,23 +50,23 @@ export async function getWorkspace(): Promise<string | null> {
   return invoke<string | null>('get_workspace');
 }
 
-export async function loadSettings(): Promise<Record<string, unknown>> {
+export async function loadSettings(): Promise<Settings> {
   if (settingsCache) return settingsCache;
   const s = await invoke('load_settings');
-  settingsCache = s as Record<string, unknown>;
+  settingsCache = s as Settings;
   return settingsCache;
 }
 
-export async function saveSettings(settings: Record<string, unknown>): Promise<void> {
+export async function saveSettings(settings: Partial<Settings>): Promise<void> {
   await invoke('save_settings', { settings });
-  settingsCache = settings;
+  settingsCache = settings as Settings;
 }
 
 export function clearSettingsCache(): void {
   settingsCache = null;
 }
 
-let settingsCache: Record<string, unknown> | null = null;
+let settingsCache: Settings | null = null;
 
 export async function readFileAsBase64(path: string): Promise<string> {
   return invoke<string>('read_file_as_base64', { path });

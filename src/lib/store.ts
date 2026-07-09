@@ -1,4 +1,5 @@
 import type { StoreEvent, StoreState } from '../types/events';
+import { DEFAULT_SETTINGS } from '../types/settings';
 
 type EventType = StoreEvent['type'];
 type Callback = (event: StoreEvent) => void;
@@ -9,7 +10,7 @@ const DEFAULT_STATE: StoreState = {
   workspacePath: null,
   expandedPaths: [],
   dirty: false,
-  settings: {},
+  settings: { ...DEFAULT_SETTINGS },
 };
 
 // ── Store implementation ─────────────────────────────────────────────

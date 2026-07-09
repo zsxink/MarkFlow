@@ -3,37 +3,12 @@ import { loadSettings, saveSettings } from '../lib/storage';
 import { logException } from '../lib/logger';
 import { store } from '../lib/store';
 import { showModal } from './ui/modal';
+import type { Settings } from '../types/settings';
+import { DEFAULT_SETTINGS } from '../types/settings';
 
 type Theme = 'light' | 'dark' | 'sepia';
 
-type SettingsState = Record<string, unknown>;
-
-const DEFAULT_SETTINGS: SettingsState = {
-  version: 1,
-  theme: 'light',
-  fontSize: 18,
-  lineHeight: 1.7,
-  autosave: true,
-  autosaveInterval: 10000,
-  spellcheck: true,
-  softWrap: true,
-  livePreview: true,
-  codeHighlight: true,
-  showSidebar: true,
-  showTooltips: true,
-  followSystemTheme: false,
-  lastWorkspace: null,
-  imageStorageMode: 'workspace-assets',
-  imageCustomPath: '',
-  imagePreferRelative: true,
-  imageAutoCopyLocal: true,
-  imageDownloadNetwork: false,
-  imageNamingStrategy: 'timestamp',
-  codeLineNumbers: false,
-  codeWordWrap: true,
-};
-
-let currentSettings: SettingsState = { ...DEFAULT_SETTINGS };
+let currentSettings: Settings = { ...DEFAULT_SETTINGS };
 
 let settingsModalHide: (() => void) | null = null;
 
@@ -362,7 +337,7 @@ async function hydrateSettingsUI() {
   applyRuntimeSettings(currentSettings);
 }
 
-function applySettingsToUI(settings: SettingsState) {
+function applySettingsToUI(settings: Settings) {
   setToggleState('setting-autosave', settings.autosave !== false);
   setSelectValue('setting-autosave-interval', String(settings.autosaveInterval ?? 10000));
   setToggleState('setting-spellcheck', settings.spellcheck !== false);
@@ -395,7 +370,7 @@ function applySettingsToUI(settings: SettingsState) {
   }
 }
 
-function applyRuntimeSettings(settings: SettingsState) {
+function applyRuntimeSettings(settings: Settings) {
   setTheme(String(settings.theme ?? 'light') as Theme);
 
   const sidebar = document.getElementById('sidebar');
@@ -433,7 +408,7 @@ async function persistSettingsFromUI() {
     // they don't accumulate in settings.json across saves.
     const knownKeys = new Set(Object.keys(DEFAULT_SETTINGS));
     for (const key of Object.keys(currentSettings)) {
-      if (!knownKeys.has(key)) delete currentSettings[key];
+      if (!knownKeys.has(key)) delete (currentSettings as unknown as Record<string, unknown>)[key];
     }
     applyRuntimeSettings(currentSettings);
     await saveSettings(currentSettings);
@@ -443,7 +418,7 @@ async function persistSettingsFromUI() {
   }
 }
 
-function buildSettingsFromUI(): SettingsState {
+function buildSettingsFromUI(): Settings {
   return {
     ...currentSettings,
     version: 1,

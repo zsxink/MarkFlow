@@ -2,7 +2,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Extension } from '@tiptap/core';
 import { assetToOriginalMap, getActiveDocPath } from './editor.state';
 import { handleNetworkImage, imagePathToSrc } from './imageUtils';
-import { getImageSettings } from './editor.image.store';
+import { getImageSettings } from './imageUtils';
 import { resolveImagePath } from './pathUtils';
 import { showImageContextMenu } from '../components/imageContextMenu';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';

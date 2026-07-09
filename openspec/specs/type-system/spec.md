@@ -117,3 +117,45 @@
 
 - **WHEN** 运行 `npm test`
 - **THEN** 所有测试用例通过
+
+### Requirement: Settings 类型集中管理
+
+系统 SHALL 将 Settings 相关类型定义在 `src/types/settings.ts` 中，包括但不限于：
+- `Settings` — 完整的 Settings 接口，字段与 Rust `Settings` struct（`#[serde(rename_all = camelCase)]`）一一对应
+- `DEFAULT_SETTINGS` — Settings 默认值常量
+
+#### Scenario: Settings 正确定义
+
+- **WHEN** 从 `src/types/settings.ts` import `Settings`
+- **THEN** `Settings` 应包含 `version`、`theme`、`fontSize`、`lineHeight`、`autosave`、`autosaveInterval`、`codeLineNumbers`、`codeWordWrap` 等全部字段
+- **AND** `theme` 字段类型为 `'light' | 'dark' | 'sepia'`
+
+#### Scenario: DEFAULT_SETTINGS 正确定义
+
+- **WHEN** 从 `src/types/settings.ts` import `DEFAULT_SETTINGS`
+- **THEN** `DEFAULT_SETTINGS` 应包含所有 Settings 字段的默认值
+- **AND** `DEFAULT_SETTINGS` 满足 `Settings` 接口类型约束
+
+### Requirement: storage.ts 使用 Settings 类型
+
+系统 SHALL 将 `src/lib/storage.ts` 中的 `loadSettings`/`saveSettings` 返回/接收类型从 `Record<string, unknown>` 改为 `Settings`。
+
+#### Scenario: loadSettings 返回 Settings 类型
+
+- **WHEN** 检查 `loadSettings` 函数签名
+- **THEN** 返回类型为 `Settings` 而非 `Record<string, unknown>`
+
+#### Scenario: saveSettings 接收 Settings 类型
+
+- **WHEN** 检查 `saveSettings` 函数签名
+- **THEN** 参数类型为 `Settings` 而非 `Record<string, unknown>`
+
+### Requirement: settings.ts 组件引用 DEFAULT_SETTINGS
+
+系统 SHALL 将 `src/lib/settings.ts`（组件）中对 `DEFAULT_SETTINGS` 的定义改为从 `src/types/settings.ts` 导入。
+
+#### Scenario: settings.ts 使用导入的 DEFAULT_SETTINGS
+
+- **WHEN** 构建项目
+- **THEN** `src/lib/settings.ts` 不包含 `const DEFAULT_SETTINGS` 定义
+- **AND** 从 `src/types/settings.ts` import `DEFAULT_SETTINGS`

@@ -305,41 +305,14 @@ fn validate_remote_image_url(raw: &str) -> Result<reqwest::Url, String> {
 }
 
 async fn fetch_remote_image_bytes(url: &str) -> Result<(Vec<u8>, String), String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-    let mut current_url = validate_remote_image_url(url)?;
-    let mut redirects_remaining = 5;
-
-    let response = loop {
-        let response = client
-            .get(current_url.clone())
-            .send()
-            .await
-            .map_err(|e| format!("Failed to download: {}", e))?;
-
-        if response.status().is_redirection() {
-            if redirects_remaining == 0 {
-                return Err("Too many redirects".into());
-            }
-            let location = response
-                .headers()
-                .get(reqwest::header::LOCATION)
-                .and_then(|value| value.to_str().ok())
-                .ok_or("Redirect location missing")?;
-            let next_url = current_url
-                .join(location)
-                .map_err(|e| format!("Invalid redirect URL: {}", e))?;
-            current_url = validate_remote_image_url(next_url.as_ref())?;
-            redirects_remaining -= 1;
-            continue;
-        }
-
-        break response;
-    };
+    let client = crate::http::create_client(30)?;
+    let response = crate::http::fetch_with_redirects(
+        &client,
+        url,
+        5,
+        validate_remote_image_url,
+    )
+    .await?;
 
     if !response.status().is_success() {
         return Err(format!("HTTP error: {}", response.status()));
@@ -372,42 +345,14 @@ pub async fn fetch_remote_image_as_base64(url: String) -> Result<RemoteImageData
 
 #[tauri::command]
 pub async fn fetch_page_title(url: String) -> Result<String, String> {
-    let validated_url = validate_remote_image_url(&url)?;
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(3))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-    let mut current_url = validated_url;
-    let mut redirects_remaining = 5;
-    let response = loop {
-        let response = client
-            .get(current_url.clone())
-            .send()
-            .await
-            .map_err(|e| format!("Failed to fetch URL: {}", e))?;
-
-        if response.status().is_redirection() {
-            if redirects_remaining == 0 {
-                return Err("Too many redirects".into());
-            }
-            let location = response
-                .headers()
-                .get(reqwest::header::LOCATION)
-                .and_then(|value| value.to_str().ok())
-                .ok_or("Redirect location missing")?;
-            let next_url = current_url
-                .join(location)
-                .map_err(|e| format!("Invalid redirect URL: {}", e))?;
-            current_url = validate_remote_image_url(next_url.as_ref())?;
-            redirects_remaining -= 1;
-            continue;
-        }
-
-        break response;
-    };
+    let client = crate::http::create_client(3)?;
+    let response = crate::http::fetch_with_redirects(
+        &client,
+        &url,
+        5,
+        validate_remote_image_url,
+    )
+    .await?;
 
     if !response.status().is_success() {
         return Err(format!("HTTP error: {}", response.status()));

@@ -4,8 +4,6 @@ import { Extension } from '@tiptap/core';
 import { assetToOriginalMap, getActiveDocPath } from './editor.state';
 import { resolveImagePath } from './pathUtils';
 import { imagePathToSrc } from './imageUtils';
-import type { ImageSettings } from '../types/editor';
-import { loadSettings } from './storage';
 
 /**
  * Resolve relative-image src attributes to absolute paths in the ProseMirror
@@ -44,31 +42,4 @@ export function imageSrcResolverPlugin(): Extension {
       ];
     },
   });
-}
-
-// ── Image settings helpers ─────────────────────────────────────────────
-
-export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
-  storageMode: 'workspace-assets',
-  customPath: '',
-  preferRelative: true,
-  autoCopyLocal: true,
-  downloadNetwork: false,
-  namingStrategy: 'timestamp',
-};
-
-export async function getImageSettings(): Promise<ImageSettings> {
-  try {
-    const s = await loadSettings() as Record<string, unknown>;
-    return {
-      storageMode: (s.imageStorageMode as string) || DEFAULT_IMAGE_SETTINGS.storageMode,
-      customPath: (s.imageCustomPath as string) || DEFAULT_IMAGE_SETTINGS.customPath,
-      preferRelative: s.imagePreferRelative !== false,
-      autoCopyLocal: s.imageAutoCopyLocal !== false,
-      downloadNetwork: s.imageDownloadNetwork === true,
-      namingStrategy: (s.imageNamingStrategy as string) || DEFAULT_IMAGE_SETTINGS.namingStrategy,
-    };
-  } catch {
-    return DEFAULT_IMAGE_SETTINGS;
-  }
 }

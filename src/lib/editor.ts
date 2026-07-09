@@ -22,7 +22,8 @@ import {
   BlockImage,
   mermaidCodeBlockExtension,
 } from './editor.extensions';
-import { imageSrcResolverPlugin, getImageSettings } from './editor.image.store';
+import { imageSrcResolverPlugin } from './editor.image.store';
+import { getImageSettings } from './imageUtils';
 import { imageBubblePlugin } from './editor.image.bubble';
 import {
   normalizeImageMarkdown,
@@ -336,4 +337,4 @@ export function switchToWysiwyg() {
 
 // ── Image settings (re-export for external use if needed) ──────────────
 
-export { DEFAULT_IMAGE_SETTINGS } from './editor.image.store';
+export { DEFAULT_IMAGE_SETTINGS } from './imageUtils';

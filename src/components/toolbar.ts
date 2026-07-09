@@ -7,10 +7,10 @@ import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
 import { showModal } from './ui/modal';
 import { showSettings } from './settings';
-import { loadSettings, addRecentFile } from '../lib/storage';
+import { addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
-import { copyLocalFileToStorage, handleNetworkImage } from '../lib/imageUtils';
-import type { ImageSettings } from '../types/editor';
+import { copyLocalFileToStorage, handleNetworkImage, getImageSettings } from '../lib/imageUtils';
+import { getActiveDocPath } from '../lib/editor.state';
 import { logException } from '../lib/logger';
 
 export function initToolbar() {
@@ -122,35 +122,6 @@ function updateModeIndicator(mode: string) {
   if (indicator) {
     indicator.textContent = mode === 'wysiwyg' ? '所见即所得' : '源码';
   }
-}
-
-async function getImageSettings(): Promise<ImageSettings> {
-  const DEFAULTS: ImageSettings = {
-    storageMode: 'workspace-assets',
-    customPath: '',
-    preferRelative: true,
-    autoCopyLocal: true,
-    downloadNetwork: false,
-    namingStrategy: 'timestamp',
-  };
-  try {
-    const s = await loadSettings() as Record<string, unknown>;
-    return {
-      storageMode: (s.imageStorageMode as string) || DEFAULTS.storageMode,
-      customPath: (s.imageCustomPath as string) || DEFAULTS.customPath,
-      preferRelative: s.imagePreferRelative !== false,
-      autoCopyLocal: s.imageAutoCopyLocal !== false,
-      downloadNetwork: s.imageDownloadNetwork === true,
-      namingStrategy: (s.imageNamingStrategy as string) || DEFAULTS.namingStrategy,
-    };
-  } catch {
-    return DEFAULTS;
-  }
-}
-
-function getActiveDocPath(): string | null {
-  const el = document.querySelector('.tree-file.active') as HTMLElement | null;
-  return el?.dataset?.path || null;
 }
 
 /// Insert image Markdown in either WYSIWYG or source mode

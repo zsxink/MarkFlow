@@ -47,26 +47,14 @@ class Store {
   setState(partial: Partial<StoreState>): void {
     const keys = Object.keys(partial) as (keyof StoreState)[];
     if (keys.length === 0) return;
+    this.state = { ...this.state, ...partial };
 
-    for (const key of keys) {
-      (this.state as any)[key] = partial[key];
-    }
-
-    // Emit events for state keys that have corresponding event types
     for (const key of keys) {
       switch (key) {
-        case 'mode':
-          this.emit({ type: 'editor:mode', mode: this.state.mode });
-          break;
-        case 'activeFilePath':
-          this.emit({ type: 'file:active', path: this.state.activeFilePath });
-          break;
-        case 'workspacePath':
-          this.emit({ type: 'workspace:set', path: this.state.workspacePath });
-          break;
-        case 'dirty':
-          this.emit({ type: 'editor:dirty', dirty: this.state.dirty });
-          break;
+        case 'mode': this.emit({ type: 'editor:mode', mode: this.state.mode }); break;
+        case 'dirty': this.emit({ type: 'editor:dirty', dirty: this.state.dirty }); break;
+        case 'activeFilePath': this.emit({ type: 'file:active', path: this.state.activeFilePath }); break;
+        case 'workspacePath': this.emit({ type: 'workspace:set', path: this.state.workspacePath }); break;
       }
     }
   }

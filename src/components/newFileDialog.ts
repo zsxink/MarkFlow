@@ -3,8 +3,10 @@ import { insertEntryIntoTree, suppressNextWatcherRefresh } from './fileTree';
 import { showToast } from './toast';
 import { openFileInEditor } from './sidebar';
 import { open, save } from '@tauri-apps/plugin-dialog';
+import { showModal } from './ui/modal';
 
 let mode: 'file' | 'folder' = 'file';
+let closeDialog: (() => void) | null = null;
 
 export function showNewFileDialog(type: 'file' | 'folder', workspacePath: string | null = null) {
   mode = type;
@@ -19,45 +21,34 @@ export function showNewFileDialog(type: 'file' | 'folder', workspacePath: string
     return;
   }
 
-  const overlay = document.getElementById('newfile-modal');
-  if (!overlay) return;
-
-  overlay.innerHTML = `
-    <div class="modal newfile-modal">
-      <div class="modal-header">
-        <span id="newfile-title">${type === 'file' ? '新建文件' : '新建文件夹'}</span>
-        <button class="modal-close" id="newfile-close">✕</button>
+  const modal = showModal({
+    content: `
+      <div class="newfile-modal">
+        <div class="modal-header">
+          <span id="newfile-title">${type === 'file' ? '新建文件' : '新建文件夹'}</span>
+          <button class="modal-close" id="newfile-close">✕</button>
+        </div>
+        <div style="padding:16px 24px;">
+          <input type="text" class="newfile-input" id="newfile-name"
+            placeholder="${type === 'file' ? '文件名.md' : '文件夹名'}"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+        </div>
       </div>
-      <div style="padding:16px 24px;">
-        <input type="text" class="newfile-input" id="newfile-name"
-          placeholder="${type === 'file' ? '文件名.md' : '文件夹名'}"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          autofocus />
-      </div>
-    </div>
-  `;
-  overlay.hidden = false;
+    `,
+  });
+  closeDialog = () => modal.hide();
 
   const input = document.getElementById('newfile-name') as HTMLInputElement;
   input?.focus();
 
   document.getElementById('newfile-close')?.addEventListener('click', closeDialog);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeDialog();
-  });
-
   input?.addEventListener('keydown', async (e) => {
     if (e.key === 'Enter') {
       await handleCreateInWorkspace(input.value, workspacePath);
     } else if (e.key === 'Escape') {
-      closeDialog();
+      modal.hide();
     }
   });
-}
-
-function closeDialog() {
-  const overlay = document.getElementById('newfile-modal');
-  if (overlay) overlay.hidden = true;
 }
 
 async function handleCreateNoWorkspace(type: 'file' | 'folder') {
@@ -112,7 +103,7 @@ async function handleCreateInWorkspace(name: string, workspacePath: string | nul
       const fileName = fullPath.endsWith('.md') ? fullPath : `${fullPath}.md`;
       suppressNextWatcherRefresh(fileName);
       await createFile(fileName, '');
-      closeDialog();
+      closeDialog?.();
       const entries = await readSingleDir(workspacePath);
       const newEntry = entries.find(e => e.path === fileName);
       if (newEntry) insertEntryIntoTree(workspacePath, newEntry);
@@ -121,7 +112,7 @@ async function handleCreateInWorkspace(name: string, workspacePath: string | nul
     } else {
       suppressNextWatcherRefresh(fullPath);
       await createDir(fullPath);
-      closeDialog();
+      closeDialog?.();
       const entries = await readSingleDir(workspacePath);
       const newEntry = entries.find(e => e.path === fullPath);
       if (newEntry) insertEntryIntoTree(workspacePath, newEntry);

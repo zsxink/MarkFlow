@@ -1,109 +1,38 @@
 import { saveMermaidPngExport, saveMermaidSvgExport } from '../lib/storage';
-import {
-  clampMenuPosition,
-  validatePngCanvasSize,
-} from './mermaidContextMenu.helpers';
+import { validatePngCanvasSize } from './mermaidContextMenu.helpers';
 import { showToast } from './toast';
+import { showContextMenuStatic } from './ui/contextMenu';
+import type { ContextMenuItem } from './ui/contextMenu';
 
 interface MermaidContextMenuState {
   svg: string;
   defaultName: string;
 }
 
-type MermaidContextMenuAction = 'save-svg' | 'save-png' | 'copy-svg' | 'copy-png';
-
-let currentState: MermaidContextMenuState | null = null;
-let globalListenersBound = false;
-
-function getMenuMarkup() {
-  return [
-    '<button class="context-menu-item" data-action="save-svg">图片另存为 SVG</button>',
-    '<button class="context-menu-item" data-action="save-png">图片另存为 PNG</button>',
-    '<button class="context-menu-item" data-action="copy-svg">复制 SVG</button>',
-    '<button class="context-menu-item" data-action="copy-png">复制 PNG</button>',
-  ].join('');
-}
-
-function bindGlobalListeners() {
-  if (globalListenersBound) return;
-  globalListenersBound = true;
-
-  document.addEventListener('mousedown', (event) => {
-    const menu = document.getElementById('mermaid-context-menu');
-    if (!menu || menu.hidden) return;
-    const target = event.target;
-    if (target instanceof Node && menu.contains(target)) return;
-    hideMermaidContextMenu();
-  });
-
-  document.addEventListener('scroll', () => {
-    if (currentState) hideMermaidContextMenu();
-  }, true);
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && currentState) {
-      hideMermaidContextMenu();
-    }
-  });
-}
-
-function getMenu() {
-  let menu = document.getElementById('mermaid-context-menu') as HTMLDivElement | null;
-  if (menu) return menu;
-
-  bindGlobalListeners();
-
-  menu = document.createElement('div');
-  menu.id = 'mermaid-context-menu';
-  menu.className = 'context-menu mermaid-context-menu';
-  menu.innerHTML = getMenuMarkup();
-  menu.hidden = true;
-  menu.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest<HTMLButtonElement>('[data-action]');
-    if (!button || !currentState) return;
-
-    event.stopPropagation();
-    const action = button.dataset.action as MermaidContextMenuAction;
-    const state = currentState;
-    hideMermaidContextMenu();
-    await handleAction(action, state);
-  });
-  document.body.appendChild(menu);
-  return menu;
-}
-
 export function showMermaidContextMenu(x: number, y: number, state: MermaidContextMenuState) {
-  currentState = state;
-  const menu = getMenu();
-  menu.hidden = false;
-  menu.style.visibility = 'hidden';
-  menu.style.left = '0px';
-  menu.style.top = '0px';
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: '图片另存为 SVG',
+      onClick: () => { saveSvg(state).catch(e => showToast(`操作失败: ${e}`)); },
+    },
+    {
+      label: '图片另存为 PNG',
+      onClick: () => { savePng(state).catch(e => showToast(`操作失败: ${e}`)); },
+    },
+    {
+      label: '复制 SVG',
+      onClick: () => { copySvg(state.svg).then(() => showToast('SVG 已复制')).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+    },
+    {
+      label: '复制 PNG',
+      onClick: () => { copyPng(state.svg).then(() => showToast('PNG 已复制')).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+    },
+  ];
 
-  const rect = menu.getBoundingClientRect();
-  const position = clampMenuPosition({
-    x,
-    y,
-    menuWidth: rect.width,
-    menuHeight: rect.height,
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight,
-  });
-
-  menu.style.left = `${position.left}px`;
-  menu.style.top = `${position.top}px`;
-  menu.style.visibility = '';
+  showContextMenuStatic(menuItems, { x, y }, { className: 'mermaid-context-menu' });
 }
 
 export function hideMermaidContextMenu() {
-  const menu = document.getElementById('mermaid-context-menu');
-  if (menu) {
-    menu.hidden = true;
-    menu.style.visibility = '';
-  }
-  currentState = null;
 }
 
 function parseSvgDimension(value: string | null) {
@@ -238,26 +167,3 @@ async function savePng(state: MermaidContextMenuState) {
   }
 }
 
-async function handleAction(action: MermaidContextMenuAction, state: MermaidContextMenuState) {
-  try {
-    switch (action) {
-      case 'save-svg':
-        await saveSvg(state);
-        break;
-      case 'save-png':
-        await savePng(state);
-        break;
-      case 'copy-svg':
-        await copySvg(state.svg);
-        showToast('SVG 已复制');
-        break;
-      case 'copy-png':
-        await copyPng(state.svg);
-        showToast('PNG 已复制');
-        break;
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showToast(message || '操作失败');
-  }
-}

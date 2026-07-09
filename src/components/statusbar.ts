@@ -1,5 +1,6 @@
 import { getWordCount, getLineCount, getCursorPos } from '../lib/editor';
 import { cycleTheme } from '../lib/theme';
+import { showSettings } from './settings';
 
 import { store } from '../lib/store';
 
@@ -7,8 +8,7 @@ export function initStatusBar() {
   store.on('editor:update', updateStats);
 
   document.getElementById('sb-settings')?.addEventListener('click', () => {
-    const modal = document.getElementById('settings-modal');
-    if (modal) modal.hidden = false;
+    showSettings();
   });
 
   document.getElementById('sb-focus')?.addEventListener('click', () => {

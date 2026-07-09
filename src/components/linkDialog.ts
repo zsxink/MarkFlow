@@ -1,11 +1,9 @@
 import { fetchPageTitle } from '../lib/storage';
 import { getEditor, getMode } from '../lib/editor';
 import { showToast } from './toast';
+import { showModal } from './ui/modal';
 
 export function showLinkDialog() {
-  const overlay = document.getElementById('link-modal');
-  if (!overlay) return;
-
   const mode = getMode();
   let selectedText = '';
 
@@ -23,33 +21,34 @@ export function showLinkDialog() {
     selectedText = editor?.state.selection ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') : '';
   }
 
-  overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-header">
-        <span>插入链接</span>
-        <button class="modal-close" id="link-close">✕</button>
+  const modal = showModal({
+    content: `
+      <div class="modal">
+        <div class="modal-header">
+          <span>插入链接</span>
+          <button class="modal-close" id="link-close">✕</button>
+        </div>
+        <div style="padding:16px 24px;">
+          <div class="link-field">
+            <label class="link-label">URL</label>
+            <input class="link-input" id="link-url" placeholder="https://example.com" autofocus />
+          </div>
+          <div class="link-field" style="margin-top:10px;">
+            <label class="link-label">文本</label>
+            <input class="link-input" id="link-text" placeholder="留空则使用 URL" value="${selectedText.replace(/"/g, '&quot;')}" />
+            <label class="link-autofill-label">
+              <input type="checkbox" id="link-autofill" />
+              自动填充
+            </label>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+            <button class="btn-secondary" id="link-cancel">取消</button>
+            <button class="btn-primary" id="link-confirm">确定</button>
+          </div>
+        </div>
       </div>
-      <div style="padding:16px 24px;">
-        <div class="link-field">
-          <label class="link-label">URL</label>
-          <input class="link-input" id="link-url" placeholder="https://example.com" autofocus />
-        </div>
-        <div class="link-field" style="margin-top:10px;">
-          <label class="link-label">文本</label>
-          <input class="link-input" id="link-text" placeholder="留空则使用 URL" value="${selectedText.replace(/"/g, '&quot;')}" />
-          <label class="link-autofill-label">
-            <input type="checkbox" id="link-autofill" />
-            自动填充
-          </label>
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-          <button class="btn-secondary" id="link-cancel">取消</button>
-          <button class="btn-primary" id="link-confirm">确定</button>
-        </div>
-      </div>
-    </div>
-  `;
-  overlay.hidden = false;
+    `,
+  });
 
   const urlInput = document.getElementById('link-url') as HTMLInputElement;
   const textInput = document.getElementById('link-text') as HTMLInputElement;
@@ -57,16 +56,15 @@ export function showLinkDialog() {
 
   let aborted = false;
 
+  const close = () => { aborted = true; modal.hide(); };
+
   autofillCb.addEventListener('change', () => {
     textInput.disabled = autofillCb.checked;
     textInput.placeholder = autofillCb.checked ? '自动获取中...' : '留空则使用 URL';
   });
 
-  const close = () => { aborted = true; overlay.hidden = true; };
-
   document.getElementById('link-close')!.addEventListener('click', close);
   document.getElementById('link-cancel')!.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
   document.getElementById('link-confirm')!.addEventListener('click', async () => {
     const url = urlInput.value.trim();
@@ -109,20 +107,17 @@ export function showLinkDialog() {
     if (aborted) return;
 
     if (mode === 'source') {
-      // Source mode — insert Markdown syntax directly into textarea
       const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;
       if (!textarea) { close(); return; }
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const markdown = `[${text}](${href})`;
       if (start !== end) {
-        // Replace selection with markdown link
         const before = textarea.value.substring(0, start);
         const after = textarea.value.substring(end);
         textarea.value = before + markdown + after;
         textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
       } else if (text) {
-        // Insert at cursor
         const before = textarea.value.substring(0, start);
         const after = textarea.value.substring(start);
         textarea.value = before + markdown + after;
@@ -133,7 +128,6 @@ export function showLinkDialog() {
       }
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     } else {
-      // WYSIWYG mode — use TipTap commands
       const ed = getEditor();
       if (ed) {
         const { from, to } = ed.state.selection;

@@ -271,7 +271,7 @@ fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<()
 
 const MAX_IMAGE_SIZE: u64 = 20 * 1024 * 1024; // 20MB
 
-fn validate_remote_image_url(raw: &str) -> Result<reqwest::Url, String> {
+fn validate_external_url(raw: &str) -> Result<reqwest::Url, String> {
     let url = reqwest::Url::parse(raw).map_err(|_| "Invalid URL")?;
     match url.scheme() {
         "http" | "https" => {}
@@ -310,7 +310,7 @@ async fn fetch_remote_image_bytes(url: &str) -> Result<(Vec<u8>, String), String
         &client,
         url,
         5,
-        validate_remote_image_url,
+        validate_external_url,
     )
     .await?;
 
@@ -345,12 +345,12 @@ pub async fn fetch_remote_image_as_base64(url: String) -> Result<RemoteImageData
 
 #[tauri::command]
 pub async fn fetch_page_title(url: String) -> Result<String, String> {
-    let client = crate::http::create_client(3)?;
+    let client = crate::http::create_client(10)?;
     let response = crate::http::fetch_with_redirects(
         &client,
         &url,
         5,
-        validate_remote_image_url,
+        validate_external_url,
     )
     .await?;
 

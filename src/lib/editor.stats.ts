@@ -1,15 +1,12 @@
 import type { CursorPos } from '../types/editor';
 import { editor, getMode } from './editor.state';
 import { countTextWords } from './editor.helpers';
-
-function getSourceTextarea(): HTMLTextAreaElement | null {
-  return document.getElementById('source-editor') as HTMLTextAreaElement | null;
-}
+import { getSourceView } from './editor.source';
 
 export function getWordCount(): number {
   if (getMode() === 'source') {
-    const textarea = getSourceTextarea();
-    return countTextWords(textarea?.value || '');
+    const view = getSourceView();
+    return countTextWords(view?.state.doc.toString() || '');
   }
   if (!editor) return 0;
   return countTextWords(editor.state.doc.textContent);
@@ -17,10 +14,9 @@ export function getWordCount(): number {
 
 export function getLineCount(): number {
   if (getMode() === 'source') {
-    const textarea = getSourceTextarea();
-    if (!textarea) return 1;
-    const lines = textarea.value.split('\n');
-    return lines.length;
+    const view = getSourceView();
+    if (!view) return 1;
+    return view.state.doc.lines;
   }
   if (!editor) return 0;
   let count = 0;
@@ -32,14 +28,14 @@ export function getLineCount(): number {
 
 export function getCursorPos(): CursorPos {
   if (getMode() === 'source') {
-    const textarea = getSourceTextarea();
-    if (!textarea) return { line: 1, col: 0 };
-    const text = textarea.value;
-    const beforeCursor = text.substring(0, textarea.selectionStart);
-    const line = (beforeCursor.match(/\n/g) || []).length + 1;
-    const lastNewline = beforeCursor.lastIndexOf('\n');
-    const col = beforeCursor.length - lastNewline - 1;
-    return { line, col };
+    const view = getSourceView();
+    if (!view) return { line: 1, col: 0 };
+    const { state } = view;
+    const head = state.selection.main.head;
+    const doc = state.doc;
+    const line = doc.lineAt(head);
+    const col = head - line.from;
+    return { line: line.number, col };
   }
   if (!editor) return { line: 1, col: 0 };
   const { from } = editor.state.selection;

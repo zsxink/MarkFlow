@@ -1,8 +1,9 @@
 import { open } from '@tauri-apps/plugin-shell';
 import { getImageMimeType, getFileName, getParentDir, resolveImagePath } from '../lib/pathUtils';
 import { fetchRemoteImageAsBase64, readFileAsBase64, saveImageExport } from '../lib/storage';
-import { clampMenuPosition } from './mermaidContextMenu.helpers';
 import { showToast } from './toast';
+import { showContextMenuStatic } from './ui/contextMenu';
+import type { ContextMenuItem } from './ui/contextMenu';
 
 interface ImageContextMenuState {
   src: string;
@@ -10,68 +11,30 @@ interface ImageContextMenuState {
   docPath: string | null;
 }
 
-type ImageContextMenuAction = 'copy-image' | 'save-image' | 'copy-path' | 'open-folder';
+export function showImageContextMenu(x: number, y: number, state: ImageContextMenuState) {
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: '复制到剪切板',
+      onClick: () => { handleAction('copy-image', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+    },
+    {
+      label: '另存为',
+      onClick: () => { handleAction('save-image', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+    },
+    {
+      label: '复制路径',
+      onClick: () => { handleAction('copy-path', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+    },
+    {
+      label: '打开文件所在',
+      onClick: () => { handleAction('open-folder', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+    },
+  ];
 
-let currentState: ImageContextMenuState | null = null;
-let globalListenersBound = false;
-
-function getMenuMarkup() {
-  return [
-    '<button class="context-menu-item" data-action="copy-image">复制到剪切板</button>',
-    '<button class="context-menu-item" data-action="save-image">另存为</button>',
-    '<button class="context-menu-item" data-action="copy-path">复制路径</button>',
-    '<button class="context-menu-item" data-action="open-folder">打开文件所在</button>',
-  ].join('');
+  showContextMenuStatic(menuItems, { x, y }, { className: 'image-context-menu' });
 }
 
-function bindGlobalListeners() {
-  if (globalListenersBound) return;
-  globalListenersBound = true;
-
-  document.addEventListener('mousedown', (event) => {
-    const menu = document.getElementById('image-context-menu');
-    if (!menu || menu.hidden) return;
-    const target = event.target;
-    if (target instanceof Node && menu.contains(target)) return;
-    hideImageContextMenu();
-  });
-
-  document.addEventListener('scroll', () => {
-    if (currentState) hideImageContextMenu();
-  }, true);
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && currentState) {
-      hideImageContextMenu();
-    }
-  });
-}
-
-function getMenu() {
-  let menu = document.getElementById('image-context-menu') as HTMLDivElement | null;
-  if (menu) return menu;
-
-  bindGlobalListeners();
-
-  menu = document.createElement('div');
-  menu.id = 'image-context-menu';
-  menu.className = 'context-menu image-context-menu';
-  menu.innerHTML = getMenuMarkup();
-  menu.hidden = true;
-  menu.addEventListener('click', async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest<HTMLButtonElement>('[data-action]');
-    if (!button || !currentState) return;
-
-    event.stopPropagation();
-    const action = button.dataset.action as ImageContextMenuAction;
-    const state = currentState;
-    hideImageContextMenu();
-    await handleAction(action, state);
-  });
-  document.body.appendChild(menu);
-  return menu;
+export function hideImageContextMenu() {
 }
 
 function stripQueryAndHash(value: string) {
@@ -245,39 +208,7 @@ async function openContainingFolder(state: ImageContextMenuState) {
   showToast('已打开图片所在位置');
 }
 
-export function showImageContextMenu(x: number, y: number, state: ImageContextMenuState) {
-  currentState = state;
-  const menu = getMenu();
-  menu.hidden = false;
-  menu.style.visibility = 'hidden';
-  menu.style.left = '0px';
-  menu.style.top = '0px';
-
-  const rect = menu.getBoundingClientRect();
-  const position = clampMenuPosition({
-    x,
-    y,
-    menuWidth: rect.width,
-    menuHeight: rect.height,
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight,
-  });
-
-  menu.style.left = `${position.left}px`;
-  menu.style.top = `${position.top}px`;
-  menu.style.visibility = '';
-}
-
-export function hideImageContextMenu() {
-  const menu = document.getElementById('image-context-menu');
-  if (menu) {
-    menu.hidden = true;
-    menu.style.visibility = '';
-  }
-  currentState = null;
-}
-
-async function handleAction(action: ImageContextMenuAction, state: ImageContextMenuState) {
+async function handleAction(action: string, state: ImageContextMenuState) {
   try {
     switch (action) {
       case 'copy-image':

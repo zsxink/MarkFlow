@@ -5,6 +5,8 @@ import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree'
 import { showNewFileDialog } from './newFileDialog';
 import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
+import { showModal } from './ui/modal';
+import { showSettings } from './settings';
 import { loadSettings, addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage } from '../lib/imageUtils';
@@ -95,8 +97,7 @@ function bindToolbarEvents() {
   bind('btn-theme', () => cycleTheme());
 
   bind('btn-settings', () => {
-    const modal = document.getElementById('settings-modal');
-    if (modal) modal.hidden = !modal.hidden;
+    showSettings();
   });
 
   bind('btn-save', async () => {
@@ -179,35 +180,34 @@ function insertImageSrc(src: string) {
 }
 
 export function showImageInsertDialog(options?: { alt?: string; src?: string; onReplace?: (src: string, alt: string) => void }) {
-  const overlay = document.getElementById('image-modal');
-  if (!overlay) return;
-
   const isEdit = !!options?.onReplace;
-  overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-header">
-        <span>${isEdit ? '编辑图片' : '插入图片'}</span>
-        <button class="modal-close" id="image-close">✕</button>
+
+  const modal = showModal({
+    content: `
+      <div class="modal">
+        <div class="modal-header">
+          <span>${isEdit ? '编辑图片' : '插入图片'}</span>
+          <button class="modal-close" id="image-close">✕</button>
+        </div>
+        <div style="padding:16px 24px;">
+          <div class="image-source-tabs">
+            <button class="image-source-tab${isEdit ? '' : ' active'}" data-tab="local">本地文件</button>
+            <button class="image-source-tab${isEdit ? ' active' : ''}" data-tab="url">网络图片</button>
+          </div>
+          <div id="image-tab-local" ${isEdit ? 'hidden' : ''}>
+            <button class="file-pick-btn" id="image-pick-local">点击选择图片文件</button>
+          </div>
+          <div id="image-tab-url" ${isEdit ? '' : 'hidden'}>
+            <input class="url-input" id="image-url-input" placeholder="https://example.com/image.png" />
+          </div>
+          <div class="modal-footer" style="padding-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+            <button class="btn-secondary" id="image-cancel">取消</button>
+            <button class="btn-primary" id="image-confirm">${isEdit ? '替换' : '确定'}</button>
+          </div>
+        </div>
       </div>
-      <div style="padding:16px 24px;">
-        <div class="image-source-tabs">
-          <button class="image-source-tab${isEdit ? '' : ' active'}" data-tab="local">本地文件</button>
-          <button class="image-source-tab${isEdit ? ' active' : ''}" data-tab="url">网络图片</button>
-        </div>
-        <div id="image-tab-local" ${isEdit ? 'hidden' : ''}>
-          <button class="file-pick-btn" id="image-pick-local">点击选择图片文件</button>
-        </div>
-        <div id="image-tab-url" ${isEdit ? '' : 'hidden'}>
-          <input class="url-input" id="image-url-input" placeholder="https://example.com/image.png" />
-        </div>
-        <div class="modal-footer" style="padding-top:16px;display:flex;justify-content:flex-end;gap:8px;">
-          <button class="btn-secondary" id="image-cancel">取消</button>
-          <button class="btn-primary" id="image-confirm">${isEdit ? '替换' : '确定'}</button>
-        </div>
-      </div>
-    </div>
-  `;
-  overlay.hidden = false;
+    `,
+  });
 
   let activeTab: 'local' | 'url' = isEdit ? 'url' : 'local';
 
@@ -218,20 +218,19 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
   }
 
   // Tab switching
-  overlay.querySelectorAll('.image-source-tab').forEach(tab => {
+  document.querySelectorAll('.image-source-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       activeTab = (tab as HTMLElement).dataset.tab as 'local' | 'url';
-      overlay.querySelectorAll('.image-source-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.image-source-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById('image-tab-local')!.hidden = activeTab !== 'local';
       document.getElementById('image-tab-url')!.hidden = activeTab !== 'url';
     });
   });
 
-  const close = () => { overlay.hidden = true; };
+  const close = () => { modal.hide(); };
   document.getElementById('image-close')!.addEventListener('click', close);
   document.getElementById('image-cancel')!.addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
   // Local file picker
   document.getElementById('image-pick-local')!.addEventListener('click', async () => {

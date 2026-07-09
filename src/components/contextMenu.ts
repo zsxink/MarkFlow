@@ -6,75 +6,54 @@ import { getFileName, getParentDir } from '../lib/pathUtils';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
 import { ask } from '@tauri-apps/plugin-dialog';
+import { showContextMenuStatic } from './ui/contextMenu';
+import type { ContextMenuItem } from './ui/contextMenu';
 
 type TargetType = 'file' | 'folder' | 'empty';
 
-let currentPath: string | null = null;
-let currentType: TargetType = 'empty';
-
 export function showContextMenu(x: number, y: number, path: string | null, type: TargetType) {
-  currentPath = path;
-  currentType = type;
-  const menu = document.getElementById('context-menu');
-  if (!menu) return;
-
-  const items: string[] = [];
+  const workspacePath = getWorkspacePath();
+  const menuItems: ContextMenuItem[] = [];
 
   // New file / New folder — always available when workspace exists
-  const workspacePath = getWorkspacePath();
   if (workspacePath) {
-    items.push(`<button class="context-menu-item" data-action="new-file">新建文件</button>`);
-    items.push(`<button class="context-menu-item" data-action="new-folder">新建文件夹</button>`);
+    menuItems.push({ label: '新建文件', onClick: () => handleContextAction('new-file', path, type) });
+    menuItems.push({ label: '新建文件夹', onClick: () => handleContextAction('new-folder', path, type) });
   }
 
   if (type === 'file' || type === 'folder') {
-    items.push(`<button class="context-menu-item" data-action="rename">重命名</button>`);
-    items.push(`<button class="context-menu-item" data-action="duplicate">复制(副本)</button>`);
-    items.push(`<button class="context-menu-item danger" data-action="delete">删除</button>`);
-    items.push(`<hr style="border:none;border-top:1px solid var(--border);margin:4px 0">`);
-    items.push(`<button class="context-menu-item" data-action="copy-relative">复制文件路径</button>`);
-    items.push(`<button class="context-menu-item" data-action="copy-absolute">复制绝对路径</button>`);
+    menuItems.push({ label: '重命名', onClick: () => handleContextAction('rename', path, type) });
+    menuItems.push({ label: '复制(副本)', onClick: () => handleContextAction('duplicate', path, type) });
+    menuItems.push({ label: '删除', danger: true, onClick: () => handleContextAction('delete', path, type) });
+    menuItems.push({ divider: true });
+    menuItems.push({ label: '复制文件路径', onClick: () => handleContextAction('copy-relative', path, type) });
+    menuItems.push({ label: '复制绝对路径', onClick: () => handleContextAction('copy-absolute', path, type) });
   } else {
-    // Empty space — add workspace-related items if available
     if (workspacePath) {
-      items.push(`<hr style="border:none;border-top:1px solid var(--border);margin:4px 0">`);
-      items.push(`<button class="context-menu-item" data-action="copy-workspace">复制工作区路径</button>`);
+      menuItems.push({ divider: true });
+      menuItems.push({ label: '复制工作区路径', onClick: () => handleContextAction('copy-workspace', path, type) });
     } else {
-      // No workspace — offer to open folder or file directly
-      items.push(`<button class="context-menu-item" data-action="open-folder">打开文件夹</button>`);
-      items.push(`<button class="context-menu-item" data-action="open-file">打开文件</button>`);
+      menuItems.push({ label: '打开文件夹', onClick: () => handleContextAction('open-folder', path, type) });
+      menuItems.push({ label: '打开文件', onClick: () => handleContextAction('open-file', path, type) });
     }
   }
 
   // Reveal in explorer — always available when path or workspace exists
   if (path || workspacePath) {
-    items.push(`<button class="context-menu-item" data-action="reveal">在文件资源管理器中显示</button>`);
+    menuItems.push({ label: '在文件资源管理器中显示', onClick: () => handleContextAction('reveal', path, type) });
   }
 
-  menu.innerHTML = items.join('');
+  showContextMenuStatic(menuItems, { x, y });
+}
 
-  // Position menu, keep within viewport
-  menu.style.left = `${Math.min(x, window.innerWidth - 200)}px`;
-  menu.style.top = `${Math.min(y, window.innerHeight - 300)}px`;
-  menu.hidden = false;
-
-  menu.querySelectorAll('.context-menu-item').forEach(item => {
-    item.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const action = (item as HTMLElement).dataset.action;
-      const savedPath = currentPath;
-      const savedType = currentType;
-      hideContextMenu();
-      await handleAction(action!, savedPath, savedType);
-    });
+function handleContextAction(action: string, path: string | null, type: TargetType) {
+  // We can't await inside onClick, so we fire-and-forget
+  handleAction(action, path, type).catch(e => {
+    showToast(`操作失败: ${e}`);
   });
 }
 
 export function hideContextMenu() {
-  const menu = document.getElementById('context-menu');
-  if (menu) menu.hidden = true;
-  currentPath = null;
-  currentType = 'empty';
 }
 
 
@@ -206,6 +185,3 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
     showToast(`操作失败: ${e}`);
   }
 }
-
-// Click elsewhere to close
-document.addEventListener('click', () => hideContextMenu());

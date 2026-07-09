@@ -2,6 +2,7 @@ import { setTheme } from '../lib/theme';
 import { loadSettings, saveSettings } from '../lib/storage';
 import { logException } from '../lib/logger';
 import { store } from '../lib/store';
+import { showModal } from './ui/modal';
 
 type Theme = 'light' | 'dark' | 'sepia';
 
@@ -34,12 +35,35 @@ const DEFAULT_SETTINGS: SettingsState = {
 
 let currentSettings: SettingsState = { ...DEFAULT_SETTINGS };
 
-export function initSettings() {
-  const overlay = document.getElementById('settings-modal');
-  if (!overlay) return;
+let settingsModalHide: (() => void) | null = null;
 
-  overlay.innerHTML = `
-    <div class="modal modal-settings">
+export function initSettings() {
+  // Settings is opened on demand from toolbar; initSettings wires up
+}
+
+export function showSettings() {
+  // Close if already open
+  if (settingsModalHide) {
+    settingsModalHide();
+    settingsModalHide = null;
+    return;
+  }
+
+  const content = createSettingsContent();
+  const modal = showModal({
+    content,
+    className: 'modal-settings',
+    onClose: () => { settingsModalHide = null; },
+  });
+  settingsModalHide = modal.hide;
+
+  bindSettingsEvents(modal.hide);
+  void hydrateSettingsUI();
+}
+
+function createSettingsContent(): string {
+  return `
+    <div class="modal-settings">
       <div class="modal-header">
         <span>设置</span>
         <button class="modal-close" id="settings-close">✕</button>
@@ -272,22 +296,10 @@ export function initSettings() {
       </div>
     </div>
   `;
-
-  bindSettingsEvents();
-  void hydrateSettingsUI();
 }
 
-function bindSettingsEvents() {
-  document.getElementById('settings-close')?.addEventListener('click', () => {
-    const modal = document.getElementById('settings-modal');
-    if (modal) modal.hidden = true;
-  });
-
-  document.getElementById('settings-modal')?.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) {
-      (e.target as HTMLElement).hidden = true;
-    }
-  });
+function bindSettingsEvents(hide: () => void) {
+  document.getElementById('settings-close')?.addEventListener('click', hide);
 
   document.querySelectorAll('.settings-tab').forEach(tab => {
     tab.addEventListener('click', () => {

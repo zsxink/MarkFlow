@@ -23,12 +23,12 @@ export interface Settings {
   codeLineNumbers?: boolean;
   codeWordWrap?: boolean;
   lastSidebarTab?: string;
-  recentFiles?: string[];
-  recentFolders?: string[];
-  lastWindowWidth?: number;
-  lastWindowHeight?: number;
-  lastWindowX?: number;
-  lastWindowY?: number;
+  recentFiles: string[];
+  recentFolders: string[];
+  lastWindowWidth: number;
+  lastWindowHeight: number;
+  lastWindowX: number;
+  lastWindowY: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

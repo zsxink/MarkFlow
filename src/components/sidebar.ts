@@ -5,6 +5,7 @@ import { initOutline, refreshOutline } from './outline';
 import { showContextMenu } from './contextMenu';
 import { open } from '@tauri-apps/plugin-dialog';
 import { addRecentFolder, saveSettings } from '../lib/storage';
+import { logException } from '../lib/logger';
 import { store } from '../lib/store';
 import { showDialog } from './ui/dialog';
 
@@ -124,7 +125,7 @@ export function initSidebar() {
     tab.addEventListener('click', () => {
       const tabName = (tab as HTMLElement).dataset.tab as 'files' | 'outline';
       switchSidebarTab(tabName);
-      saveSettings({ lastSidebarTab: tabName }).catch(() => {});
+      saveSettings({ lastSidebarTab: tabName }).catch(e => logException('sidebar.tab', 'Failed to persist sidebar tab preference', e));
     });
   });
 

@@ -1,5 +1,5 @@
 import { readFile, writeFile, addRecentFile } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, setActiveDocumentPath, setMarkdown } from '../lib/editor';
+import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown } from '../lib/editor';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
 import { refreshOutline } from './outline';
@@ -168,6 +168,7 @@ export async function openFileInEditor(path: string) {
     setActiveDocumentPath(path);
     setActiveFilePath(path);
     setMarkdown(content);
+    resetEditorScroll();
     refreshOutline();
     showToast('已打开文件');
   } catch (e) {

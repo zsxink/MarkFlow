@@ -1,6 +1,6 @@
 import type { ImageSettings } from '../types/editor';
 import { resolveImagePath, computeRelativePath, getParentDir, getImageMimeType } from './pathUtils';
-import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64, loadSettings } from './storage';
+import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64, loadSettings, readSingleDir } from './storage';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 // ── Image settings helpers ─────────────────────────────────────────────
@@ -112,7 +112,6 @@ export async function copyImageToStorage(
   }
   const names: string[] = [];
   try {
-    const { readSingleDir } = await import('./storage');
     const entries = await readSingleDir(storageDir);
     names.push(...entries.filter(e => !e.isDir).map(e => e.name));
   } catch { /* dir may not exist yet */ }

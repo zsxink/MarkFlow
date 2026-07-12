@@ -31,21 +31,22 @@
   font-display: block;
 }
 
-/* Source Han Serif SC (思源宋体) — 中文衬线，SIL OFL 协议 */
+/* Source Han Serif SC (思源宋体) — 中文衬线，SIL OFL 协议
+   使用 GB2312 Level 1 子集（~3755 常用汉字），稀有字符回退系统字体 */
 @font-face {
   font-family: 'Source Han Serif SC';
-  src: url('../assets/fonts/SourceHanSerifSC-Regular.woff2') format('woff2');
+  src: url('../assets/fonts/SourceHanSerifSC-Regular-common.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 @font-face {
   font-family: 'Source Han Serif SC';
-  src: url('../assets/fonts/SourceHanSerifSC-Bold.woff2') format('woff2');
+  src: url('../assets/fonts/SourceHanSerifSC-Bold-common.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 :root {

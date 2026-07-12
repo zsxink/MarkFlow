@@ -6,7 +6,6 @@ import { showNewFileDialog } from './newFileDialog';
 import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
 import { showModal } from './ui/modal';
-import { showSettings } from './settings';
 import { addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, getImageSettings } from '../lib/imageUtils';
@@ -96,7 +95,8 @@ function bindToolbarEvents() {
 
   bind('btn-theme', () => cycleTheme());
 
-  bind('btn-settings', () => {
+  bind('btn-settings', async () => {
+    const { showSettings } = await import('./settings');
     showSettings();
   });
 

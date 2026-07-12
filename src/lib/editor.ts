@@ -56,6 +56,12 @@ export function getMarkdown(): string {
   return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
 }
 
+// ── Scroll reset ──────────────────────────────────────────────────────
+
+export function resetEditorScroll() {
+  document.getElementById('editor-area')?.scrollTo({ top: 0, behavior: 'auto' });
+}
+
 export function markDocumentPersisted(markdown: string) {
   getDocumentState().lastPersistedMarkdown = normalizeImageMarkdown(markdown);
   store.setState({ dirty: false });

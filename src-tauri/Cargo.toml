@@ -21,7 +21,9 @@ notify = "7"
 dirs = "6"
 tauri-plugin-shell = "2.3.5"
 base64 = "0.22"
-reqwest = { version = "0.12", features = ["rustls-tls"] }
+futures = "0.3"
+reqwest = { version = "0.12", features = ["rustls-tls", "stream"] }
+tokio = { version = "1", features = ["sync"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }

@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tokio::sync::Semaphore;
 use tracing::{debug, error};
 
 pub struct AppState {
@@ -13,10 +15,23 @@ pub struct AppState {
     pub cli_file: Mutex<Option<String>>,
     pub initial_file_handled: AtomicBool,
     pub close_allowed: Arc<AtomicBool>,
+    /// Shared HTTP client with configured timeouts and connection pooling.
+    pub http_client: reqwest::Client,
+    /// Limits concurrent outbound HTTP requests (default: 3).
+    pub http_semaphore: Semaphore,
 }
 
 impl AppState {
     pub fn new() -> Self {
+        let http_client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .read_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30))
+            .redirect(reqwest::redirect::Policy::none())
+            .pool_max_idle_per_host(4)
+            .build()
+            .expect("Failed to build HTTP client");
+
         Self {
             workspace_root: Mutex::new(None),
             watcher: Mutex::new(None),
@@ -24,6 +39,8 @@ impl AppState {
             cli_file: Mutex::new(None),
             initial_file_handled: AtomicBool::new(false),
             close_allowed: Arc::new(AtomicBool::new(false)),
+            http_client,
+            http_semaphore: Semaphore::new(3),
         }
     }
 

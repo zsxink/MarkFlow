@@ -4,7 +4,6 @@ import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
 import { initMenu } from './components/menu';
 import { initStatusBar } from './components/statusbar';
-import { initSettings } from './components/settings';
 import { initKeyboard } from './utils/keyboard';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
@@ -54,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSidebar();
   initMenu();
   initStatusBar();
-  initSettings();
+  void import('./components/settings').then(m => m.initSettings());
   await initEditor();
   initToolbar();
   initKeyboard();

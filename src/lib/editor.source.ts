@@ -1,19 +1,15 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { HighlightStyle, syntaxHighlighting, LanguageDescription, StreamLanguage, LanguageSupport } from '@codemirror/language';
+import { HighlightStyle, syntaxHighlighting, LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import { javascript } from '@codemirror/lang-javascript';
-import { css } from '@codemirror/lang-css';
-import { html } from '@codemirror/lang-html';
-import { python } from '@codemirror/lang-python';
-import { java } from '@codemirror/lang-java';
-import { rust } from '@codemirror/lang-rust';
-import { go } from '@codemirror/lang-go';
-import { json } from '@codemirror/lang-json';
-import { yaml } from '@codemirror/lang-yaml';
-import { sql } from '@codemirror/lang-sql';
-import { xml } from '@codemirror/lang-xml';
-import { shell } from '@codemirror/legacy-modes/mode/shell';
+import { getLanguageExtension } from './codemirror-languages';
+
+// Fallback: empty LanguageSupport (plain text) when a language fails to load
+const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
+
+async function loadLang(name: string): Promise<LanguageSupport> {
+  return (await getLanguageExtension(name)) ?? plainText;
+}
 
 // ── Syntax highlighting theme ───────────────────────────────────────────
 // Uses CSS variable references resolved at runtime (theme-aware for light/dark/sepia).
@@ -72,18 +68,18 @@ export function createSourceEditor(
       basicSetup,
       syntaxHighlighting(markdownHighlightStyle),
       markdown({ codeLanguages: [
-        LanguageDescription.of({ name: 'javascript', extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'], load: () => Promise.resolve(javascript()) }),
-        LanguageDescription.of({ name: 'css',        extensions: ['css', 'scss', 'less'],     load: () => Promise.resolve(css()) }),
-        LanguageDescription.of({ name: 'html',       extensions: ['html', 'htm', 'svg'],      load: () => Promise.resolve(html()) }),
-        LanguageDescription.of({ name: 'python',     extensions: ['py', 'python'],            load: () => Promise.resolve(python()) }),
-        LanguageDescription.of({ name: 'java',       extensions: ['java'],                    load: () => Promise.resolve(java()) }),
-        LanguageDescription.of({ name: 'rust',       extensions: ['rs', 'rust'],              load: () => Promise.resolve(rust()) }),
-        LanguageDescription.of({ name: 'go',         extensions: ['go'],                      load: () => Promise.resolve(go()) }),
-        LanguageDescription.of({ name: 'json',       extensions: ['json'],                    load: () => Promise.resolve(json()) }),
-        LanguageDescription.of({ name: 'yaml',       extensions: ['yaml', 'yml'],             load: () => Promise.resolve(yaml()) }),
-        LanguageDescription.of({ name: 'sql',        extensions: ['sql'],                     load: () => Promise.resolve(sql()) }),
-        LanguageDescription.of({ name: 'xml',        extensions: ['xml', 'xsl', 'xslt'],      load: () => Promise.resolve(xml()) }),
-        LanguageDescription.of({ name: 'shell', alias: ['bash', 'sh', 'zsh', 'fish'], extensions: ['sh', 'bash'], load: () => Promise.resolve(new LanguageSupport(StreamLanguage.define(shell))) }),
+        LanguageDescription.of({ name: 'javascript', extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'], load: () => loadLang('javascript') }),
+        LanguageDescription.of({ name: 'css',        extensions: ['css', 'scss', 'less'],     load: () => loadLang('css') }),
+        LanguageDescription.of({ name: 'html',       extensions: ['html', 'htm', 'svg'],      load: () => loadLang('html') }),
+        LanguageDescription.of({ name: 'python',     extensions: ['py', 'python'],            load: () => loadLang('python') }),
+        LanguageDescription.of({ name: 'java',       extensions: ['java'],                    load: () => loadLang('java') }),
+        LanguageDescription.of({ name: 'rust',       extensions: ['rs', 'rust'],              load: () => loadLang('rust') }),
+        LanguageDescription.of({ name: 'go',         extensions: ['go'],                      load: () => loadLang('go') }),
+        LanguageDescription.of({ name: 'json',       extensions: ['json'],                    load: () => loadLang('json') }),
+        LanguageDescription.of({ name: 'yaml',       extensions: ['yaml', 'yml'],             load: () => loadLang('yaml') }),
+        LanguageDescription.of({ name: 'sql',        extensions: ['sql'],                     load: () => loadLang('sql') }),
+        LanguageDescription.of({ name: 'xml',        extensions: ['xml', 'xsl', 'xslt'],      load: () => loadLang('xml') }),
+        LanguageDescription.of({ name: 'shell', alias: ['bash', 'sh', 'zsh', 'fish'], extensions: ['sh', 'bash'], load: () => loadLang('shell') }),
       ] }),
       EditorView.updateListener.of(update => {
         if (update.docChanged && onUpdate && !programmaticUpdate) {

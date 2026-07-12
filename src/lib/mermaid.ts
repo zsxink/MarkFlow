@@ -1,11 +1,4 @@
-import mermaid from 'mermaid';
-
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'default',
-  securityLevel: 'strict',
-  htmlLabels: false,
-});
+import { loadMermaid } from './mermaid-lazy';
 
 let renderId = 0;
 
@@ -43,6 +36,7 @@ function sanitizeMermaidSvg(svg: string): string {
 }
 
 export async function renderMermaid(code: string): Promise<string> {
+  const mermaid = await loadMermaid();
   renderId += 1;
   const { svg } = await mermaid.render(`mermaid-${Date.now()}-${renderId}`, code);
   return sanitizeMermaidSvg(svg);

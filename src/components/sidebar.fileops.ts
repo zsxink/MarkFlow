@@ -7,6 +7,7 @@ import { logException, logInfo } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from './ui/dialog';
 import { getActiveFilePath, setActiveFilePath } from './activeDocument';
+import { handleActiveDocumentExternalModification } from './sidebar.conflict';
 
 export async function confirmDocumentTransition(): Promise<boolean> {
   const dirty = isDocumentDirty();
@@ -155,7 +156,6 @@ export async function openFileInEditor(path: string) {
       const reloaded = await reloadActiveDocumentFromDisk({ force: true });
       if (reloaded) showToast('已从磁盘重新加载');
     } else if (hasExternalModification()) {
-      const { handleActiveDocumentExternalModification } = await import('./sidebar.conflict');
       const result = await handleActiveDocumentExternalModification();
       if (result === 'reloaded') showToast('已加载磁盘版本');
     }

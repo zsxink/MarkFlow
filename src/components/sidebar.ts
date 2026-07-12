@@ -1,94 +1,25 @@
-import { isDocumentDirty, hasExternalModification, setMarkdown } from '../lib/editor';
 import { showToast } from './toast';
-import { initFileTree, refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
-import { initOutline, refreshOutline } from './outline';
+import { refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
+import { initMouseDrag } from './fileTree.dragdrop';
+import { initOutline } from './outline';
 import { showContextMenu } from './contextMenu';
 import { open } from '@tauri-apps/plugin-dialog';
 import { addRecentFolder, saveSettings } from '../lib/storage';
 import { logException } from '../lib/logger';
-import { store } from '../lib/store';
-import { showDialog } from './ui/dialog';
 
 // Re-export functions from split modules for backward compatibility
-export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor } from './sidebar.fileops';
+export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor, confirmDocumentTransition } from './sidebar.fileops';
 export { handleExternalDeletion, handleActiveDocumentExternalModification } from './sidebar.conflict';
+export { getActiveFilePath, setActiveFilePath, rewriteActiveDocumentPath, clearActiveDocument, clearActiveDocumentIfMatches } from './activeDocument';
 
-function updateActiveTreeSelection(path: string | null) {
-  document.querySelectorAll('.tree-file').forEach(el => {
-    el.classList.toggle('active', (el as HTMLElement).dataset.path === path);
-  });
-}
-
-export function getActiveFilePath() {
-  return store.getState().activeFilePath;
-}
-
-export function setActiveFilePath(path: string | null) {
-  store.setState({ activeFilePath: path });
-  updateActiveTreeSelection(path);
-}
-
-export function rewriteActiveDocumentPath(from: string, to: string) {
-  const currentPath = getActiveFilePath();
-  if (!currentPath) return;
-  if (currentPath !== from && !currentPath.startsWith(`${from}/`)) return;
-  const suffix = currentPath === from ? '' : currentPath.slice(from.length);
-  setActiveFilePath(`${to}${suffix}`);
-}
-
-export function clearActiveDocumentIfMatches(path: string) {
-  const currentPath = getActiveFilePath();
-  if (!currentPath) return;
-  if (currentPath === path || currentPath.startsWith(`${path}/`)) {
-    clearActiveDocument();
-  }
-}
-
-export function clearActiveDocument() {
-  setMarkdown('');
-  store.setState({ activeFilePath: null });
-  updateActiveTreeSelection(null);
-  refreshOutline();
-}
-
-export async function confirmDocumentTransition(): Promise<boolean> {
-  const dirty = isDocumentDirty();
-  const conflicted = hasExternalModification();
-  if (!dirty && !conflicted) return true;
-
-  const title = conflicted ? '外部修改冲突' : '未保存的更改';
-  const body = conflicted
-    ? '当前文件已被外部修改。切换到其他文件前希望如何处理？'
-    : '当前文件有未保存的更改。切换到其他文件前希望如何处理？';
-
-  const result = await showDialog({
-    title,
-    body: `<p style="margin:0 0 16px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>`,
-    buttons: [
-      { label: '取消', value: 'cancel' },
-      { label: '不保存', value: 'discard' },
-      { label: '保存', value: 'save', primary: true },
-    ],
-    width: '360px',
-  });
-
-  if (result === 'save') {
-    // Dynamic import to avoid circular dependency at resolution time
-    const { saveActiveDocument } = await import('./sidebar.fileops');
-    const saved = await saveActiveDocument({ interactive: true });
-    if (saved) return true;
-    return false;
-  }
-
-  if (result === 'discard') return true;
-  return false;
-}
+import { clearActiveDocument } from './activeDocument';
+import { confirmDocumentTransition } from './sidebar.fileops';
 
 export function initSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
 
-  initFileTree();
+  initMouseDrag();
   initOutline();
 
   // Right-click on sidebar (outside file tree nodes)

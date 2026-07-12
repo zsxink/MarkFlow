@@ -5,7 +5,39 @@ import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
 import { refreshOutline } from './outline';
 import { logException, logInfo } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
-import { getActiveFilePath, setActiveFilePath, confirmDocumentTransition } from './sidebar';
+import { showDialog } from './ui/dialog';
+import { getActiveFilePath, setActiveFilePath } from './activeDocument';
+
+export async function confirmDocumentTransition(): Promise<boolean> {
+  const dirty = isDocumentDirty();
+  const conflicted = hasExternalModification();
+  if (!dirty && !conflicted) return true;
+
+  const title = conflicted ? '外部修改冲突' : '未保存的更改';
+  const body = conflicted
+    ? '当前文件已被外部修改。切换到其他文件前希望如何处理？'
+    : '当前文件有未保存的更改。切换到其他文件前希望如何处理？';
+
+  const result = await showDialog({
+    title,
+    body: `<p style="margin:0 0 16px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>`,
+    buttons: [
+      { label: '取消', value: 'cancel' },
+      { label: '不保存', value: 'discard' },
+      { label: '保存', value: 'save', primary: true },
+    ],
+    width: '360px',
+  });
+
+  if (result === 'save') {
+    const saved = await saveActiveDocument({ interactive: true });
+    if (saved) return true;
+    return false;
+  }
+
+  if (result === 'discard') return true;
+  return false;
+}
 
 function getConflictSavePath(path: string) {
   return path.endsWith('.md') ? `${path.slice(0, -3)}.conflict.md` : `${path}.conflict.md`;

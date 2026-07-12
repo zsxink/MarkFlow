@@ -1,6 +1,7 @@
 import { getWorkspacePath, escapePathSelector, createTreeNode, insertSorted, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree } from './fileTree.core';
 import { readSingleDir, createFile, createDir, renamePath } from '../lib/storage';
-import { openFileInEditor, rewriteActiveDocumentPath } from './sidebar';
+import { rewriteActiveDocumentPath } from './activeDocument';
+import { openFileInEditor } from './sidebar';
 import { showToast } from './toast';
 
 // --- Inline rename ---

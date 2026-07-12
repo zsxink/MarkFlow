@@ -1,8 +1,5 @@
-# file-tree-architecture Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change refactor-split-filetree-ts. Update Purpose after archive.
-## Requirements
 ### Requirement: 文件树模块拆分架构
 文件树模块 SHALL 拆分为四个文件：`fileTree.ts`（公共入口，纯 re-export）、`fileTree.core.ts`（核心渲染/状态/排序）、`fileTree.dragdrop.ts`（拖拽）、`fileTree.inline.ts`（内联编辑）。`fileTree.ts` SHALL 为纯 re-export 桶文件，不包含任何函数定义。
 
@@ -37,4 +34,3 @@ TBD - created by archiving change refactor-split-filetree-ts. Update Purpose aft
 #### Scenario: 内联新建文件正常触发
 - **WHEN** 用户在文件夹中新建文件并输入文件名后按 Enter
 - **THEN** 新文件 SHALL 被创建，在文件树中插入新节点并按排序规则定位，自动在编辑器中打开
-

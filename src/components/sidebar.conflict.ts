@@ -4,7 +4,7 @@ import { showToast } from './toast';
 import { showDialog } from './ui/dialog';
 import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
 import { refreshOutline } from './outline';
-import { getActiveFilePath, clearActiveDocument } from './sidebar';
+import { getActiveFilePath, clearActiveDocument } from './activeDocument';
 import { reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile } from './sidebar.fileops';
 
 function showExternalConflictDialog() {

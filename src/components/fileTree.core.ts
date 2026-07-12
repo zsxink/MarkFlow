@@ -1,6 +1,7 @@
 import type { FileEntry, DragState } from '../types/fileTree';
 import { readDirRecursive, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
-import { openFileInEditor, getActiveFilePath } from './sidebar';
+import { openFileInEditor } from './sidebar';
+import { getActiveFilePath } from './activeDocument';
 import { showContextMenu } from './contextMenu';
 import { logException, logInfo } from '../lib/logger';
 import { store } from '../lib/store';

@@ -1,4 +1,5 @@
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
+use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -29,6 +30,7 @@ impl AppState {
             .timeout(Duration::from_secs(30))
             .redirect(reqwest::redirect::Policy::none())
             .pool_max_idle_per_host(4)
+            .dns_resolver(Arc::new(ValidatingResolver))
             .build()
             .expect("Failed to build HTTP client");
 

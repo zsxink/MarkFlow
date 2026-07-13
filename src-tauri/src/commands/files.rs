@@ -293,6 +293,7 @@ async fn fetch_remote_image_bytes(url: &str, state: &AppState) -> Result<(Vec<u8
         url,
         5,
         validate_external_url,
+        Some(MAX_IMAGE_SIZE),
     )
     .await?;
 
@@ -373,6 +374,7 @@ async fn fetch_page_title_inner(url: &str, state: &AppState) -> Result<String, S
         url,
         5,
         validate_external_url,
+        Some(MAX_TITLE_READ_BYTES as u64),
     )
     .await?;
 

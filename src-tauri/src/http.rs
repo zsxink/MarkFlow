@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 
 /// Maximum image download size (20 MB).
 pub const MAX_IMAGE_SIZE: u64 = 20 * 1024 * 1024;
@@ -8,6 +8,10 @@ pub const MAX_TITLE_READ_BYTES: usize = 256 * 1024;
 
 /// Maximum length of a extracted title string.
 pub const MAX_TITLE_LEN: usize = 512;
+
+/// Allowed HTTP/HTTPS ports. Non-standard ports are rejected to prevent
+/// accessing internal services (e.g., Redis on 6379, SSH on 22).
+const ALLOWED_PORTS: &[u16] = &[80, 443];
 
 // ---------------------------------------------------------------------------
 // URL validation
@@ -26,6 +30,9 @@ pub fn validate_external_url(raw: &str) -> Result<reqwest::Url, String> {
         _ => return Err("Only http/https URLs are allowed".into()),
     }
 
+    // Validate port: only allow standard HTTP/HTTPS ports
+    validate_port(&url)?;
+
     let host = url.host_str().ok_or("URL host required")?;
     if host.eq_ignore_ascii_case("localhost") {
         return Err("Localhost URLs are not allowed".into());
@@ -37,6 +44,16 @@ pub fn validate_external_url(raw: &str) -> Result<reqwest::Url, String> {
     }
 
     Ok(url)
+}
+
+/// Validate that the URL uses a standard HTTP/HTTPS port.
+/// Non-standard ports could be used to access internal services.
+fn validate_port(url: &reqwest::Url) -> Result<(), String> {
+    match url.port() {
+        None => Ok(()), // No explicit port = scheme default (80/443)
+        Some(p) if ALLOWED_PORTS.contains(&p) => Ok(()),
+        Some(p) => Err(format!("Port {} is not allowed", p)),
+    }
 }
 
 /// Reject addresses that must never be reached from a desktop app:
@@ -80,19 +97,15 @@ fn is_documentation_ipv4(v4: std::net::Ipv4Addr) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// DNS resolution + IP validation
+// DNS resolution + IP validation (TOCTOU-safe)
 // ---------------------------------------------------------------------------
 
 /// Resolve the hostname using the system resolver, then validate **every**
 /// returned IP.  Returns an error on the first unsafe address.
 ///
-/// This prevents DNS rebinding: the caller can use the validated result
-/// directly (or at minimum has confirmed the name does not resolve to a
-/// forbidden address at this instant).
+/// This is used for redirect validation where reqwest doesn't re-resolve.
 pub fn resolve_and_validate_host(host: &str) -> Result<(), String> {
-    use std::net::ToSocketAddrs;
-    // Use the system resolver (blocks briefly, but DNS is fast).
-    let addrs: Vec<std::net::SocketAddr> = (host, 0)
+    let addrs: Vec<SocketAddr> = (host, 0)
         .to_socket_addrs()
         .map_err(|e| format!("DNS resolution failed: {}", e))?
         .collect();
@@ -101,13 +114,54 @@ pub fn resolve_and_validate_host(host: &str) -> Result<(), String> {
         return Err("DNS resolution returned no addresses".into());
     }
 
-    let ips: Vec<IpAddr> = addrs.iter().map(|sa| sa.ip()).collect();
-
-    for ip in &ips {
-        validate_ip(ip)?;
+    for sa in &addrs {
+        validate_ip(&sa.ip())?;
     }
 
     Ok(())
+}
+
+/// A DNS resolver that validates every resolved IP address.
+///
+/// This eliminates the TOCTOU race condition: previously, we validated DNS
+/// results separately, then let reqwest re-resolve. An attacker could swap
+/// DNS records between validation and connection. Now, reqwest's own DNS
+/// resolution goes through this validator, so every IP used for connection
+/// is checked.
+#[derive(Clone)]
+pub struct ValidatingResolver;
+
+impl reqwest::dns::Resolve for ValidatingResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_owned();
+        Box::pin(async move {
+            // Use the system resolver to get addresses
+            let addrs: Vec<SocketAddr> = (&*host, 0u16)
+                .to_socket_addrs()
+                .map_err(|e| format!("DNS resolution failed for {}: {}", host, e))?
+                .collect();
+
+            if addrs.is_empty() {
+                return Err(format!("DNS resolution returned no addresses for {}", host).into());
+            }
+
+            // Validate every resolved IP — reject blocked ranges
+            let validated: Vec<SocketAddr> = addrs
+                .into_iter()
+                .filter(|addr| validate_ip(&addr.ip()).is_ok())
+                .collect();
+
+            if validated.is_empty() {
+                return Err(format!(
+                    "All resolved addresses for {} are in blocked networks",
+                    host
+                )
+                .into());
+            }
+
+            Ok(Box::new(validated.into_iter()) as reqwest::dns::Addrs)
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +181,9 @@ pub fn validate_redirect_url(url: &reqwest::Url, original_scheme: &str) -> Resul
     if original_scheme == "https" && url.scheme() == "http" {
         return Err("Protocol downgrade from HTTPS to HTTP is not allowed".into());
     }
+
+    // Validate port on redirect target
+    validate_port(url)?;
 
     let host = url.host_str().ok_or("Redirect target has no host")?;
     if host.eq_ignore_ascii_case("localhost") {
@@ -210,15 +267,16 @@ pub fn validate_image_magic(buf: &[u8]) -> bool {
 
 /// Fetch a URL, following up to `max_redirects` redirects.
 ///
-/// Each redirect target is validated for scheme downgrade and DNS safety.
-/// The initial URL is also DNS-validated to prevent DNS rebinding on the
-/// first request.
+/// Each redirect target is validated for scheme downgrade, DNS safety, and port.
+/// DNS resolution goes through [`ValidatingResolver`] to prevent TOCTOU rebinding.
+/// If `max_response_bytes` is set, Content-Length is checked before streaming.
 /// Uses the shared `client` (caller owns the singleton).
 pub async fn fetch_with_redirects(
     client: &reqwest::Client,
     url: &str,
     max_redirects: u32,
     validate_url: fn(&str) -> Result<reqwest::Url, String>,
+    max_response_bytes: Option<u64>,
 ) -> Result<reqwest::Response, String> {
     let mut current_url = validate_url(url)?;
     let original_scheme = current_url.scheme().to_string();
@@ -259,6 +317,18 @@ pub async fn fetch_with_redirects(
             current_url = next_url;
             redirects_remaining -= 1;
             continue;
+        }
+
+        // Content-Length pre-check: reject oversized responses before streaming
+        if let Some(max) = max_response_bytes {
+            if let Some(content_length) = response.content_length() {
+                if content_length > max {
+                    return Err(format!(
+                        "Response too large: Content-Length {} exceeds limit {}",
+                        content_length, max
+                    ));
+                }
+            }
         }
 
         return Ok(response);
@@ -473,5 +543,63 @@ mod tests {
     fn accepts_svg_direct_tag() {
         let buf = b"<svg viewBox=\"0 0 100 100\">";
         assert!(validate_image_magic(buf));
+    }
+
+    // -- validate_port -------------------------------------------------------
+
+    #[test]
+    fn accepts_default_port() {
+        // No explicit port = scheme default, always allowed
+        let url = reqwest::Url::parse("https://example.com/img.png").unwrap();
+        assert!(validate_port(&url).is_ok());
+    }
+
+    #[test]
+    fn accepts_port_443() {
+        let url = reqwest::Url::parse("https://example.com:443/img.png").unwrap();
+        assert!(validate_port(&url).is_ok());
+    }
+
+    #[test]
+    fn accepts_port_80() {
+        let url = reqwest::Url::parse("http://example.com:80/img.png").unwrap();
+        assert!(validate_port(&url).is_ok());
+    }
+
+    #[test]
+    fn rejects_non_standard_port() {
+        let url = reqwest::Url::parse("https://example.com:8080/img.png").unwrap();
+        assert!(validate_port(&url).is_err());
+    }
+
+    #[test]
+    fn rejects_redis_port() {
+        let url = reqwest::Url::parse("http://evil.com:6379/").unwrap();
+        assert!(validate_port(&url).is_err());
+    }
+
+    #[test]
+    fn rejects_ssh_port() {
+        let url = reqwest::Url::parse("http://evil.com:22/").unwrap();
+        assert!(validate_port(&url).is_err());
+    }
+
+    #[test]
+    fn rejects_port_on_localhost() {
+        let url = reqwest::Url::parse("http://localhost:3000/").unwrap();
+        // Should fail on localhost, not just port
+        assert!(validate_external_url("http://localhost:3000/").is_err());
+    }
+
+    #[test]
+    fn rejects_redirect_with_non_standard_port() {
+        let url = reqwest::Url::parse("https://other.com:9999/page").unwrap();
+        assert!(validate_redirect_url(&url, "https").is_err());
+    }
+
+    #[test]
+    fn accepts_redirect_with_standard_port() {
+        let url = reqwest::Url::parse("https://other.com:443/page").unwrap();
+        assert!(validate_redirect_url(&url, "https").is_ok());
     }
 }

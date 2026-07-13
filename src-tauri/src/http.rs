@@ -109,11 +109,18 @@ fn is_documentation_ipv4(v4: std::net::Ipv4Addr) -> bool {
 /// returned IP.  Returns an error on the first unsafe address.
 ///
 /// This is used for redirect validation where reqwest doesn't re-resolve.
-pub fn resolve_and_validate_host(host: &str) -> Result<(), String> {
-    let addrs: Vec<SocketAddr> = (host, 0)
-        .to_socket_addrs()
-        .map_err(|e| format!("DNS resolution failed: {}", e))?
-        .collect();
+/// Uses spawn_blocking to avoid stalling the async runtime.
+pub async fn resolve_and_validate_host(host: &str) -> Result<(), String> {
+    let host = host.to_owned();
+    let addrs: Vec<SocketAddr> =
+        tokio::task::spawn_blocking(move || -> Result<Vec<SocketAddr>, String> {
+            let iter = (&*host, 0u16)
+                .to_socket_addrs()
+                .map_err(|e| format!("DNS resolution failed: {}", e))?;
+            Ok(iter.collect())
+        })
+        .await
+        .map_err(|e| format!("DNS task failed: {}", e))??;
 
     if addrs.is_empty() {
         return Err("DNS resolution returned no addresses".into());
@@ -140,11 +147,19 @@ impl reqwest::dns::Resolve for ValidatingResolver {
     fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
         let host = name.as_str().to_owned();
         Box::pin(async move {
-            // Use the system resolver to get addresses
-            let addrs: Vec<SocketAddr> = (&*host, 0u16)
-                .to_socket_addrs()
-                .map_err(|e| format!("DNS resolution failed for {}: {}", host, e))?
-                .collect();
+            // Use spawn_blocking to avoid blocking the tokio runtime during DNS resolution.
+            // to_socket_addrs() performs a blocking system call that could stall all async
+            // tasks if DNS is slow or times out.
+            let host_clone = host.clone();
+            let addrs: Vec<SocketAddr> =
+                tokio::task::spawn_blocking(move || -> Result<Vec<SocketAddr>, String> {
+                    let iter = (&*host_clone, 0u16)
+                        .to_socket_addrs()
+                        .map_err(|e| format!("DNS resolution failed for {}: {}", host_clone, e))?;
+                    Ok(iter.collect())
+                })
+                .await
+                .map_err(|e| format!("DNS task failed: {}", e))??;
 
             if addrs.is_empty() {
                 return Err(format!("DNS resolution returned no addresses for {}", host).into());
@@ -175,7 +190,7 @@ impl reqwest::dns::Resolve for ValidatingResolver {
 
 /// Validate a URL and its resolved DNS addresses, suitable for checking
 /// redirect targets (scheme downgrade, private IPs, etc.).
-pub fn validate_redirect_url(url: &reqwest::Url, original_scheme: &str) -> Result<(), String> {
+pub async fn validate_redirect_url(url: &reqwest::Url, original_scheme: &str) -> Result<(), String> {
     // Only allow http/https schemes on redirect targets
     match url.scheme() {
         "http" | "https" => {}
@@ -199,8 +214,8 @@ pub fn validate_redirect_url(url: &reqwest::Url, original_scheme: &str) -> Resul
     if let Ok(ip) = host.parse::<IpAddr>() {
         validate_ip(&ip)?;
     } else {
-        // DNS-validate the hostname
-        resolve_and_validate_host(host)?;
+        // DNS-validate the hostname (async to avoid blocking runtime)
+        resolve_and_validate_host(host).await?;
     }
 
     Ok(())
@@ -286,13 +301,9 @@ pub async fn fetch_with_redirects(
     let mut current_url = validate_url(url)?;
     let original_scheme = current_url.scheme().to_string();
 
-    // DNS-validate the initial URL's hostname (not just the string)
-    if let Some(host) = current_url.host_str() {
-        if host.parse::<IpAddr>().is_err() {
-            // Hostname is not a bare IP — resolve and validate all addresses
-            resolve_and_validate_host(host)?;
-        }
-    }
+    // Note: DNS validation is handled by ValidatingResolver during connection.
+    // No manual resolve_and_validate_host call needed here — that would create
+    // a redundant TOCTOU window.
 
     let mut redirects_remaining = max_redirects;
 
@@ -317,7 +328,7 @@ pub async fn fetch_with_redirects(
                 .map_err(|e| format!("Invalid redirect URL: {}", e))?;
 
             // Full validation: URL format + scheme downgrade + DNS IP check
-            validate_redirect_url(&next_url, &original_scheme)?;
+            validate_redirect_url(&next_url, &original_scheme).await?;
 
             current_url = next_url;
             redirects_remaining -= 1;
@@ -494,30 +505,30 @@ mod tests {
 
     // -- validate_redirect_url ----------------------------------------------
 
-    #[test]
-    fn rejects_https_to_http_downgrade() {
+    #[tokio::test]
+    async fn rejects_https_to_http_downgrade() {
         let url = reqwest::Url::parse("http://example.com/").unwrap();
-        assert!(validate_redirect_url(&url, "https").is_err());
+        assert!(validate_redirect_url(&url, "https").await.is_err());
     }
 
-    #[test]
-    fn allows_same_scheme_redirect() {
+    #[tokio::test]
+    async fn allows_same_scheme_redirect() {
         let url = reqwest::Url::parse("https://other.com/page").unwrap();
-        assert!(validate_redirect_url(&url, "https").is_ok());
+        assert!(validate_redirect_url(&url, "https").await.is_ok());
     }
 
     // -- resolve_and_validate_host ------------------------------------------
 
-    #[test]
-    fn resolves_and_validates_localhost() {
+    #[tokio::test]
+    async fn resolves_and_validates_localhost() {
         // "localhost" resolves to 127.0.0.1 — must be rejected
-        assert!(resolve_and_validate_host("localhost").is_err());
+        assert!(resolve_and_validate_host("localhost").await.is_err());
     }
 
-    #[test]
-    fn resolves_public_host() {
+    #[tokio::test]
+    async fn resolves_public_host() {
         // example.com resolves to a public IP — this validates the function works end-to-end.
-        assert!(resolve_and_validate_host("example.com").is_ok());
+        assert!(resolve_and_validate_host("example.com").await.is_ok());
     }
 
     #[test]
@@ -546,16 +557,16 @@ mod tests {
         assert!(validate_ip(&"::ffff:93.184.216.34".parse().unwrap()).is_ok());
     }
 
-    #[test]
-    fn rejects_ftp_redirect() {
+    #[tokio::test]
+    async fn rejects_ftp_redirect() {
         let url = reqwest::Url::parse("ftp://example.com/file").unwrap();
-        assert!(validate_redirect_url(&url, "https").is_err());
+        assert!(validate_redirect_url(&url, "https").await.is_err());
     }
 
-    #[test]
-    fn rejects_gopher_redirect() {
+    #[tokio::test]
+    async fn rejects_gopher_redirect() {
         let url = reqwest::Url::parse("gopher://example.com/").unwrap();
-        assert!(validate_redirect_url(&url, "http").is_err());
+        assert!(validate_redirect_url(&url, "http").await.is_err());
     }
 
     #[test]
@@ -616,15 +627,15 @@ mod tests {
         assert!(validate_external_url("http://localhost:3000/").is_err());
     }
 
-    #[test]
-    fn rejects_redirect_with_non_standard_port() {
+    #[tokio::test]
+    async fn rejects_redirect_with_non_standard_port() {
         let url = reqwest::Url::parse("https://other.com:9999/page").unwrap();
-        assert!(validate_redirect_url(&url, "https").is_err());
+        assert!(validate_redirect_url(&url, "https").await.is_err());
     }
 
-    #[test]
-    fn accepts_redirect_with_standard_port() {
+    #[tokio::test]
+    async fn accepts_redirect_with_standard_port() {
         let url = reqwest::Url::parse("https://other.com:443/page").unwrap();
-        assert!(validate_redirect_url(&url, "https").is_ok());
+        assert!(validate_redirect_url(&url, "https").await.is_ok());
     }
 }

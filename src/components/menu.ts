@@ -31,9 +31,38 @@ export function initMenu() {
     await clearRecentHistory();
     showToast('历史记录已清除');
   });
+
+  // Event delegation for recent files
+  const filesContainer = document.getElementById('menu-recent-files');
+  filesContainer?.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest('.app-menu-item') as HTMLElement | null;
+    if (!btn) return;
+    const path = btn.dataset.path;
+    if (!path) return;
+    menu.hidden = true;
+    if (!(await confirmDocumentTransition())) return;
+    await addRecentFile(path);
+    await openFileInEditor(path);
+  });
+
+  // Event delegation for recent folders
+  const foldersContainer = document.getElementById('menu-recent-folders');
+  foldersContainer?.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest('.app-menu-item') as HTMLElement | null;
+    if (!btn) return;
+    const path = btn.dataset.path;
+    if (!path) return;
+    menu.hidden = true;
+    if (!(await confirmDocumentTransition())) return;
+    await setWorkspacePath(path);
+    clearActiveDocument();
+    await refreshFileTree();
+    showToast('文件夹已打开');
+  });
 }
 
-async function renderMenu() {
+/** @visibleForTesting */
+export async function renderMenu() {
   const settings = await loadSettings();
   const recentFiles = (settings.recentFiles as string[]) || [];
   const recentFolders = (settings.recentFolders as string[]) || [];
@@ -43,51 +72,48 @@ async function renderMenu() {
   if (!filesContainer || !foldersContainer) return;
 
   // Files
-  let filesHtml = '<div class="app-menu-section-title">最近打开的文件</div>';
+  filesContainer.innerHTML = '';
+  const filesTitle = document.createElement('div');
+  filesTitle.className = 'app-menu-section-title';
+  filesTitle.textContent = '最近打开的文件';
+  filesContainer.appendChild(filesTitle);
+
   if (recentFiles.length === 0) {
-    filesHtml += '<div class="app-menu-empty">无</div>';
+    const empty = document.createElement('div');
+    empty.className = 'app-menu-empty';
+    empty.textContent = '无';
+    filesContainer.appendChild(empty);
   } else {
     for (const f of recentFiles) {
       const name = f.split('/').pop()?.split('\\').pop() || f;
-      filesHtml += `<button class="app-menu-item" data-path="${f}" data-type="file">${name}</button>`;
+      const btn = document.createElement('button');
+      btn.className = 'app-menu-item';
+      btn.dataset.path = f;
+      btn.textContent = name;
+      filesContainer.appendChild(btn);
     }
   }
-  filesContainer.innerHTML = filesHtml;
 
   // Folders
-  let foldersHtml = '<div class="app-menu-section-title">最近打开的文件夹</div>';
+  foldersContainer.innerHTML = '';
+  const foldersTitle = document.createElement('div');
+  foldersTitle.className = 'app-menu-section-title';
+  foldersTitle.textContent = '最近打开的文件夹';
+  foldersContainer.appendChild(foldersTitle);
+
   if (recentFolders.length === 0) {
-    foldersHtml += '<div class="app-menu-empty">无</div>';
+    const empty = document.createElement('div');
+    empty.className = 'app-menu-empty';
+    empty.textContent = '无';
+    foldersContainer.appendChild(empty);
   } else {
     for (const f of recentFolders) {
       const name = f.split('/').pop()?.split('\\').pop() || f;
-      foldersHtml += `<button class="app-menu-item" data-path="${f}" data-type="folder">${name}</button>`;
+      const btn = document.createElement('button');
+      btn.className = 'app-menu-item';
+      btn.dataset.path = f;
+      btn.textContent = name;
+      foldersContainer.appendChild(btn);
     }
   }
-  foldersContainer.innerHTML = foldersHtml;
-
-  // Wire item clicks
-  filesContainer.querySelectorAll('.app-menu-item').forEach(el => {
-    el.addEventListener('click', async (e) => {
-      const path = (e.currentTarget as HTMLElement).dataset.path;
-      if (!path) return;
-      (document.getElementById('app-menu'))!.hidden = true;
-      if (!(await confirmDocumentTransition())) return;
-      await addRecentFile(path);
-      await openFileInEditor(path);
-    });
-  });
-
-  foldersContainer.querySelectorAll('.app-menu-item').forEach(el => {
-    el.addEventListener('click', async (e) => {
-      const path = (e.currentTarget as HTMLElement).dataset.path;
-      if (!path) return;
-      (document.getElementById('app-menu'))!.hidden = true;
-      if (!(await confirmDocumentTransition())) return;
-      await setWorkspacePath(path);
-      clearActiveDocument();
-      await refreshFileTree();
-      showToast('文件夹已打开');
-    });
-  });
 }

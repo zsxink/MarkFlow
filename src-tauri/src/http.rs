@@ -71,13 +71,18 @@ pub fn validate_ip(ip: &IpAddr) -> Result<(), String> {
                 || is_documentation_ipv4(*v4)
         }
         IpAddr::V6(v6) => {
+            // IPv4-mapped (::ffff:x.x.x.x) and IPv4-compatible (::x.x.x.x) addresses
+            // route to the underlying IPv4 destination — validate the embedded v4.
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return validate_ip(&IpAddr::V4(v4));
+            }
             v6.is_loopback()
                 || v6.is_multicast()
                 || v6.is_unspecified()
                 || v6.is_unique_local()
                 || v6.is_unicast_link_local()
                 // Documentation prefix 2001:db8::/32 — bytes 2-3 are 0x0d, 0xb8
-                || v6.octets()[..2] == [0x20, 0x01] && v6.octets()[2..4] == [0x0d, 0xb8]
+                || (v6.octets()[..2] == [0x20, 0x01] && v6.octets()[2..4] == [0x0d, 0xb8])
         }
     };
     if blocked {
@@ -519,6 +524,26 @@ mod tests {
     fn rejects_documentation_ipv6() {
         assert!(validate_ip(&"2001:db8::1".parse().unwrap()).is_err());
         assert!(validate_ip(&"2001:0db8::1".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn rejects_ipv4_mapped_private() {
+        // ::ffff:192.168.1.1 → should be blocked as private IPv4
+        assert!(validate_ip(&"::ffff:192.168.1.1".parse().unwrap()).is_err());
+        assert!(validate_ip(&"::ffff:10.0.0.1".parse().unwrap()).is_err());
+        assert!(validate_ip(&"::ffff:172.16.0.1".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn rejects_ipv4_mapped_loopback() {
+        // ::ffff:127.0.0.1 → should be blocked as loopback
+        assert!(validate_ip(&"::ffff:127.0.0.1".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn accepts_ipv4_mapped_public() {
+        // ::ffff:93.184.216.34 → should be allowed (public IPv4)
+        assert!(validate_ip(&"::ffff:93.184.216.34".parse().unwrap()).is_ok());
     }
 
     #[test]

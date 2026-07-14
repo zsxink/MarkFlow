@@ -46,7 +46,11 @@ impl AppState {
         }
     }
 
-    pub fn set_workspace(&self, path: PathBuf, event_handler: impl Fn(FileChangeEvent) + Send + 'static) {
+    pub fn set_workspace(
+        &self,
+        path: PathBuf,
+        event_handler: impl Fn(FileChangeEvent) + Send + 'static,
+    ) {
         let path_display = normalize_path(&path);
 
         let mut watcher = self.watcher.lock().unwrap();

@@ -51,9 +51,12 @@ pub struct Settings {
     pub last_window_y: f64,
 }
 
-fn default_window_width() -> f64 { 1200.0 }
-fn default_window_height() -> f64 { 800.0 }
-
+fn default_window_width() -> f64 {
+    1200.0
+}
+fn default_window_height() -> f64 {
+    800.0
+}
 
 impl Default for Settings {
     fn default() -> Self {

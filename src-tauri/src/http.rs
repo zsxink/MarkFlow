@@ -94,7 +94,7 @@ pub fn validate_ip(ip: &IpAddr) -> Result<(), String> {
 fn is_documentation_ipv4(v4: std::net::Ipv4Addr) -> bool {
     let octets = v4.octets();
     match octets {
-        [192, 0, 2, _] => true,   // TEST-NET-1
+        [192, 0, 2, _] => true,    // TEST-NET-1
         [198, 51, 100, _] => true, // TEST-NET-2
         [203, 0, 113, _] => true,  // TEST-NET-3
         _ => false,
@@ -190,7 +190,10 @@ impl reqwest::dns::Resolve for ValidatingResolver {
 
 /// Validate a URL and its resolved DNS addresses, suitable for checking
 /// redirect targets (scheme downgrade, private IPs, etc.).
-pub async fn validate_redirect_url(url: &reqwest::Url, original_scheme: &str) -> Result<(), String> {
+pub async fn validate_redirect_url(
+    url: &reqwest::Url,
+    original_scheme: &str,
+) -> Result<(), String> {
     // Only allow http/https schemes on redirect targets
     match url.scheme() {
         "http" | "https" => {}
@@ -231,7 +234,12 @@ pub fn redact_url_for_log(url: &str) -> String {
     match reqwest::Url::parse(url) {
         Ok(parsed) => {
             let path = parsed.path();
-            format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), path)
+            format!(
+                "{}://{}{}",
+                parsed.scheme(),
+                parsed.host_str().unwrap_or(""),
+                path
+            )
         }
         Err(_) => url.to_string(),
     }
@@ -245,8 +253,8 @@ pub fn redact_url_for_log(url: &str) -> String {
 const MAGIC_PNG: &[u8] = &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 const MAGIC_JPEG: &[u8] = &[0xFF, 0xD8, 0xFF];
 const MAGIC_GIF: &[u8] = b"GIF8";
-const MAGIC_WEBP: &[u8] = &[b'R', b'I', b'F', b'F'];
-const MAGIC_BMP: &[u8] = &[b'B', b'M'];
+const MAGIC_WEBP: &[u8] = b"RIFF";
+const MAGIC_BMP: &[u8] = b"BM";
 
 /// Check the first `buf` bytes against known image magic bytes.
 /// Returns `true` if the content *could* be the image type declared by the
@@ -526,9 +534,33 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolves_public_host() {
-        // example.com resolves to a public IP — this validates the function works end-to-end.
-        assert!(resolve_and_validate_host("example.com").await.is_ok());
+    async fn fetches_local_response_with_explicit_limit() {
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+        use std::thread;
+
+        fn allow_local_url(raw: &str) -> Result<reqwest::Url, String> {
+            reqwest::Url::parse(raw).map_err(|error| error.to_string())
+        }
+
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 256];
+            let _ = stream.read(&mut request);
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nbody")
+                .unwrap();
+        });
+
+        let client = reqwest::Client::builder().build().unwrap();
+        let url = format!("http://{}/", address);
+        let response = fetch_with_redirects(&client, &url, 0, allow_local_url, Some(16))
+            .await
+            .unwrap();
+        assert_eq!(response.bytes().await.unwrap().as_ref(), b"body");
+        server.join().unwrap();
     }
 
     #[test]
@@ -622,7 +654,6 @@ mod tests {
 
     #[test]
     fn rejects_port_on_localhost() {
-        let url = reqwest::Url::parse("http://localhost:3000/").unwrap();
         // Should fail on localhost, not just port
         assert!(validate_external_url("http://localhost:3000/").is_err());
     }

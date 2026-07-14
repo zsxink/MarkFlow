@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 
-const md = new MarkdownIt();
-
 /**
  * Regression tests for known CVEs in markdown-it / linkify-it / dompurify.
  * These verify that malicious or adversarial Markdown input does NOT cause

@@ -12,6 +12,13 @@ const documentState = {
   externallyModified: false,
   programmaticUpdate: false,
   lastPersistedMarkdown: '',
+  // Revision tracking — incremented on each content edit, used to detect
+  // whether new edits arrived during an in-flight save.
+  revision: 0,
+  // mtime + size snapshot from the last successful read/save, used to detect
+  // external modifications before overwriting.
+  lastReadMtime: 0,
+  lastReadSize: 0,
 };
 
 // ── Setters (module-local) ──────────────────────────────────────────
@@ -66,4 +73,31 @@ export function getMermaidExportBaseName() {
   const dotIndex = fileName.lastIndexOf('.');
   const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
   return `${baseName || 'mermaid-diagram'}-mermaid`;
+}
+
+// ── Revision tracking ────────────────────────────────────────────────
+
+/** Increment the document revision counter. Call on each user edit. */
+export function bumpRevision(): number {
+  return ++documentState.revision;
+}
+
+/** Get the current revision number. */
+export function getRevision(): number {
+  return documentState.revision;
+}
+
+// ── mtime + size snapshot ────────────────────────────────────────────
+
+export function getLastReadMtime(): number {
+  return documentState.lastReadMtime;
+}
+
+export function getLastReadSize(): number {
+  return documentState.lastReadSize;
+}
+
+export function setLastReadStats(mtime: number, size: number) {
+  documentState.lastReadMtime = mtime;
+  documentState.lastReadSize = size;
 }

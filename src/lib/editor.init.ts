@@ -31,6 +31,7 @@ import {
   getDocumentState,
   getMode,
   getActiveDocPath,
+  bumpRevision,
 } from './editor.state';
 import { store } from './store';
 import { scheduler } from './taskScheduler';
@@ -105,6 +106,7 @@ export async function initEditor() {
 
       scheduler.schedule('dirty-check', 400, () => {
         if (!getDocumentState().programmaticUpdate) {
+          bumpRevision();
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
       });

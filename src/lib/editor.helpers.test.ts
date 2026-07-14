@@ -206,4 +206,11 @@ describe('checkSerializationIntegrity', () => {
     expect(result.truncated).toBe(false);
     expect(result.reason).toBeNull();
   });
+
+  it('keeps large complete documents on the normal serialization path', () => {
+    const doc = Array.from({ length: 2000 }, (_, i) => `Line ${i}`).join('\n');
+    const markdown = Array.from({ length: 2000 }, (_, i) => `- Line ${i}`).join('\n');
+    const result = checkSerializationIntegrity(doc, markdown);
+    expect(result.truncated).toBe(false);
+  });
 });

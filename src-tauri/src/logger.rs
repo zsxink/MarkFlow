@@ -95,17 +95,33 @@ pub fn log_frontend_event(
 
     if let Some(context) = context_json.as_deref() {
         match level {
-            FrontendLogLevel::Debug => tracing::debug!(target: "frontend.event", scope = %scope, context = %context, "{}", message),
-            FrontendLogLevel::Info => tracing::info!(target: "frontend.event", scope = %scope, context = %context, "{}", message),
-            FrontendLogLevel::Warn => tracing::warn!(target: "frontend.event", scope = %scope, context = %context, "{}", message),
-            FrontendLogLevel::Error => tracing::error!(target: "frontend.event", scope = %scope, context = %context, "{}", message),
+            FrontendLogLevel::Debug => {
+                tracing::debug!(target: "frontend.event", scope = %scope, context = %context, "{}", message)
+            }
+            FrontendLogLevel::Info => {
+                tracing::info!(target: "frontend.event", scope = %scope, context = %context, "{}", message)
+            }
+            FrontendLogLevel::Warn => {
+                tracing::warn!(target: "frontend.event", scope = %scope, context = %context, "{}", message)
+            }
+            FrontendLogLevel::Error => {
+                tracing::error!(target: "frontend.event", scope = %scope, context = %context, "{}", message)
+            }
         }
     } else {
         match level {
-            FrontendLogLevel::Debug => tracing::debug!(target: "frontend.event", scope = %scope, "{}", message),
-            FrontendLogLevel::Info => tracing::info!(target: "frontend.event", scope = %scope, "{}", message),
-            FrontendLogLevel::Warn => tracing::warn!(target: "frontend.event", scope = %scope, "{}", message),
-            FrontendLogLevel::Error => tracing::error!(target: "frontend.event", scope = %scope, "{}", message),
+            FrontendLogLevel::Debug => {
+                tracing::debug!(target: "frontend.event", scope = %scope, "{}", message)
+            }
+            FrontendLogLevel::Info => {
+                tracing::info!(target: "frontend.event", scope = %scope, "{}", message)
+            }
+            FrontendLogLevel::Warn => {
+                tracing::warn!(target: "frontend.event", scope = %scope, "{}", message)
+            }
+            FrontendLogLevel::Error => {
+                tracing::error!(target: "frontend.event", scope = %scope, "{}", message)
+            }
         }
     }
 

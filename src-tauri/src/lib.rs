@@ -355,9 +355,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building MarkFlow");
 
-    app.run(|app_handle, event| {
+    app.run(|_app_handle, _event| {
         #[cfg(target_os = "macos")]
-        if let RunEvent::Opened { urls } = event {
+        if let RunEvent::Opened { urls } = _event {
             for url in urls {
                 let path_str = match url.to_file_path() {
                     Ok(path) => path.to_string_lossy().to_string(),
@@ -367,7 +367,7 @@ pub fn run() {
                     }
                 };
 
-                let state = app_handle.state::<AppState>();
+                let state = _app_handle.state::<AppState>();
 
                 if !state.initial_file_handled.load(Ordering::SeqCst) {
                     tracing::info!(target: "backend.app", path = %path_str, "First RunEvent::Opened — storing to cli_file");
@@ -375,7 +375,7 @@ pub fn run() {
                     *cli_file_lock = Some(path_str);
                 } else {
                     tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened (new window)");
-                    let _ = open_file_in_new_window(path_str, app_handle.clone());
+                    let _ = open_file_in_new_window(path_str, _app_handle.clone());
                 }
             }
         }

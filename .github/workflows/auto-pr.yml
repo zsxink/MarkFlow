@@ -23,10 +23,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const branch = context.ref.replace('refs/heads/', '');
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              head: `${context.repo.owner}:${context.ref_name}`,
+              head: `${context.repo.owner}:${branch}`,
               base: 'main',
               state: 'open'
             });
@@ -37,9 +38,9 @@ jobs:
             const { data: pr } = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: context.payload.head_commit?.message?.split('\n')[0] || context.ref_name,
-              head: context.ref_name,
+              title: context.payload.head_commit?.message?.split('\n')[0] || branch,
+              head: branch,
               base: 'main',
-              body: `Auto-created from branch \`${context.ref_name}\`.\n\n**Closes #${context.ref_name.match(/issue-(\d+)/)?.[1] ?? ''}**`
+              body: `Auto-created from branch \`${branch}\`.\n\n**Closes #${branch.match(/issue-(\d+)/)?.[1] ?? ''}**`
             });
             console.log('PR created:', pr.html_url);

@@ -1,6 +1,6 @@
 use crate::http::{
-    MAX_IMAGE_SIZE, MAX_TITLE_LEN, MAX_TITLE_READ_BYTES, redact_url_for_log,
-    validate_external_url, validate_image_magic,
+    redact_url_for_log, validate_external_url, validate_image_magic, MAX_IMAGE_SIZE, MAX_TITLE_LEN,
+    MAX_TITLE_READ_BYTES,
 };
 use crate::paths::normalize_path;
 use crate::state::AppState;
@@ -51,8 +51,7 @@ fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, String> 
 /// 4. On any failure the temp file is cleaned up and the original remains intact.
 pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
     let parent = path.parent().ok_or("Cannot determine parent directory")?;
-    fs::create_dir_all(parent)
-        .map_err(|e| format!("Failed to create parent dir: {}", e))?;
+    fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
 
     let file_name = path
         .file_name()
@@ -75,8 +74,7 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
         }
         // Atomic rename — on POSIX this is always atomic; on Windows uses
         // MOVEFILE_REPLACE_EXISTING via the `winapi` crate internally.
-        fs::rename(&tmp_path, path)
-            .map_err(|e| format!("Failed to rename temp file: {}", e))?;
+        fs::rename(&tmp_path, path).map_err(|e| format!("Failed to rename temp file: {}", e))?;
         Ok(())
     })();
 
@@ -217,7 +215,8 @@ pub async fn save_mermaid_svg_export(
     app: AppHandle,
 ) -> Result<bool, String> {
     let file_name = format!("{}.svg", default_name);
-    let Some(path) = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])? else {
+    let Some(path) = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])?
+    else {
         return Ok(false);
     };
 
@@ -240,7 +239,8 @@ pub async fn save_mermaid_png_export(
     }
 
     let file_name = format!("{}.png", default_name);
-    let Some(path) = select_export_path(&app, "图片另存为 PNG", &file_name, "PNG", &["png"])? else {
+    let Some(path) = select_export_path(&app, "图片另存为 PNG", &file_name, "PNG", &["png"])?
+    else {
         return Ok(false);
     };
 
@@ -269,7 +269,8 @@ pub async fn save_image_export(
     } else {
         normalized_extension.as_str()
     };
-    let Some(path) = select_export_path(&app, "图片另存为", &file_name, "图片", &[ext])? else {
+    let Some(path) = select_export_path(&app, "图片另存为", &file_name, "图片", &[ext])?
+    else {
         return Ok(false);
     };
 
@@ -284,10 +285,10 @@ pub fn read_dir_recursive(path: String, state: State<AppState>) -> Result<Vec<Fi
     if !root.is_dir() {
         return Err("Not a directory".into());
     }
-    read_dir_inner(&root, &root)
+    read_dir_inner(&root)
 }
 
-fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
+fn read_dir_inner(dir: &Path) -> Result<Vec<FileEntry>, String> {
     let mut entries = Vec::new();
     let read = fs::read_dir(dir).map_err(|e| format!("Failed to read dir: {}", e))?;
     for entry in read {
@@ -297,7 +298,8 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
         if name.starts_with('.') {
             continue;
         }
-        let metadata = fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        let metadata =
+            fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
         if metadata.file_type().is_symlink() {
             continue;
         }
@@ -305,7 +307,7 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
         // inherently within the parent directory. Skip expensive canonicalize().
         let is_dir = metadata.is_dir();
         let children = if is_dir {
-            Some(read_dir_inner(&path, root)?)
+            Some(read_dir_inner(&path)?)
         } else {
             None
         };
@@ -328,9 +330,13 @@ fn read_dir_inner(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
 
 fn validate_parent_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
     let workspace = state.get_workspace().ok_or("No workspace set")?;
-    let workspace = workspace.canonicalize().map_err(|_| "Workspace not found")?;
+    let workspace = workspace
+        .canonicalize()
+        .map_err(|_| "Workspace not found")?;
     let parent = path.parent().ok_or("Invalid path")?;
-    let parent = parent.canonicalize().map_err(|_| "Parent directory does not exist")?;
+    let parent = parent
+        .canonicalize()
+        .map_err(|_| "Parent directory does not exist")?;
     if !parent.starts_with(&workspace) {
         return Err("Path outside workspace".into());
     }
@@ -358,7 +364,9 @@ fn normalize_lexical(path: &Path) -> PathBuf {
 /// Allows non-existent targets (for create/write) while rejecting traversal and symlink hops.
 fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
     let workspace = state.get_workspace().ok_or("No workspace set")?;
-    let workspace = workspace.canonicalize().map_err(|_| "Workspace not found")?;
+    let workspace = workspace
+        .canonicalize()
+        .map_err(|_| "Workspace not found")?;
 
     let candidate = if path.is_absolute() {
         normalize_lexical(path)
@@ -410,7 +418,10 @@ fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<()
 /// - Streaming read with hard 20 MB cap
 /// - Magic bytes validated against Content-Type
 /// - Concurrency bounded by `AppState::http_semaphore`
-async fn fetch_remote_image_bytes(url: &str, state: &AppState) -> Result<(Vec<u8>, String), String> {
+async fn fetch_remote_image_bytes(
+    url: &str,
+    state: &AppState,
+) -> Result<(Vec<u8>, String), String> {
     let _permit = state
         .http_semaphore
         .acquire()
@@ -435,7 +446,12 @@ async fn fetch_remote_image_bytes(url: &str, state: &AppState) -> Result<(Vec<u8
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .unwrap_or("");
-    let mime_type = content_type.split(';').next().unwrap_or("").trim().to_string();
+    let mime_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_string();
     if !mime_type.starts_with("image/") {
         return Err("Only image responses are allowed".into());
     }
@@ -546,8 +562,7 @@ fn extract_title_from_bytes(buf: &[u8]) -> Option<String> {
 
     let content_start = tag_start + close + 1;
     let rest2 = &buf[content_start..];
-    let title_end = content_start
-        + find_case_insensitive(rest2, b"</title>")?;
+    let title_end = content_start + find_case_insensitive(rest2, b"</title>")?;
 
     let raw_title = &buf[content_start..title_end];
     let title = String::from_utf8_lossy(raw_title).trim().to_string();
@@ -572,7 +587,7 @@ fn find_case_insensitive(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     }
     'outer: for i in 0..=haystack.len() - needle.len() {
         for (j, &nb) in needle.iter().enumerate() {
-            if haystack[i + j].to_ascii_lowercase() != nb.to_ascii_lowercase() {
+            if !haystack[i + j].eq_ignore_ascii_case(&nb) {
                 continue 'outer;
             }
         }
@@ -582,15 +597,16 @@ fn find_case_insensitive(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 #[tauri::command]
-pub async fn fetch_page_title(
-    url: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub async fn fetch_page_title(url: String, state: State<'_, AppState>) -> Result<String, String> {
     fetch_page_title_inner(&url, &state).await
 }
 
 #[tauri::command]
-pub fn create_file(path: String, content: Option<String>, state: State<AppState>) -> Result<(), String> {
+pub fn create_file(
+    path: String,
+    content: Option<String>,
+    state: State<AppState>,
+) -> Result<(), String> {
     let path = Path::new(&path);
     if state.get_workspace().is_some() {
         validate_path_in_workspace(path, &state)?;
@@ -660,7 +676,8 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), String> {
             continue;
         }
         let from_path = entry.path();
-        let metadata = fs::symlink_metadata(&from_path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        let metadata = fs::symlink_metadata(&from_path)
+            .map_err(|e| format!("Failed to inspect entry: {}", e))?;
         if metadata.file_type().is_symlink() {
             continue;
         }
@@ -707,7 +724,8 @@ pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileE
         if name.starts_with('.') {
             continue;
         }
-        let metadata = fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        let metadata =
+            fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
         if metadata.file_type().is_symlink() {
             continue;
         }
@@ -743,7 +761,8 @@ pub struct FileStats {
 #[tauri::command]
 pub fn get_file_stats(path: String, state: State<AppState>) -> Result<FileStats, String> {
     let path = resolve_path(&path, &state)?;
-    let metadata = fs::metadata(&path).map_err(|e| format!("Failed to read file metadata: {}", e))?;
+    let metadata =
+        fs::metadata(&path).map_err(|e| format!("Failed to read file metadata: {}", e))?;
     let mtime = metadata
         .modified()
         .ok()
@@ -768,7 +787,11 @@ pub fn read_file_as_base64(path: String, state: State<AppState>) -> Result<Strin
 }
 
 #[tauri::command]
-pub fn write_file_from_base64(path: String, data: String, state: State<AppState>) -> Result<(), String> {
+pub fn write_file_from_base64(
+    path: String,
+    data: String,
+    state: State<AppState>,
+) -> Result<(), String> {
     let path = Path::new(&path);
     validate_path_in_workspace(path, &state)?;
     let bytes = base64::engine::general_purpose::STANDARD
@@ -888,7 +911,10 @@ mod tests {
         let before: Vec<_> = fs::read_dir(&dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.file_name().to_string_lossy().contains("clean.md.") && e.file_name().to_string_lossy().ends_with(".tmp"))
+            .filter(|e| {
+                e.file_name().to_string_lossy().contains("clean.md.")
+                    && e.file_name().to_string_lossy().ends_with(".tmp")
+            })
             .map(|e| e.path())
             .collect();
         atomic_write(&path, "content").unwrap();
@@ -896,10 +922,16 @@ mod tests {
         let after: Vec<_> = fs::read_dir(&dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| e.file_name().to_string_lossy().contains("clean.md.") && e.file_name().to_string_lossy().ends_with(".tmp"))
+            .filter(|e| {
+                e.file_name().to_string_lossy().contains("clean.md.")
+                    && e.file_name().to_string_lossy().ends_with(".tmp")
+            })
             .map(|e| e.path())
             .collect();
-        assert!(after.len() <= before.len(), "no new temp files should exist after success");
+        assert!(
+            after.len() <= before.len(),
+            "no new temp files should exist after success"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -925,7 +957,10 @@ mod tests {
         let tmp = dir.join(format!("file.{}.tmp", pid));
         fs::write(&tmp, "active").unwrap();
         cleanup_stale_temp_files(&dir);
-        assert!(tmp.exists(), "temp file from current process should NOT be removed");
+        assert!(
+            tmp.exists(),
+            "temp file from current process should NOT be removed"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -963,7 +998,10 @@ mod tests {
     #[test]
     fn extract_title_with_surrounding_text() {
         let html = b"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Hello World</title></head><body></body></html>";
-        assert_eq!(extract_title_from_bytes(html).as_deref(), Some("Hello World"));
+        assert_eq!(
+            extract_title_from_bytes(html).as_deref(),
+            Some("Hello World")
+        );
     }
 
     #[test]
@@ -1006,5 +1044,30 @@ mod tests {
     #[test]
     fn extract_title_short_buffer() {
         assert!(extract_title_from_bytes(b"hi").is_none());
+    }
+
+    #[test]
+    fn normalizes_lexical_parent_segments_without_filesystem_access() {
+        let path = Path::new("/workspace/docs/../notes/./draft.md");
+        assert_eq!(
+            normalize_lexical(path),
+            PathBuf::from("/workspace/notes/draft.md")
+        );
+    }
+
+    #[test]
+    fn read_dir_filters_hidden_and_symlink_entries_and_sorts_directories_first() {
+        let dir = temp_dir();
+        fs::create_dir(dir.join("z-folder")).unwrap();
+        fs::write(dir.join("a-file.md"), "content").unwrap();
+        fs::write(dir.join(".hidden.md"), "hidden").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(dir.join("a-file.md"), dir.join("linked.md")).unwrap();
+
+        let entries = read_dir_inner(&dir).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].name, "z-folder");
+        assert_eq!(entries[1].name, "a-file.md");
+        let _ = fs::remove_dir_all(&dir);
     }
 }

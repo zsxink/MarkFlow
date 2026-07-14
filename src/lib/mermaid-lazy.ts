@@ -2,7 +2,7 @@
  * Mermaid lazy loader — singleton dynamic import.
  * Mermaid is only loaded when a document actually contains ```mermaid``` fences.
  */
-import type { default as MermaidType } from 'mermaid';
+import type { Mermaid as MermaidType } from 'mermaid';
 
 let promise: Promise<MermaidType> | null = null;
 

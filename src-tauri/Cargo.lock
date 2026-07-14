@@ -2154,6 +2154,7 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-shell",
  "tauri-plugin-single-instance",
+ "tokio",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",

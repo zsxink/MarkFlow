@@ -717,6 +717,14 @@
   color: var(--accent);
 }
 
+/* Large code block — disable syntax highlighting */
+.source-editor-wrapper .cm-editor .cm-line[data-no-highlight] span {
+  color: var(--fg) !important;
+  font-style: normal !important;
+  font-weight: normal !important;
+  text-decoration: none !important;
+}
+
 /* 光标色 */
 .source-editor-wrapper .cm-editor .cm-cursor {
   border-left-color: var(--accent);

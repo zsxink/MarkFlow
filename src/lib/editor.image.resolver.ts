@@ -5,11 +5,15 @@ import { assetToOriginalMap, getActiveDocPath } from './editor.state';
 import { resolveImagePath } from './pathUtils';
 import { imagePathToSrc } from './imageUtils';
 
+/** Maximum images to resolve per document — beyond this, images keep original src */
+const MAX_IMAGES_TO_RESOLVE = 50;
+
 /**
  * Resolve relative-image src attributes to absolute paths in the ProseMirror
  * document, so images render correctly regardless of the document's location.
  * Stores the original relative path in assetToOriginalMap so the serializer
  * can reverse it back when converting to Markdown.
+ * Limits resolution to MAX_IMAGES_TO_RESOLVE to avoid performance issues.
  */
 export function imageSrcResolverPlugin(): Extension {
   return Extension.create({
@@ -24,8 +28,11 @@ export function imageSrcResolverPlugin(): Extension {
             const docPath = getActiveDocPath();
             if (!docPath) return;
             let imageTr: Transaction | null = null;
+            let imageCount = 0;
             newState.doc.descendants((node, pos) => {
               if (node.type.name !== 'image') return;
+              imageCount++;
+              if (imageCount > MAX_IMAGES_TO_RESOLVE) return;
               const src = node.attrs.src as string;
               if (!src || src.startsWith('http') || src.startsWith('data:') || src.startsWith('asset:')) return;
               const absolutePath = resolveImagePath(src, docPath);

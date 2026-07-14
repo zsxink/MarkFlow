@@ -9,14 +9,15 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import { Markdown } from 'tiptap-markdown';
 
-import { pasteImageFile } from './imageUtils';
+import { pasteImageFile, getImageSettings } from './imageUtils';
+import type { ImageSettings } from '../types/editor';
 import { loadSettings } from './storage';
 import { syncCodeLineNumberGutters } from './editor.helpers';
 import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
-import { getImageSettings } from './imageUtils';
 import { imageSrcResolverPlugin } from './editor.image.resolver';
 import { imageBubblePlugin } from './editor.image.bubble';
+import { complexityLimitExtension } from './editor.complexity';
 
 import {
   CustomLink,
@@ -26,16 +27,13 @@ import {
 
 import {
   setEditor,
-  setDirtyCheckTimer,
-  setUpdateEventTimer,
   getEditor,
-  getDirtyCheckTimer,
-  getUpdateEventTimer,
   getDocumentState,
   getMode,
   getActiveDocPath,
 } from './editor.state';
 import { store } from './store';
+import { scheduler } from './taskScheduler';
 import { getSourceContent } from './editor.source';
 import { normalizeImageMarkdown, replaceAssetUrlsWithOriginal } from './editor.serializer';
 
@@ -81,6 +79,7 @@ export async function initEditor() {
           loading: 'lazy',
         },
       }),
+      complexityLimitExtension(),
       mermaidCodeBlockExtension(),
       Markdown.configure({
         html: false,
@@ -104,23 +103,15 @@ export async function initEditor() {
         ? normalizeImageMarkdown(getSourceContent())
         : normalizeImageMarkdown(replaceAssetUrlsWithOriginal(getEditor()!.storage.markdown.getMarkdown()));
 
-      // Debounce dirty check — only matters when saving/switching files
-      const t = getDirtyCheckTimer();
-      if (t) clearTimeout(t);
-      setDirtyCheckTimer(setTimeout(() => {
-        setDirtyCheckTimer(null);
+      scheduler.schedule('dirty-check', 400, () => {
         if (!getDocumentState().programmaticUpdate) {
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
-      }, 400));
+      });
 
-      // Throttle editor-update dispatch — outline/statusbar don't need per-keystroke refresh
-      if (!getUpdateEventTimer()) {
-        setUpdateEventTimer(setTimeout(() => {
-          setUpdateEventTimer(null);
-          store.emit({ type: 'editor:update' });
-        }, 80));
-      }
+      scheduler.schedule('editor-update', 80, () => {
+        store.emit({ type: 'editor:update' });
+      });
     },
     onSelectionUpdate: () => {
       // Selection changes need immediate dispatch (cursor position in status bar)
@@ -147,15 +138,47 @@ export async function initEditor() {
   });
 
   // Refresh line numbers on content change
-  let lineNumbersTimer: ReturnType<typeof setTimeout> | null = null;
   store.on('editor:update', () => {
-    if (lineNumbersTimer) clearTimeout(lineNumbersTimer);
-    lineNumbersTimer = setTimeout(() => {
+    scheduler.schedule('line-numbers', 150, () => {
       const root = getEditor()?.view.dom;
       if (!root?.classList.contains('code-show-line-numbers')) return;
       syncCodeLineNumberGutters(root, true);
-    }, 150);
+    });
   });
+
+  const MAX_CONCURRENT_IMAGE_READS = 4;
+
+  /** Process images concurrently but insert into editor sequentially */
+  async function processImageFiles(
+    files: File[],
+    docPath: string | null,
+    settings: ImageSettings,
+    source: 'paste' | 'drop',
+  ) {
+    // Read all images concurrently (limited), insert sequentially
+    const srcs: string[] = [];
+    for (let i = 0; i < files.length; i += MAX_CONCURRENT_IMAGE_READS) {
+      const batch = files.slice(i, i + MAX_CONCURRENT_IMAGE_READS);
+      const results = await Promise.allSettled(
+        batch.map(file => pasteImageFile(file, docPath, settings))
+      );
+      for (let j = 0; j < results.length; j++) {
+        const r = results[j];
+        if (r.status === 'fulfilled') {
+          srcs.push(r.value);
+        } else {
+          logException('editor.image', `Image ${source} failed`, r.reason, {
+            source,
+            fileName: batch[j].name,
+          });
+        }
+      }
+    }
+    // Insert sequentially to avoid editor state conflicts
+    for (const src of srcs) {
+      getEditor()?.chain().focus().setImage({ src }).run();
+    }
+  }
 
   // Image paste handler
   editorEl.addEventListener('paste', async (event) => {
@@ -165,14 +188,7 @@ export async function initEditor() {
     event.preventDefault();
     const settings = await getImageSettings();
     const docPath = getActiveDocPath();
-    for (const file of imageFiles) {
-      try {
-        const src = await pasteImageFile(file, docPath, settings);
-        getEditor()?.chain().focus().setImage({ src }).run();
-      } catch (e) {
-        logException('editor.image', 'Image paste failed', e, { source: 'paste', fileName: file.name });
-      }
-    }
+    await processImageFiles(imageFiles, docPath, settings, 'paste');
   });
 
   // Image drop handler
@@ -188,13 +204,6 @@ export async function initEditor() {
     event.stopPropagation();
     const settings = await getImageSettings();
     const docPath = getActiveDocPath();
-    for (const file of imageFiles) {
-      try {
-        const src = await pasteImageFile(file, docPath, settings);
-        getEditor()?.chain().focus().setImage({ src }).run();
-      } catch (e) {
-        logException('editor.image', 'Image drop failed', e, { source: 'drop', fileName: file.name });
-      }
-    }
+    await processImageFiles(imageFiles, docPath, settings, 'drop');
   });
 }

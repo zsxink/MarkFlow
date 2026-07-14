@@ -1,5 +1,6 @@
-import { readFile, writeFile, addRecentFile } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown } from '../lib/editor';
+import { readFile, writeFile, addRecentFile, getFileMetadata } from '../lib/storage';
+import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getEditor } from '../lib/editor';
+import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
 import { refreshOutline } from './outline';
@@ -8,6 +9,9 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from './ui/dialog';
 import { getActiveFilePath, setActiveFilePath } from './activeDocument';
 import { handleActiveDocumentExternalModification } from './sidebar.conflict';
+import { determineTier, formatFileSize } from '../lib/fileSizeTier';
+import { showDegradationBar, hideDegradationBar } from './degradationBar';
+import { store } from '../lib/store';
 
 export async function confirmDocumentTransition(): Promise<boolean> {
   const dirty = isDocumentDirty();
@@ -164,14 +168,70 @@ export async function openFileInEditor(path: string) {
   if (!(await confirmDocumentTransition())) return;
 
   try {
+    // Read metadata for tier classification
+    const metadata = await getFileMetadata(path);
+    const tier = determineTier(metadata.size, metadata.lines);
+
+    // Handle Huge tier: confirmation before opening
+    if (tier === 'huge') {
+      const choice = await showDialog({
+        title: '文件过大',
+        body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);">该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p>
+               <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">建议以只读模式预览，或强制打开（部分功能可能受限）。</p>`,
+        buttons: [
+          { label: '取消', value: 'cancel' },
+          { label: '强制打开', value: 'force' },
+          { label: '只读预览', value: 'readonly', primary: true },
+        ],
+        width: '400px',
+      });
+      if (!choice || choice === 'cancel') return;
+
+      if (choice === 'readonly') {
+        const content = await readFile(path);
+        setActiveDocumentPath(path);
+        setActiveFilePath(path);
+        setMarkdown(content);
+        setReadOnly(true);
+        showDegradationBar({ tier: 'huge', size: formatFileSize(metadata.size), lines: metadata.lines, readOnly: true });
+        resetEditorScroll();
+        refreshOutline();
+        showToast('已以只读模式打开文件');
+        return;
+      }
+      // choice === 'force' — proceed to normal open with degradation bar
+    }
+
     const content = await readFile(path);
     setActiveDocumentPath(path);
     setActiveFilePath(path);
     setMarkdown(content);
+
+    // Reset read-only state for normal/large opens
+    setReadOnly(false);
+
+    // Show degradation UI for large files
+    if (tier === 'large') {
+      showDegradationBar({ tier: 'large', size: formatFileSize(metadata.size), lines: metadata.lines });
+    } else {
+      hideDegradationBar();
+    }
+
     resetEditorScroll();
     refreshOutline();
     showToast('已打开文件');
   } catch (e) {
     showToast(`打开失败: ${e}`);
   }
+}
+
+function setReadOnly(readOnly: boolean): void {
+  store.setState({ readOnly });
+  // ProseMirror (WYSIWYG) read-only
+  const editor = getEditor();
+  if (editor) {
+    editor.setEditable(!readOnly);
+  }
+  // CodeMirror (source mode) read-only
+  setSourceReadOnly(readOnly);
 }

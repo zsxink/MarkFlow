@@ -19,6 +19,7 @@ export interface StoreState {
   workspacePath: string | null;
   expandedPaths: string[];
   dirty: boolean;
+  readOnly: boolean;
   settings: Settings;
 }
 

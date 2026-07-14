@@ -200,6 +200,9 @@ fn set_workspace(
         return Err("Workspace path is not a directory".into());
     }
 
+    // Clean up stale temp files in the workspace
+    files::cleanup_stale_temp_files(&workspace);
+
     tracing::info!(target: "backend.workspace", path = %path, "Switching workspace");
 
     let app_handle = app.clone();
@@ -259,6 +262,7 @@ pub fn run() {
             files::copy_file,
             files::read_single_dir,
             files::file_exists,
+            files::get_file_stats,
             files::read_file_as_base64,
             files::write_file_from_base64,
             files::fetch_remote_image_as_base64,
@@ -281,6 +285,9 @@ pub fn run() {
         ])
         .setup(|app| {
             let settings = settings::load_settings_inner();
+
+            // Clean up stale temp files from previous crashed writes
+            files::cleanup_stale_temp_files(&paths::app_config_dir());
 
             let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
 

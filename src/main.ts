@@ -8,7 +8,7 @@ import { initKeyboard } from './utils/keyboard';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
-import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, switchSidebarTab } from './components/sidebar';
+import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
 import { store } from './lib/store';
 import { showUnsavedDialog } from './components/unsavedDialog';
@@ -192,6 +192,7 @@ function startAutoSave() {
 
   if (enabled) {
     autoSaveTimer = setInterval(async () => {
+      if (isSavingInProgress()) return; // skip — previous save still running
       const filePath = getActiveFilePath();
       if (filePath) {
         await saveActiveDocument({ interactive: false });

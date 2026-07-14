@@ -1,4 +1,5 @@
 use crate::config::settings::Settings;
+use crate::commands::files::atomic_write;
 use crate::paths::{normalize_path, settings_path};
 use std::fs;
 use std::sync::Mutex;
@@ -44,12 +45,9 @@ pub fn load_settings_inner() -> Settings {
 
 pub fn save_settings_inner(settings: &Settings) -> Result<(), String> {
     let path = settings_path();
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Failed to create config dir: {}", e))?;
-    }
     let content =
         serde_json::to_string_pretty(settings).map_err(|e| format!("Failed to serialize: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("Failed to write settings: {}", e))?;
+    atomic_write(&path, &content)?;
     debug!(target: "backend.settings", path = %normalize_path(&path), "Saved settings");
 
     // Update cache after successful write

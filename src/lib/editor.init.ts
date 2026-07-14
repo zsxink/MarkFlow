@@ -34,6 +34,7 @@ import {
   getDocumentState,
   getMode,
   getActiveDocPath,
+  bumpRevision,
 } from './editor.state';
 import { store } from './store';
 import { getSourceContent } from './editor.source';
@@ -110,6 +111,7 @@ export async function initEditor() {
       setDirtyCheckTimer(setTimeout(() => {
         setDirtyCheckTimer(null);
         if (!getDocumentState().programmaticUpdate) {
+          bumpRevision();
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
       }, 400));

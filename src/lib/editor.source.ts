@@ -1,14 +1,27 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
+import { Compartment } from '@codemirror/state';
 import { HighlightStyle, syntaxHighlighting, LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { getLanguageExtension } from './codemirror-languages';
+import { highlightLimitPlugin } from './codemirror-highlight-limit';
 
 // Fallback: empty LanguageSupport (plain text) when a language fails to load
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
 
 async function loadLang(name: string): Promise<LanguageSupport> {
   return (await getLanguageExtension(name)) ?? plainText;
+}
+
+/** Module-level compartment so readOnly can be toggled at runtime */
+const readOnlyCompartment = new Compartment();
+
+/** Toggle readOnly on the current source editor without destroying/recreating */
+export function setSourceReadOnly(readOnly: boolean): void {
+  if (!currentView) return;
+  currentView.dispatch({
+    effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
+  });
 }
 
 // ── Syntax highlighting theme ───────────────────────────────────────────
@@ -59,15 +72,14 @@ export function createSourceEditor(
   container: HTMLElement,
   content: string,
   onUpdate: ((doc: string) => void) | null = null,
+  readOnly: boolean = false,
 ): EditorView {
   destroySourceEditor();
 
-  const view = new EditorView({
-    doc: content,
-    extensions: [
-      basicSetup,
-      syntaxHighlighting(markdownHighlightStyle),
-      markdown({ codeLanguages: [
+  const extList: any[] = [
+    basicSetup,
+    syntaxHighlighting(markdownHighlightStyle),
+    markdown({ codeLanguages: [
         LanguageDescription.of({ name: 'javascript', extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'], load: () => loadLang('javascript') }),
         LanguageDescription.of({ name: 'css',        extensions: ['css', 'scss', 'less'],     load: () => loadLang('css') }),
         LanguageDescription.of({ name: 'html',       extensions: ['html', 'htm', 'svg'],      load: () => loadLang('html') }),
@@ -86,7 +98,13 @@ export function createSourceEditor(
           onUpdate(update.state.doc.toString());
         }
       }),
-    ],
+      highlightLimitPlugin,
+      readOnlyCompartment.of(EditorView.editable.of(!readOnly)),
+    ];
+
+  const view = new EditorView({
+    doc: content,
+    extensions: extList,
     parent: container,
   });
 

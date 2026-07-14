@@ -1,6 +1,7 @@
-import { setMarkdown } from '../lib/editor';
+import { setMarkdown, getEditor } from '../lib/editor';
 import { store } from '../lib/store';
 import { refreshOutline } from './outline';
+import { hideDegradationBar } from './degradationBar';
 
 export function getActiveFilePath(): string | null {
   return store.getState().activeFilePath;
@@ -31,6 +32,10 @@ export function clearActiveDocument() {
   setMarkdown('');
   setActiveFilePath(null);
   refreshOutline();
+  store.setState({ readOnly: false });
+  const editor = getEditor();
+  if (editor) editor.setEditable(true);
+  hideDegradationBar();
 }
 
 function updateActiveTreeSelection(path: string | null) {

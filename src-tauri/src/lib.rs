@@ -284,6 +284,7 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             files::read_file,
+            files::file_metadata,
             files::write_file,
             files::save_mermaid_svg_export,
             files::save_mermaid_png_export,

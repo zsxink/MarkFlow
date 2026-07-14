@@ -16,6 +16,7 @@ pub struct AppState {
     pub cli_file: Mutex<Option<String>>,
     pub initial_file_handled: AtomicBool,
     pub close_allowed: Arc<AtomicBool>,
+    pub image_download_semaphore: Semaphore,
     /// Shared HTTP client with configured timeouts and connection pooling.
     pub http_client: reqwest::Client,
     /// Limits concurrent outbound HTTP requests (default: 3).
@@ -41,6 +42,7 @@ impl AppState {
             cli_file: Mutex::new(None),
             initial_file_handled: AtomicBool::new(false),
             close_allowed: Arc::new(AtomicBool::new(false)),
+            image_download_semaphore: Semaphore::new(4),
             http_client,
             http_semaphore: Semaphore::new(3),
         }

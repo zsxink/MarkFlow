@@ -30,6 +30,46 @@ pub struct RemoteImageData {
     pub mime_type: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileMetadata {
+    pub size: u64,
+    pub lines: u32,
+    pub extension: String,
+}
+
+#[tauri::command]
+pub fn file_metadata(path: String, state: State<AppState>) -> Result<FileMetadata, String> {
+    let path = resolve_path(&path, &state)?;
+    let metadata = fs::metadata(&path).map_err(|e| format!("Failed to read metadata: {}", e))?;
+    let size = metadata.len();
+    let lines = count_lines(&path)?;
+    let extension = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    Ok(FileMetadata { size, lines, extension })
+}
+
+/// Count lines in a file by scanning for newline characters.
+/// Uses a fixed buffer to avoid allocating per-line strings.
+fn count_lines(path: &Path) -> Result<u32, String> {
+    let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+    let mut count = 0u32;
+    let mut buf = [0u8; 65536];
+    let mut trailing = false;
+    loop {
+        let n = file.read(&mut buf).map_err(|e| format!("Failed to read file: {}", e))?;
+        if n == 0 { break; }
+        for &b in &buf[..n] {
+            if b == b'\n' { count += 1; }
+        }
+        trailing = buf[n - 1] != b'\n';
+    }
+    if trailing { count += 1; }
+    Ok(count)
+}
+
 fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, String> {
     // Simple path normalizer — no workspace scope check.
     // Files outside the current workspace are allowed (Typora/MarkText model).
@@ -173,8 +213,16 @@ fn is_file_older_than(entry: &fs::DirEntry, threshold: std::time::Duration) -> b
 #[tauri::command]
 pub fn read_file(path: String, state: State<AppState>) -> Result<String, String> {
     let path = resolve_path(&path, &state)?;
+    let metadata = fs::metadata(&path).map_err(|e| format!("Failed to read file: {}", e))?;
+    if metadata.len() > MAX_READ_FILE_SIZE {
+        return Err("文件过大（超过 100MB），无法直接打开".into());
+    }
     fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
 }
+
+/// Safety limit for read_file — frontend handles tier logic before calling,
+/// this is a last-resort guard against OOM.
+const MAX_READ_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
 
 #[tauri::command]
 pub fn write_file(path: String, content: String, state: State<AppState>) -> Result<(), String> {
@@ -493,6 +541,7 @@ pub async fn fetch_remote_image_as_base64(
     url: String,
     state: State<'_, AppState>,
 ) -> Result<RemoteImageData, String> {
+    let _permit = state.image_download_semaphore.acquire().await.map_err(|e| format!("Semaphore error: {}", e))?;
     let (bytes, mime_type) = fetch_remote_image_bytes(&url, &state).await?;
     Ok(RemoteImageData {
         data: base64::engine::general_purpose::STANDARD.encode(&bytes),
@@ -812,13 +861,29 @@ pub async fn download_image(
     dest: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    let _permit = state.image_download_semaphore.acquire().await.map_err(|e| format!("Semaphore error: {}", e))?;
     let dest_path = Path::new(&dest);
     validate_path_in_workspace(dest_path, &state)?;
     let (bytes, _) = fetch_remote_image_bytes(&url, &state).await?;
     if let Some(parent) = dest_path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
     }
-    fs::write(dest_path, &bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    // Write to temp file first, then atomically rename to destination
+    let temp_path = dest_path.with_extension(format!(
+        "{}.tmp",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
+    fs::write(&temp_path, &bytes).map_err(|e| format!("Failed to write temp file: {}", e))?;
+    // Clean up temp file if rename fails (e.g. antivirus lock, cross-device edge case)
+    let cleanup = || { let _ = fs::remove_file(&temp_path); };
+    fs::remove_file(dest_path).ok();
+    if let Err(e) = fs::rename(&temp_path, dest_path) {
+        cleanup();
+        return Err(format!("Failed to rename temp file: {}", e));
+    }
     info!(
         target: "backend.files",
         path = %normalize_path(dest_path),

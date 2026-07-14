@@ -25,16 +25,13 @@ import {
   setLastReadStats,
 } from './editor.state';
 import { store } from './store';
+import { scheduler } from './taskScheduler';
 import {
   createSourceEditor,
   destroySourceEditor,
   getSourceContent,
   setSourceContent,
 } from './editor.source';
-
-// ── Source editor debounce timer (module-level to allow cleanup on re-entry) ─
-
-let sourceUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -143,20 +140,18 @@ export function switchToSource() {
   wrapper.hidden = false;
   setMode('source');
 
-  // Clear stale debounce timer from any previous CM6 session
-  if (sourceUpdateTimer) clearTimeout(sourceUpdateTimer);
+  // Clear stale scheduler task from any previous CM6 session
+  scheduler.cancel('source-update');
 
-  // Create CM6 inside wrapper
+  // Create CM6 inside wrapper (respecting read-only state)
+  const isReadOnly = store.getState().readOnly;
   const view = createSourceEditor(wrapper, content, (doc) => {
     bumpRevision();
     store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
-    if (!sourceUpdateTimer) {
-      sourceUpdateTimer = setTimeout(() => {
-        sourceUpdateTimer = null;
-        store.emit({ type: 'editor:update' });
-      }, 50);
-    }
-  });
+    scheduler.schedule('source-update', 50, () => {
+      store.emit({ type: 'editor:update' });
+    });
+  }, isReadOnly);
 
   // Focus CM6 editor so user can type immediately
   view.focus();

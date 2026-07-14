@@ -34,3 +34,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Check capability security configuration
+        run: scripts/check-capabilities.sh

@@ -1,0 +1,13 @@
+{
+  "identifier": "window-minimal-capability",
+  "description": "Minimal shared capabilities — applied to all windows; main window gets additional permissions from main.json",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-message",
+    "dialog:allow-ask",
+    "dialog:allow-confirm"
+  ]
+}

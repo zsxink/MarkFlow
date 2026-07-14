@@ -24,7 +24,7 @@
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": ["**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.gif", "**/*.webp", "**/*.svg", "**/*.bmp"],
+          "allow": ["$HOME/**/*.png", "$HOME/**/*.jpg", "$HOME/**/*.jpeg", "$HOME/**/*.gif", "$HOME/**/*.webp", "$HOME/**/*.svg", "$HOME/**/*.bmp"],
           "deny": []
         }
       }
@@ -65,7 +65,7 @@
   },
   "plugins": {
     "shell": {
-      "open": true
+      "open": "((mailto:.+)|(tel:.+)|(https?://.+)|(/.*)|([a-zA-Z]:\\\\.*))"
     }
   }
 }

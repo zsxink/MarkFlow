@@ -1,8 +1,5 @@
-# sidebar-fileops Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change refactor-sidebar-split. Update Purpose after archive.
-## Requirements
 ### Requirement: Save active document
 The system SHALL save the currently active document to disk atomically, handling both existing files and new files without a path. Save operations SHALL be serialized — at most one save SHALL be in progress at any time.
 
@@ -24,7 +21,7 @@ The system SHALL save the currently active document to disk atomically, handling
 #### Scenario: Save file with external modification warning
 - **WHEN** `saveActiveDocument()` is called
 - **AND** the file has an external modification (detected via mtime + size check)
-- **AND** `interactive` is true
+- **AND** `interactive` is is true
 - **THEN** a confirm dialog SHALL ask whether to overwrite
 - **WHEN** user cancels
 - **THEN** save SHALL be aborted
@@ -48,18 +45,7 @@ The system SHALL save the currently active document to disk atomically, handling
 - **THEN** the document SHALL remain dirty after the save completes
 - **THEN** only the content that was actually persisted SHALL be marked as the last persisted version
 
-### Requirement: Reload active document from disk
-The system SHALL reload the active document content from disk, discarding in-memory changes.
-
-#### Scenario: Reload force discards changes
-- **WHEN** `reloadActiveDocumentFromDisk({ force: true })` is called
-- **THEN** the file SHALL be re-read from disk
-- **THEN** the editor content SHALL be replaced with the disk content
-
-#### Scenario: Reload aborted when document is dirty
-- **WHEN** `reloadActiveDocumentFromDisk()` is called without `force`
-- **AND** the document is dirty
-- **THEN** the reload SHALL be aborted and return false
+## ADDED Requirements
 
 ### Requirement: External modification detection via mtime
 The system SHALL detect external file modifications by comparing the file's `mtime` and `size` against the values recorded when the file was last read or saved.
@@ -85,26 +71,3 @@ The auto-save mechanism SHALL be serialized to prevent overlapping writes.
 #### Scenario: Auto-save does not queue multiple writes
 - **WHEN** the user edits content during an auto-save
 - **THEN** at most one additional save SHALL be triggered after the current save completes
-
-### Requirement: Open file in editor
-The system SHALL open a file in the editor, handling special cases when the file is already open.
-
-#### Scenario: Open new file
-- **WHEN** `openFileInEditor(path)` is called
-- **AND** the file is not already open
-- **THEN** the file content SHALL be read from disk
-- **THEN** the editor SHALL display the content
-- **THEN** the active file path SHALL be updated
-
-#### Scenario: Re-open active file with external modification
-- **WHEN** `openFileInEditor(path)` is called
-- **AND** the file is already active
-- **AND** it has external modification but no dirty edits
-- **THEN** the file SHALL be reloaded from disk
-
-#### Scenario: Re-open active file with conflict
-- **WHEN** `openFileInEditor(path)` is called
-- **AND** the file is already active
-- **AND** it has both external modification and dirty edits
-- **THEN** the conflict dialog SHALL be shown
-

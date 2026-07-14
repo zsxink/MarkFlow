@@ -1,13 +1,23 @@
 import { readFile, writeFile, addRecentFile } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown } from '../lib/editor';
+import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats } from '../lib/editor';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
 import { refreshOutline } from './outline';
-import { logException, logInfo } from '../lib/logger';
+import { logException, logInfo, logDebug } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from './ui/dialog';
 import { getActiveFilePath, setActiveFilePath } from './activeDocument';
 import { handleActiveDocumentExternalModification } from './sidebar.conflict';
+import { invoke } from '@tauri-apps/api/core';
+
+// ── Serial save guard ────────────────────────────────────────────────
+
+let savingInProgress = false;
+
+/** Returns true if a save operation is currently in progress. */
+export function isSavingInProgress(): boolean {
+  return savingInProgress;
+}
 
 export async function confirmDocumentTransition(): Promise<boolean> {
   const dirty = isDocumentDirty();
@@ -65,6 +75,11 @@ export async function saveActiveDocumentAsNewFile() {
     suppressNextWatcherRefresh(targetPath);
     await writeFile(targetPath, currentContent);
     setActiveFilePath(targetPath);
+    // Record mtime + size for future external-modification checks
+    try {
+      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
+      setLastReadStats(stats.mtime, stats.size);
+    } catch { /* non-critical */ }
     markDocumentPersisted(currentContent);
     await refreshFileTree();
     refreshOutline();
@@ -78,6 +93,13 @@ export async function saveActiveDocumentAsNewFile() {
 
 export async function saveActiveDocument(options: { interactive?: boolean } = {}) {
   const { interactive = true } = options;
+
+  // ── Serial guard: skip if a save is already in progress ──────────
+  if (savingInProgress) {
+    logDebug('sidebar.save', 'Save skipped — previous save still in progress');
+    return false;
+  }
+
   let filePath = getActiveFilePath();
 
   if (!filePath) {
@@ -89,11 +111,18 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     });
     if (!targetPath) return false;
     const content = getMarkdown();
+    const revision = getRevision();
+    savingInProgress = true;
     try {
       suppressNextWatcherRefresh(targetPath);
       await writeFile(targetPath, content);
       setActiveFilePath(targetPath);
-      markDocumentPersisted(content);
+      // Record mtime + size for future external-modification checks
+      try {
+        const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
+        setLastReadStats(stats.mtime, stats.size);
+      } catch { /* non-critical */ }
+      markDocumentPersisted(content, revision);
       addRecentFile(targetPath).catch(() => {});
       logInfo('sidebar.save', 'Saved new file', { path: targetPath });
       showToast('已保存');
@@ -102,9 +131,12 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
       showToast('保存失败');
       return false;
+    } finally {
+      savingInProgress = false;
     }
   }
 
+  // ── External modification check (mtime + size) ──────────────────
   if (hasExternalModification()) {
     if (!interactive) return false;
     const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
@@ -114,20 +146,53 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     }
   }
 
+  // ── Pre-save mtime + size validation ────────────────────────────
+  const lastMtime = getLastReadMtime();
+  const lastSize = getLastReadSize();
+  if (lastMtime > 0 || lastSize > 0) {
+    try {
+      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
+      if (stats.mtime !== lastMtime || stats.size !== lastSize) {
+        if (!interactive) {
+          logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
+          return false;
+        }
+        const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
+        if (!confirmed) {
+          showToast('已取消保存');
+          return false;
+        }
+      }
+    } catch {
+      // If stat fails, proceed with save anyway
+    }
+  }
+
+  // ── Atomic save with revision tracking ──────────────────────────
+  const content = getMarkdown();
+  const revision = getRevision();
+  savingInProgress = true;
   try {
-    const content = getMarkdown();
     suppressNextWatcherRefresh(filePath);
     await writeFile(filePath, content);
-    markDocumentPersisted(content);
+    // Record mtime + size after successful write
+    try {
+      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
+      setLastReadStats(stats.mtime, stats.size);
+    } catch { /* non-critical */ }
+    markDocumentPersisted(content, revision);
     if (interactive) {
       logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
       showToast('已保存');
     }
     return true;
   } catch (e) {
+    // Keep dirty state on failure — user sees error toast in interactive mode
     logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
-    if (interactive) showToast('保存失败');
+    if (interactive) showToast('保存失败，请重试');
     return false;
+  } finally {
+    savingInProgress = false;
   }
 }
 
@@ -168,6 +233,11 @@ export async function openFileInEditor(path: string) {
     setActiveDocumentPath(path);
     setActiveFilePath(path);
     setMarkdown(content);
+    // Record mtime + size for future external-modification checks
+    try {
+      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path });
+      setLastReadStats(stats.mtime, stats.size);
+    } catch { /* non-critical */ }
     resetEditorScroll();
     refreshOutline();
     showToast('已打开文件');

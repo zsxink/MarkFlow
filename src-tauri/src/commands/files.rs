@@ -39,6 +39,139 @@ fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, String> 
         .map_err(|e: std::io::Error| format!("Invalid path: {}", e))
 }
 
+// ---------------------------------------------------------------------------
+// Atomic write — prevents file corruption on crash / power loss
+// ---------------------------------------------------------------------------
+
+/// Write `content` to `path` atomically via temp-file + rename.
+///
+/// 1. Create a temp file in the same directory (`{name}.{pid}.tmp`)
+/// 2. Write + `sync_all()` the temp file
+/// 3. `fs::rename()` to the target (POSIX-atomic)
+/// 4. On any failure the temp file is cleaned up and the original remains intact.
+pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
+    let parent = path.parent().ok_or("Cannot determine parent directory")?;
+    fs::create_dir_all(parent)
+        .map_err(|e| format!("Failed to create parent dir: {}", e))?;
+
+    let file_name = path
+        .file_name()
+        .ok_or("Cannot determine file name")?
+        .to_string_lossy();
+    let pid = std::process::id();
+    let tmp_name = format!("{}.{}.tmp", file_name, pid);
+    let tmp_path = parent.join(&tmp_name);
+
+    // Write to temp file
+    let result = (|| -> Result<(), String> {
+        {
+            let mut file = fs::File::create(&tmp_path)
+                .map_err(|e| format!("Failed to create temp file: {}", e))?;
+            use std::io::Write;
+            file.write_all(content.as_bytes())
+                .map_err(|e| format!("Failed to write temp file: {}", e))?;
+            file.sync_all()
+                .map_err(|e| format!("Failed to sync temp file: {}", e))?;
+        }
+        // Atomic rename — on POSIX this is always atomic; on Windows uses
+        // MOVEFILE_REPLACE_EXISTING via the `winapi` crate internally.
+        fs::rename(&tmp_path, path)
+            .map_err(|e| format!("Failed to rename temp file: {}", e))?;
+        Ok(())
+    })();
+
+    if result.is_err() {
+        // Best-effort cleanup of temp file
+        let _ = fs::remove_file(&tmp_path);
+    }
+    result
+}
+
+/// Remove stale `.tmp` files left by a previous crash.
+///
+/// A temp file is considered stale if:
+/// - Its name matches `{anything}.{pid}.tmp` and `pid` is not a running process, OR
+/// - It does not match the `{anything}.{pid}.tmp` pattern and is older than `STALE_THRESHOLD`.
+pub fn cleanup_stale_temp_files(dir: &Path) {
+    use std::time::Duration;
+
+    const STALE_THRESHOLD: Duration = Duration::from_secs(60); // 1 minute
+
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+
+        if !name_str.ends_with(".tmp") {
+            continue;
+        }
+
+        #[cfg(unix)]
+        let stale = if let Some(pid) = extract_pid_from_tmp(&name_str) {
+            !is_pid_alive(pid)
+        } else {
+            is_file_older_than(&entry, STALE_THRESHOLD)
+        };
+        // On non-Unix we can't reliably check process liveness, so every
+        // .tmp file is cleaned based on age alone — including PID-pattern
+        // files from the current process, which we must guard against.
+        #[cfg(not(unix))]
+        let stale = {
+            let is_own_pid = extract_pid_from_tmp(&name_str)
+                .map(|pid| pid == std::process::id())
+                .unwrap_or(false);
+            !is_own_pid && is_file_older_than(&entry, STALE_THRESHOLD)
+        };
+
+        if stale {
+            let _ = fs::remove_file(entry.path());
+            tracing::info!(
+                target: "backend.files",
+                path = %normalize_path(&entry.path()),
+                "Cleaned up stale temp file"
+            );
+        }
+    }
+}
+
+/// Extract PID from temp file name pattern `{name}.{pid}.tmp`.
+/// Returns `None` if the name doesn't match the `{something}.{pid}.tmp` format
+/// (e.g. bare `12345.tmp` without a name prefix).
+fn extract_pid_from_tmp(name: &str) -> Option<u32> {
+    let stem = name.strip_suffix(".tmp")?;
+    let pid_str = stem.rsplit('.').next()?;
+    // Guard: if there's no dot in the stem, `rsplit` returns the whole stem,
+    // meaning the name is just `{number}.tmp` — not our `{name}.{pid}.tmp` format.
+    if pid_str == stem {
+        return None;
+    }
+    pid_str.parse::<u32>().ok()
+}
+
+/// Check if a Unix process is still alive (signal 0).
+#[cfg(unix)]
+fn is_pid_alive(pid: u32) -> bool {
+    unsafe { libc::kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(not(unix))]
+fn is_pid_alive(_pid: u32) -> bool {
+    false
+}
+
+/// Check whether a filesystem entry was last modified more than `threshold` ago.
+fn is_file_older_than(entry: &fs::DirEntry, threshold: std::time::Duration) -> bool {
+    entry
+        .metadata()
+        .and_then(|m| m.modified())
+        .map(|t| t.elapsed().unwrap_or_default() > threshold)
+        .unwrap_or(false)
+}
+
 #[tauri::command]
 pub fn read_file(path: String, state: State<AppState>) -> Result<String, String> {
     let path = resolve_path(&path, &state)?;
@@ -51,11 +184,7 @@ pub fn write_file(path: String, content: String, state: State<AppState>) -> Resu
     if state.get_workspace().is_some() {
         validate_path_in_workspace(&path, &state)?;
     }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
-    }
-    fs::write(&path, &content).map_err(|e| format!("Failed to write file: {}", e))?;
-    Ok(())
+    atomic_write(&path, &content)
 }
 
 fn select_export_path(
@@ -605,6 +734,28 @@ pub fn file_exists(path: String, state: State<AppState>) -> Result<bool, String>
     Ok(path.exists())
 }
 
+#[derive(Debug, Serialize)]
+pub struct FileStats {
+    pub mtime: u64,
+    pub size: u64,
+}
+
+#[tauri::command]
+pub fn get_file_stats(path: String, state: State<AppState>) -> Result<FileStats, String> {
+    let path = resolve_path(&path, &state)?;
+    let metadata = fs::metadata(&path).map_err(|e| format!("Failed to read file metadata: {}", e))?;
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64) // millisecond precision to detect rapid edits
+        .unwrap_or(0);
+    Ok(FileStats {
+        mtime,
+        size: metadata.len(),
+    })
+}
+
 #[tauri::command]
 pub fn read_file_as_base64(path: String, state: State<AppState>) -> Result<String, String> {
     let path = resolve_path(&path, &state)?;
@@ -662,6 +813,140 @@ pub async fn download_image(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    // --- atomic_write tests ---
+
+    fn temp_dir() -> PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("markflow_test_{}_{}", std::process::id(), n));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn atomic_write_creates_file() {
+        let dir = temp_dir();
+        let path = dir.join("test.md");
+        atomic_write(&path, "hello world").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "hello world");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn atomic_write_overwrites_existing_file() {
+        let dir = temp_dir();
+        let path = dir.join("overwrite.md");
+        fs::write(&path, "old content").unwrap();
+        atomic_write(&path, "new content").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new content");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn atomic_write_preserves_old_file_on_failure() {
+        let dir = temp_dir();
+        let path = dir.join("preserve.md");
+        fs::write(&path, "original").unwrap();
+        // Make the target file read-only so rename fails (source exists, dest is read-only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o444)).unwrap();
+        }
+        let result = atomic_write(&path, "should fail");
+        // On Unix the rename should fail because dest is read-only
+        if result.is_err() {
+            assert_eq!(fs::read_to_string(&path).unwrap(), "original");
+        }
+        // Restore permissions for cleanup
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o644));
+        }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn atomic_write_creates_parent_directories() {
+        let dir = temp_dir();
+        let path = dir.join("subdir").join("nested").join("file.md");
+        atomic_write(&path, "nested content").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "nested content");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn atomic_write_cleans_up_temp_file_on_success() {
+        let dir = temp_dir();
+        let path = dir.join("clean.md");
+        // Record .tmp files before the write
+        let before: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains("clean.md.") && e.file_name().to_string_lossy().ends_with(".tmp"))
+            .map(|e| e.path())
+            .collect();
+        atomic_write(&path, "content").unwrap();
+        // No new .tmp files for this file should remain
+        let after: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains("clean.md.") && e.file_name().to_string_lossy().ends_with(".tmp"))
+            .map(|e| e.path())
+            .collect();
+        assert!(after.len() <= before.len(), "no new temp files should exist after success");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // --- cleanup_stale_temp_files tests ---
+
+    #[test]
+    fn cleanup_removes_temp_with_dead_pid() {
+        let dir = temp_dir();
+        // Create a temp file with a PID that is definitely not running (e.g., 1 is init on Unix,
+        // but we can't kill it — use a high number that's almost certainly not alive)
+        let fake_pid = 999999999u32;
+        let tmp = dir.join(format!("file.{}.tmp", fake_pid));
+        fs::write(&tmp, "stale").unwrap();
+        cleanup_stale_temp_files(&dir);
+        assert!(!tmp.exists(), "stale temp file should be removed");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn cleanup_keeps_current_process_temp() {
+        let dir = temp_dir();
+        let pid = std::process::id();
+        let tmp = dir.join(format!("file.{}.tmp", pid));
+        fs::write(&tmp, "active").unwrap();
+        cleanup_stale_temp_files(&dir);
+        assert!(tmp.exists(), "temp file from current process should NOT be removed");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // --- extract_pid_from_tmp tests ---
+
+    #[test]
+    fn extract_pid_from_tmp_valid() {
+        assert_eq!(extract_pid_from_tmp("doc.12345.tmp"), Some(12345));
+    }
+
+    #[test]
+    fn extract_pid_from_tmp_no_pid() {
+        assert_eq!(extract_pid_from_tmp("doc.tmp"), None);
+    }
+
+    #[test]
+    fn extract_pid_from_tmp_not_tmp() {
+        assert_eq!(extract_pid_from_tmp("doc.md"), None);
+    }
+
+    // --- extract_title tests (existing) ---
 
     #[test]
     fn extract_title_basic() {

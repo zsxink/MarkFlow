@@ -75,6 +75,21 @@ function createSettingsContent(): string {
               </div>
             </div>
             <div class="settings-group">
+              <div class="settings-group-title">文件树性能</div>
+              <div class="settings-row">
+                <div><div class="settings-label">忽略目录</div><div class="settings-desc">逗号分隔，支持 * 和 ?</div></div>
+                <input class="newfile-input" id="setting-filetree-ignore" style="width:240px" />
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">单次加载条目</div>
+                <input class="newfile-input" type="number" min="50" max="5000" id="setting-filetree-page-size" style="width:100px" />
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">自动恢复展开深度</div>
+                <input class="newfile-input" type="number" min="1" max="32" id="setting-filetree-depth" style="width:100px" />
+              </div>
+            </div>
+            <div class="settings-group">
               <div class="settings-group-title">编辑器</div>
               <div class="settings-row">
                 <div class="settings-label">拼写检查</div>
@@ -322,6 +337,9 @@ function bindSettingsEvents(hide: () => void) {
   document.getElementById('setting-image-custom-path')?.addEventListener('input', () => {
     void persistSettingsFromUI();
   });
+  for (const id of ['setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth']) {
+    document.getElementById(id)?.addEventListener('change', () => void persistSettingsFromUI());
+  }
 }
 
 async function hydrateSettingsUI() {
@@ -358,6 +376,9 @@ function applySettingsToUI(settings: Settings) {
   setToggleState('setting-code-wordwrap', settings.codeWordWrap !== false);
   setToggleState('setting-image-download', settings.imageDownloadNetwork === true);
   setSelectValue('setting-image-naming', String(settings.imageNamingStrategy ?? 'timestamp'));
+  setInputValue('setting-filetree-ignore', (settings.fileTreeIgnorePatterns ?? DEFAULT_SETTINGS.fileTreeIgnorePatterns ?? []).join(', '));
+  setInputValue('setting-filetree-page-size', String(settings.fileTreePageSize ?? 500));
+  setInputValue('setting-filetree-depth', String(settings.fileTreeAutoLoadDepth ?? 8));
 
   const selectedTheme = String(settings.theme ?? 'light') as Theme;
   document.querySelectorAll('.theme-swatch').forEach(swatch => {
@@ -442,6 +463,9 @@ function buildSettingsFromUI(): Settings {
     imageAutoCopyLocal: getToggleState('setting-image-auto-copy'),
     imageDownloadNetwork: getToggleState('setting-image-download'),
     imageNamingStrategy: getSelectValue('setting-image-naming') || 'timestamp',
+    fileTreeIgnorePatterns: getInputValue('setting-filetree-ignore').split(',').map(value => value.trim()).filter(Boolean),
+    fileTreePageSize: Math.min(5000, Math.max(50, Number(getInputValue('setting-filetree-page-size')) || 500)),
+    fileTreeAutoLoadDepth: Math.min(32, Math.max(1, Number(getInputValue('setting-filetree-depth')) || 8)),
   };
 }
 

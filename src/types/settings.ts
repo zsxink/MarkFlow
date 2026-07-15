@@ -27,6 +27,9 @@ export interface Settings {
   hugeFileThreshold?: number;
   largeFileLineThreshold?: number;
   hugeFileLineThreshold?: number;
+  fileTreeIgnorePatterns?: string[];
+  fileTreePageSize?: number;
+  fileTreeAutoLoadDepth?: number;
   recentFiles: string[];
   recentFolders: string[];
   lastWindowWidth: number;
@@ -62,6 +65,9 @@ export const DEFAULT_SETTINGS: Settings = {
   hugeFileThreshold: 10485760,    // 10MB
   largeFileLineThreshold: 5000,
   hugeFileLineThreshold: 50000,
+  fileTreeIgnorePatterns: ['.git', 'node_modules', 'target', 'dist'],
+  fileTreePageSize: 500,
+  fileTreeAutoLoadDepth: 8,
   recentFiles: [],
   recentFolders: [],
   lastWindowWidth: 1200,

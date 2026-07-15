@@ -1,4 +1,4 @@
-import { getWorkspacePath, escapePathSelector, createTreeNode, insertSorted, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree } from './fileTree.core';
+import { getWorkspacePath, escapePathSelector, createTreeNode, insertSorted, suppressNextWatcherRefresh, suppressAllDescendants, applyFileTreeEvents } from './fileTree.core';
 import { readSingleDir, createFile, createDir, renamePath } from '../lib/storage';
 import { rewriteActiveDocumentPath } from './activeDocument';
 import { openFileInEditor } from './sidebar';
@@ -43,7 +43,7 @@ export function startInlineRename(path: string) {
       el.dataset.path = newPath;
 
       if (isFolder) {
-        await refreshFileTree();
+        await applyFileTreeEvents([{ path, toPath: newPath, kind: 'rename', timestamp: Date.now() }]);
         showToast('已重命名');
         return;
       }

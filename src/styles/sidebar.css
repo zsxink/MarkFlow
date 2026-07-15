@@ -194,4 +194,16 @@
   outline: 1px dashed var(--accent);
   outline-offset: -1px;
 }
+.tree-load-more {
+  width: calc(100% - 28px);
+  margin: 2px 8px 4px 20px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
 
+.tree-load-more:hover { background: var(--hover); }

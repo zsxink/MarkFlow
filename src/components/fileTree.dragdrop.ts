@@ -1,4 +1,4 @@
-import { dragState, getWorkspacePath, suppressNextWatcherRefresh, suppressAllDescendants, refreshFileTree, removeEntryFromTree, insertEntryIntoTree } from './fileTree.core';
+import { dragState, getWorkspacePath, suppressNextWatcherRefresh, suppressAllDescendants, applyFileTreeEvents, removeEntryFromTree, insertEntryIntoTree } from './fileTree.core';
 import { getFileName } from '../lib/pathUtils';
 import { renamePath, readSingleDir } from '../lib/storage';
 import { rewriteActiveDocumentPath } from './activeDocument';
@@ -118,7 +118,7 @@ export function initMouseDrag() {
 
           if (srcIsFolder) {
             suppressAllDescendants(destPath);
-            await refreshFileTree();
+            await applyFileTreeEvents([{ path: srcPath, toPath: destPath, kind: 'rename', timestamp: Date.now() }]);
           } else {
             const entries = await readSingleDir(destDir);
             const movedEntry = entries.find(e => e.path === destPath);

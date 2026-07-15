@@ -1,3 +1,5 @@
+use crate::commands::settings::load_settings_inner;
+use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
@@ -51,7 +53,7 @@ impl AppState {
     pub fn set_workspace(
         &self,
         path: PathBuf,
-        event_handler: impl Fn(FileChangeEvent) + Send + 'static,
+        event_handler: impl Fn(Vec<FileChangeEvent>) + Send + 'static,
     ) {
         let path_display = normalize_path(&path);
 
@@ -60,7 +62,9 @@ impl AppState {
             debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
         }
 
-        match FileWatcher::new(path.clone(), event_handler) {
+        let settings = load_settings_inner();
+        let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
+        match FileWatcher::new(path.clone(), matcher, event_handler) {
             Ok(w) => {
                 *watcher = Some(w);
                 debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");

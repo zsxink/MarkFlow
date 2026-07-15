@@ -7,6 +7,15 @@ export interface FileEntry {
   children?: FileEntry[];
 }
 
+export interface DirectoryPage {
+  entries: FileEntry[];
+  nextCursor: string | null;
+  generation: string;
+  truncated: boolean;
+}
+
+export type DirectoryLoadStatus = 'unloaded' | 'loading' | 'loaded' | 'stale' | 'error';
+
 // ── Remote Image Data ─────────────────────────────────────────────────
 
 export interface RemoteImageData {

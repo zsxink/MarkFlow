@@ -23,6 +23,10 @@ export interface Settings {
   codeLineNumbers?: boolean;
   codeWordWrap?: boolean;
   lastSidebarTab?: string;
+  largeFileThreshold?: number;
+  hugeFileThreshold?: number;
+  largeFileLineThreshold?: number;
+  hugeFileLineThreshold?: number;
   recentFiles: string[];
   recentFolders: string[];
   lastWindowWidth: number;
@@ -54,6 +58,10 @@ export const DEFAULT_SETTINGS: Settings = {
   imageNamingStrategy: 'timestamp',
   codeLineNumbers: false,
   codeWordWrap: true,
+  largeFileThreshold: 1048576,    // 1MB
+  hugeFileThreshold: 10485760,    // 10MB
+  largeFileLineThreshold: 5000,
+  hugeFileLineThreshold: 50000,
   recentFiles: [],
   recentFolders: [],
   lastWindowWidth: 1200,

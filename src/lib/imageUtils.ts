@@ -1,6 +1,6 @@
 import type { ImageSettings } from '../types/editor';
 import { resolveImagePath, computeRelativePath, getParentDir, getImageMimeType } from './pathUtils';
-import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64, loadSettings, readSingleDir } from './storage';
+import { writeFileFromBase64, downloadImage, getWorkspace, readFileAsBase64, loadSettings, readSingleDir, copyFile } from './storage';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 // ── Image settings helpers ─────────────────────────────────────────────
@@ -132,9 +132,26 @@ export async function copyLocalFileToStorage(
   if (settings.storageMode === 'none') {
     return filePathToSrc(filePath);
   }
-  const base64 = await readFileAsBase64(filePath);
-  const name = filePath.replace(/^.*[/\\]/, '');
-  return copyImageToStorage(base64, name, docPath, settings);
+  const storageDir = await getStoragePath(settings, docPath);
+  if (!storageDir) {
+    // Fallback to Base64 if no storage dir configured
+    const base64 = await readFileAsBase64(filePath);
+    const mime = getImageMimeType(filePath);
+    return `data:${mime};base64,${base64}`;
+  }
+  const names: string[] = [];
+  try {
+    const entries = await readSingleDir(storageDir);
+    names.push(...entries.filter(e => !e.isDir).map(e => e.name));
+  } catch { /* dir may not exist yet */ }
+  const name = await generateImageName(filePath.replace(/^.*[/\\]/, ''), settings.namingStrategy, names);
+  const destPath = `${storageDir}/${name}`;
+  // Use Rust fs::copy to avoid Base64 IPC round-trip
+  await copyFile(filePath, destPath);
+  if (settings.preferRelative && docPath) {
+    return computeRelativePath(docPath, destPath);
+  }
+  return destPath.replace(/\\/g, '/');
 }
 
 export async function pasteImageFile(

@@ -18,18 +18,20 @@ import {
   hasExternalModification,
   markExternalModification,
   setActiveDocumentPath,
+  bumpRevision,
+  getRevision,
+  getLastReadMtime,
+  getLastReadSize,
+  setLastReadStats,
 } from './editor.state';
 import { store } from './store';
+import { scheduler } from './taskScheduler';
 import {
   createSourceEditor,
   destroySourceEditor,
   getSourceContent,
   setSourceContent,
 } from './editor.source';
-
-// ── Source editor debounce timer (module-level to allow cleanup on re-entry) ─
-
-let sourceUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -41,6 +43,11 @@ export {
   hasExternalModification,
   markExternalModification,
   setActiveDocumentPath,
+  bumpRevision,
+  getRevision,
+  getLastReadMtime,
+  getLastReadSize,
+  setLastReadStats,
 };
 export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 export { initEditor } from './editor.init';
@@ -62,9 +69,26 @@ export function resetEditorScroll() {
   document.getElementById('editor-area')?.scrollTo({ top: 0, behavior: 'auto' });
 }
 
-export function markDocumentPersisted(markdown: string) {
-  getDocumentState().lastPersistedMarkdown = normalizeImageMarkdown(markdown);
-  store.setState({ dirty: false });
+export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
+  // Store the persisted content as the new baseline.
+  // Callers pass already-normalized content (from getMarkdown()), so no
+  // re-normalization needed — that would risk non-idempotent transforms.
+  getDocumentState().lastPersistedMarkdown = markdown;
+
+  // If a revision was captured at save-start, only clear dirty when no newer
+  // edits arrived during the write.  Without a revision (legacy callers) we
+  // always clear dirty for backward compatibility.
+  if (persistedRevision !== undefined && persistedRevision !== getRevision()) {
+    // Newer edits landed — keep dirty so the next save picks them up.
+    return;
+  }
+
+  // Content-based sanity check: compare actual current content against what
+  // was just persisted.  This handles edge cases where the revision counter
+  // incremented (e.g. from a debounced onUpdate) but the current editor
+  // content hasn't materially changed (just the debounce timer caught up).
+  const currentMd = normalizeImageMarkdown(getMarkdown());
+  store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
   getDocumentState().externallyModified = false;
 }
 
@@ -116,19 +140,18 @@ export function switchToSource() {
   wrapper.hidden = false;
   setMode('source');
 
-  // Clear stale debounce timer from any previous CM6 session
-  if (sourceUpdateTimer) clearTimeout(sourceUpdateTimer);
+  // Clear stale scheduler task from any previous CM6 session
+  scheduler.cancel('source-update');
 
-  // Create CM6 inside wrapper
+  // Create CM6 inside wrapper (respecting read-only state)
+  const isReadOnly = store.getState().readOnly;
   const view = createSourceEditor(wrapper, content, (doc) => {
+    bumpRevision();
     store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
-    if (!sourceUpdateTimer) {
-      sourceUpdateTimer = setTimeout(() => {
-        sourceUpdateTimer = null;
-        store.emit({ type: 'editor:update' });
-      }, 50);
-    }
-  });
+    scheduler.schedule('source-update', 50, () => {
+      store.emit({ type: 'editor:update' });
+    });
+  }, isReadOnly);
 
   // Focus CM6 editor so user can type immediately
   view.focus();

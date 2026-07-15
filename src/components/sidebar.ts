@@ -8,7 +8,7 @@ import { addRecentFolder, saveSettings } from '../lib/storage';
 import { logException } from '../lib/logger';
 
 // Re-export functions from split modules for backward compatibility
-export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor, confirmDocumentTransition } from './sidebar.fileops';
+export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor, confirmDocumentTransition, isSavingInProgress } from './sidebar.fileops';
 export { handleExternalDeletion, handleActiveDocumentExternalModification } from './sidebar.conflict';
 export { getActiveFilePath, setActiveFilePath, rewriteActiveDocumentPath, clearActiveDocument, clearActiveDocumentIfMatches } from './activeDocument';
 

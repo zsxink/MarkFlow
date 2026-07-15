@@ -28,9 +28,10 @@ function makeDoc(children: Array<{
           attrs: child.attrs ?? {},
         };
         // List-like nodes use forEach to iterate their items
-        if (child.children) {
+        const items = child.children;
+        if (items) {
           node.forEach = (itemFn: (item: Record<string, unknown>, pos: number) => void) => {
-            for (const item of child.children) {
+            for (const item of items) {
               itemFn(
                 {
                   textContent: item.textContent,
@@ -41,7 +42,7 @@ function makeDoc(children: Array<{
             }
           };
         }
-        fn(node, 0);
+        fn(node);
       }
     },
   };

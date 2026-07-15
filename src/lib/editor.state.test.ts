@@ -9,6 +9,11 @@ import {
   markExternalModification,
   getMermaidExportBaseName,
   getDocumentState,
+  bumpRevision,
+  getRevision,
+  setLastReadStats,
+  getLastReadMtime,
+  getLastReadSize,
 } from './editor.state';
 import { store } from './store';
 
@@ -25,6 +30,9 @@ beforeEach(() => {
   getDocumentState().externallyModified = false;
   getDocumentState().programmaticUpdate = false;
   getDocumentState().lastPersistedMarkdown = '';
+  getDocumentState().revision = 0;
+  getDocumentState().lastReadMtime = 0;
+  getDocumentState().lastReadSize = 0;
   // Clear DOM so getActiveDocPath() does not pick up stale elements.
   document.body.innerHTML = '';
 });
@@ -128,5 +136,20 @@ describe('getMermaidExportBaseName', () => {
   it('uses full file name when the only dot is at position 0 (hidden file)', () => {
     setActiveDocumentPath('/path/to/.gitignore');
     expect(getMermaidExportBaseName()).toBe('.gitignore-mermaid');
+  });
+});
+
+describe('revision and file snapshot tracking', () => {
+  it('increments revisions so an in-flight save can detect newer edits', () => {
+    const saveRevision = getRevision();
+    bumpRevision();
+    expect(getRevision()).toBe(saveRevision + 1);
+    expect(getRevision()).not.toBe(saveRevision);
+  });
+
+  it('stores the last-read mtime and size together', () => {
+    setLastReadStats(1234, 56);
+    expect(getLastReadMtime()).toBe(1234);
+    expect(getLastReadSize()).toBe(56);
   });
 });

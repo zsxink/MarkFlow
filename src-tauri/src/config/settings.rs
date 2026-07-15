@@ -37,6 +37,14 @@ pub struct Settings {
     pub code_word_wrap: Option<bool>,
     #[serde(default)]
     pub last_sidebar_tab: Option<String>,
+    #[serde(default = "default_large_file_threshold")]
+    pub large_file_threshold: u64,
+    #[serde(default = "default_huge_file_threshold")]
+    pub huge_file_threshold: u64,
+    #[serde(default = "default_large_file_line_threshold")]
+    pub large_file_line_threshold: u32,
+    #[serde(default = "default_huge_file_line_threshold")]
+    pub huge_file_line_threshold: u32,
     #[serde(default)]
     pub recent_files: Vec<String>,
     #[serde(default)]
@@ -51,9 +59,16 @@ pub struct Settings {
     pub last_window_y: f64,
 }
 
-fn default_window_width() -> f64 { 1200.0 }
-fn default_window_height() -> f64 { 800.0 }
-
+fn default_window_width() -> f64 {
+    1200.0
+}
+fn default_window_height() -> f64 {
+    800.0
+}
+fn default_large_file_threshold() -> u64 { 1048576 }
+fn default_huge_file_threshold() -> u64 { 10485760 }
+fn default_large_file_line_threshold() -> u32 { 5000 }
+fn default_huge_file_line_threshold() -> u32 { 50000 }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -82,6 +97,10 @@ impl Default for Settings {
             code_line_numbers: None,
             code_word_wrap: None,
             last_sidebar_tab: None,
+            large_file_threshold: default_large_file_threshold(),
+            huge_file_threshold: default_huge_file_threshold(),
+            large_file_line_threshold: default_large_file_line_threshold(),
+            huge_file_line_threshold: default_huge_file_line_threshold(),
             recent_files: vec![],
             recent_folders: vec![],
             last_window_width: 1200.0,

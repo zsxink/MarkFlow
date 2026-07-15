@@ -1,10 +1,14 @@
-import type { FileEntry, RemoteImageData } from '../types/fileTree';
+import type { FileEntry, FileMetadata, RemoteImageData } from '../types/fileTree';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
 import { invoke } from '@tauri-apps/api/core';
 
 export async function readFile(path: string): Promise<string> {
   return invoke<string>('read_file', { path });
+}
+
+export async function getFileMetadata(path: string): Promise<FileMetadata> {
+  return invoke<FileMetadata>('file_metadata', { path });
 }
 
 export async function writeFile(path: string, content: string): Promise<void> {

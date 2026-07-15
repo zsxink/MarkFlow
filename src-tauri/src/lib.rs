@@ -12,9 +12,9 @@ use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 #[cfg(target_os = "macos")]
 use tauri::RunEvent;
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_single_instance::init as single_instance_init;
 
 #[tauri::command]
@@ -38,23 +38,29 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
     let windows = app.webview_windows();
 
     // Used to check if a window fills the screen
-    let monitor: Option<tauri::Monitor> = match app.primary_monitor() {
-        Ok(m) => m,
-        Err(_) => None,
-    };
+    let monitor: Option<tauri::Monitor> = app.primary_monitor().unwrap_or_default();
 
     let (win_w, win_h, pos_x, pos_y) = if windows.is_empty() {
-        (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+        (
+            saved.last_window_width,
+            saved.last_window_height,
+            saved.last_window_x,
+            saved.last_window_y,
+        )
     } else {
         // Check screen bounds using a standalone variable (avoid capture issues)
         let can_offset = monitor.as_ref().is_some();
         let mon_size = monitor.as_ref().map(|m| m.size());
 
         let ref_window = windows.values().find(|w| {
-            if w.is_maximized().unwrap_or(false) { return false; }
+            if w.is_maximized().unwrap_or(false) {
+                return false;
+            }
             if let (Ok(_pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
                 if let Some(ms) = mon_size {
-                    if size.width as i32 >= ms.width as i32 - 20 && size.height as i32 >= ms.height as i32 - 20 {
+                    if size.width as i32 >= ms.width as i32 - 20
+                        && size.height as i32 >= ms.height as i32 - 20
+                    {
                         return false;
                     }
                 }
@@ -70,7 +76,12 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
                         if (new_x as i32) < ms.width as i32 && (new_y as i32) < ms.height as i32 {
                             (size.width as f64, size.height as f64, new_x, new_y)
                         } else {
-                            (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+                            (
+                                saved.last_window_width,
+                                saved.last_window_height,
+                                saved.last_window_x,
+                                saved.last_window_y,
+                            )
                         }
                     } else {
                         (size.width as f64, size.height as f64, new_x, new_y)
@@ -79,18 +90,29 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
                     (size.width as f64, size.height as f64, new_x, new_y)
                 }
             } else {
-                (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+                (
+                    saved.last_window_width,
+                    saved.last_window_height,
+                    saved.last_window_x,
+                    saved.last_window_y,
+                )
             }
         } else {
-            (saved.last_window_width, saved.last_window_height, saved.last_window_x, saved.last_window_y)
+            (
+                saved.last_window_width,
+                saved.last_window_height,
+                saved.last_window_x,
+                saved.last_window_y,
+            )
         }
     };
 
-    let window_result = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-        .title(&file_name)
-        .inner_size(win_w, win_h)
-        .position(pos_x, pos_y)
-        .build();
+    let window_result =
+        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+            .title(&file_name)
+            .inner_size(win_w, win_h)
+            .position(pos_x, pos_y)
+            .build();
 
     let window = match window_result {
         Ok(w) => w,
@@ -141,9 +163,12 @@ fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(),
 /// Uses a flag pattern to avoid macOS CloseRequested one-shot behavior:
 ///   1st close → flag=false → prevent_close + emit "close-requested"
 ///   2nd close → flag=true  → let it through (don't prevent)
-fn intercept_close_request(window: &tauri::WebviewWindow, close_allowed: std::sync::Arc<std::sync::atomic::AtomicBool>) {
+fn intercept_close_request(
+    window: &tauri::WebviewWindow,
+    close_allowed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+) {
     let w = window.clone();
-    let _ = window.on_window_event(move |event| {
+    window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { api, .. } = event {
             if close_allowed.load(std::sync::atomic::Ordering::SeqCst) {
                 // User confirmed close via dialog — let it through
@@ -156,8 +181,13 @@ fn intercept_close_request(window: &tauri::WebviewWindow, close_allowed: std::sy
 }
 
 #[tauri::command]
-fn confirm_window_close(window: tauri::WebviewWindow, state: tauri::State<AppState>) -> Result<(), String> {
-    state.close_allowed.store(true, std::sync::atomic::Ordering::SeqCst);
+fn confirm_window_close(
+    window: tauri::WebviewWindow,
+    state: tauri::State<AppState>,
+) -> Result<(), String> {
+    state
+        .close_allowed
+        .store(true, std::sync::atomic::Ordering::SeqCst);
     let _ = window.close(); // triggers CloseRequested again, but flag is now true → let it through
     Ok(())
 }
@@ -167,7 +197,9 @@ fn add_recent_file(path: String) -> Result<(), String> {
     let mut s = settings::load_settings_inner();
     s.recent_files.retain(|p| p != &path);
     s.recent_files.insert(0, path);
-    if s.recent_files.len() > 10 { s.recent_files.truncate(10); }
+    if s.recent_files.len() > 10 {
+        s.recent_files.truncate(10);
+    }
     settings::save_settings_inner(&s)
 }
 
@@ -176,7 +208,9 @@ fn add_recent_folder(path: String) -> Result<(), String> {
     let mut s = settings::load_settings_inner();
     s.recent_folders.retain(|p| p != &path);
     s.recent_folders.insert(0, path);
-    if s.recent_folders.len() > 5 { s.recent_folders.truncate(5); }
+    if s.recent_folders.len() > 5 {
+        s.recent_folders.truncate(5);
+    }
     settings::save_settings_inner(&s)
 }
 
@@ -199,6 +233,9 @@ fn set_workspace(
         tracing::warn!(target: "backend.workspace", path = %path, "Rejected non-directory workspace path");
         return Err("Workspace path is not a directory".into());
     }
+
+    // Clean up stale temp files in the workspace
+    files::cleanup_stale_temp_files(&workspace);
 
     tracing::info!(target: "backend.workspace", path = %path, "Switching workspace");
 
@@ -247,6 +284,7 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             files::read_file,
+            files::file_metadata,
             files::write_file,
             files::save_mermaid_svg_export,
             files::save_mermaid_png_export,
@@ -259,6 +297,7 @@ pub fn run() {
             files::copy_file,
             files::read_single_dir,
             files::file_exists,
+            files::get_file_stats,
             files::read_file_as_base64,
             files::write_file_from_base64,
             files::fetch_remote_image_as_base64,
@@ -281,6 +320,9 @@ pub fn run() {
         ])
         .setup(|app| {
             let settings = settings::load_settings_inner();
+
+            // Clean up stale temp files from previous crashed writes
+            files::cleanup_stale_temp_files(&paths::app_config_dir());
 
             let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
 
@@ -314,9 +356,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building MarkFlow");
 
-    app.run(|app_handle, event| {
+    app.run(|_app_handle, _event| {
         #[cfg(target_os = "macos")]
-        if let RunEvent::Opened { urls } = event {
+        if let RunEvent::Opened { urls } = _event {
             for url in urls {
                 let path_str = match url.to_file_path() {
                     Ok(path) => path.to_string_lossy().to_string(),
@@ -326,7 +368,7 @@ pub fn run() {
                     }
                 };
 
-                let state = app_handle.state::<AppState>();
+                let state = _app_handle.state::<AppState>();
 
                 if !state.initial_file_handled.load(Ordering::SeqCst) {
                     tracing::info!(target: "backend.app", path = %path_str, "First RunEvent::Opened — storing to cli_file");
@@ -334,7 +376,7 @@ pub fn run() {
                     *cli_file_lock = Some(path_str);
                 } else {
                     tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened (new window)");
-                    let _ = open_file_in_new_window(path_str, app_handle.clone());
+                    let _ = open_file_in_new_window(path_str, _app_handle.clone());
                 }
             }
         }

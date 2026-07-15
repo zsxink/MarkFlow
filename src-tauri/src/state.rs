@@ -1,6 +1,6 @@
-use crate::fs::watcher::{FileChangeEvent, FileWatcher};
-use crate::fs::ignore::matcher_snapshot;
 use crate::commands::settings::load_settings_inner;
+use crate::fs::ignore::matcher_snapshot;
+use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
 use std::collections::HashMap;

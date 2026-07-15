@@ -96,7 +96,10 @@ mod tests {
         object.remove("fileTreePageSize");
         object.remove("fileTreeAutoLoadDepth");
         let parsed = parse_settings(&serde_json::to_string(&value).unwrap()).unwrap();
-        assert_eq!(parsed.file_tree_ignore_patterns, vec![".git", "node_modules", "target", "dist"]);
+        assert_eq!(
+            parsed.file_tree_ignore_patterns,
+            vec![".git", "node_modules", "target", "dist"]
+        );
         assert_eq!(parsed.file_tree_page_size, 500);
         assert_eq!(parsed.file_tree_auto_load_depth, 8);
     }

@@ -1,9 +1,9 @@
+use crate::commands::settings::load_settings_inner;
+use crate::fs::ignore::{matcher_snapshot, IgnoreMatcher};
 use crate::http::{
     redact_url_for_log, validate_external_url, validate_image_magic, MAX_IMAGE_SIZE, MAX_TITLE_LEN,
     MAX_TITLE_READ_BYTES,
 };
-use crate::commands::settings::load_settings_inner;
-use crate::fs::ignore::{matcher_snapshot, IgnoreMatcher};
 use crate::paths::normalize_path;
 use crate::state::AppState;
 use base64::Engine;
@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tracing::info;
-use std::time::Instant;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -38,14 +38,22 @@ pub struct DirectoryPage {
 
 fn directory_generation(dir: &Path) -> Result<String, String> {
     let metadata = fs::metadata(dir).map_err(|e| format!("Failed to inspect directory: {}", e))?;
-    let modified = metadata.modified().ok()
+    let modified = metadata
+        .modified()
+        .ok()
         .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|duration| duration.as_nanos()).unwrap_or(0);
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
     Ok(format!("{}:{}", modified, metadata.len()))
 }
 
 fn entry_sort_key(entry: &FileEntry) -> String {
-    format!("{}\0{}\0{}", if entry.is_dir { 0 } else { 1 }, entry.name.to_lowercase(), entry.path)
+    format!(
+        "{}\0{}\0{}",
+        if entry.is_dir { 0 } else { 1 },
+        entry.name.to_lowercase(),
+        entry.path
+    )
 }
 
 fn read_dir_page_inner(
@@ -64,12 +72,24 @@ fn read_dir_page_inner(
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with('.') || matcher.is_ignored(dir, &path) { continue; }
-        let metadata = fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
-        if metadata.file_type().is_symlink() { continue; }
-        entries.push(FileEntry { name, path: normalize_path(&path), is_dir: metadata.is_dir(), children: None });
+        if name.starts_with('.') || matcher.is_ignored(dir, &path) {
+            continue;
+        }
+        let metadata =
+            fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+        if metadata.file_type().is_symlink() {
+            continue;
+        }
+        entries.push(FileEntry {
+            name,
+            path: normalize_path(&path),
+            is_dir: metadata.is_dir(),
+            children: None,
+        });
     }
-    if directory_generation(dir)? != generation { return Err("DIRECTORY_CHANGED".into()); }
+    if directory_generation(dir)? != generation {
+        return Err("DIRECTORY_CHANGED".into());
+    }
     entries.sort_by_key(entry_sort_key);
     if let Some(cursor) = cursor {
         entries.retain(|entry| entry_sort_key(entry).as_str() > cursor);
@@ -77,8 +97,14 @@ fn read_dir_page_inner(
     let limit = limit.clamp(1, 5_000);
     let truncated = entries.len() > limit;
     entries.truncate(limit);
-    let next_cursor = truncated.then(|| entry_sort_key(entries.last().expect("non-empty truncated page")));
-    Ok(DirectoryPage { entries, next_cursor, generation, truncated })
+    let next_cursor =
+        truncated.then(|| entry_sort_key(entries.last().expect("non-empty truncated page")));
+    Ok(DirectoryPage {
+        entries,
+        next_cursor,
+        generation,
+        truncated,
+    })
 }
 
 #[tauri::command]
@@ -91,13 +117,18 @@ pub fn read_dir(
 ) -> Result<DirectoryPage, String> {
     let started = Instant::now();
     let dir = resolve_path(&path, &state)?;
-    if !dir.is_dir() { return Err("Not a directory".into()); }
+    if !dir.is_dir() {
+        return Err("Not a directory".into());
+    }
     validate_path_in_workspace(&dir, &state)?;
     let settings = load_settings_inner();
     let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
     let page = read_dir_page_inner(
-        &dir, cursor.as_deref(), limit.unwrap_or(settings.file_tree_page_size),
-        generation.as_deref(), &matcher,
+        &dir,
+        cursor.as_deref(),
+        limit.unwrap_or(settings.file_tree_page_size),
+        generation.as_deref(),
+        &matcher,
     )?;
     info!(target: "backend.file_tree", path = %normalize_path(&dir), elapsed_ms = started.elapsed().as_millis() as u64,
         entries = page.entries.len(), truncated = page.truncated, "Read shallow directory page");
@@ -108,14 +139,28 @@ pub fn read_dir(
 pub fn read_path_entry(path: String, state: State<AppState>) -> Result<FileEntry, String> {
     let path = resolve_path(&path, &state)?;
     validate_path_in_workspace(&path, &state)?;
-    let metadata = fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
-    if metadata.file_type().is_symlink() { return Err("Symlink not allowed".into()); }
-    let name = path.file_name().ok_or("Invalid path")?.to_string_lossy().to_string();
+    let metadata =
+        fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
+    if metadata.file_type().is_symlink() {
+        return Err("Symlink not allowed".into());
+    }
+    let name = path
+        .file_name()
+        .ok_or("Invalid path")?
+        .to_string_lossy()
+        .to_string();
     let workspace = state.get_workspace().ok_or("No workspace set")?;
     let settings = load_settings_inner();
     let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
-    if name.starts_with('.') || matcher.is_ignored(&workspace, &path) { return Err("Path is ignored".into()); }
-    Ok(FileEntry { name, path: normalize_path(&path), is_dir: metadata.is_dir(), children: None })
+    if name.starts_with('.') || matcher.is_ignored(&workspace, &path) {
+        return Err("Path is ignored".into());
+    }
+    Ok(FileEntry {
+        name,
+        path: normalize_path(&path),
+        is_dir: metadata.is_dir(),
+        children: None,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -143,7 +188,11 @@ pub fn file_metadata(path: String, state: State<AppState>) -> Result<FileMetadat
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
-    Ok(FileMetadata { size, lines, extension })
+    Ok(FileMetadata {
+        size,
+        lines,
+        extension,
+    })
 }
 
 /// Count lines in a file by scanning for newline characters.
@@ -154,14 +203,22 @@ fn count_lines(path: &Path) -> Result<u32, String> {
     let mut buf = [0u8; 65536];
     let mut trailing = false;
     loop {
-        let n = file.read(&mut buf).map_err(|e| format!("Failed to read file: {}", e))?;
-        if n == 0 { break; }
+        let n = file
+            .read(&mut buf)
+            .map_err(|e| format!("Failed to read file: {}", e))?;
+        if n == 0 {
+            break;
+        }
         for &b in &buf[..n] {
-            if b == b'\n' { count += 1; }
+            if b == b'\n' {
+                count += 1;
+            }
         }
         trailing = buf[n - 1] != b'\n';
     }
-    if trailing { count += 1; }
+    if trailing {
+        count += 1;
+    }
     Ok(count)
 }
 
@@ -582,7 +639,11 @@ pub async fn fetch_remote_image_as_base64(
     url: String,
     state: State<'_, AppState>,
 ) -> Result<RemoteImageData, String> {
-    let _permit = state.image_download_semaphore.acquire().await.map_err(|e| format!("Semaphore error: {}", e))?;
+    let _permit = state
+        .image_download_semaphore
+        .acquire()
+        .await
+        .map_err(|e| format!("Semaphore error: {}", e))?;
     let (bytes, mime_type) = fetch_remote_image_bytes(&url, &state).await?;
     Ok(RemoteImageData {
         data: base64::engine::general_purpose::STANDARD.encode(&bytes),
@@ -902,7 +963,11 @@ pub async fn download_image(
     dest: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let _permit = state.image_download_semaphore.acquire().await.map_err(|e| format!("Semaphore error: {}", e))?;
+    let _permit = state
+        .image_download_semaphore
+        .acquire()
+        .await
+        .map_err(|e| format!("Semaphore error: {}", e))?;
     let dest_path = Path::new(&dest);
     validate_path_in_workspace(dest_path, &state)?;
     let (bytes, _) = fetch_remote_image_bytes(&url, &state).await?;
@@ -919,7 +984,9 @@ pub async fn download_image(
     ));
     fs::write(&temp_path, &bytes).map_err(|e| format!("Failed to write temp file: {}", e))?;
     // Clean up temp file if rename fails (e.g. antivirus lock, cross-device edge case)
-    let cleanup = || { let _ = fs::remove_file(&temp_path); };
+    let cleanup = || {
+        let _ = fs::remove_file(&temp_path);
+    };
     fs::remove_file(dest_path).ok();
     if let Err(e) = fs::rename(&temp_path, dest_path) {
         cleanup();
@@ -1165,7 +1232,9 @@ mod tests {
     #[test]
     fn shallow_pages_are_stable_bounded_and_non_overlapping() {
         let dir = temp_dir();
-        for name in ["c.md", "a.md", "b.md"] { fs::write(dir.join(name), name).unwrap(); }
+        for name in ["c.md", "a.md", "b.md"] {
+            fs::write(dir.join(name), name).unwrap();
+        }
         fs::create_dir(dir.join("folder")).unwrap();
         fs::create_dir(dir.join("node_modules")).unwrap();
         let matcher = IgnoreMatcher::defaults();
@@ -1174,11 +1243,23 @@ mod tests {
         assert!(first.truncated);
         assert_eq!(first.entries[0].name, "folder");
         let second = read_dir_page_inner(
-            &dir, first.next_cursor.as_deref(), 2, Some(&first.generation), &matcher,
-        ).unwrap();
+            &dir,
+            first.next_cursor.as_deref(),
+            2,
+            Some(&first.generation),
+            &matcher,
+        )
+        .unwrap();
         assert_eq!(second.entries.len(), 2);
-        assert!(first.entries.iter().all(|a| second.entries.iter().all(|b| a.path != b.path)));
-        assert!(first.entries.iter().chain(second.entries.iter()).all(|entry| entry.name != "node_modules"));
+        assert!(first
+            .entries
+            .iter()
+            .all(|a| second.entries.iter().all(|b| a.path != b.path)));
+        assert!(first
+            .entries
+            .iter()
+            .chain(second.entries.iter())
+            .all(|entry| entry.name != "node_modules"));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -1191,14 +1272,19 @@ mod tests {
         let page = read_dir_page_inner(&dir, None, 10, None, &matcher).unwrap();
         assert_eq!(page.entries.len(), 1);
         assert_eq!(page.entries[0].name, "visible.md");
-        assert_eq!(read_dir_page_inner(&dir, None, 10, Some("stale"), &matcher).unwrap_err(), "DIRECTORY_CHANGED");
+        assert_eq!(
+            read_dir_page_inner(&dir, None, 10, Some("stale"), &matcher).unwrap_err(),
+            "DIRECTORY_CHANGED"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn shallow_page_clamps_limit_and_sorts_case_insensitively() {
         let dir = temp_dir();
-        for name in ["Z.md", "a.md", "B.md"] { fs::write(dir.join(name), name).unwrap(); }
+        for name in ["Z.md", "a.md", "B.md"] {
+            fs::write(dir.join(name), name).unwrap();
+        }
         let page = read_dir_page_inner(&dir, None, 1, None, &IgnoreMatcher::defaults()).unwrap();
         assert_eq!(page.entries.len(), 1);
         assert_eq!(page.entries[0].name, "a.md");
@@ -1217,7 +1303,8 @@ mod tests {
         #[cfg(windows)]
         let created = std::os::windows::fs::symlink_file(&target, &link).is_ok();
         if created {
-            let page = read_dir_page_inner(&dir, None, 10, None, &IgnoreMatcher::defaults()).unwrap();
+            let page =
+                read_dir_page_inner(&dir, None, 10, None, &IgnoreMatcher::defaults()).unwrap();
             assert!(page.entries.iter().all(|entry| entry.name != "link.md"));
         }
         let _ = fs::remove_dir_all(&dir);

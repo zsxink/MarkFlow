@@ -26,7 +26,10 @@ pub struct FileChangeEvent {
 }
 
 fn timestamp() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 fn normalize_event(event: Event, root: &Path, matcher: &IgnoreMatcher) -> Vec<FileChangeEvent> {
@@ -38,19 +41,40 @@ fn normalize_event(event: Event, root: &Path, matcher: &IgnoreMatcher) -> Vec<Fi
                 let from_ignored = matcher.is_ignored(root, &paths[0]);
                 let to_ignored = matcher.is_ignored(root, &paths[1]);
                 match (from_ignored, to_ignored) {
-                    (false, false) => vec![FileChangeEvent { path: normalize_path(&paths[0]), kind: "rename".into(), timestamp: now, to_path: Some(normalize_path(&paths[1])), reason: None }],
-                    (false, true) => vec![FileChangeEvent { path: normalize_path(&paths[0]), kind: "delete".into(), timestamp: now, to_path: None, reason: Some("renamed-into-ignored".into()) }],
-                    (true, false) => vec![FileChangeEvent { path: normalize_path(&paths[1]), kind: "create".into(), timestamp: now, to_path: None, reason: Some("renamed-out-of-ignored".into()) }],
+                    (false, false) => vec![FileChangeEvent {
+                        path: normalize_path(&paths[0]),
+                        kind: "rename".into(),
+                        timestamp: now,
+                        to_path: Some(normalize_path(&paths[1])),
+                        reason: None,
+                    }],
+                    (false, true) => vec![FileChangeEvent {
+                        path: normalize_path(&paths[0]),
+                        kind: "delete".into(),
+                        timestamp: now,
+                        to_path: None,
+                        reason: Some("renamed-into-ignored".into()),
+                    }],
+                    (true, false) => vec![FileChangeEvent {
+                        path: normalize_path(&paths[1]),
+                        kind: "create".into(),
+                        timestamp: now,
+                        to_path: None,
+                        reason: Some("renamed-out-of-ignored".into()),
+                    }],
                     (true, true) => vec![],
                 }
             }
             _ if !paths.is_empty() => {
                 let recovery_path = minimal_rescan_path(root, &paths);
                 vec![FileChangeEvent {
-                    path: normalize_path(&recovery_path), kind: "rescan".into(), timestamp: now,
-                    to_path: None, reason: Some("unpaired-rename".into()),
+                    path: normalize_path(&recovery_path),
+                    kind: "rescan".into(),
+                    timestamp: now,
+                    to_path: None,
+                    reason: Some("unpaired-rename".into()),
                 }]
-            },
+            }
             _ => vec![],
         };
     }
@@ -60,9 +84,17 @@ fn normalize_event(event: Event, root: &Path, matcher: &IgnoreMatcher) -> Vec<Fi
         EventKind::Remove(_) => "delete",
         _ => return vec![],
     };
-    paths.into_iter().filter(|path| !matcher.is_ignored(root, path)).map(|path| FileChangeEvent {
-        path: normalize_path(&path), kind: kind.into(), timestamp: now, to_path: None, reason: None,
-    }).collect()
+    paths
+        .into_iter()
+        .filter(|path| !matcher.is_ignored(root, path))
+        .map(|path| FileChangeEvent {
+            path: normalize_path(&path),
+            kind: kind.into(),
+            timestamp: now,
+            to_path: None,
+            reason: None,
+        })
+        .collect()
 }
 
 fn coalesce(events: Vec<FileChangeEvent>) -> Vec<FileChangeEvent> {
@@ -76,17 +108,27 @@ fn coalesce(events: Vec<FileChangeEvent>) -> Vec<FileChangeEvent> {
         merged.insert(key, event);
     }
     let mut result: Vec<_> = merged.into_values().collect();
-    result.sort_by(|a, b| a.timestamp.cmp(&b.timestamp).then_with(|| a.path.cmp(&b.path)));
+    result.sort_by(|a, b| {
+        a.timestamp
+            .cmp(&b.timestamp)
+            .then_with(|| a.path.cmp(&b.path))
+    });
     result
 }
 
 fn enqueue_bounded<T>(
-    tx: &mpsc::SyncSender<T>, value: T, queue_len: &AtomicUsize,
-    queue_peak: &AtomicUsize, overflow_count: &AtomicUsize,
+    tx: &mpsc::SyncSender<T>,
+    value: T,
+    queue_len: &AtomicUsize,
+    queue_peak: &AtomicUsize,
+    overflow_count: &AtomicUsize,
 ) -> Result<(), T> {
     let current = queue_len.fetch_add(1, Ordering::Relaxed) + 1;
     match tx.try_send(value) {
-        Ok(()) => { queue_peak.fetch_max(current, Ordering::Relaxed); Ok(()) },
+        Ok(()) => {
+            queue_peak.fetch_max(current, Ordering::Relaxed);
+            Ok(())
+        }
         Err(mpsc::TrySendError::Full(value)) => {
             queue_len.fetch_sub(1, Ordering::Relaxed);
             overflow_count.fetch_add(1, Ordering::Relaxed);
@@ -100,14 +142,22 @@ fn enqueue_bounded<T>(
 }
 
 fn minimal_rescan_path(root: &Path, paths: &[PathBuf]) -> PathBuf {
-    let Some(first) = paths.first() else { return root.to_path_buf(); };
+    let Some(first) = paths.first() else {
+        return root.to_path_buf();
+    };
     let mut ancestor = first.parent().unwrap_or(root).to_path_buf();
     for path in &paths[1..] {
         while !path.starts_with(&ancestor) && ancestor.starts_with(root) {
-            if !ancestor.pop() { return root.to_path_buf(); }
+            if !ancestor.pop() {
+                return root.to_path_buf();
+            }
         }
     }
-    if ancestor.starts_with(root) { ancestor } else { root.to_path_buf() }
+    if ancestor.starts_with(root) {
+        ancestor
+    } else {
+        root.to_path_buf()
+    }
 }
 
 fn merge_recovery_scope(root: &Path, current: Option<PathBuf>, path: &Path) -> PathBuf {
@@ -117,7 +167,9 @@ fn merge_recovery_scope(root: &Path, current: Option<PathBuf>, path: &Path) -> P
     }
 }
 
-pub struct FileWatcher { _watcher: RecommendedWatcher }
+pub struct FileWatcher {
+    _watcher: RecommendedWatcher,
+}
 
 impl FileWatcher {
     pub fn new(
@@ -141,18 +193,33 @@ impl FileWatcher {
         let producer_root = watch_path.clone();
         let mut watcher = RecommendedWatcher::new(
             move |event| {
-                if let Err(dropped) = enqueue_bounded(&tx, event, &producer_len, &producer_peak, &producer_overflow_count) {
+                if let Err(dropped) = enqueue_bounded(
+                    &tx,
+                    event,
+                    &producer_len,
+                    &producer_peak,
+                    &producer_overflow_count,
+                ) {
                     if let Ok(event) = dropped {
                         let mut scope = producer_recovery_scope.lock().unwrap();
-                        for path in event.paths.into_iter().filter(|path| !producer_matcher.is_ignored(&producer_root, path)) {
-                            *scope = Some(merge_recovery_scope(&producer_root, scope.take(), &path));
+                        for path in event
+                            .paths
+                            .into_iter()
+                            .filter(|path| !producer_matcher.is_ignored(&producer_root, path))
+                        {
+                            *scope =
+                                Some(merge_recovery_scope(&producer_root, scope.take(), &path));
                         }
                     }
                     producer_overflow.store(true, Ordering::Release);
                 }
-            }, notify::Config::default(),
-        ).map_err(|e| e.to_string())?;
-        watcher.watch(&watch_path, RecursiveMode::Recursive).map_err(|e| e.to_string())?;
+            },
+            notify::Config::default(),
+        )
+        .map_err(|e| e.to_string())?;
+        watcher
+            .watch(&watch_path, RecursiveMode::Recursive)
+            .map_err(|e| e.to_string())?;
         debug!(target: "backend.watcher", path = %path_display, capacity = EVENT_QUEUE_CAPACITY, "Registered bounded filesystem watcher");
         std::thread::spawn(move || {
             while let Ok(first) = rx.recv() {
@@ -161,22 +228,42 @@ impl FileWatcher {
                 while let Ok(event) = rx.recv_timeout(COALESCE_WINDOW) {
                     queue_len.fetch_sub(1, Ordering::Relaxed);
                     raw.push(event);
-                    if raw.len() >= EVENT_QUEUE_CAPACITY { break; }
+                    if raw.len() >= EVENT_QUEUE_CAPACITY {
+                        break;
+                    }
                 }
                 let raw_count = raw.len();
                 let mut normalized = Vec::new();
                 for event in raw {
                     match event {
-                        Ok(event) => normalized.extend(normalize_event(event, &watch_path, &matcher)),
+                        Ok(event) => {
+                            normalized.extend(normalize_event(event, &watch_path, &matcher))
+                        }
                         Err(error) => {
                             warn!(target: "backend.watcher", path = %path_display, error = %error, "Watcher error requires rescan");
-                            normalized.push(FileChangeEvent { path: path_display.clone(), kind: "rescan".into(), timestamp: timestamp(), to_path: None, reason: Some("notify-error".into()) });
+                            normalized.push(FileChangeEvent {
+                                path: path_display.clone(),
+                                kind: "rescan".into(),
+                                timestamp: timestamp(),
+                                to_path: None,
+                                reason: Some("notify-error".into()),
+                            });
                         }
                     }
                 }
                 if overflowed.swap(false, Ordering::AcqRel) {
-                    let recovery_path = recovery_scope.lock().unwrap().take().unwrap_or_else(|| watch_path.clone());
-                    normalized.push(FileChangeEvent { path: normalize_path(&recovery_path), kind: "rescan".into(), timestamp: timestamp(), to_path: None, reason: Some("queue-overflow".into()) });
+                    let recovery_path = recovery_scope
+                        .lock()
+                        .unwrap()
+                        .take()
+                        .unwrap_or_else(|| watch_path.clone());
+                    normalized.push(FileChangeEvent {
+                        path: normalize_path(&recovery_path),
+                        kind: "rescan".into(),
+                        timestamp: timestamp(),
+                        to_path: None,
+                        reason: Some("queue-overflow".into()),
+                    });
                 }
                 let batch = coalesce(normalized);
                 if !batch.is_empty() {
@@ -200,7 +287,8 @@ mod tests {
     fn maps_batches_and_ignores_dependency_directories() {
         let root = PathBuf::from("/workspace");
         let event = Event::new(EventKind::Create(CreateKind::File))
-            .add_path(root.join("a.md")).add_path(root.join("node_modules/pkg.js"));
+            .add_path(root.join("a.md"))
+            .add_path(root.join("node_modules/pkg.js"));
         let changes = normalize_event(event, &root, &IgnoreMatcher::defaults());
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].kind, "create");
@@ -210,23 +298,54 @@ mod tests {
     fn pairs_rename_both_and_recovers_unpaired_rename() {
         let root = PathBuf::from("/workspace");
         let both = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
-            .add_path(root.join("old.md")).add_path(root.join("new.md"));
+            .add_path(root.join("old.md"))
+            .add_path(root.join("new.md"));
         let changes = normalize_event(both, &root, &IgnoreMatcher::defaults());
         assert_eq!(changes[0].kind, "rename");
         assert!(changes[0].to_path.as_deref().unwrap().ends_with("new.md"));
-        let from = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::From))).add_path(root.join("src/old.md"));
+        let from = Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::From)))
+            .add_path(root.join("src/old.md"));
         let recovery = normalize_event(from, &root, &IgnoreMatcher::defaults());
         assert_eq!(recovery[0].kind, "rescan");
         assert_eq!(PathBuf::from(&recovery[0].path), root.join("src"));
-        assert_eq!(normalize_event(Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both))).add_path(root.join("node_modules/a")).add_path(root.join("a")), &root, &IgnoreMatcher::defaults())[0].kind, "create");
+        assert_eq!(
+            normalize_event(
+                Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+                    .add_path(root.join("node_modules/a"))
+                    .add_path(root.join("a")),
+                &root,
+                &IgnoreMatcher::defaults()
+            )[0]
+            .kind,
+            "create"
+        );
     }
 
     #[test]
     fn coalesces_duplicate_modifies_and_delete_supersedes_modify() {
-        let base = FileChangeEvent { path: "/a.md".into(), kind: "modify".into(), timestamp: 1, to_path: None, reason: None };
-        let delete = FileChangeEvent { kind: "delete".into(), timestamp: 2, ..base.clone() };
+        let base = FileChangeEvent {
+            path: "/a.md".into(),
+            kind: "modify".into(),
+            timestamp: 1,
+            to_path: None,
+            reason: None,
+        };
+        let delete = FileChangeEvent {
+            kind: "delete".into(),
+            timestamp: 2,
+            ..base.clone()
+        };
         let result = coalesce(vec![base.clone(), base, delete]);
-        assert_eq!(result, vec![FileChangeEvent { path: "/a.md".into(), kind: "delete".into(), timestamp: 2, to_path: None, reason: None }]);
+        assert_eq!(
+            result,
+            vec![FileChangeEvent {
+                path: "/a.md".into(),
+                kind: "delete".into(),
+                timestamp: 2,
+                to_path: None,
+                reason: None
+            }]
+        );
     }
 
     #[test]
@@ -245,8 +364,17 @@ mod tests {
     #[test]
     fn overflow_recovery_uses_minimal_common_ancestor() {
         let root = PathBuf::from("/workspace");
-        assert_eq!(minimal_rescan_path(&root, &[root.join("src/a.md"), root.join("src/nested/b.md")]), root.join("src"));
-        assert_eq!(minimal_rescan_path(&root, &[root.join("src/a.md"), root.join("docs/b.md")]), root);
+        assert_eq!(
+            minimal_rescan_path(
+                &root,
+                &[root.join("src/a.md"), root.join("src/nested/b.md")]
+            ),
+            root.join("src")
+        );
+        assert_eq!(
+            minimal_rescan_path(&root, &[root.join("src/a.md"), root.join("docs/b.md")]),
+            root
+        );
     }
 
     #[test]
@@ -254,10 +382,17 @@ mod tests {
         let root = PathBuf::from("/workspace");
         let mut scope = None;
         for index in 0..100_000 {
-            scope = Some(merge_recovery_scope(&root, scope, &root.join(format!("src/group-{}/file.md", index % 10))));
+            scope = Some(merge_recovery_scope(
+                &root,
+                scope,
+                &root.join(format!("src/group-{}/file.md", index % 10)),
+            ));
         }
         assert_eq!(scope, Some(root.join("src")));
-        assert_eq!(std::mem::size_of_val(&scope), std::mem::size_of::<Option<PathBuf>>());
+        assert_eq!(
+            std::mem::size_of_val(&scope),
+            std::mem::size_of::<Option<PathBuf>>()
+        );
     }
 
     #[test]
@@ -266,8 +401,22 @@ mod tests {
         let matcher = IgnoreMatcher::defaults();
         let mut changes = Vec::new();
         for _ in 0..1000 {
-            changes.extend(normalize_event(Event::new(EventKind::Modify(ModifyKind::Data(notify::event::DataChange::Any))).add_path(root.join("src/a.md")), &root, &matcher));
-            changes.extend(normalize_event(Event::new(EventKind::Modify(ModifyKind::Data(notify::event::DataChange::Any))).add_path(root.join("target/a.o")), &root, &matcher));
+            changes.extend(normalize_event(
+                Event::new(EventKind::Modify(ModifyKind::Data(
+                    notify::event::DataChange::Any,
+                )))
+                .add_path(root.join("src/a.md")),
+                &root,
+                &matcher,
+            ));
+            changes.extend(normalize_event(
+                Event::new(EventKind::Modify(ModifyKind::Data(
+                    notify::event::DataChange::Any,
+                )))
+                .add_path(root.join("target/a.o")),
+                &root,
+                &matcher,
+            ));
         }
         let merged = coalesce(changes);
         assert_eq!(merged.len(), 1);

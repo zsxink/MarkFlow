@@ -71,15 +71,32 @@ fn default_window_width() -> f64 {
 fn default_window_height() -> f64 {
     800.0
 }
-fn default_large_file_threshold() -> u64 { 1048576 }
-fn default_huge_file_threshold() -> u64 { 10485760 }
-fn default_large_file_line_threshold() -> u32 { 5000 }
-fn default_huge_file_line_threshold() -> u32 { 50000 }
-pub fn default_file_tree_ignore_patterns() -> Vec<String> {
-    vec![".git".into(), "node_modules".into(), "target".into(), "dist".into()]
+fn default_large_file_threshold() -> u64 {
+    1048576
 }
-fn default_file_tree_page_size() -> usize { 500 }
-fn default_file_tree_auto_load_depth() -> usize { 8 }
+fn default_huge_file_threshold() -> u64 {
+    10485760
+}
+fn default_large_file_line_threshold() -> u32 {
+    5000
+}
+fn default_huge_file_line_threshold() -> u32 {
+    50000
+}
+pub fn default_file_tree_ignore_patterns() -> Vec<String> {
+    vec![
+        ".git".into(),
+        "node_modules".into(),
+        "target".into(),
+        "dist".into(),
+    ]
+}
+fn default_file_tree_page_size() -> usize {
+    500
+}
+fn default_file_tree_auto_load_depth() -> usize {
+    8
+}
 
 impl Default for Settings {
     fn default() -> Self {

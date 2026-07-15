@@ -10,10 +10,15 @@ pub struct IgnoreMatcher {
 
 impl IgnoreMatcher {
     pub fn new(patterns: &[String]) -> Result<Self, String> {
-        if patterns.iter().any(|pattern| pattern.trim().is_empty() || pattern.contains('\0')) {
+        if patterns
+            .iter()
+            .any(|pattern| pattern.trim().is_empty() || pattern.contains('\0'))
+        {
             return Err("Ignore patterns must be non-empty and contain no NUL bytes".into());
         }
-        Ok(Self { patterns: patterns.iter().map(|p| p.replace('\\', "/")).collect() })
+        Ok(Self {
+            patterns: patterns.iter().map(|p| p.replace('\\', "/")).collect(),
+        })
     }
 
     pub fn defaults() -> Self {
@@ -24,7 +29,9 @@ impl IgnoreMatcher {
         let relative = path.strip_prefix(root).unwrap_or(path);
         let normalized = relative.to_string_lossy().replace('\\', "/");
         normalized.split('/').any(|component| {
-            self.patterns.iter().any(|pattern| matches_component(pattern, component, &normalized))
+            self.patterns
+                .iter()
+                .any(|pattern| matches_component(pattern, component, &normalized))
         })
     }
 }
@@ -34,7 +41,10 @@ pub fn matcher_snapshot(patterns: &[String]) -> IgnoreMatcher {
     let snapshot = SNAPSHOT.get_or_init(|| Mutex::new(IgnoreMatcher::defaults()));
     let mut current = snapshot.lock().unwrap();
     match IgnoreMatcher::new(patterns) {
-        Ok(next) => { *current = next.clone(); next }
+        Ok(next) => {
+            *current = next.clone();
+            next
+        }
         Err(_) => current.clone(),
     }
 }
@@ -53,14 +63,23 @@ fn wildcard_match(pattern: &str, value: &str) -> bool {
     let value = value.as_bytes();
     while v < value.len() {
         if p < pattern.len() && (pattern[p] == b'?' || pattern[p] == value[v]) {
-            p += 1; v += 1;
+            p += 1;
+            v += 1;
         } else if p < pattern.len() && pattern[p] == b'*' {
-            star = Some(p); p += 1; matched = v;
+            star = Some(p);
+            p += 1;
+            matched = v;
         } else if let Some(s) = star {
-            p = s + 1; matched += 1; v = matched;
-        } else { return false; }
+            p = s + 1;
+            matched += 1;
+            v = matched;
+        } else {
+            return false;
+        }
     }
-    while p < pattern.len() && pattern[p] == b'*' { p += 1; }
+    while p < pattern.len() && pattern[p] == b'*' {
+        p += 1;
+    }
     p == pattern.len()
 }
 

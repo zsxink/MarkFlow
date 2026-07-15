@@ -29,4 +29,6 @@ export interface FileChangeEvent {
   path: string;
   kind: string;
   timestamp: number;
+  toPath?: string;
+  reason?: string;
 }

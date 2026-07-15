@@ -45,6 +45,12 @@ pub struct Settings {
     pub large_file_line_threshold: u32,
     #[serde(default = "default_huge_file_line_threshold")]
     pub huge_file_line_threshold: u32,
+    #[serde(default = "default_file_tree_ignore_patterns")]
+    pub file_tree_ignore_patterns: Vec<String>,
+    #[serde(default = "default_file_tree_page_size")]
+    pub file_tree_page_size: usize,
+    #[serde(default = "default_file_tree_auto_load_depth")]
+    pub file_tree_auto_load_depth: usize,
     #[serde(default)]
     pub recent_files: Vec<String>,
     #[serde(default)]
@@ -69,6 +75,11 @@ fn default_large_file_threshold() -> u64 { 1048576 }
 fn default_huge_file_threshold() -> u64 { 10485760 }
 fn default_large_file_line_threshold() -> u32 { 5000 }
 fn default_huge_file_line_threshold() -> u32 { 50000 }
+pub fn default_file_tree_ignore_patterns() -> Vec<String> {
+    vec![".git".into(), "node_modules".into(), "target".into(), "dist".into()]
+}
+fn default_file_tree_page_size() -> usize { 500 }
+fn default_file_tree_auto_load_depth() -> usize { 8 }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -101,6 +112,9 @@ impl Default for Settings {
             huge_file_threshold: default_huge_file_threshold(),
             large_file_line_threshold: default_large_file_line_threshold(),
             huge_file_line_threshold: default_huge_file_line_threshold(),
+            file_tree_ignore_patterns: default_file_tree_ignore_patterns(),
+            file_tree_page_size: default_file_tree_page_size(),
+            file_tree_auto_load_depth: default_file_tree_auto_load_depth(),
             recent_files: vec![],
             recent_folders: vec![],
             last_window_width: 1200.0,

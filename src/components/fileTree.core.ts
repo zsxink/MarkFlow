@@ -1,10 +1,13 @@
 import type { FileEntry, DragState } from '../types/fileTree';
-import { readDirRecursive, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
+import { readDirPage, readPathEntry, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
 import { openFileInEditor } from './sidebar';
-import { getActiveFilePath } from './activeDocument';
+import { getActiveFilePath, rewriteActiveDocumentPath } from './activeDocument';
 import { showContextMenu } from './contextMenu';
 import { logException, logInfo } from '../lib/logger';
 import { store } from '../lib/store';
+import { applyTreeEvent, createFileTreeState, markDirectoryState, mergeDirectoryPage, normalizeTreePath, upsertTreeEntry } from './fileTree.state';
+import type { FileChangeEvent } from '../types/events';
+import { DEFAULT_SETTINGS } from '../types/settings';
 
 // --- Drag state (shared with fileTree.dragdrop.ts) ---
 
@@ -19,6 +22,12 @@ export const dragState: DragState = {
 const dbClickTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
 const suppressPaths: Map<string, number> = new Map();
 const SUPPRESS_DURATION_MS = 3000;
+let treeState = createFileTreeState();
+const pendingLoads = new Map<string, Promise<void>>();
+let rootRefreshCount = 0;
+let incrementalBatchCount = 0;
+let localPatchCount = 0;
+let recoveryRescanCount = 0;
 
 // --- Utility functions ---
 
@@ -90,9 +99,10 @@ export async function refreshFileTree() {
   if (!wsPath) return;
   try {
     saveExpandedState();
-    const entries = await readDirRecursive(wsPath);
-    renderFileTree(entries);
-    restoreExpandedState();
+    treeState = createFileTreeState();
+    rootRefreshCount++;
+    await loadDirectory(wsPath, false);
+    await restoreExpandedState();
   } catch (e) {
     logException('file-tree.refresh', 'Failed to refresh file tree', e, { path: wsPath });
   }
@@ -115,26 +125,12 @@ function saveExpandedState() {
 }
 
 function buildPathFromNode(folderEl: Element): string | null {
-  const parts: string[] = [];
-  let current: Element | null = folderEl;
-
-  while (current) {
-    if (current.classList.contains('tree-folder')) {
-      const span = current.querySelector(':scope > span');
-      if (span) parts.unshift(span.textContent || '');
-    }
-    const treeChildren: Element | null = current.parentElement;
-    if (!treeChildren || !treeChildren.classList.contains('tree-children')) break;
-    current = treeChildren.parentElement;
-    if (!current) break;
-  }
-
-  if (parts.length === 0 || !getWorkspacePath()) return null;
-  return `${getWorkspacePath()}/${parts.join('/')}`;
+  return (folderEl as HTMLElement).dataset.path || null;
 }
 
-function restoreExpandedState() {
-  store.getState().expandedPaths.forEach(path => {
+async function restoreExpandedState() {
+  const maxDepth = store.getState().settings.fileTreeAutoLoadDepth ?? DEFAULT_SETTINGS.fileTreeAutoLoadDepth ?? 8;
+  for (const path of store.getState().expandedPaths) {
     const fileTree = document.getElementById('file-tree');
     const wsPath = getWorkspacePath();
     if (!fileTree || !wsPath) return;
@@ -148,9 +144,9 @@ function restoreExpandedState() {
     if (folders.length === 0 || folders[0] === '') return;
 
     let currentContainer = fileTree;
-    for (let i = 0; i < folders.length; i++) {
+    for (let i = 0; i < folders.length && i < maxDepth; i++) {
       const folderName = folders[i];
-      const folderDivs = currentContainer.querySelectorAll(':scope > .tree-folder');
+      const folderDivs = currentContainer.querySelectorAll(':scope > .tree-folder, :scope > .tree-folder-wrapper > .tree-folder');
       let found = false;
 
       for (const folderDiv of Array.from(folderDivs)) {
@@ -161,7 +157,8 @@ function restoreExpandedState() {
           if (chevron && children) {
             chevron.classList.add('expanded');
             (children as HTMLElement).hidden = false;
-            currentContainer = children as HTMLElement;
+                await loadDirectory((folderDiv as HTMLElement).dataset.path || '', false);
+                currentContainer = children as HTMLElement;
           }
           found = true;
           break;
@@ -170,16 +167,70 @@ function restoreExpandedState() {
 
       if (!found) break;
     }
-  });
+  }
 }
 
-function renderFileTree(entries: FileEntry[]) {
-  const fileTree = document.getElementById('file-tree');
-  if (!fileTree) return;
-  fileTree.innerHTML = '';
-  entries.forEach(entry => {
-    fileTree.appendChild(createTreeNode(entry, 0));
-  });
+async function loadDirectory(path: string, append: boolean): Promise<void> {
+  path = normalizeTreePath(path);
+  const existing = pendingLoads.get(path);
+  if (existing) return existing;
+  const loaded = treeState.directories.get(path);
+  if (!append && loaded?.status === 'loaded') {
+    const container = getChildrenContainer(path);
+    if (container && container.childElementCount === 0) renderDirectory(path);
+    return;
+  }
+  const promise = (async () => {
+    const current = treeState.directories.get(path);
+    treeState = markDirectoryState(treeState, path, 'loading');
+    try {
+      const page = await readDirPage(path, {
+        cursor: append ? current?.nextCursor : null,
+        generation: append ? current?.generation : null,
+        limit: store.getState().settings.fileTreePageSize ?? DEFAULT_SETTINGS.fileTreePageSize,
+      });
+      treeState = mergeDirectoryPage(treeState, path, page.entries, {
+        nextCursor: page.nextCursor, generation: page.generation, append,
+      });
+      renderDirectory(path, append ? page.entries : undefined);
+      logInfo('file-tree.metrics', 'Loaded shallow directory', {
+        path, loadedNodes: treeState.nodes.size, mountedNodes: document.querySelectorAll('#file-tree [data-path]').length,
+        rootRefreshCount, incrementalBatchCount, localPatchCount, recoveryRescanCount,
+      });
+    } catch (e) {
+      treeState = markDirectoryState(treeState, path, String(e).includes('DIRECTORY_CHANGED') ? 'stale' : 'error');
+      logException('file-tree.load', 'Failed to load directory', e, { path });
+    }
+  })().finally(() => pendingLoads.delete(path));
+  pendingLoads.set(path, promise);
+  return promise;
+}
+
+function renderDirectory(path: string, appendedEntries?: FileEntry[]) {
+  const container = getChildrenContainer(path);
+  const directory = treeState.directories.get(normalizeTreePath(path));
+  if (!container || !directory) return;
+  const depth = getDepth(container);
+  if (appendedEntries) {
+    container.querySelector(':scope > .tree-load-more')?.remove();
+    for (const entry of appendedEntries) {
+      if (container.querySelector(`[data-path="${escapePathSelector(entry.path)}"]`)) continue;
+      insertSorted(container, createTreeNode(entry, depth), entry.isDir);
+    }
+  } else {
+    container.innerHTML = '';
+    for (const childPath of directory.children) {
+      const entry = treeState.nodes.get(childPath);
+      if (entry) container.appendChild(createTreeNode(entry, depth));
+    }
+  }
+  if (directory.nextCursor) {
+    const more = document.createElement('button');
+    more.className = 'tree-load-more';
+    more.textContent = '继续加载';
+    more.addEventListener('click', (event) => { event.stopPropagation(); void loadDirectory(path, true); });
+    container.appendChild(more);
+  }
 }
 
 export function createTreeNode(entry: FileEntry, depth: number): HTMLElement {
@@ -216,6 +267,7 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
     const chevron = folder.querySelector('.tree-chevron');
     chevron?.classList.toggle('expanded');
     children.hidden = !children.hidden;
+    if (!children.hidden) void loadDirectory(entry.path, false);
   });
 
   folder.addEventListener('contextmenu', (e) => {
@@ -323,17 +375,10 @@ function getDepth(container: HTMLElement): number {
 export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) {
   const container = getChildrenContainer(parentPath);
   if (!container) return;
+  if (container.querySelector(`[data-path="${escapePathSelector(entry.path)}"]`)) return;
 
   const depth = getDepth(container);
-  let resolvedEntry = entry;
-  if (entry.isDir && !entry.children) {
-    try {
-      const children = await readDirRecursive(entry.path);
-      resolvedEntry = { ...entry, children };
-    } catch (e) {
-      logException('file-tree.refresh', 'Failed to read folder children', e, { path: entry.path });
-    }
-  }
+  const resolvedEntry = entry;
   const node = createTreeNode(resolvedEntry, depth);
 
   const children = Array.from(container.children);
@@ -361,6 +406,117 @@ export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) 
       }
     }
   }
+}
+
+export async function applyFileTreeEvents(events: FileChangeEvent[]) {
+  incrementalBatchCount++;
+  for (const event of events) {
+    if (isSuppressedPath(event.path)) continue;
+    const path = normalizeTreePath(event.path);
+    const parent = path.slice(0, path.lastIndexOf('/'));
+    if (event.kind === 'create') {
+      if (treeState.directories.get(parent)?.status === 'loaded') {
+        try {
+          const entry = await readPathEntry(path);
+          treeState = upsertTreeEntry(treeState, parent, entry);
+          await insertEntryIntoTree(parent, entry);
+          localPatchCount++;
+        } catch (error) {
+          treeState = markDirectoryState(treeState, parent, 'stale');
+          logException('file-tree.incremental', 'Failed to insert created path', error, { path });
+        }
+      } else {
+        treeState = markDirectoryState(treeState, parent, 'stale');
+      }
+      continue;
+    }
+    if (event.kind === 'delete') {
+      treeState = applyTreeEvent(treeState, event);
+      removeEntryFromTree(path);
+      localPatchCount++;
+      continue;
+    }
+    if (event.kind === 'rename' && event.toPath) {
+      treeState = applyTreeEvent(treeState, event);
+      const newPath = normalizeTreePath(event.toPath);
+      renamePathDom(path, newPath);
+      rewriteActiveDocumentPath(path, newPath);
+      store.setState({ expandedPaths: store.getState().expandedPaths.map(expanded => {
+        const normalized = normalizeTreePath(expanded);
+        return normalized === path || normalized.startsWith(path + '/') ? newPath + normalized.slice(path.length) : expanded;
+      }) });
+      localPatchCount++;
+      continue;
+    }
+    if (event.kind === 'rescan') {
+      recoveryRescanCount++;
+      const direct = treeState.directories.get(path);
+      if (!direct) {
+        let ancestor = path;
+        while (ancestor.includes('/')) {
+          ancestor = ancestor.slice(0, ancestor.lastIndexOf('/'));
+          const candidate = treeState.directories.get(ancestor);
+          if (!candidate) continue;
+          if (candidate.status === 'loaded') {
+            saveExpandedState();
+            treeState = markDirectoryState(treeState, ancestor, 'stale');
+            await loadDirectory(ancestor, false);
+            await restoreExpandedState();
+          } else {
+            treeState = markDirectoryState(treeState, ancestor, 'stale');
+          }
+          break;
+        }
+        continue;
+      }
+      if (direct.status !== 'loaded') {
+        treeState = markDirectoryState(treeState, path, 'stale');
+        continue;
+      }
+      saveExpandedState();
+      treeState = markDirectoryState(treeState, path, 'stale');
+      await loadDirectory(path, false);
+      await restoreExpandedState();
+    }
+  }
+  logInfo('file-tree.metrics', 'Applied incremental event batch', {
+    events: events.length, loadedNodes: treeState.nodes.size, mountedNodes: document.querySelectorAll('#file-tree [data-path]').length,
+    incrementalBatchCount, rootRefreshCount, localPatchCount, recoveryRescanCount,
+    recoveryReasons: events.filter(event => event.kind === 'rescan').map(event => event.reason || 'unknown'),
+  });
+}
+
+/** @visibleForTesting */
+export function renamePathDom(oldPath: string, newPath: string) {
+  const element = document.querySelector(`[data-path="${escapePathSelector(oldPath)}"]`) as HTMLElement | null;
+  if (!element) return;
+  const isDir = element.classList.contains('tree-folder');
+  const node = isDir ? element.parentElement as HTMLElement : element;
+  node.querySelectorAll<HTMLElement>('[data-path]').forEach(child => {
+    const childPath = normalizeTreePath(child.dataset.path || '');
+    if (childPath === oldPath || childPath.startsWith(oldPath + '/')) child.dataset.path = newPath + childPath.slice(oldPath.length);
+  });
+  const label = element.querySelector(':scope > span');
+  if (label) label.textContent = newPath.slice(newPath.lastIndexOf('/') + 1);
+  const newParent = newPath.slice(0, newPath.lastIndexOf('/'));
+  const container = getChildrenContainer(newParent);
+  if (container) insertSorted(container, node, isDir);
+  else node.remove();
+}
+
+/** @visibleForTesting */
+export function resetFileTreeStateForTesting() {
+  treeState = createFileTreeState();
+  pendingLoads.clear();
+  rootRefreshCount = 0;
+  incrementalBatchCount = 0;
+  localPatchCount = 0;
+  recoveryRescanCount = 0;
+}
+
+/** @visibleForTesting */
+export function loadDirectoryForTesting(path: string, append = false) {
+  return loadDirectory(path, append);
 }
 
 export function removeEntryFromTree(path: string) {

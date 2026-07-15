@@ -7,7 +7,7 @@ import { initStatusBar } from './components/statusbar';
 import { initKeyboard } from './utils/keyboard';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
-import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
+import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
 import { store } from './lib/store';
@@ -27,16 +27,6 @@ import { DEFAULT_SETTINGS } from './types/settings';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Settings = { ...DEFAULT_SETTINGS };
-
-// Debounced file tree refresh — coalesces rapid file-change events
-let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-function debouncedRefreshFileTree() {
-  if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
-  treeRefreshTimer = setTimeout(() => {
-    treeRefreshTimer = null;
-    refreshFileTree();
-  }, 150);
-}
 
 document.addEventListener('DOMContentLoaded', async () => {
   logInfo('app.lifecycle', 'Application boot started');
@@ -93,38 +83,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   store.on('settings:changed', (event) => {
+    const fileTreeSettingsChanged = JSON.stringify(settings.fileTreeIgnorePatterns) !== JSON.stringify(event.settings.fileTreeIgnorePatterns)
+      || settings.fileTreePageSize !== event.settings.fileTreePageSize
+      || settings.fileTreeAutoLoadDepth !== event.settings.fileTreeAutoLoadDepth;
     settings = event.settings;
     startAutoSave();
+    if (fileTreeSettingsChanged) {
+      const workspace = getWorkspacePath();
+      if (workspace) void setWorkspacePath(workspace).then(() => refreshFileTree());
+    }
   });
 
-  listen<FileChangeEvent>('file-changed', async (event) => {
-    const { path, kind } = event.payload;
-    if (isSuppressedPath(path)) return;
-    const activePath = getActiveFilePath();
-    if (activePath && path === activePath && kind === 'modify') {
-      const result = await handleActiveDocumentExternalModification();
-      if (result === 'reloaded') {
-        showToast('文件已从磁盘重新加载');
-      } else if (result === 'kept') {
-        showToast('已保留当前内容，自动保存已暂停');
-      } else if (result === 'failed') {
-        markExternalModification();
-        showToast('文件已被外部修改，自动保存已暂停');
+  listen<FileChangeEvent[]>('file-tree-events', async (event) => {
+    const changes = event.payload.filter(change => !isSuppressedPath(change.path));
+    for (const { path, kind } of changes) {
+      const activePath = getActiveFilePath();
+      if (activePath && path === activePath && kind === 'modify') {
+        const result = await handleActiveDocumentExternalModification();
+        if (result === 'reloaded') showToast('文件已从磁盘重新加载');
+        else if (result === 'kept') showToast('已保留当前内容，自动保存已暂停');
+        else if (result === 'failed') {
+          markExternalModification();
+          showToast('文件已被外部修改，自动保存已暂停');
+        }
+      }
+      if (kind === 'delete') {
+        const result = await handleExternalDeletion(path);
+        if (result === 'discarded') showToast('当前文件已删除并已放弃当前内容');
+        else if (result === 'cleared') showToast('当前文件已被外部删除');
+        else if (result === 'failed') showToast('重新保存失败，当前内容已保留');
       }
     }
-    if (kind === 'delete') {
-      const result = await handleExternalDeletion(path);
-      if (result === 'discarded') {
-        showToast('当前文件已删除并已放弃当前内容');
-      } else if (result === 'cleared') {
-        showToast('当前文件已被外部删除');
-      } else if (result === 'failed') {
-        showToast('重新保存失败，当前内容已保留');
-      }
-    }
-    if (kind === 'create' || kind === 'delete') {
-      debouncedRefreshFileTree();
-    }
+    await applyFileTreeEvents(changes);
   });
 
   // Pull pending file path if opened via open_file_in_new_window

@@ -240,8 +240,8 @@ fn set_workspace(
     tracing::info!(target: "backend.workspace", path = %path, "Switching workspace");
 
     let app_handle = app.clone();
-    state.set_workspace(workspace, move |event| {
-        let _ = app_handle.emit("file-changed", &event);
+    state.set_workspace(workspace, move |events| {
+        let _ = app_handle.emit("file-tree-events", &events);
     });
 
     let mut settings = settings::load_settings_inner();
@@ -289,7 +289,8 @@ pub fn run() {
             files::save_mermaid_svg_export,
             files::save_mermaid_png_export,
             files::save_image_export,
-            files::read_dir_recursive,
+            files::read_dir,
+            files::read_path_entry,
             files::create_file,
             files::create_dir,
             files::rename_path,
@@ -336,8 +337,8 @@ pub fn run() {
                 if path.is_dir() {
                     let state = app.state::<AppState>();
                     let app_handle = app.handle().clone();
-                    state.set_workspace(path, move |event| {
-                        let _ = app_handle.emit("file-changed", &event);
+                    state.set_workspace(path, move |events| {
+                        let _ = app_handle.emit("file-tree-events", &events);
                     });
                     tracing::info!(target: "backend.workspace", path = %last_ws, "Restored last workspace");
                 } else {

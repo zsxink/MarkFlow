@@ -87,4 +87,17 @@ mod tests {
     fn invalid_settings_fall_back_to_defaults() {
         assert!(parse_settings("{not-json").is_err());
     }
+
+    #[test]
+    fn legacy_settings_receive_file_tree_defaults() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.remove("fileTreeIgnorePatterns");
+        object.remove("fileTreePageSize");
+        object.remove("fileTreeAutoLoadDepth");
+        let parsed = parse_settings(&serde_json::to_string(&value).unwrap()).unwrap();
+        assert_eq!(parsed.file_tree_ignore_patterns, vec![".git", "node_modules", "target", "dist"]);
+        assert_eq!(parsed.file_tree_page_size, 500);
+        assert_eq!(parsed.file_tree_auto_load_depth, 8);
+    }
 }

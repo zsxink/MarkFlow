@@ -11,6 +11,7 @@
     "tauri": "tauri",
     "analyze": "npx vite build --mode analyze",
     "check-size": "bash scripts/check-bundle-size.sh"
+    ,"benchmark:file-tree": "node scripts/file-tree-benchmark.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",

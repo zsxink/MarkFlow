@@ -1,4 +1,4 @@
-import type { FileEntry, FileMetadata, RemoteImageData } from '../types/fileTree';
+import type { DirectoryPage, FileEntry, FileMetadata, RemoteImageData } from '../types/fileTree';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
 import { invoke } from '@tauri-apps/api/core';
@@ -19,8 +19,20 @@ export async function saveMermaidSvgExport(svg: string, defaultName: string): Pr
   return invoke<boolean>('save_mermaid_svg_export', { svg, defaultName });
 }
 
-export async function readDirRecursive(path: string): Promise<FileEntry[]> {
-  return invoke<FileEntry[]>('read_dir_recursive', { path });
+export async function readDirPage(
+  path: string,
+  options: { cursor?: string | null; limit?: number; generation?: string | null } = {},
+): Promise<DirectoryPage> {
+  return invoke<DirectoryPage>('read_dir', {
+    path,
+    cursor: options.cursor ?? null,
+    limit: options.limit ?? null,
+    generation: options.generation ?? null,
+  });
+}
+
+export async function readPathEntry(path: string): Promise<FileEntry> {
+  return invoke<FileEntry>('read_path_entry', { path });
 }
 
 export async function createFile(path: string, content?: string): Promise<void> {

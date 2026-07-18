@@ -7,6 +7,7 @@ import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import { renderMermaid } from './mermaid';
 import { renderPlantUml } from './plantuml';
+import { isBlankPlantUmlSource } from './plantuml-lazy';
 import { getCachedSettings } from './storage';
 import { store } from './store';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
@@ -359,6 +360,14 @@ export function mermaidCodeBlockExtension() {
             return;
           }
 
+          // Short-circuit blank PlantUML source — show code block, no network request.
+          // Must be before the diagram path to avoid creating a non-interactive preview
+          // when contentDOM is frozen as undefined at NodeView construction.
+          if (isPlantUml() && isBlankPlantUmlSource(currentNode.textContent)) {
+            setCodeBlock();
+            return;
+          }
+
           dom.className = `mermaid-block${isEditing ? ' is-editor-open' : ''}`;
           contentDOM = null;
 
@@ -383,8 +392,17 @@ export function mermaidCodeBlockExtension() {
         const handleSettingsChanged = (event: { settings: { plantumlServerUrl?: string } }) => {
           const nextUrl = event.settings.plantumlServerUrl?.trim() ?? '';
           if (nextUrl === plantUmlServerUrl) return;
+          const wasDiagram = isDiagram();
           plantUmlServerUrl = nextUrl;
-          if (isPlantUml()) render();
+          if (!isPlantUml()) return;
+          if (wasDiagram !== isDiagram()) {
+            // isDiagram() flipped — dispatch empty transaction to trigger
+            // ProseMirror to call update(), which calls render() in the
+            // diagram/code-block path
+            editor.view.dispatch(editor.view.state.tr);
+          } else {
+            render();
+          }
         };
         store.on('settings:changed', handleSettingsChanged);
 

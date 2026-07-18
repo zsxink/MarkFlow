@@ -1,0 +1,15 @@
+{
+  "identifier": "plantuml-http-capability",
+  "description": "HTTP access for PlantUML rendering",
+  "windows": ["main"],
+  "permissions": [
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [
+        { "url": "https://**" },
+        { "url": "http://**" }
+      ]
+    }
+  ]
+}

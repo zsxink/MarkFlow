@@ -61,8 +61,7 @@ impl AppState {
         // Narrow the lock scope: stop the previous watcher first, then start a
         // new one without holding the lock across the (potentially slow) setup.
         {
-            let mut watcher = lock_mutex(&self.watcher)
-                .expect("watcher mutex poisoned");
+            let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
             if let Some(mut previous) = watcher.take() {
                 previous.stop();
                 debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
@@ -73,8 +72,7 @@ impl AppState {
         let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
         match FileWatcher::new(path.clone(), matcher, event_handler) {
             Ok(w) => {
-                let mut watcher = lock_mutex(&self.watcher)
-                    .expect("watcher mutex poisoned");
+                let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
                 *watcher = Some(w);
                 debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");
             }
@@ -83,8 +81,7 @@ impl AppState {
             }
         }
 
-        let mut root = lock_mutex(&self.workspace_root)
-            .expect("workspace_root mutex poisoned");
+        let mut root = lock_mutex(&self.workspace_root).expect("workspace_root mutex poisoned");
         *root = Some(path);
     }
 

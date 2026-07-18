@@ -51,7 +51,11 @@ pub fn install_panic_hook() {
 /// contents or embedded secrets.
 fn redact_message(message: &str) -> String {
     let truncated = if message.len() > 500 {
-        format!("{}…[truncated {} chars]", &message[..500], message.len() - 500)
+        format!(
+            "{}…[truncated {} chars]",
+            &message[..500],
+            message.len() - 500
+        )
     } else {
         message.to_string()
     };
@@ -292,7 +296,10 @@ mod tests {
         // Too few components to reveal private home/prefix — left as-is.
         assert_eq!(redact_message("/tmp/note.md"), "/tmp/note.md");
         assert_eq!(redact_message("note.md"), "note.md");
-        assert_eq!(redact_message("relative/path/note.md"), "relative/path/note.md");
+        assert_eq!(
+            redact_message("relative/path/note.md"),
+            "relative/path/note.md"
+        );
     }
 
     #[test]

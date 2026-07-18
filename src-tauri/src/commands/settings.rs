@@ -30,7 +30,8 @@ pub fn load_settings_inner() -> Settings {
     if !path.exists() {
         debug!(target: "backend.settings", path = %normalize_path(&path), "Settings file not found, using defaults");
         let settings = Settings::default();
-        *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
+        *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") =
+            Some(settings.clone());
         return settings;
     }
     let settings = match fs::read_to_string(&path) {

@@ -78,7 +78,9 @@ impl std::error::Error for AppError {}
 
 /// Acquire a `Mutex` lock, converting a poisoned lock into a structured error
 /// rather than panicking. Callers can decide whether the state is recoverable.
-pub fn lock_mutex<T>(mutex: &std::sync::Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, AppError> {
+pub fn lock_mutex<T>(
+    mutex: &std::sync::Mutex<T>,
+) -> Result<std::sync::MutexGuard<'_, T>, AppError> {
     match mutex.lock() {
         Ok(guard) => Ok(guard),
         Err(poisoned) => {

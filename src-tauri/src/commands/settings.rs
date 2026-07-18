@@ -54,7 +54,7 @@ pub fn save_settings_inner(settings: &Settings) -> Result<(), AppError> {
     let path = settings_path();
     let content = serde_json::to_string_pretty(settings)
         .map_err(|e| AppError::serialization(format!("Failed to serialize settings: {}", e)))?;
-    atomic_write(&path, &content).map_err(|e| AppError::io(e))?;
+    atomic_write(&path, &content).map_err(AppError::io)?;
     debug!(target: "backend.settings", path = %normalize_path(&path), "Saved settings");
 
     // Update cache after successful write

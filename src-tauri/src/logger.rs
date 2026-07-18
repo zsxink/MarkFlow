@@ -46,8 +46,9 @@ pub fn install_panic_hook() {
 /// - Mask the filename of private absolute file paths (keep one parent dir
 ///   for diagnosis, drop the rest of the home/dir prefix).
 /// - Truncate long document-like bodies.
-/// We operate on the whole message conservatively to avoid leaking private
-/// path contents or embedded secrets.
+///
+/// We operate on the whole message conservatively to avoid leaking private path
+/// contents or embedded secrets.
 fn redact_message(message: &str) -> String {
     let truncated = if message.len() > 500 {
         format!("{}…[truncated {} chars]", &message[..500], message.len() - 500)

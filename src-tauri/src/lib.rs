@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod error;
 mod fs;
 mod http;
 mod logger;
@@ -8,11 +9,11 @@ mod state;
 
 use commands::files;
 use commands::settings;
+use error::AppError;
 use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-#[cfg(target_os = "macos")]
 use tauri::RunEvent;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_single_instance::init as single_instance_init;
@@ -124,7 +125,8 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
     // Store pending file path for the new window's frontend to pull
     {
         let state = app.state::<AppState>();
-        let mut pending = state.pending_file.lock().unwrap();
+        let mut pending = error::lock_mutex(&state.pending_file)
+            .expect("pending_file mutex poisoned");
         pending.insert(label.clone(), path.clone());
     }
 
@@ -133,13 +135,15 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
 
 #[tauri::command]
 fn take_pending_file(window_label: String, state: tauri::State<AppState>) -> Option<String> {
-    let mut pending = state.pending_file.lock().unwrap();
+    let mut pending = error::lock_mutex(&state.pending_file)
+        .expect("pending_file mutex poisoned");
     pending.remove(&window_label)
 }
 
 #[tauri::command]
 fn take_cli_file(state: tauri::State<AppState>) -> Option<String> {
-    let mut cli_file = state.cli_file.lock().unwrap();
+    let mut cli_file = error::lock_mutex(&state.cli_file)
+        .expect("cli_file mutex poisoned");
     cli_file.take()
 }
 
@@ -150,7 +154,7 @@ fn mark_initial_file_handled(state: tauri::State<AppState>) -> Result<(), String
 }
 
 #[tauri::command]
-fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(), String> {
+fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(), AppError> {
     let mut s = settings::load_settings_inner();
     s.last_window_x = x;
     s.last_window_y = y;
@@ -193,7 +197,7 @@ fn confirm_window_close(
 }
 
 #[tauri::command]
-fn add_recent_file(path: String) -> Result<(), String> {
+fn add_recent_file(path: String) -> Result<(), AppError> {
     let mut s = settings::load_settings_inner();
     s.recent_files.retain(|p| p != &path);
     s.recent_files.insert(0, path);
@@ -204,7 +208,7 @@ fn add_recent_file(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn add_recent_folder(path: String) -> Result<(), String> {
+fn add_recent_folder(path: String) -> Result<(), AppError> {
     let mut s = settings::load_settings_inner();
     s.recent_folders.retain(|p| p != &path);
     s.recent_folders.insert(0, path);
@@ -215,7 +219,7 @@ fn add_recent_folder(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn clear_recent_history() -> Result<(), String> {
+fn clear_recent_history() -> Result<(), AppError> {
     let mut s = settings::load_settings_inner();
     s.recent_files.clear();
     s.recent_folders.clear();
@@ -227,11 +231,11 @@ fn set_workspace(
     path: String,
     app: tauri::AppHandle,
     state: tauri::State<AppState>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let workspace = PathBuf::from(&path);
     if !workspace.is_dir() {
         tracing::warn!(target: "backend.workspace", path = %path, "Rejected non-directory workspace path");
-        return Err("Workspace path is not a directory".into());
+        return Err(AppError::workspace_invalid("Workspace path is not a directory"));
     }
 
     // Clean up stale temp files in the workspace
@@ -241,7 +245,11 @@ fn set_workspace(
 
     let app_handle = app.clone();
     state.set_workspace(workspace, move |event| {
-        let _ = app_handle.emit("file-changed", &event);
+        // Emit is best-effort: if the frontend receiver is gone, log and skip
+        // rather than propagating a panic into the watcher thread.
+        if let Err(error) = app_handle.emit("file-changed", &event) {
+            tracing::warn!(target: "backend.workspace", error = %error, "Failed to emit file-changed event (receiver closed)");
+        }
     });
 
     let mut settings = settings::load_settings_inner();
@@ -255,7 +263,7 @@ fn set_workspace(
 }
 
 #[tauri::command]
-fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, String> {
+fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, AppError> {
     Ok(state.get_workspace().map(|p| normalize_path(&p)))
 }
 
@@ -329,7 +337,8 @@ pub fn run() {
             if let Some(file_path) = cli_file {
                 tracing::info!(target: "backend.app", path = %file_path.display(), "Opened via file association (single-file mode)");
                 let state = app.state::<AppState>();
-                let mut cli_file_lock = state.cli_file.lock().unwrap();
+                let mut cli_file_lock = error::lock_mutex(&state.cli_file)
+                    .expect("cli_file mutex poisoned");
                 *cli_file_lock = Some(file_path.to_string_lossy().to_string());
             } else if let Some(last_ws) = settings.last_workspace {
                 let path = PathBuf::from(&last_ws);
@@ -358,7 +367,7 @@ pub fn run() {
 
     app.run(|_app_handle, _event| {
         #[cfg(target_os = "macos")]
-        if let RunEvent::Opened { urls } = _event {
+        if let RunEvent::Opened { urls } = &_event {
             for url in urls {
                 let path_str = match url.to_file_path() {
                     Ok(path) => path.to_string_lossy().to_string(),
@@ -372,13 +381,21 @@ pub fn run() {
 
                 if !state.initial_file_handled.load(Ordering::SeqCst) {
                     tracing::info!(target: "backend.app", path = %path_str, "First RunEvent::Opened — storing to cli_file");
-                    let mut cli_file_lock = state.cli_file.lock().unwrap();
+                    let mut cli_file_lock = error::lock_mutex(&state.cli_file)
+                        .expect("cli_file mutex poisoned");
                     *cli_file_lock = Some(path_str);
                 } else {
                     tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened (new window)");
                     let _ = open_file_in_new_window(path_str, _app_handle.clone());
                 }
             }
+        }
+
+        // Stop background tasks (watcher) on exit so the process terminates
+        // without leaking threads, even if network/file tasks are still in flight.
+        if let RunEvent::Exit = _event {
+            _app_handle.state::<AppState>().stop_all();
+            tracing::info!(target: "backend.app", "Application exiting — background tasks stopped");
         }
     });
 }

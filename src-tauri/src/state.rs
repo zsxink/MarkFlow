@@ -1,3 +1,4 @@
+use crate::error::lock_mutex;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
@@ -7,7 +8,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Semaphore;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 pub struct AppState {
     pub workspace_root: Mutex<Option<PathBuf>>,
@@ -55,13 +56,19 @@ impl AppState {
     ) {
         let path_display = normalize_path(&path);
 
-        let mut watcher = self.watcher.lock().unwrap();
-        if watcher.take().is_some() {
-            debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
+        // Narrow the lock scope: stop the previous watcher first, then start a
+        // new one without holding the lock across the (potentially slow) setup.
+        {
+            let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
+            if let Some(mut previous) = watcher.take() {
+                previous.stop();
+                debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
+            }
         }
 
         match FileWatcher::new(path.clone(), event_handler) {
             Ok(w) => {
+                let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
                 *watcher = Some(w);
                 debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");
             }
@@ -70,11 +77,61 @@ impl AppState {
             }
         }
 
-        let mut root = self.workspace_root.lock().unwrap();
+        let mut root = lock_mutex(&self.workspace_root).expect("workspace_root mutex poisoned");
         *root = Some(path);
     }
 
     pub fn get_workspace(&self) -> Option<PathBuf> {
-        self.workspace_root.lock().unwrap().clone()
+        lock_mutex(&self.workspace_root)
+            .expect("workspace_root mutex poisoned")
+            .clone()
+    }
+
+    /// Stop all background tasks (watcher) so the process can exit cleanly.
+    /// Safe to call multiple times.
+    pub fn stop_all(&self) {
+        let mut watcher = match lock_mutex(&self.watcher) {
+            Ok(g) => g,
+            Err(e) => {
+                warn!(target: "backend.lifecycle", error = %e, "Skipping watcher stop due to poisoned lock");
+                return;
+            }
+        };
+        if let Some(mut active) = watcher.take() {
+            active.stop();
+            debug!(target: "backend.lifecycle", "Stopped workspace watcher on shutdown");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_workspace_switches_without_leaking_watcher_thread() {
+        let state = AppState::new();
+        let dir_a = std::env::temp_dir().join(format!("markflow-ws-a-{}", std::process::id()));
+        let dir_b = std::env::temp_dir().join(format!("markflow-ws-b-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir_a);
+        let _ = std::fs::create_dir_all(&dir_b);
+
+        state.set_workspace(dir_a.clone(), |_event| {});
+        state.set_workspace(dir_b.clone(), |_event| {});
+        // Switching again must not panic and must leave exactly one active watcher.
+        state.set_workspace(dir_a.clone(), |_event| {});
+
+        assert_eq!(state.get_workspace(), Some(dir_a.clone()));
+
+        state.stop_all();
+        let _ = std::fs::remove_dir_all(&dir_a);
+        let _ = std::fs::remove_dir_all(&dir_b);
+    }
+
+    #[test]
+    fn stop_all_is_safe_to_call_repeatedly() {
+        let state = AppState::new();
+        state.stop_all();
+        state.stop_all();
     }
 }

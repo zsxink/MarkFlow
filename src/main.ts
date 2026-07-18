@@ -10,6 +10,7 @@ import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
 import { showToast } from './components/toast';
+import { setToastReporter } from './lib/error';
 import { store } from './lib/store';
 import { showUnsavedDialog } from './components/unsavedDialog';
 import { logDebug, logException, logInfo } from './lib/logger';
@@ -40,6 +41,7 @@ function debouncedRefreshFileTree() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   logInfo('app.lifecycle', 'Application boot started');
+  setToastReporter((msg) => showToast(msg));
 
   // Block contextmenu outside sidebar (sidebar handles its own)
   document.addEventListener('contextmenu', (e) => {
@@ -83,7 +85,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Mark that initial file handling is done — subsequent RunEvent::Opened opens new windows
-  invoke('mark_initial_file_handled').catch(() => {});
+  invoke('mark_initial_file_handled').catch((e) =>
+    logDebug('app.lifecycle', 'Failed to mark initial file handled (best-effort)', { error: String(e) }),
+  );
 
   // Restore sidebar tab preference
   const wsPath = getWorkspacePath();
@@ -150,8 +154,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const y = pos.y;
       const w = size.width;
       const h = size.height;
-      invoke('save_last_window_state', { x, y, width: w, height: h }).catch(() => {});
-    } catch { /* ignore errors on close */ }
+      invoke('save_last_window_state', { x, y, width: w, height: h })
+        .catch((e) => logDebug('app.lifecycle', 'Failed to save window state on close (best-effort)', { error: String(e) }));
+    } catch (e) {
+      logDebug('app.lifecycle', 'Error while saving window state on close (best-effort)', { error: String(e) });
+    }
   });
 
   // Intercept close request: prompt to save if document is dirty
@@ -195,7 +202,17 @@ function startAutoSave() {
       if (isSavingInProgress()) return; // skip — previous save still running
       const filePath = getActiveFilePath();
       if (filePath) {
-        await saveActiveDocument({ interactive: false });
+        const saved = await saveActiveDocument({ interactive: false });
+        // Persistent visibility: keep a running failure count; only surface a
+        // persistent banner after consecutive failures, and clear on success.
+        if (saved) {
+          if (store.getState().autosaveErrorCount !== 0) {
+            store.setState({ autosaveErrorCount: 0 });
+          }
+        } else {
+          const next = store.getState().autosaveErrorCount + 1;
+          store.setState({ autosaveErrorCount: next });
+        }
       }
     }, interval);
   }

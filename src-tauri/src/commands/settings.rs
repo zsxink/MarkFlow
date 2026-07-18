@@ -107,4 +107,12 @@ mod tests {
         assert_eq!(parsed.file_tree_page_size, 500);
         assert_eq!(parsed.file_tree_auto_load_depth, 8);
     }
+
+    #[test]
+    fn legacy_settings_receive_empty_plantuml_server_url() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("plantumlServerUrl");
+        let parsed = parse_settings(&serde_json::to_string(&value).unwrap()).unwrap();
+        assert_eq!(parsed.plantuml_server_url, "");
+    }
 }

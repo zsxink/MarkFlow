@@ -84,6 +84,11 @@ export function clearSettingsCache(): void {
   settingsCache = null;
 }
 
+/** Returns the latest loaded settings without triggering I/O. */
+export function getCachedSettings(): Settings {
+  return settingsCache ?? DEFAULT_SETTINGS;
+}
+
 let settingsCache: Settings | null = null;
 
 export async function readFileAsBase64(path: string): Promise<string> {

@@ -14,6 +14,8 @@ pub struct Settings {
     pub live_preview: bool,
     pub code_highlight: bool,
     #[serde(default)]
+    pub plantuml_server_url: String,
+    #[serde(default)]
     pub line_numbers: Option<bool>,
     pub show_sidebar: bool,
     pub show_tooltips: bool,
@@ -111,6 +113,7 @@ impl Default for Settings {
             soft_wrap: true,
             live_preview: true,
             code_highlight: true,
+            plantuml_server_url: String::new(),
             line_numbers: None,
             show_sidebar: true,
             show_tooltips: true,

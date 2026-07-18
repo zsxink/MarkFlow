@@ -38,10 +38,14 @@ function sanitizeMermaidSvg(svg: string): string {
 const MERMAID_RENDER_TIMEOUT = 5000; // 5 seconds
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
-  ]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
 }
 
 export async function renderMermaid(code: string): Promise<string> {

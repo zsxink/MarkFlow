@@ -22,18 +22,25 @@ const LOADERS: Record<string, () => Promise<LanguageSupport>> = {
 };
 
 const loaded = new Map<string, LanguageSupport>();
+const loading = new Map<string, Promise<LanguageSupport | null>>();
 
 export async function getLanguageExtension(name: string): Promise<LanguageSupport | null> {
   if (loaded.has(name)) return loaded.get(name)!;
   const loader = LOADERS[name];
   if (!loader) return null;
-  try {
-    const ext = await loader();
-    loaded.set(name, ext);
-    return ext;
-  } catch {
-    return null; // fallback to plain text
+
+  let pending = loading.get(name);
+  if (!pending) {
+    pending = loader()
+      .then(ext => {
+        loaded.set(name, ext);
+        return ext;
+      })
+      .catch(() => null) // fallback to plain text
+      .finally(() => loading.delete(name));
+    loading.set(name, pending);
   }
+  return pending;
 }
 
 /** Check if a language has a lazy loader (for LanguageDescription). */

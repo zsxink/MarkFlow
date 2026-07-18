@@ -11,6 +11,8 @@ import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveA
 import { copyLocalFileToStorage, handleNetworkImage, getImageSettings } from '../lib/imageUtils';
 import { getActiveDocPath } from '../lib/editor.state';
 import { logException } from '../lib/logger';
+import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
+import { showContextMenuStatic } from './ui/contextMenu';
 
 export function initToolbar() {
   bindToolbarEvents();
@@ -103,6 +105,21 @@ function bindToolbarEvents() {
   bind('btn-save', async () => {
     await saveActiveDocument();
   });
+
+  bind('btn-export', () => {
+    const button = document.getElementById('btn-export');
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    showContextMenuStatic([
+      { label: '导出 PDF', onClick: () => { void exportCurrentDocument('pdf'); } },
+      { label: '导出 Word', onClick: () => { void exportCurrentDocument('word'); } },
+      { label: '导出 HTML', onClick: () => { void exportCurrentDocument('html'); } },
+    ], { x: rect.left, y: rect.bottom });
+  });
+}
+
+async function exportCurrentDocument(format: ExportFormat) {
+  await exportRenderedDocument(format, getEditor()?.view.dom ?? null, getActiveDocPath());
 }
 
 function bind(id: string, fn: () => void) {

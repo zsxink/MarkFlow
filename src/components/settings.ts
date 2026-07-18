@@ -185,6 +185,16 @@ function createSettingsContent(): string {
               </div>
             </div>
             <div class="settings-group">
+              <div class="settings-group-title">PlantUML</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">PlantUML 服务器地址</div>
+                  <div class="settings-desc">使用外部 PlantUML 服务器会将该图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容请使用自建服务器。</div>
+                </div>
+                <input class="newfile-input" id="setting-plantuml-server-url" style="width:260px" placeholder="https://www.plantuml.com/plantuml" />
+              </div>
+            </div>
+            <div class="settings-group">
               <div class="settings-group-title">界面</div>
               <div class="settings-row">
                 <div class="settings-label">默认展开侧边栏</div>
@@ -337,6 +347,7 @@ function bindSettingsEvents(hide: () => void) {
   document.getElementById('setting-image-custom-path')?.addEventListener('input', () => {
     void persistSettingsFromUI();
   });
+  document.getElementById('setting-plantuml-server-url')?.addEventListener('change', () => void persistSettingsFromUI());
   for (const id of ['setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth']) {
     document.getElementById(id)?.addEventListener('change', () => void persistSettingsFromUI());
   }
@@ -379,6 +390,7 @@ function applySettingsToUI(settings: Settings) {
   setInputValue('setting-filetree-ignore', (settings.fileTreeIgnorePatterns ?? DEFAULT_SETTINGS.fileTreeIgnorePatterns ?? []).join(', '));
   setInputValue('setting-filetree-page-size', String(settings.fileTreePageSize ?? 500));
   setInputValue('setting-filetree-depth', String(settings.fileTreeAutoLoadDepth ?? 8));
+  setInputValue('setting-plantuml-server-url', String(settings.plantumlServerUrl ?? ''));
 
   const selectedTheme = String(settings.theme ?? 'light') as Theme;
   document.querySelectorAll('.theme-swatch').forEach(swatch => {
@@ -452,6 +464,7 @@ function buildSettingsFromUI(): Settings {
     softWrap: getToggleState('setting-softwrap'),
     livePreview: getToggleState('setting-livepreview'),
     codeHighlight: getToggleState('setting-codehighlight'),
+    plantumlServerUrl: getInputValue('setting-plantuml-server-url').trim(),
     codeLineNumbers: getToggleState('setting-code-linenumbers'),
     codeWordWrap: getToggleState('setting-code-wordwrap'),
     showSidebar: getToggleState('setting-sidebar'),

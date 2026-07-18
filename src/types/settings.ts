@@ -9,6 +9,7 @@ export interface Settings {
   softWrap: boolean;
   livePreview: boolean;
   codeHighlight: boolean;
+  plantumlServerUrl: string;
   lineNumbers?: boolean;
   showSidebar: boolean;
   showTooltips: boolean;
@@ -49,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   softWrap: true,
   livePreview: true,
   codeHighlight: true,
+  plantumlServerUrl: '',
   showSidebar: true,
   showTooltips: true,
   followSystemTheme: false,

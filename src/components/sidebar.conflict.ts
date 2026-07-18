@@ -2,7 +2,7 @@ import { writeFile } from '../lib/storage';
 import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification } from '../lib/editor';
 import { showToast } from './toast';
 import { showDialog } from './ui/dialog';
-import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
+import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';
 import { getActiveFilePath, clearActiveDocument } from './activeDocument';
 import { reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile } from './sidebar.fileops';
@@ -42,7 +42,7 @@ async function restoreDeletedActiveDocument() {
     suppressNextWatcherRefresh(filePath);
     await writeFile(filePath, content);
     markDocumentPersisted(content);
-    await refreshFileTree();
+    await applyFileTreeEvents([{ path: filePath, kind: 'create', timestamp: Date.now() }]);
     refreshOutline();
     showToast('已重新保存当前文件');
     return true;

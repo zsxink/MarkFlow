@@ -244,11 +244,11 @@ fn set_workspace(
     tracing::info!(target: "backend.workspace", path = %path, "Switching workspace");
 
     let app_handle = app.clone();
-    state.set_workspace(workspace, move |event| {
+    state.set_workspace(workspace, move |events| {
         // Emit is best-effort: if the frontend receiver is gone, log and skip
         // rather than propagating a panic into the watcher thread.
-        if let Err(error) = app_handle.emit("file-changed", &event) {
-            tracing::warn!(target: "backend.workspace", error = %error, "Failed to emit file-changed event (receiver closed)");
+        if let Err(error) = app_handle.emit("file-tree-events", &events) {
+            tracing::warn!(target: "backend.workspace", error = %error, "Failed to emit file-tree-events event (receiver closed)");
         }
     });
 
@@ -297,7 +297,8 @@ pub fn run() {
             files::save_mermaid_svg_export,
             files::save_mermaid_png_export,
             files::save_image_export,
-            files::read_dir_recursive,
+            files::read_dir,
+            files::read_path_entry,
             files::create_file,
             files::create_dir,
             files::rename_path,
@@ -345,8 +346,8 @@ pub fn run() {
                 if path.is_dir() {
                     let state = app.state::<AppState>();
                     let app_handle = app.handle().clone();
-                    state.set_workspace(path, move |event| {
-                        let _ = app_handle.emit("file-changed", &event);
+                    state.set_workspace(path, move |events| {
+                        let _ = app_handle.emit("file-tree-events", &events);
                     });
                     tracing::info!(target: "backend.workspace", path = %last_ws, "Restored last workspace");
                 } else {

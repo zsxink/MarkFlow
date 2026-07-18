@@ -1,4 +1,6 @@
+use crate::commands::settings::load_settings_inner;
 use crate::error::lock_mutex;
+use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
@@ -52,23 +54,27 @@ impl AppState {
     pub fn set_workspace(
         &self,
         path: PathBuf,
-        event_handler: impl Fn(FileChangeEvent) + Send + 'static,
+        event_handler: impl Fn(Vec<FileChangeEvent>) + Send + 'static,
     ) {
         let path_display = normalize_path(&path);
 
         // Narrow the lock scope: stop the previous watcher first, then start a
         // new one without holding the lock across the (potentially slow) setup.
         {
-            let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
+            let mut watcher = lock_mutex(&self.watcher)
+                .expect("watcher mutex poisoned");
             if let Some(mut previous) = watcher.take() {
                 previous.stop();
                 debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
             }
         }
 
-        match FileWatcher::new(path.clone(), event_handler) {
+        let settings = load_settings_inner();
+        let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
+        match FileWatcher::new(path.clone(), matcher, event_handler) {
             Ok(w) => {
-                let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
+                let mut watcher = lock_mutex(&self.watcher)
+                    .expect("watcher mutex poisoned");
                 *watcher = Some(w);
                 debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");
             }
@@ -77,7 +83,8 @@ impl AppState {
             }
         }
 
-        let mut root = lock_mutex(&self.workspace_root).expect("workspace_root mutex poisoned");
+        let mut root = lock_mutex(&self.workspace_root)
+            .expect("workspace_root mutex poisoned");
         *root = Some(path);
     }
 

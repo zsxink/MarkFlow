@@ -2,7 +2,7 @@ import { readFile, writeFile, addRecentFile, getFileMetadata } from '../lib/stor
 import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
-import { suppressNextWatcherRefresh, refreshFileTree } from './fileTree';
+import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';
 import { logException, logInfo, logDebug } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
@@ -85,7 +85,7 @@ export async function saveActiveDocumentAsNewFile() {
       setLastReadStats(stats.mtime, stats.size);
     } catch { /* non-critical */ }
     markDocumentPersisted(currentContent);
-    await refreshFileTree();
+    await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
     refreshOutline();
     showToast('已另存为新文件');
     return true;

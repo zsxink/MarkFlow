@@ -11,6 +11,7 @@ export {
   insertEntryIntoTree,
   removeEntryFromTree,
   renameEntryInTree,
+  applyFileTreeEvents,
 } from './fileTree.core';
 
 export {

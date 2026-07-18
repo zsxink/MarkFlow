@@ -45,6 +45,7 @@ impl AppError {
         Self::new(AppErrorCode::LockPoisoned, message)
     }
 
+    #[allow(dead_code)]
     pub fn watcher_start_failed(message: impl Into<String>) -> Self {
         Self::new(AppErrorCode::WatcherStartFailed, message)
     }

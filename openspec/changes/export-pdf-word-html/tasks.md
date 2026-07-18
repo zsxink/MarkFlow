@@ -13,4 +13,4 @@
 
 - [x] 3.1 添加导出文件名、HTML/Word 内容、取消、写入失败和打印失败分支的单元测试。
 - [x] 3.2 运行 OpenSpec 校验、`npm test` 与 `npm run build`，检查没有新增依赖或 bundle-budget 回退。
-- [ ] 3.3 按逻辑阶段提交，推送功能分支并创建关联 Issue #8 的 PR。
+- [x] 3.3 按逻辑阶段提交，推送功能分支并创建关联 Issue #8 的 PR。

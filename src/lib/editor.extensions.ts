@@ -6,6 +6,9 @@ import Image from '@tiptap/extension-image';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import { renderMermaid } from './mermaid';
+import { renderPlantUml } from './plantuml';
+import { getCachedSettings } from './storage';
+import { store } from './store';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { getMermaidExportBaseName } from './editor.state';
 
@@ -163,6 +166,7 @@ export function mermaidCodeBlockExtension() {
         let renderVersion = 0;
         let destroyed = false;
         let renderedSvg = '';
+        let plantUmlServerUrl = getCachedSettings().plantumlServerUrl.trim();
 
         const dom = document.createElement('div');
         let contentDOM: HTMLElement | null = null;
@@ -175,6 +179,9 @@ export function mermaidCodeBlockExtension() {
 
         const getLanguage = () => String(currentNode.attrs.language || '').toLowerCase();
         const isMermaid = () => getLanguage() === 'mermaid';
+        const isPlantUml = () => getLanguage() === 'plantuml';
+        const isDiagram = () => isMermaid() || (isPlantUml() && Boolean(plantUmlServerUrl));
+        const diagramName = () => isPlantUml() ? 'PlantUML' : 'Mermaid';
 
         const setCodeBlock = () => {
           renderedSvg = '';
@@ -208,23 +215,25 @@ export function mermaidCodeBlockExtension() {
           const version = ++renderVersion;
           renderedSvg = '';
           previewEl.className = 'mermaid-preview is-rendering';
-          previewEl.textContent = '正在渲染 Mermaid 图表…';
+          previewEl.textContent = `正在渲染 ${diagramName()} 图表…`;
           try {
-            const svg = await renderMermaid(code);
+            const svg = isPlantUml()
+              ? await renderPlantUml(plantUmlServerUrl, code)
+              : await renderMermaid(code);
             if (destroyed || version !== renderVersion || !previewEl) return;
             renderedSvg = svg;
             syncError('');
             previewEl.className = 'mermaid-preview';
             previewEl.innerHTML = svg;
-            previewEl.title = '左键点击编辑 Mermaid 源码';
+            previewEl.title = `左键点击编辑 ${diagramName()} 源码`;
           } catch (error) {
             if (destroyed || version !== renderVersion || !previewEl) return;
             renderedSvg = '';
-            const message = error instanceof Error ? error.message : 'Mermaid 渲染失败';
+            const message = error instanceof Error ? error.message : `${diagramName()} 渲染失败`;
             syncError('');
             previewEl.className = 'mermaid-preview is-error';
             previewEl.textContent = message;
-            previewEl.title = 'Mermaid 渲染失败，左键点击编辑源码';
+            previewEl.title = `${diagramName()} 渲染失败，左键点击编辑源码`;
           }
         };
 
@@ -321,7 +330,7 @@ export function mermaidCodeBlockExtension() {
 
           previewEl = document.createElement('div');
           previewEl.className = 'mermaid-preview is-rendering';
-          previewEl.title = '左键点击编辑 Mermaid 源码';
+          previewEl.title = `左键点击编辑 ${diagramName()} 源码`;
           previewEl.addEventListener('mousedown', (event) => {
             if (event.button !== 0) return;
             event.preventDefault();
@@ -333,7 +342,7 @@ export function mermaidCodeBlockExtension() {
           previewEl.addEventListener('contextmenu', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!renderedSvg) return;
+            if (!renderedSvg || !isMermaid()) return;
             showMermaidContextMenu(event.clientX, event.clientY, {
               svg: renderedSvg,
               defaultName: getMermaidExportBaseName(),
@@ -345,7 +354,7 @@ export function mermaidCodeBlockExtension() {
         };
 
         const render = () => {
-          if (!isMermaid()) {
+          if (!isDiagram()) {
             setCodeBlock();
             return;
           }
@@ -371,16 +380,24 @@ export function mermaidCodeBlockExtension() {
 
         render();
 
+        const handleSettingsChanged = (event: { settings: { plantumlServerUrl?: string } }) => {
+          const nextUrl = event.settings.plantumlServerUrl?.trim() ?? '';
+          if (nextUrl === plantUmlServerUrl) return;
+          plantUmlServerUrl = nextUrl;
+          if (isPlantUml()) render();
+        };
+        store.on('settings:changed', handleSettingsChanged);
+
         return {
           dom,
-          contentDOM: isMermaid() ? undefined : contentDOM || undefined,
+          contentDOM: isDiagram() ? undefined : contentDOM || undefined,
           update(updatedNode) {
             if (updatedNode.type !== currentNode.type) return false;
             const previousLanguage = getLanguage();
-            const wasMermaid = isMermaid();
+            const wasDiagram = isDiagram();
             currentNode = updatedNode;
-            if (wasMermaid !== isMermaid()) return false;
-            if (!isMermaid() && previousLanguage !== getLanguage()) return false;
+            if (wasDiagram !== isDiagram()) return false;
+            if (!isDiagram() && previousLanguage !== getLanguage()) return false;
             if (!isEditing) {
               draftSource = currentNode.textContent;
             }
@@ -388,16 +405,17 @@ export function mermaidCodeBlockExtension() {
             return true;
           },
           stopEvent(event) {
-            return isMermaid() && dom.contains(event.target as Node);
+            return isDiagram() && dom.contains(event.target as Node);
           },
           ignoreMutation(mutation: any) {
-            if (isMermaid()) return true;
+            if (isDiagram()) return true;
             return !(contentDOM && (mutation.target === contentDOM || contentDOM.contains(mutation.target)));
           },
           destroy() {
             destroyed = true;
             renderVersion += 1;
             document.removeEventListener('mousedown', handleDocumentMouseDown);
+            store.off('settings:changed', handleSettingsChanged);
           },
         };
       };

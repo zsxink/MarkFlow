@@ -10,8 +10,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "analyze": "npx vite build --mode analyze",
-    "check-size": "bash scripts/check-bundle-size.sh"
-    ,"benchmark:file-tree": "node scripts/file-tree-benchmark.mjs"
+    "check-size": "bash scripts/check-bundle-size.sh",
+    "benchmark:file-tree": "node scripts/file-tree-benchmark.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.3",
@@ -49,10 +49,12 @@
     "lowlight": "^3.2.0",
     "markdown-it": "^14.3.0",
     "mermaid": "^11.0.0",
+    "pako": "^2.2.0",
     "tiptap-markdown": "^0.8.10"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.3",
+    "@types/pako": "^2.0.4",
     "happy-dom": "^20.9.0",
     "rollup-plugin-visualizer": "^7.0.1",
     "typescript": "^5.5.0",

@@ -30,7 +30,8 @@ pub fn load_settings_inner() -> Settings {
     if !path.exists() {
         debug!(target: "backend.settings", path = %normalize_path(&path), "Settings file not found, using defaults");
         let settings = Settings::default();
-        *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
+        *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") =
+            Some(settings.clone());
         return settings;
     }
     let settings = match fs::read_to_string(&path) {
@@ -54,7 +55,7 @@ pub fn save_settings_inner(settings: &Settings) -> Result<(), AppError> {
     let path = settings_path();
     let content = serde_json::to_string_pretty(settings)
         .map_err(|e| AppError::serialization(format!("Failed to serialize settings: {}", e)))?;
-    atomic_write(&path, &content).map_err(|e| AppError::io(e))?;
+    atomic_write(&path, &content).map_err(AppError::io)?;
     debug!(target: "backend.settings", path = %normalize_path(&path), "Saved settings");
 
     // Update cache after successful write

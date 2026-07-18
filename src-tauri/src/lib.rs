@@ -125,8 +125,8 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
     // Store pending file path for the new window's frontend to pull
     {
         let state = app.state::<AppState>();
-        let mut pending = error::lock_mutex(&state.pending_file)
-            .expect("pending_file mutex poisoned");
+        let mut pending =
+            error::lock_mutex(&state.pending_file).expect("pending_file mutex poisoned");
         pending.insert(label.clone(), path.clone());
     }
 
@@ -135,15 +135,13 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
 
 #[tauri::command]
 fn take_pending_file(window_label: String, state: tauri::State<AppState>) -> Option<String> {
-    let mut pending = error::lock_mutex(&state.pending_file)
-        .expect("pending_file mutex poisoned");
+    let mut pending = error::lock_mutex(&state.pending_file).expect("pending_file mutex poisoned");
     pending.remove(&window_label)
 }
 
 #[tauri::command]
 fn take_cli_file(state: tauri::State<AppState>) -> Option<String> {
-    let mut cli_file = error::lock_mutex(&state.cli_file)
-        .expect("cli_file mutex poisoned");
+    let mut cli_file = error::lock_mutex(&state.cli_file).expect("cli_file mutex poisoned");
     cli_file.take()
 }
 
@@ -235,7 +233,9 @@ fn set_workspace(
     let workspace = PathBuf::from(&path);
     if !workspace.is_dir() {
         tracing::warn!(target: "backend.workspace", path = %path, "Rejected non-directory workspace path");
-        return Err(AppError::workspace_invalid("Workspace path is not a directory"));
+        return Err(AppError::workspace_invalid(
+            "Workspace path is not a directory",
+        ));
     }
 
     // Clean up stale temp files in the workspace

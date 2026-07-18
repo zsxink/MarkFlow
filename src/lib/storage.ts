@@ -107,6 +107,10 @@ export async function saveImageExport(data: string, fileName: string, extension:
   return invoke<boolean>('save_image_export', { data, fileName, extension });
 }
 
+export async function saveDocumentExport(content: string, defaultName: string, filterName: string, extensions: string[]): Promise<boolean> {
+  return invoke<boolean>('save_document_export', { content, defaultName, filterName, extensions });
+}
+
 export async function fetchRemoteImageAsBase64(url: string): Promise<RemoteImageData> {
   return invoke<RemoteImageData>('fetch_remote_image_as_base64', { url });
 }

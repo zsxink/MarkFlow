@@ -1,6 +1,5 @@
-import { save } from '@tauri-apps/plugin-dialog';
 import { showToast } from '../components/toast';
-import { writeFile } from './storage';
+import { readFileAsBase64, saveDocumentExport } from './storage';
 import { getFileName } from './pathUtils';
 
 export type ExportFormat = 'html' | 'word' | 'pdf';
@@ -63,31 +62,36 @@ export async function exportRenderedDocument(
   renderedRoot: HTMLElement | null,
   activePath: string | null | undefined,
 ): Promise<boolean> {
-  if (exportInProgress) return false;
+  if (exportInProgress) {
+    showToast('正在导出中，请稍候');
+    return false;
+  }
   if (!renderedRoot) {
     showToast('没有可导出的文档内容');
     return false;
   }
 
   const title = getExportFileName(activePath, 'html').replace(/\.html$/, '');
-  const renderedHtml = renderedRoot.innerHTML;
   exportInProgress = true;
   try {
-    if (format === 'pdf') {
-      return printDocument(createHtmlExport(title, renderedHtml));
-    }
+    await convertLocalImages(renderedRoot);
+    const renderedHtml = renderedRoot.innerHTML;
 
-    const targetPath = await save({
-      title: `导出 ${format === 'word' ? 'Word' : 'HTML'}`,
-      defaultPath: getExportFileName(activePath, format),
-      filters: [{ name: format === 'word' ? 'Word 文档' : 'HTML 文档', extensions: [format === 'word' ? 'doc' : 'html'] }],
-    });
-    if (!targetPath) return false;
+    if (format === 'pdf') {
+      return await printDocument(createHtmlExport(title, renderedHtml));
+    }
 
     const output = format === 'word'
       ? createWordExport(title, renderedHtml)
       : createHtmlExport(title, renderedHtml);
-    await writeFile(targetPath, output);
+
+    const defaultName = getExportFileName(activePath, format);
+    const filterName = format === 'word' ? 'Word 文档' : 'HTML 文档';
+    const extensions = [format === 'word' ? 'doc' : 'html'];
+
+    const saved = await saveDocumentExport(output, defaultName, filterName, extensions);
+    if (!saved) return false;
+
     showToast(`已导出${format === 'word' ? ' Word 文档' : ' HTML 文件'}`);
     return true;
   } catch (error) {
@@ -99,36 +103,45 @@ export async function exportRenderedDocument(
   }
 }
 
-export function printDocument(documentHtml: string, hostDocument: Document = document): boolean {
-  const iframe = hostDocument.createElement('iframe');
-  iframe.setAttribute('title', 'MarkFlow PDF export');
-  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
+export function printDocument(documentHtml: string, hostDocument: Document = document): Promise<boolean> {
+  return new Promise(resolve => {
+    let settled = false;
+    const settle = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.setTimeout(() => {
+        iframe.remove();
+        resolve(value);
+      }, 1000);
+    };
 
-  iframe.addEventListener('load', () => {
-    try {
-      const printWindow = iframe.contentWindow;
-      if (!printWindow) throw new Error('Print frame is unavailable');
-      printWindow.focus();
-      printWindow.print();
-    } catch (error) {
-      console.error('Failed to open print dialog', error);
-      showToast('无法打开 PDF 打印窗口');
-    } finally {
-      window.setTimeout(() => iframe.remove(), 1000);
-    }
-  }, { once: true });
-  hostDocument.body.appendChild(iframe);
+    const iframe = hostDocument.createElement('iframe');
+    iframe.setAttribute('title', 'MarkFlow PDF export');
+    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
 
-  const frameDocument = iframe.contentDocument;
-  if (!frameDocument) {
-    iframe.remove();
-    showToast('无法打开 PDF 打印窗口');
-    return false;
-  }
-  frameDocument.open();
-  frameDocument.write(documentHtml);
-  frameDocument.close();
-  return true;
+    // Safety timeout: if load never fires, clean up and resolve false
+    const safetyTimeout = window.setTimeout(() => {
+      settle(false);
+    }, 10_000);
+
+    iframe.addEventListener('load', () => {
+      clearTimeout(safetyTimeout);
+      try {
+        const printWindow = iframe.contentWindow;
+        if (!printWindow) throw new Error('Print frame is unavailable');
+        printWindow.focus();
+        printWindow.print();
+        settle(true);
+      } catch (error) {
+        console.error('Failed to open print dialog', error);
+        showToast('无法打开 PDF 打印窗口');
+        settle(false);
+      }
+    }, { once: true });
+
+    hostDocument.body.appendChild(iframe);
+    iframe.srcdoc = documentHtml;
+  });
 }
 
 function escapeHtml(value: string): string {
@@ -139,4 +152,54 @@ function escapeHtml(value: string): string {
     "'": '&#39;',
     '"': '&quot;',
   })[character]!);
+}
+
+function assetUrlToFsPath(assetUrl: string): string {
+  // asset://localhost/path/to/image.png → /path/to/image.png
+  let path = assetUrl.replace(/^asset:\/\/localhost/, '');
+  // URL-decode the path
+  path = decodeURIComponent(path);
+  // On Windows asset://localhost/C:/ → /C:/ → C:/
+  if (path.match(/^\/[A-Za-z]:\//)) path = path.slice(1);
+  return path;
+}
+
+function inferMimeType(src: string): string {
+  const ext = src.split('.').pop()?.toLowerCase() ?? '';
+  const mimeMap: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    bmp: 'image/bmp',
+    ico: 'image/x-icon',
+  };
+  return mimeMap[ext] ?? 'image/png';
+}
+
+async function convertLocalImages(root: HTMLElement): Promise<void> {
+  const images = root.querySelectorAll('img');
+  const conversions: Promise<void>[] = [];
+
+  images.forEach(img => {
+    const src = img.getAttribute('src');
+    if (!src || !src.startsWith('asset://')) return;
+
+    const promise = (async () => {
+      try {
+        const fsPath = assetUrlToFsPath(src);
+        const base64 = await readFileAsBase64(fsPath);
+        const mimeType = inferMimeType(src);
+        img.setAttribute('src', `data:${mimeType};base64,${base64}`);
+      } catch (error) {
+        console.warn('Failed to convert image to data URI, keeping original:', src, error);
+      }
+    })();
+
+    conversions.push(promise);
+  });
+
+  await Promise.all(conversions);
 }

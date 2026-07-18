@@ -1,13 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { saveMock, writeFileMock, showToastMock } = vi.hoisted(() => ({
-  saveMock: vi.fn(),
-  writeFileMock: vi.fn(),
+const { saveDocumentExportMock, readFileAsBase64Mock, showToastMock } = vi.hoisted(() => ({
+  saveDocumentExportMock: vi.fn(),
+  readFileAsBase64Mock: vi.fn(),
   showToastMock: vi.fn(),
 }));
 
-vi.mock('@tauri-apps/plugin-dialog', () => ({ save: saveMock }));
-vi.mock('./storage', () => ({ writeFile: writeFileMock }));
+vi.mock('./storage', () => ({
+  saveDocumentExport: saveDocumentExportMock,
+  readFileAsBase64: readFileAsBase64Mock,
+}));
 vi.mock('../components/toast', () => ({ showToast: showToastMock }));
 
 import {
@@ -18,11 +20,16 @@ import {
   printDocument,
 } from './documentExport';
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
 afterEach(() => {
-  saveMock.mockReset();
-  writeFileMock.mockReset();
+  saveDocumentExportMock.mockReset();
+  readFileAsBase64Mock.mockReset();
   showToastMock.mockReset();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('rendered document export', () => {
@@ -49,46 +56,191 @@ describe('rendered document export', () => {
   });
 
   it('does not write when the save dialog is cancelled', async () => {
-    saveMock.mockResolvedValue(null);
-    const result = await exportRenderedDocument('html', { innerHTML: '<p>内容</p>' } as HTMLElement, '/notes/a.md');
+    saveDocumentExportMock.mockResolvedValue(false);
+    const container = document.createElement('div');
+    container.innerHTML = '<p>内容</p>';
+    const result = await exportRenderedDocument('html', container, '/notes/a.md');
     expect(result).toBe(false);
-    expect(writeFileMock).not.toHaveBeenCalled();
     expect(showToastMock).not.toHaveBeenCalled();
   });
 
-  it('writes standalone HTML to the selected path', async () => {
-    saveMock.mockResolvedValue('/exports/a.html');
-    const result = await exportRenderedDocument('html', { innerHTML: '<p>内容</p>' } as HTMLElement, '/notes/a.md');
+  it('shows warning when renderedRoot is null', async () => {
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
+    expect(result).toBe(false);
+    expect(showToastMock).toHaveBeenCalledWith('没有可导出的文档内容');
+    expect(saveDocumentExportMock).not.toHaveBeenCalled();
+  });
+
+  it('writes standalone HTML via backend command', async () => {
+    saveDocumentExportMock.mockResolvedValue(true);
+    const container = document.createElement('div');
+    container.innerHTML = '<p>内容</p>';
+    const result = await exportRenderedDocument('html', container, '/notes/a.md');
     expect(result).toBe(true);
-    expect(writeFileMock).toHaveBeenCalledWith('/exports/a.html', expect.stringContaining('<p>内容</p>'));
+    expect(saveDocumentExportMock).toHaveBeenCalledWith(
+      expect.stringContaining('<p>内容</p>'),
+      'a.html',
+      'HTML 文档',
+      ['html'],
+    );
     expect(showToastMock).toHaveBeenCalledWith('已导出 HTML 文件');
   });
 
-  it('writes the Word wrapper and reports write failures', async () => {
-    saveMock.mockResolvedValue('/exports/a.doc');
-    writeFileMock.mockRejectedValue(new Error('disk full'));
+  it('writes the Word wrapper via backend command', async () => {
+    saveDocumentExportMock.mockResolvedValue(true);
+    const container = document.createElement('div');
+    container.innerHTML = '<p>内容</p>';
+    const result = await exportRenderedDocument('word', container, '/notes/a.md');
+    expect(result).toBe(true);
+    expect(saveDocumentExportMock).toHaveBeenCalledWith(
+      expect.stringContaining('xmlns:w='),
+      'a.doc',
+      'Word 文档',
+      ['doc'],
+    );
+    expect(showToastMock).toHaveBeenCalledWith('已导出 Word 文档');
+  });
+
+  it('reports export failure when backend command throws', async () => {
+    saveDocumentExportMock.mockRejectedValue(new Error('disk full'));
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const result = await exportRenderedDocument('word', { innerHTML: '<p>内容</p>' } as HTMLElement, '/notes/a.md');
+    const container = document.createElement('div');
+    container.innerHTML = '<p>内容</p>';
+    const result = await exportRenderedDocument('html', container, '/notes/a.md');
     expect(result).toBe(false);
-    expect(writeFileMock).toHaveBeenCalledWith('/exports/a.doc', expect.stringContaining('xmlns:w='));
     expect(showToastMock).toHaveBeenCalledWith('导出失败，请重试');
   });
 
-  it('reports an unavailable PDF print frame', () => {
+  it('converts local asset images to data URIs before export', async () => {
+    saveDocumentExportMock.mockResolvedValue(true);
+    readFileAsBase64Mock.mockResolvedValue('base64data');
+
+    const container = document.createElement('div');
+    container.innerHTML = '<img src="asset://localhost/path/to/image.png">';
+
+    await exportRenderedDocument('html', container, '/notes/a.md');
+
+    expect(readFileAsBase64Mock).toHaveBeenCalledWith('/path/to/image.png');
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('data:image/png;base64,base64data');
+  });
+
+  it('infers correct MIME type from file extension', async () => {
+    saveDocumentExportMock.mockResolvedValue(true);
+    readFileAsBase64Mock.mockResolvedValue('base64data');
+
+    const container = document.createElement('div');
+    container.innerHTML = '<img src="asset://localhost/photo.jpg">';
+
+    await exportRenderedDocument('html', container, '/notes/a.md');
+
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('data:image/jpeg;base64,base64data');
+  });
+
+  it('skips images that are not asset protocol URLs', async () => {
+    saveDocumentExportMock.mockResolvedValue(true);
+
+    const container = document.createElement('div');
+    container.innerHTML = '<img src="https://example.com/image.png">';
+
+    await exportRenderedDocument('html', container, '/notes/a.md');
+
+    expect(readFileAsBase64Mock).not.toHaveBeenCalled();
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('https://example.com/image.png');
+  });
+
+  it('continues export when image conversion fails', async () => {
+    saveDocumentExportMock.mockResolvedValue(true);
+    readFileAsBase64Mock.mockRejectedValue(new Error('file not found'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const container = document.createElement('div');
+    container.innerHTML = '<img src="asset://localhost/missing.png">';
+
+    const result = await exportRenderedDocument('html', container, '/notes/a.md');
+
+    expect(result).toBe(true);
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toBe('asset://localhost/missing.png');
+  });
+
+  it('does not allow concurrent exports', async () => {
+    saveDocumentExportMock.mockImplementation(() => new Promise(() => {}));
+
+    const container = document.createElement('div');
+    container.innerHTML = '<p>内容</p>';
+    void exportRenderedDocument('html', container, '/notes/a.md');
+    const second = exportRenderedDocument('html', container, '/notes/a.md');
+
+    expect(await second).toBe(false);
+  });
+});
+
+describe('printDocument', () => {
+  it('creates iframe with srcdoc and returns a promise', async () => {
+    const handlers: Record<string, (() => void) | undefined> = {};
     const iframe = {
       setAttribute: vi.fn(),
       style: { cssText: '' },
-      addEventListener: vi.fn(),
+      addEventListener: vi.fn((event: string, handler: () => void) => {
+        handlers[event] = handler;
+      }),
       remove: vi.fn(),
-      contentDocument: null,
+      srcdoc: '',
+      contentWindow: {
+        focus: vi.fn(),
+        print: vi.fn(),
+      },
     };
     const hostDocument = {
       createElement: vi.fn(() => iframe),
       body: { appendChild: vi.fn() },
     } as unknown as Document;
 
-    expect(printDocument('<p>内容</p>', hostDocument)).toBe(false);
-    expect(iframe.remove).toHaveBeenCalledOnce();
+    const resultPromise = printDocument('<p>内容</p>', hostDocument);
+
+    expect(iframe.srcdoc).toBe('<p>内容</p>');
+    expect(hostDocument.body.appendChild).toHaveBeenCalledWith(iframe);
+
+    // Simulate load event
+    handlers.load?.();
+
+    // Advance past the 1s cleanup timeout
+    vi.advanceTimersByTime(1100);
+
+    const resolved = await resultPromise;
+    expect(resolved).toBe(true);
+  });
+
+  it('reports an unavailable PDF print frame', async () => {
+    const handlers: Record<string, (() => void) | undefined> = {};
+    const iframe = {
+      setAttribute: vi.fn(),
+      style: { cssText: '' },
+      addEventListener: vi.fn((event: string, handler: () => void) => {
+        handlers[event] = handler;
+      }),
+      remove: vi.fn(),
+      srcdoc: '',
+      contentWindow: null,
+    };
+    const hostDocument = {
+      createElement: vi.fn(() => iframe),
+      body: { appendChild: vi.fn() },
+    } as unknown as Document;
+
+    const resultPromise = printDocument('<p>内容</p>', hostDocument);
+
+    // Simulate load event
+    handlers.load?.();
+
+    // Advance past the 1s cleanup timeout
+    vi.advanceTimersByTime(1100);
+
+    const resolved = await resultPromise;
+    expect(resolved).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('无法打开 PDF 打印窗口');
   });
 });

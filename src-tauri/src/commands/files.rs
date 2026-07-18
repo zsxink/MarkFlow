@@ -474,6 +474,31 @@ pub async fn save_image_export(
     Ok(true)
 }
 
+#[tauri::command]
+pub async fn save_document_export(
+    content: String,
+    default_name: String,
+    filter_name: String,
+    extensions: Vec<String>,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+    let Some(path) = select_export_path(
+        &app,
+        "导出文档",
+        &default_name,
+        &filter_name,
+        &ext_refs,
+    )?
+    else {
+        return Ok(false);
+    };
+
+    fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(&path), "Exported document");
+    Ok(true)
+}
+
 fn validate_parent_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
     let workspace = state.get_workspace().ok_or("No workspace set")?;
     let workspace = workspace

@@ -119,7 +119,21 @@ function bindToolbarEvents() {
 }
 
 async function exportCurrentDocument(format: ExportFormat) {
-  await exportRenderedDocument(format, getEditor()?.view.dom ?? null, getActiveDocPath());
+  const mode = getMode();
+  let restoredMode = false;
+
+  if (mode === 'source') {
+    switchToWysiwyg();
+    restoredMode = true;
+  }
+
+  try {
+    await exportRenderedDocument(format, getEditor()?.view.dom ?? null, getActiveDocPath());
+  } finally {
+    if (restoredMode) {
+      switchToSource();
+    }
+  }
 }
 
 function bind(id: string, fn: () => void) {

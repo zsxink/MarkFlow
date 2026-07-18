@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
 
@@ -168,7 +169,11 @@ fn merge_recovery_scope(root: &Path, current: Option<PathBuf>, path: &Path) -> P
 }
 
 pub struct FileWatcher {
-    _watcher: RecommendedWatcher,
+    /// `None` once stopped. The watcher handle owns the event sender, so
+    /// dropping it closes the channel and lets the worker thread exit.
+    _watcher: Option<RecommendedWatcher>,
+    /// Handle of the worker thread so we can join on `stop()`.
+    handle: Option<JoinHandle<()>>,
 }
 
 impl FileWatcher {
@@ -221,7 +226,7 @@ impl FileWatcher {
             .watch(&watch_path, RecursiveMode::Recursive)
             .map_err(|e| e.to_string())?;
         debug!(target: "backend.watcher", path = %path_display, capacity = EVENT_QUEUE_CAPACITY, "Registered bounded filesystem watcher");
-        std::thread::spawn(move || {
+        let handle = std::thread::spawn(move || {
             while let Ok(first) = rx.recv() {
                 queue_len.fetch_sub(1, Ordering::Relaxed);
                 let mut raw = vec![first];
@@ -240,6 +245,8 @@ impl FileWatcher {
                             normalized.extend(normalize_event(event, &watch_path, &matcher))
                         }
                         Err(error) => {
+                            // Backend runtime error is logged (not silent) and a
+                            // controlled rescan is scheduled so the tree stays correct.
                             warn!(target: "backend.watcher", path = %path_display, error = %error, "Watcher error requires rescan");
                             normalized.push(FileChangeEvent {
                                 path: path_display.clone(),
@@ -274,7 +281,30 @@ impl FileWatcher {
                 }
             }
         });
-        Ok(Self { _watcher: watcher })
+        Ok(Self {
+            _watcher: Some(watcher),
+            handle: Some(handle),
+        })
+    }
+
+    /// Signal the worker thread to stop and join it. Idempotent.
+    pub fn stop(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            // Drop the watcher handle FIRST so its sender (`tx`) is closed;
+            // only then does `rx.recv()` return `Err` and the worker exit —
+            // otherwise `join()` could block indefinitely on an alive sender.
+            // Queued events still drain because `recv()` returns them before
+            // the `Err` close signal.
+            let _watcher = self._watcher.take();
+            drop(_watcher);
+            let _ = handle.join();
+        }
+    }
+}
+
+impl Drop for FileWatcher {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -421,5 +451,17 @@ mod tests {
         let merged = coalesce(changes);
         assert_eq!(merged.len(), 1);
         assert!(merged[0].path.ends_with("src/a.md"));
+    }
+
+    #[test]
+    fn emitting_after_stop_is_safe_no_panic() {
+        // stop() must be idempotent and safe to call twice.
+        let dir = std::env::temp_dir().join(format!("markflow-watch-test2-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let mut watcher = FileWatcher::new(dir.clone(), IgnoreMatcher::defaults(), |_event| {})
+            .expect("watcher should start on an existing dir");
+        watcher.stop();
+        watcher.stop(); // second call must be a no-op
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

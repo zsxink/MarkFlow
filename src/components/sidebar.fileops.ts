@@ -127,7 +127,9 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
         setLastReadStats(stats.mtime, stats.size);
       } catch { /* non-critical */ }
       markDocumentPersisted(content, revision);
-      addRecentFile(targetPath).catch(() => {});
+      addRecentFile(targetPath).catch((e) =>
+        logDebug('sidebar.save', 'Failed to record recent file (best-effort)', { path: targetPath, error: String(e) }),
+      );
       logInfo('sidebar.save', 'Saved new file', { path: targetPath });
       showToast('已保存');
       return true;

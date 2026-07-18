@@ -1,6 +1,7 @@
 import { deletePath, copyFile, readSingleDir, addRecentFile } from '../lib/storage';
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './fileTree';
 import { showToast } from './toast';
+import { reportUserActionError } from '../lib/error';
 import { clearActiveDocument, clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
@@ -48,8 +49,8 @@ export function showContextMenu(x: number, y: number, path: string | null, type:
 
 function handleContextAction(action: string, path: string | null, type: TargetType) {
   // We can't await inside onClick, so we fire-and-forget
-  handleAction(action, path, type).catch(e => {
-    showToast(`操作失败: ${e}`);
+  handleAction(action, path, type).catch((e) => {
+    reportUserActionError(`context-menu.${action}`, e);
   });
 }
 

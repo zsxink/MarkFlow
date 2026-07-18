@@ -1,5 +1,6 @@
 use crate::commands::files::atomic_write;
 use crate::config::settings::Settings;
+use crate::error::{lock_mutex, AppError};
 use crate::paths::{normalize_path, settings_path};
 use std::fs;
 use std::sync::Mutex;
@@ -17,9 +18,11 @@ fn parse_settings(content: &str) -> Result<Settings, serde_json::Error> {
 pub fn load_settings_inner() -> Settings {
     // Return cached settings if available
     {
-        let cache = settings_cache().lock().unwrap();
-        if let Some(ref cached) = *cache {
-            return cached.clone();
+        let cache = lock_mutex(settings_cache())
+            .expect("settings cache mutex poisoned")
+            .clone();
+        if let Some(cached) = cache {
+            return cached;
         }
     }
 
@@ -27,7 +30,7 @@ pub fn load_settings_inner() -> Settings {
     if !path.exists() {
         debug!(target: "backend.settings", path = %normalize_path(&path), "Settings file not found, using defaults");
         let settings = Settings::default();
-        settings_cache().lock().unwrap().replace(settings.clone());
+        *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
         return settings;
     }
     let settings = match fs::read_to_string(&path) {
@@ -43,29 +46,29 @@ pub fn load_settings_inner() -> Settings {
             Settings::default()
         }
     };
-    settings_cache().lock().unwrap().replace(settings.clone());
+    *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
     settings
 }
 
-pub fn save_settings_inner(settings: &Settings) -> Result<(), String> {
+pub fn save_settings_inner(settings: &Settings) -> Result<(), AppError> {
     let path = settings_path();
     let content = serde_json::to_string_pretty(settings)
-        .map_err(|e| format!("Failed to serialize: {}", e))?;
-    atomic_write(&path, &content)?;
+        .map_err(|e| AppError::serialization(format!("Failed to serialize settings: {}", e)))?;
+    atomic_write(&path, &content).map_err(|e| AppError::io(e))?;
     debug!(target: "backend.settings", path = %normalize_path(&path), "Saved settings");
 
     // Update cache after successful write
-    settings_cache().lock().unwrap().replace(settings.clone());
+    *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
     Ok(())
 }
 
 #[tauri::command]
-pub fn load_settings() -> Result<Settings, String> {
+pub fn load_settings() -> Result<Settings, AppError> {
     Ok(load_settings_inner())
 }
 
 #[tauri::command]
-pub fn save_settings(settings: Settings) -> Result<(), String> {
+pub fn save_settings(settings: Settings) -> Result<(), AppError> {
     save_settings_inner(&settings)
 }
 

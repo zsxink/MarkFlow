@@ -4,6 +4,7 @@ import { store } from '../lib/store';
 
 export function initStatusBar() {
   store.on('editor:update', updateStats);
+  store.on('autosave:status', updateAutosaveBanner);
 
   document.getElementById('sb-settings')?.addEventListener('click', async () => {
     const { showSettings } = await import('./settings');
@@ -17,6 +18,17 @@ export function initStatusBar() {
   document.getElementById('sb-theme')?.addEventListener('click', () => {
     cycleTheme();
   });
+}
+
+function updateAutosaveBanner(event: { errorCount: number }) {
+  const banner = document.getElementById('autosave-banner');
+  if (!banner) return;
+  if (event.errorCount >= 2) {
+    banner.textContent = `自动保存失败（连续 ${event.errorCount} 次），内容未保存`;
+    banner.hidden = false;
+  } else {
+    banner.hidden = true;
+  }
 }
 
 function updateStats() {

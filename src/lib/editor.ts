@@ -88,7 +88,12 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
   // incremented (e.g. from a debounced onUpdate) but the current editor
   // content hasn't materially changed (just the debounce timer caught up).
   const currentMd = normalizeImageMarkdown(getMarkdown());
-  store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
+  // A successful save clears the persistent autosave-failure banner, regardless
+  // of whether the save came from autosave or an interactive (Ctrl+S) save.
+  store.setState({
+    dirty: currentMd !== getDocumentState().lastPersistedMarkdown,
+    autosaveErrorCount: 0,
+  });
   getDocumentState().externallyModified = false;
 }
 

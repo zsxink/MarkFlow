@@ -9,7 +9,8 @@ export type StoreEvent =
   | { type: 'editor:mode'; mode: EditorMode }
   | { type: 'file:active'; path: string | null }
   | { type: 'settings:changed'; settings: Settings }
-  | { type: 'workspace:set'; path: string | null };
+  | { type: 'workspace:set'; path: string | null }
+  | { type: 'autosave:status'; errorCount: number };
 
 // ── Store State ───────────────────────────────────────────────────────
 
@@ -21,6 +22,9 @@ export interface StoreState {
   dirty: boolean;
   readOnly: boolean;
   settings: Settings;
+  /// Consecutive autosave failure count; >0 means a persistent failure banner
+  /// should be shown (not a transient toast). 0 means healthy.
+  autosaveErrorCount: number;
 }
 
 // ── File System Events ────────────────────────────────────────────────

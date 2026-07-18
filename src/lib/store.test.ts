@@ -165,3 +165,42 @@ describe('emit error isolation', () => {
     expect(goodCb).toHaveBeenCalledTimes(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Autosave failure persistence
+// ---------------------------------------------------------------------------
+
+describe('autosave error status', () => {
+  it('emits autosave:status when the failure count changes', () => {
+    const cb = vi.fn();
+    store.on('autosave:status', cb);
+
+    store.setState({ autosaveErrorCount: 2 });
+
+    expect(store.getState().autosaveErrorCount).toBe(2);
+    expect(cb).toHaveBeenCalledWith({ type: 'autosave:status', errorCount: 2 });
+  });
+
+  it('clears the failure count on a successful save (count -> 0)', () => {
+    store.setState({ autosaveErrorCount: 3 });
+    const cb = vi.fn();
+    store.on('autosave:status', cb);
+
+    store.setState({ autosaveErrorCount: 0 });
+
+    expect(store.getState().autosaveErrorCount).toBe(0);
+    expect(cb).toHaveBeenCalledWith({ type: 'autosave:status', errorCount: 0 });
+  });
+
+  it('keeps the document dirty independent of autosave failure count', () => {
+    store.setState({ dirty: true, autosaveErrorCount: 2 });
+    expect(store.getState().dirty).toBe(true);
+
+    // A successful save clears the failure count but dirty is only cleared by
+    // markDocumentPersisted, not by the autosave counter — here we only reset
+    // the counter, ensuring dirty is preserved when a save is still pending.
+    store.setState({ autosaveErrorCount: 0 });
+    expect(store.getState().dirty).toBe(true);
+  });
+});
+

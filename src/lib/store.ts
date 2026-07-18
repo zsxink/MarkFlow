@@ -12,6 +12,7 @@ const DEFAULT_STATE: StoreState = {
   dirty: false,
   readOnly: false,
   settings: { ...DEFAULT_SETTINGS },
+  autosaveErrorCount: 0,
 };
 
 // ── Store implementation ─────────────────────────────────────────────
@@ -56,6 +57,7 @@ class Store {
         case 'dirty': this.emit({ type: 'editor:dirty', dirty: this.state.dirty }); break;
         case 'activeFilePath': this.emit({ type: 'file:active', path: this.state.activeFilePath }); break;
         case 'workspacePath': this.emit({ type: 'workspace:set', path: this.state.workspacePath }); break;
+        case 'autosaveErrorCount': this.emit({ type: 'autosave:status', errorCount: this.state.autosaveErrorCount }); break;
       }
     }
   }

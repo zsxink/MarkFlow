@@ -2,6 +2,7 @@ import { open } from '@tauri-apps/plugin-shell';
 import { getImageMimeType, getFileName, getParentDir, resolveImagePath } from '../lib/pathUtils';
 import { fetchRemoteImageAsBase64, readFileAsBase64, saveImageExport } from '../lib/storage';
 import { showToast } from './toast';
+import { reportUserActionError } from '../lib/error';
 import { showContextMenuStatic } from './ui/contextMenu';
 import type { ContextMenuItem } from './ui/contextMenu';
 
@@ -15,19 +16,19 @@ export function showImageContextMenu(x: number, y: number, state: ImageContextMe
   const menuItems: ContextMenuItem[] = [
     {
       label: '复制到剪切板',
-      onClick: () => { handleAction('copy-image', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+      onClick: () => { handleAction('copy-image', state).catch(e => reportUserActionError('image-menu.copy-image', e)); },
     },
     {
       label: '另存为',
-      onClick: () => { handleAction('save-image', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+      onClick: () => { handleAction('save-image', state).catch(e => reportUserActionError('image-menu.save-image', e)); },
     },
     {
       label: '复制路径',
-      onClick: () => { handleAction('copy-path', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+      onClick: () => { handleAction('copy-path', state).catch(e => reportUserActionError('image-menu.copy-path', e)); },
     },
     {
       label: '打开文件所在',
-      onClick: () => { handleAction('open-folder', state).catch(e => showToast(e instanceof Error ? e.message : String(e))); },
+      onClick: () => { handleAction('open-folder', state).catch(e => reportUserActionError('image-menu.open-folder', e)); },
     },
   ];
 
@@ -226,7 +227,8 @@ async function handleAction(action: string, state: ImageContextMenuState) {
         break;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showToast(message || '操作失败');
+    // Surface the error to the caller's reportUserActionError wrapper so it
+    // is classified and logged with context rather than silently swallowed.
+    throw error;
   }
 }

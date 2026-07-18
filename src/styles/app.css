@@ -61,6 +61,19 @@ html, body {
   cursor: default;
 }
 
+/* Persistent autosave-failure banner — visible until a successful save clears it */
+.statusbar-banner {
+  color: var(--danger, #d33);
+  background: var(--danger-bg, rgba(211, 51, 51, 0.12));
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.statusbar-banner[hidden] {
+  display: none;
+}
+
 .statusbar-action {
   cursor: pointer;
   padding: 2px 4px;

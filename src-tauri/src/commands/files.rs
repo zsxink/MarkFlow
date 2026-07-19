@@ -483,13 +483,7 @@ pub async fn save_document_export(
     app: AppHandle,
 ) -> Result<bool, String> {
     let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
-    let Some(path) = select_export_path(
-        &app,
-        "导出文档",
-        &default_name,
-        &filter_name,
-        &ext_refs,
-    )?
+    let Some(path) = select_export_path(&app, "导出文档", &default_name, &filter_name, &ext_refs)?
     else {
         return Ok(false);
     };

@@ -1,18 +1,13 @@
 use crate::commands::settings::load_settings_inner;
-use crate::fs::ignore::{matcher_snapshot, IgnoreMatcher};
-use crate::http::{
-    redact_url_for_log, validate_external_url, validate_image_magic, MAX_IMAGE_SIZE, MAX_TITLE_LEN,
-    MAX_TITLE_READ_BYTES,
-};
+use crate::fs::ignore::matcher_snapshot;
+use crate::http::MAX_IMAGE_SIZE;
 use crate::paths::normalize_path;
 use crate::state::AppState;
 use base64::Engine;
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tracing::info;
@@ -25,114 +20,6 @@ pub struct FileEntry {
     pub is_dir: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<FileEntry>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DirectoryPage {
-    pub entries: Vec<FileEntry>,
-    pub next_cursor: Option<String>,
-    pub generation: String,
-    pub truncated: bool,
-}
-
-fn directory_generation(dir: &Path) -> Result<String, String> {
-    let metadata = fs::metadata(dir).map_err(|e| format!("Failed to inspect directory: {}", e))?;
-    let modified = metadata
-        .modified()
-        .ok()
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-    Ok(format!("{}:{}", modified, metadata.len()))
-}
-
-fn entry_sort_key(entry: &FileEntry) -> String {
-    format!(
-        "{}\0{}\0{}",
-        if entry.is_dir { 0 } else { 1 },
-        entry.name.to_lowercase(),
-        entry.path
-    )
-}
-
-fn read_dir_page_inner(
-    dir: &Path,
-    cursor: Option<&str>,
-    limit: usize,
-    expected_generation: Option<&str>,
-    matcher: &IgnoreMatcher,
-) -> Result<DirectoryPage, String> {
-    let generation = directory_generation(dir)?;
-    if expected_generation.is_some_and(|expected| expected != generation) {
-        return Err("DIRECTORY_CHANGED".into());
-    }
-    let mut entries = Vec::new();
-    for entry in fs::read_dir(dir).map_err(|e| format!("Failed to read dir: {}", e))? {
-        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
-        let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
-        if name.starts_with('.') || matcher.is_ignored(dir, &path) {
-            continue;
-        }
-        let metadata =
-            fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
-        if metadata.file_type().is_symlink() {
-            continue;
-        }
-        entries.push(FileEntry {
-            name,
-            path: normalize_path(&path),
-            is_dir: metadata.is_dir(),
-            children: None,
-        });
-    }
-    if directory_generation(dir)? != generation {
-        return Err("DIRECTORY_CHANGED".into());
-    }
-    entries.sort_by_key(entry_sort_key);
-    if let Some(cursor) = cursor {
-        entries.retain(|entry| entry_sort_key(entry).as_str() > cursor);
-    }
-    let limit = limit.clamp(1, 5_000);
-    let truncated = entries.len() > limit;
-    entries.truncate(limit);
-    let next_cursor =
-        truncated.then(|| entry_sort_key(entries.last().expect("non-empty truncated page")));
-    Ok(DirectoryPage {
-        entries,
-        next_cursor,
-        generation,
-        truncated,
-    })
-}
-
-#[tauri::command]
-pub fn read_dir(
-    path: String,
-    cursor: Option<String>,
-    limit: Option<usize>,
-    generation: Option<String>,
-    state: State<AppState>,
-) -> Result<DirectoryPage, String> {
-    let started = Instant::now();
-    let dir = resolve_path(&path, &state)?;
-    if !dir.is_dir() {
-        return Err("Not a directory".into());
-    }
-    validate_path_in_workspace(&dir, &state)?;
-    let settings = load_settings_inner();
-    let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
-    let page = read_dir_page_inner(
-        &dir,
-        cursor.as_deref(),
-        limit.unwrap_or(settings.file_tree_page_size),
-        generation.as_deref(),
-        &matcher,
-    )?;
-    info!(target: "backend.file_tree", path = %normalize_path(&dir), elapsed_ms = started.elapsed().as_millis() as u64,
-        entries = page.entries.len(), truncated = page.truncated, "Read shallow directory page");
-    Ok(page)
 }
 
 #[tauri::command]
@@ -222,7 +109,7 @@ fn count_lines(path: &Path) -> Result<u32, String> {
     Ok(count)
 }
 
-fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, String> {
+pub fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, String> {
     // Simple path normalizer — no workspace scope check.
     // Files outside the current workspace are allowed (Typora/MarkText model).
     let path = Path::new(raw);
@@ -527,7 +414,7 @@ fn normalize_lexical(path: &Path) -> PathBuf {
 
 /// Validate a path stays inside workspace without relying on string prefixes.
 /// Allows non-existent targets (for create/write) while rejecting traversal and symlink hops.
-fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
+pub fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
     let workspace = state.get_workspace().ok_or("No workspace set")?;
     let workspace = workspace
         .canonicalize()
@@ -569,206 +456,6 @@ fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Result<()
     }
 
     Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// Remote content fetching — streaming, size-limited, SSRF-protected
-// ---------------------------------------------------------------------------
-
-/// Fetch a remote image as bytes + MIME type.
-///
-/// Safety measures:
-/// - URL validated (scheme, host, DNS-resolved IPs)
-/// - Redirect targets re-validated with DNS check
-/// - Streaming read with hard 20 MB cap
-/// - Magic bytes validated against Content-Type
-/// - Concurrency bounded by `AppState::http_semaphore`
-async fn fetch_remote_image_bytes(
-    url: &str,
-    state: &AppState,
-) -> Result<(Vec<u8>, String), String> {
-    let _permit = state
-        .http_semaphore
-        .acquire()
-        .await
-        .map_err(|_| "Semaphore closed".to_string())?;
-
-    let response = crate::http::fetch_with_redirects(
-        &state.http_client,
-        url,
-        5,
-        validate_external_url,
-        Some(MAX_IMAGE_SIZE),
-    )
-    .await?;
-
-    if !response.status().is_success() {
-        return Err(format!("HTTP error: {}", response.status()));
-    }
-
-    let content_type = response
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("");
-    let mime_type = content_type
-        .split(';')
-        .next()
-        .unwrap_or("")
-        .trim()
-        .to_string();
-    if !mime_type.starts_with("image/") {
-        return Err("Only image responses are allowed".into());
-    }
-
-    // Stream the response body in chunks, accumulating size and validating magic bytes
-    let mut stream = response.bytes_stream();
-    let mut bytes: Vec<u8> = Vec::new();
-    let mut checked_magic = false;
-
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("Failed to read response: {}", e))?;
-        bytes.extend_from_slice(&chunk);
-
-        // Validate magic bytes after receiving at least a few bytes
-        if !checked_magic && bytes.len() >= 12 {
-            if !validate_image_magic(&bytes) {
-                return Err("Content does not match a supported image format".into());
-            }
-            checked_magic = true;
-        }
-
-        if bytes.len() as u64 > MAX_IMAGE_SIZE {
-            return Err("文件过大，最大支持 20MB".into());
-        }
-    }
-
-    if !checked_magic && !bytes.is_empty() {
-        // Short response — still validate what we got
-        if !validate_image_magic(&bytes) {
-            return Err("Content does not match a supported image format".into());
-        }
-    }
-
-    Ok((bytes, mime_type))
-}
-
-#[tauri::command]
-pub async fn fetch_remote_image_as_base64(
-    url: String,
-    state: State<'_, AppState>,
-) -> Result<RemoteImageData, String> {
-    let _permit = state
-        .image_download_semaphore
-        .acquire()
-        .await
-        .map_err(|e| format!("Semaphore error: {}", e))?;
-    let (bytes, mime_type) = fetch_remote_image_bytes(&url, &state).await?;
-    Ok(RemoteImageData {
-        data: base64::engine::general_purpose::STANDARD.encode(&bytes),
-        mime_type,
-    })
-}
-
-/// Fetch the `<title>` from a remote page.
-///
-/// Safety measures:
-/// - Same URL/DNS validation as image fetches
-/// - Streaming read, hard 256 KB cap
-/// - Title string truncated to 512 chars
-/// - Concurrency bounded by semaphore
-async fn fetch_page_title_inner(url: &str, state: &AppState) -> Result<String, String> {
-    let _permit = state
-        .http_semaphore
-        .acquire()
-        .await
-        .map_err(|_| "Semaphore closed".to_string())?;
-
-    let response = crate::http::fetch_with_redirects(
-        &state.http_client,
-        url,
-        5,
-        validate_external_url,
-        Some(MAX_TITLE_READ_BYTES as u64),
-    )
-    .await?;
-
-    if !response.status().is_success() {
-        return Err(format!("HTTP error: {}", response.status()));
-    }
-
-    // Stream at most MAX_TITLE_READ_BYTES, looking for <title>...</title>
-    let mut stream = response.bytes_stream();
-    let mut buffer = Vec::with_capacity(8192);
-    let mut total_read = 0usize;
-
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|_| "Failed to read response body".to_string())?;
-        total_read += chunk.len();
-
-        if total_read > MAX_TITLE_READ_BYTES {
-            return Err("No title found".into());
-        }
-
-        buffer.extend_from_slice(&chunk);
-
-        // Once we have enough data, try to extract the title
-        if let Some(title) = extract_title_from_bytes(&buffer) {
-            return Ok(title);
-        }
-    }
-
-    // Stream ended — try extracting from whatever we read
-    extract_title_from_bytes(&buffer).ok_or_else(|| "No title found".into())
-}
-
-/// Scan a byte buffer for `<title>...</title>` (case-insensitive).
-/// Performs a single pass without allocating a lowercased copy.
-fn extract_title_from_bytes(buf: &[u8]) -> Option<String> {
-    // Case-insensitive search for "<title" — scan one byte at a time
-    let tag_start = find_case_insensitive(buf, b"<title")?;
-    let rest = &buf[tag_start..];
-    let close = rest.iter().position(|&b| b == b'>')?;
-
-    let content_start = tag_start + close + 1;
-    let rest2 = &buf[content_start..];
-    let title_end = content_start + find_case_insensitive(rest2, b"</title>")?;
-
-    let raw_title = &buf[content_start..title_end];
-    let title = String::from_utf8_lossy(raw_title).trim().to_string();
-    if title.is_empty() {
-        return None;
-    }
-    // Safe truncation: floor to a char boundary to avoid panicking on
-    // multi-byte UTF-8 characters (CJK, emoji, etc.)
-    if title.len() > MAX_TITLE_LEN {
-        let boundary = title.floor_char_boundary(MAX_TITLE_LEN);
-        Some(title[..boundary].to_string())
-    } else {
-        Some(title)
-    }
-}
-
-/// Case-insensitive byte-pattern search in `haystack`.
-/// Returns the byte offset of the first match, or `None`.
-fn find_case_insensitive(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || haystack.len() < needle.len() {
-        return None;
-    }
-    'outer: for i in 0..=haystack.len() - needle.len() {
-        for (j, &nb) in needle.iter().enumerate() {
-            if !haystack[i + j].eq_ignore_ascii_case(&nb) {
-                continue 'outer;
-            }
-        }
-        return Some(i);
-    }
-    None
-}
-
-#[tauri::command]
-pub async fn fetch_page_title(url: String, state: State<'_, AppState>) -> Result<String, String> {
-    fetch_page_title_inner(&url, &state).await
 }
 
 #[tauri::command]
@@ -976,51 +663,6 @@ pub fn write_file_from_base64(
     fs::write(path, bytes).map_err(|e| format!("Failed to write file: {}", e))
 }
 
-#[tauri::command]
-pub async fn download_image(
-    url: String,
-    dest: String,
-    state: State<'_, AppState>,
-) -> Result<String, String> {
-    let _permit = state
-        .image_download_semaphore
-        .acquire()
-        .await
-        .map_err(|e| format!("Semaphore error: {}", e))?;
-    let dest_path = Path::new(&dest);
-    validate_path_in_workspace(dest_path, &state)?;
-    let (bytes, _) = fetch_remote_image_bytes(&url, &state).await?;
-    if let Some(parent) = dest_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
-    }
-    // Write to temp file first, then atomically rename to destination
-    let temp_path = dest_path.with_extension(format!(
-        "{}.tmp",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
-    fs::write(&temp_path, &bytes).map_err(|e| format!("Failed to write temp file: {}", e))?;
-    // Clean up temp file if rename fails (e.g. antivirus lock, cross-device edge case)
-    let cleanup = || {
-        let _ = fs::remove_file(&temp_path);
-    };
-    fs::remove_file(dest_path).ok();
-    if let Err(e) = fs::rename(&temp_path, dest_path) {
-        cleanup();
-        return Err(format!("Failed to rename temp file: {}", e));
-    }
-    info!(
-        target: "backend.files",
-        path = %normalize_path(dest_path),
-        url = %redact_url_for_log(&url),
-        bytes = bytes.len(),
-        "Downloaded image"
-    );
-    Ok(dest)
-}
-
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -1174,71 +816,6 @@ mod tests {
         assert_eq!(extract_pid_from_tmp("doc.md"), None);
     }
 
-    // --- extract_title tests (existing) ---
-
-    #[test]
-    fn extract_title_basic() {
-        let html = b"<html><head><title>My Page</title></head></html>";
-        assert_eq!(extract_title_from_bytes(html).as_deref(), Some("My Page"));
-    }
-
-    #[test]
-    fn extract_title_case_insensitive() {
-        let html = b"<HTML><HEAD><TITLE>Test</TITLE></HEAD></HTML>";
-        assert_eq!(extract_title_from_bytes(html).as_deref(), Some("Test"));
-    }
-
-    #[test]
-    fn extract_title_with_surrounding_text() {
-        let html = b"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Hello World</title></head><body></body></html>";
-        assert_eq!(
-            extract_title_from_bytes(html).as_deref(),
-            Some("Hello World")
-        );
-    }
-
-    #[test]
-    fn extract_title_empty_returns_none() {
-        let html = b"<html><head><title></title></head></html>";
-        assert!(extract_title_from_bytes(html).is_none());
-    }
-
-    #[test]
-    fn extract_title_no_title_tag() {
-        let html = b"<html><head></head><body>No title here</body></html>";
-        assert!(extract_title_from_bytes(html).is_none());
-    }
-
-    #[test]
-    fn extract_title_truncates_long_title() {
-        let long_title = "A".repeat(600);
-        let html = format!("<title>{}</title>", long_title);
-        let result = extract_title_from_bytes(html.as_bytes()).unwrap();
-        assert_eq!(result.len(), MAX_TITLE_LEN);
-    }
-
-    #[test]
-    fn extract_title_truncates_multibyte_utf8_safely() {
-        // 200 CJK chars = 600 bytes — truncation at 512 must not panic
-        let long_title = "中".repeat(200);
-        let html = format!("<title>{}</title>", long_title);
-        let result = extract_title_from_bytes(html.as_bytes()).unwrap();
-        // Result should be valid UTF-8 and <= MAX_TITLE_LEN bytes
-        assert!(result.len() <= MAX_TITLE_LEN);
-        assert!(String::from_utf8(result.into_bytes()).is_ok());
-    }
-
-    #[test]
-    fn extract_title_whitespace_trimmed() {
-        let html = b"<title>  Spaced  </title>";
-        assert_eq!(extract_title_from_bytes(html).as_deref(), Some("Spaced"));
-    }
-
-    #[test]
-    fn extract_title_short_buffer() {
-        assert!(extract_title_from_bytes(b"hi").is_none());
-    }
-
     #[test]
     fn normalizes_lexical_parent_segments_without_filesystem_access() {
         let path = Path::new("/workspace/docs/../notes/./draft.md");
@@ -1246,86 +823,5 @@ mod tests {
             normalize_lexical(path),
             PathBuf::from("/workspace/notes/draft.md")
         );
-    }
-
-    #[test]
-    fn shallow_pages_are_stable_bounded_and_non_overlapping() {
-        let dir = temp_dir();
-        for name in ["c.md", "a.md", "b.md"] {
-            fs::write(dir.join(name), name).unwrap();
-        }
-        fs::create_dir(dir.join("folder")).unwrap();
-        fs::create_dir(dir.join("node_modules")).unwrap();
-        let matcher = IgnoreMatcher::defaults();
-        let first = read_dir_page_inner(&dir, None, 2, None, &matcher).unwrap();
-        assert_eq!(first.entries.len(), 2);
-        assert!(first.truncated);
-        assert_eq!(first.entries[0].name, "folder");
-        let second = read_dir_page_inner(
-            &dir,
-            first.next_cursor.as_deref(),
-            2,
-            Some(&first.generation),
-            &matcher,
-        )
-        .unwrap();
-        assert_eq!(second.entries.len(), 2);
-        assert!(first
-            .entries
-            .iter()
-            .all(|a| second.entries.iter().all(|b| a.path != b.path)));
-        assert!(first
-            .entries
-            .iter()
-            .chain(second.entries.iter())
-            .all(|entry| entry.name != "node_modules"));
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn shallow_page_rejects_stale_generation_and_filters_hidden_entries() {
-        let dir = temp_dir();
-        fs::write(dir.join("visible.md"), "content").unwrap();
-        fs::write(dir.join(".hidden.md"), "content").unwrap();
-        let matcher = IgnoreMatcher::defaults();
-        let page = read_dir_page_inner(&dir, None, 10, None, &matcher).unwrap();
-        assert_eq!(page.entries.len(), 1);
-        assert_eq!(page.entries[0].name, "visible.md");
-        assert_eq!(
-            read_dir_page_inner(&dir, None, 10, Some("stale"), &matcher).unwrap_err(),
-            "DIRECTORY_CHANGED"
-        );
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn shallow_page_clamps_limit_and_sorts_case_insensitively() {
-        let dir = temp_dir();
-        for name in ["Z.md", "a.md", "B.md"] {
-            fs::write(dir.join(name), name).unwrap();
-        }
-        let page = read_dir_page_inner(&dir, None, 1, None, &IgnoreMatcher::defaults()).unwrap();
-        assert_eq!(page.entries.len(), 1);
-        assert_eq!(page.entries[0].name, "a.md");
-        assert!(page.truncated);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn shallow_page_filters_symlinks_when_platform_allows_creation() {
-        let dir = temp_dir();
-        let target = dir.join("target.md");
-        fs::write(&target, "content").unwrap();
-        let link = dir.join("link.md");
-        #[cfg(unix)]
-        let created = std::os::unix::fs::symlink(&target, &link).is_ok();
-        #[cfg(windows)]
-        let created = std::os::windows::fs::symlink_file(&target, &link).is_ok();
-        if created {
-            let page =
-                read_dir_page_inner(&dir, None, 10, None, &IgnoreMatcher::defaults()).unwrap();
-            assert!(page.entries.iter().all(|entry| entry.name != "link.md"));
-        }
-        let _ = fs::remove_dir_all(&dir);
     }
 }

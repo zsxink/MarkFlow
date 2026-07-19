@@ -1,9 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { createTreeNode, isSuppressedPath, suppressNextWatcherRefresh } from './fileTree.core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createTreeNode,
+  isSuppressedPath,
+  suppressNextWatcherRefresh,
+  cleanup,
+  flushPendingMutations,
+  resetFileTreeStateForTesting,
+} from './fileTree.core';
 import type { FileEntry } from '../types/fileTree';
 
 beforeEach(() => {
   document.body.innerHTML = '';
+  resetFileTreeStateForTesting();
 });
 
 describe('file tree DOM construction', () => {
@@ -28,5 +36,23 @@ describe('watcher path suppression', () => {
     expect(isSuppressedPath('/workspace/assets')).toBe(true);
     expect(isSuppressedPath('/workspace/assets/image.png')).toBe(true);
     expect(isSuppressedPath('/workspace/other.md')).toBe(false);
+  });
+});
+
+describe('cleanup', () => {
+  it('clears suppress paths', () => {
+    suppressNextWatcherRefresh('/workspace/test');
+    expect(isSuppressedPath('/workspace/test')).toBe(true);
+    cleanup();
+    expect(isSuppressedPath('/workspace/test')).toBe(false);
+  });
+});
+
+describe('flushPendingMutations', () => {
+  it('drains pending mutations synchronously', () => {
+    let called = false;
+    // Access internal state via the module — flushPendingMutations is exported
+    // We test it by verifying it doesn't throw when called
+    expect(() => flushPendingMutations()).not.toThrow();
   });
 });

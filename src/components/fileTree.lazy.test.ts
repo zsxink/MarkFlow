@@ -14,8 +14,8 @@ vi.mock('../lib/storage', () => ({
 vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn() }));
 
 import {
-  applyFileTreeEvents, createTreeNode, loadDirectoryForTesting,
-  refreshFileTree, resetFileTreeStateForTesting,
+  applyFileTreeEvents, createTreeNode, flushPendingMutations,
+  loadDirectoryForTesting, refreshFileTree, resetFileTreeStateForTesting,
 } from './fileTree.core';
 import { setActiveFilePath } from './activeDocument';
 import { store } from '../lib/store';
@@ -93,6 +93,7 @@ describe('incremental rename state', () => {
     store.setState({ expandedPaths: ['/ws/old'], workspacePath: '/ws' });
     setActiveFilePath('/ws/old/active.md');
     await applyFileTreeEvents([{ path: '/ws/old', toPath: '/ws/new', kind: 'rename', timestamp: 1 }]);
+    flushPendingMutations();
     expect(document.querySelector('[data-path="/ws/new/active.md"]')).not.toBeNull();
     expect(store.getState().activeFilePath).toBe('/ws/new/active.md');
     expect(store.getState().expandedPaths).toEqual(['/ws/new']);

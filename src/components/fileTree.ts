@@ -12,6 +12,8 @@ export {
   removeEntryFromTree,
   renameEntryInTree,
   applyFileTreeEvents,
+  cleanup,
+  flushPendingMutations,
 } from './fileTree.core';
 
 export {

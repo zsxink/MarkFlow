@@ -1,6 +1,17 @@
+# bundle-budget Specification
+
+## Purpose
+定义前端构建产物与字体资源的体积预算及分析基线，防止包体积回涨。
+
+## Agent Context
+- **源码入口：** `vite.config.ts`、`scripts/check-bundle-size.sh` 与 `package.json`。
+- **关联规范：** `lazy-code-languages`、`lazy-mermaid`、`font-stack`。
+- **不变量：** 预算检查必须在超限时失败；分析构建不得改变正常生产构建产物；懒加载依赖不得重新进入主入口包。
+- **验证：** `npm run check-size`；`npm run analyze`；`npx openspec validate bundle-budget --strict`。
+
 ## Requirements
 
-### Requirement: Bundle Size Budget
+### Requirement: 捆绑尺寸预算
 
 项目 SHALL 配置 Vite bundle size budget，对主入口 JS 和字体资源设置体积上限。超限时构建 SHALL 失败，防止体积回涨。
 

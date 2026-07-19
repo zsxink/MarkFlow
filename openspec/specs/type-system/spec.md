@@ -1,4 +1,15 @@
-## ADDED Requirements
+# type-system Specification
+
+## Purpose
+定义事件、编辑器、文件树和设置类型的集中管理及其在源代码模块中的使用要求。
+
+## Agent Context
+- **源码入口：** `src/types/events.ts`、`src/types/editor.ts`、`src/types/fileTree.ts`、`src/types/settings.ts`；消费者包括 `src/lib/store.ts`、`src/lib/storage.ts`、`src/lib/imageUtils.ts`、`src/components/fileTree.core.ts`、`src/components/settings.ts` 和 `src/main.ts`。
+- **关联规范：** `active-document-state`、`file-tree-architecture`、`codemirror-source-editor`、`atomic-save`。
+- **不变量：** 跨模块共享类型只在 `src/types/` 定义；前端 Settings 字段必须与 Rust 的 camelCase 序列化结构对应；类型重构不得改变运行时事件名称、store 字段或默认设置。
+- **验证：** `npx tsc --noEmit`；`npm test -- src/lib/store.test.ts src/components/fileTree.state.test.ts`；`npx openspec validate type-system --strict`。
+
+## Requirements
 
 ### Requirement: 事件类型集中管理
 
@@ -17,7 +28,7 @@
 #### Scenario: StoreState 正确定义
 
 - **WHEN** 从 `src/types/events.ts` import `StoreState`
-- **THEN** `StoreState` 应包含 `mode`、`activeFilePath`、`workspacePath`、`expandedPaths`、`dirty`、`cachedSourceGutterStyles`、`settings` 字段
+- **THEN** `StoreState` 应包含 `mode`、`activeFilePath`、`workspacePath`、`expandedPaths`、`dirty`、`readOnly`、`settings` 与 `autosaveErrorCount` 字段
 - **AND** `mode` 字段类型为 `'wysiwyg' | 'source'`
 
 #### Scenario: FileChangeEvent 被导出
@@ -152,10 +163,10 @@
 
 ### Requirement: settings.ts 组件引用 DEFAULT_SETTINGS
 
-系统 SHALL 将 `src/lib/settings.ts`（组件）中对 `DEFAULT_SETTINGS` 的定义改为从 `src/types/settings.ts` 导入。
+系统 SHALL 将 `src/components/settings.ts`（组件）中对 `DEFAULT_SETTINGS` 的定义改为从 `src/types/settings.ts` 导入。
 
 #### Scenario: settings.ts 使用导入的 DEFAULT_SETTINGS
 
 - **WHEN** 构建项目
-- **THEN** `src/lib/settings.ts` 不包含 `const DEFAULT_SETTINGS` 定义
+- **THEN** `src/components/settings.ts` 不包含 `const DEFAULT_SETTINGS` 定义
 - **AND** 从 `src/types/settings.ts` import `DEFAULT_SETTINGS`

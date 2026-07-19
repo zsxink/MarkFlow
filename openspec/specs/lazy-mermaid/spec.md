@@ -1,3 +1,14 @@
+# lazy-mermaid Specification
+
+## Purpose
+定义 Mermaid 的按需加载、缓存复用和渲染加载状态。
+
+## Agent Context
+- **源码入口：** `src/lib/mermaid.ts`、`src/components/mermaidContextMenu.ts` 与 `src/lib/editor.ts`。
+- **关联规范：** `bundle-budget`、`safe-dom-construction`、`error-handling`。
+- **不变量：** 不含 Mermaid 的文档不得触发加载；加载状态必须可见；同一运行期必须复用已加载实现。
+- **验证：** `npm test -- src/lib`；`npm run build`；`npx openspec validate lazy-mermaid --strict`。
+
 ## Requirements
 
 ### Requirement: Mermaid 按需加载

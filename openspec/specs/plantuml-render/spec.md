@@ -1,6 +1,13 @@
-## Purpose
+# plantuml-render Specification
 
-提供安全、按需的 PlantUML 图表渲染能力。
+## Purpose
+定义 PlantUML 服务器设置、按需渲染及无服务器或渲染失败时的安全回退。
+
+## Agent Context
+- **源码入口：** `src/lib/plantuml.ts`、`src/components/settings.ts` 与 `src/lib/editor.ts`。
+- **关联规范：** `safe-http-fetch`、`bundle-budget`、`error-handling`。
+- **不变量：** 未配置服务器时绝不发起网络请求；请求仅发送当前图表源码；失败时保留可读源内容并展示可恢复状态。
+- **验证：** `npm test -- src/lib`；`npm run build`；`npx openspec validate plantuml-render --strict`。
 
 ## Requirements
 

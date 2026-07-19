@@ -1,15 +1,15 @@
 # MarkFlow 技术设计文档
 
-> 版本：2.0.1 ｜ 状态：已发布 ｜ 更新日期：2026-07-04
+> 版本：2.1.0 ｜ 状态：已发布 ｜ 更新日期：2026-07-19
 > 技术栈：Rust + Tauri v2 + TypeScript
+>
+> 详细架构见 [architecture.md](architecture.md)
 
 ---
 
-## 1. 架构概览
+<!-- 架构总览、技术栈与项目结构已迁移至 architecture.md，保留本注释仅维护历史行号。 -->
 
-### 1.1 整体架构
-
-```
+<!--
 ┌─────────────────────────────────────────────────────────────┐
 │                    MarkFlow 客户端                           │
 │                                                             │
@@ -39,9 +39,9 @@
 │                                  │  └──────────────────┘  │ │
 │                                  └─────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
-```
+-->
 
-### 1.2 技术选型
+<!--
 
 | 层级 | 技术 | 说明 |
 | --- | --- | --- |
@@ -53,8 +53,9 @@
 | 图表渲染 | Mermaid | Mermaid 图表渲染 |
 | 文件监听 | notify | Rust 文件系统监听 |
 | 配置文件 | serde_json | Rust JSON 序列化 |
+-->
 
-### 1.3 项目结构
+<!--
 
 ```
 markflow/
@@ -119,12 +120,11 @@ markflow/
 ├── vite.config.ts
 └── README.md
 ```
+-->
 
----
+## 1. 前端模块详细设计
 
-## 2. 前端架构
-
-### 2.1 UI 组件架构
+### 1.1 UI 组件架构
 
 采用组件化 Vanilla TypeScript，每个 UI 区域为一个独立模块：
 
@@ -164,7 +164,7 @@ App
 └── Toast
 ```
 
-### 2.2 状态管理
+### 1.2 状态管理
 
 使用简单的全局状态对象 + 事件驱动更新：
 
@@ -181,7 +181,7 @@ interface AppState {
 
 状态更新通过 `Object.assign(state, patch)` + 事件触发实现。各个组件订阅 `statechange` 事件响应更新。
 
-### 2.3 编辑器架构
+### 1.3 编辑器架构
 
 **Tiptap/ProseMirror 核心原理：**
 
@@ -214,25 +214,25 @@ const markdown = editor.storage.markdown.getMarkdown();
 await invoke('write_file', { path, content: markdown });
 ```
 
-### 2.4 源码模式
+### 1.4 源码模式
 
 使用 CodeMirror v6 替代原生 textarea。通过编辑器 DOM 的切换实现 WYSIWYG ↔ Source 模式切换，保持文件状态不变。
 
-### 2.5 Mermaid 集成
+### 1.5 Mermaid 集成
 
 渲染流程：代码块识别 → 检测 `language-mermaid` → 提取内容 → `mermaid.render()` → 替换为 SVG。
 
 前端的 `renderMermaidBlocks()` 函数扫描所有 mermaid 代码块，异步渲染 SVG，并在内容变化时重新渲染。
 
-### 2.6 主题系统
+### 1.6 主题系统
 
 **CSS 变量架构**：`variables.css` 定义 `:root`（浅色）、`[data-theme="dark"]`、`[data-theme="sepia"]` 三组变量。通过设置 `document.documentElement.dataset.theme` 切换主题，所有组件通过 CSS 变量响应变化。
 
 ---
 
-## 3. Rust 后端架构
+## 2. Rust 后端模块与 IPC 接口
 
-### 3.1 命令接口
+### 2.1 命令接口
 
 #### 文件操作命令
 
@@ -266,7 +266,7 @@ await invoke('write_file', { path, content: markdown });
 #[tauri::command] fn update_settings(settings: Settings) -> Result<(), String>;
 ```
 
-### 3.2 文件监听模块
+### 2.2 文件监听模块
 
 使用 `notify` crate 监听文件系统变化。Watcher 实例绑定到 AppHandle，随应用生命周期管理。
 
@@ -280,7 +280,7 @@ await invoke('write_file', { path, content: markdown });
 
 前端在执行自操作前，将相关路径加入 `suppressPaths` 集合。监听器检查事件路径是否被抑制，若是则跳过文件树刷新，由外科手术式 DOM 操作处理。
 
-### 3.3 文件树架构
+### 2.3 文件树架构
 
 采用**外科手术式 DOM 更新**策略，避免全量重建导致的文件夹折叠状态丢失。
 
@@ -297,7 +297,7 @@ await invoke('write_file', { path, content: markdown });
 
 由于 Tauri WebView2 不支持 HTML5 Drag API，使用原生鼠标事件实现。mousedown → mousemove（ghost 元素跟随）→ mouseup（执行移动）。
 
-### 3.4 配置管理
+### 2.4 配置管理
 
 配置文件存储在 `~/.config/MarkFlow/settings.json`。
 
@@ -305,7 +305,7 @@ await invoke('write_file', { path, content: markdown });
 
 默认配置在 Rust 端通过 `impl Default for Settings` 定义。
 
-### 3.5 安全设计
+### 2.5 安全设计
 
 - **CSP 策略**：限制脚本仅同源，禁止 `unsafe-eval`，图片仅允许 `data:` 和 `blob:`
 - **文件访问限制**：仅能访问用户通过对话框授权的文件夹
@@ -314,15 +314,15 @@ await invoke('write_file', { path, content: markdown });
 
 ---
 
-## 4. Tauri v2 配置
+## 3. Tauri v2 配置
 
-### 4.1 tauri.conf.json
+### 3.1 tauri.conf.json
 
 - 窗口默认 1200×800，最小 800×600
 - CSP 允许 `asset:` 和 `http://asset.localhost` 作为图片来源
 - dev: `http://localhost:1420`，build: `../dist`
 
-### 4.2 权限配置
+### 3.2 权限配置
 
 核心权限：`core:default`、`dialog:default`、`fs:default` 及其细分操作。
 
@@ -330,7 +330,7 @@ await invoke('write_file', { path, content: markdown });
 
 ---
 
-## 5. 构建与发布
+## 4. 构建与发布
 
 > 实际配置以 `.github/workflows/release.yml` 和 `Cargo.toml` / `package.json` 为准。
 
@@ -340,13 +340,13 @@ await invoke('write_file', { path, content: markdown });
 
 ---
 
-## 6. 关键实现细节
+## 5. 关键实现细节
 
-### 6.1 文件树排序
+### 5.1 文件树排序
 
 文件夹在前、文件在后，各自按名称字母排序。
 
-### 6.2 编辑器状态管理
+### 5.2 编辑器状态管理
 
 ```
 CLEAN ↔ DIRTY
@@ -355,13 +355,13 @@ CLEAN ↔ DIRTY
 - 外部修改：CLEAN 自动重载，DIRTY 弹冲突对话框
 ```
 
-### 6.3 行号计算
+### 5.3 行号计算
 
 源码模式行号采用视觉行号：`charsPerLine = Math.floor(codeWidth / charWidth)`，`visualLines = Math.ceil(textLength / charsPerLine)`。
 
 ---
 
-## 7. 测试策略
+## 6. 测试策略
 
 | 类型 | 范围 |
 | --- | --- |
@@ -372,7 +372,7 @@ CLEAN ↔ DIRTY
 
 ---
 
-## 8. 未来扩展预留
+## 7. 未来扩展预留
 
 - **插件系统**：解析器、渲染器、主题预留扩展点
 - **国际化**：前端架构预留多语言接口

@@ -1,4 +1,15 @@
-## ADDED Requirements
+# dep-audit-ci Specification
+
+## Purpose
+定义生产依赖漏洞审计、恶意输入防护和回归测试的 CI 质量要求。
+
+## Agent Context
+- **源码入口：** `.github/workflows/ci.yml`、`package.json` 与 `src-tauri/Cargo.toml`。
+- **关联规范：** `regression-coverage`、`safe-http-fetch`、`safe-dom-construction`。
+- **不变量：** 生产依赖 high/critical 漏洞必须阻断 CI；安全回归测试不得依赖公网；质量门禁不得被本地开发脚本绕过。
+- **验证：** `npm audit --omit=dev --audit-level=high`；`npm test`；`npx openspec validate dep-audit-ci --strict`。
+
+## Requirements
 
 ### Requirement: 生产依赖漏洞审计 CI 步骤
 CI 流程 SHALL 包含 `npm audit --omit=dev --audit-level=high` 步骤。该步骤 SHALL 在所有 PR 检查中运行。当检测到 high 或 critical 级别漏洞时，该步骤 SHALL 失败并阻止 PR 合入。

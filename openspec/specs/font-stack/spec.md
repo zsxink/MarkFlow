@@ -1,10 +1,13 @@
-# 跨平台字体栈
+# font-stack Specification
 
 ## Purpose
+定义跨平台中西文字体栈、字体分发及字重覆盖要求。
 
-MarkFlow 编辑器正文区域使用衬线字体渲染 Markdown 内容。本规范定义了跨平台的字体栈策略，确保英文、数字、中文在各平台上有一致的视觉体验，同时解决 Georgia 旧式数字（old-style figures）导致数字参差不齐的问题。
-
-所有字体均使用 SIL OFL 协议，开源可商用。
+## Agent Context
+- **源码入口：** `src/styles/app.css`、`src/styles/editor.css` 与 `src/styles/variables.css`。
+- **关联规范：** `bundle-budget`、`editor-bottom-spacer`。
+- **不变量：** 字体回退必须覆盖中西文平台；字重映射不得造成伪粗体；字体变更不得突破包体预算。
+- **验证：** `npm run build`；`npm run check-size`；`npx openspec validate font-stack --strict`。
 
 ## Requirements
 

@@ -1,5 +1,5 @@
 import { showToast } from './toast';
-import { refreshFileTree, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
+import { refreshFileTree, initTreeAria, setWorkspacePath, getWorkspacePath, startInlineCreate } from './fileTree';
 import { initMouseDrag } from './fileTree.dragdrop';
 import { initOutline } from './outline';
 import { showContextMenu } from './contextMenu';
@@ -106,7 +106,10 @@ export function switchSidebarTab(tab: 'files' | 'outline') {
   const outlineTree = document.getElementById('outline-tree');
   const footer = document.getElementById('sidebar-footer');
 
-  if (fileTree) fileTree.hidden = tab !== 'files';
+  if (fileTree) {
+    fileTree.hidden = tab !== 'files';
+    if (tab === 'files') initTreeAria(fileTree);
+  }
   if (outlineTree) outlineTree.hidden = tab !== 'outline';
   if (footer) footer.style.display = tab === 'files' ? 'flex' : 'none';
 }

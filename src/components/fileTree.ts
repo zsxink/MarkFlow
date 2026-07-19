@@ -8,6 +8,7 @@ export {
   isSuppressedPath,
   suppressAllDescendants,
   refreshFileTree,
+  initTreeAria,
   insertEntryIntoTree,
   removeEntryFromTree,
   renameEntryInTree,

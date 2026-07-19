@@ -29,6 +29,23 @@ let incrementalBatchCount = 0;
 let localPatchCount = 0;
 let recoveryRescanCount = 0;
 
+// --- rAF batch scheduling ---
+let cleanupRafId: number | null = null;
+let pendingMutations: Array<() => void> = [];
+let rafScheduled = false;
+
+function scheduleRafFlush() {
+  if (rafScheduled) return;
+  rafScheduled = true;
+  cleanupRafId = requestAnimationFrame(() => {
+    cleanupRafId = null;
+    rafScheduled = false;
+    const mutations = pendingMutations;
+    pendingMutations = [];
+    for (const fn of mutations) fn();
+  });
+}
+
 // --- Utility functions ---
 
 export function escapePathSelector(path: string): string {
@@ -372,7 +389,7 @@ function getDepth(container: HTMLElement): number {
   return depth;
 }
 
-export async function insertEntryIntoTree(parentPath: string, entry: FileEntry) {
+export function insertEntryIntoTree(parentPath: string, entry: FileEntry) {
   const container = getChildrenContainer(parentPath);
   if (!container) return;
   if (container.querySelector(`[data-path="${escapePathSelector(entry.path)}"]`)) return;
@@ -419,7 +436,7 @@ export async function applyFileTreeEvents(events: FileChangeEvent[]) {
         try {
           const entry = await readPathEntry(path);
           treeState = upsertTreeEntry(treeState, parent, entry);
-          await insertEntryIntoTree(parent, entry);
+          pendingMutations.push(() => { insertEntryIntoTree(parent, entry); });
           localPatchCount++;
         } catch (error) {
           treeState = markDirectoryState(treeState, parent, 'stale');
@@ -432,19 +449,21 @@ export async function applyFileTreeEvents(events: FileChangeEvent[]) {
     }
     if (event.kind === 'delete') {
       treeState = applyTreeEvent(treeState, event);
-      removeEntryFromTree(path);
+      pendingMutations.push(() => { removeEntryFromTree(path); });
       localPatchCount++;
       continue;
     }
     if (event.kind === 'rename' && event.toPath) {
       treeState = applyTreeEvent(treeState, event);
       const newPath = normalizeTreePath(event.toPath);
-      renamePathDom(path, newPath);
-      rewriteActiveDocumentPath(path, newPath);
-      store.setState({ expandedPaths: store.getState().expandedPaths.map(expanded => {
-        const normalized = normalizeTreePath(expanded);
-        return normalized === path || normalized.startsWith(path + '/') ? newPath + normalized.slice(path.length) : expanded;
-      }) });
+      pendingMutations.push(() => {
+        renamePathDom(path, newPath);
+        rewriteActiveDocumentPath(path, newPath);
+        store.setState({ expandedPaths: store.getState().expandedPaths.map(expanded => {
+          const normalized = normalizeTreePath(expanded);
+          return normalized === path || normalized.startsWith(path + '/') ? newPath + normalized.slice(path.length) : expanded;
+        }) });
+      });
       localPatchCount++;
       continue;
     }
@@ -460,8 +479,10 @@ export async function applyFileTreeEvents(events: FileChangeEvent[]) {
           if (candidate.status === 'loaded') {
             saveExpandedState();
             treeState = markDirectoryState(treeState, ancestor, 'stale');
-            await loadDirectory(ancestor, false);
-            await restoreExpandedState();
+            pendingMutations.push(async () => {
+              await loadDirectory(ancestor, false);
+              await restoreExpandedState();
+            });
           } else {
             treeState = markDirectoryState(treeState, ancestor, 'stale');
           }
@@ -475,10 +496,13 @@ export async function applyFileTreeEvents(events: FileChangeEvent[]) {
       }
       saveExpandedState();
       treeState = markDirectoryState(treeState, path, 'stale');
-      await loadDirectory(path, false);
-      await restoreExpandedState();
+      pendingMutations.push(async () => {
+        await loadDirectory(path, false);
+        await restoreExpandedState();
+      });
     }
   }
+  scheduleRafFlush();
   logInfo('file-tree.metrics', 'Applied incremental event batch', {
     events: events.length, loadedNodes: treeState.nodes.size, mountedNodes: document.querySelectorAll('#file-tree [data-path]').length,
     incrementalBatchCount, rootRefreshCount, localPatchCount, recoveryRescanCount,
@@ -508,10 +532,39 @@ export function renamePathDom(oldPath: string, newPath: string) {
 export function resetFileTreeStateForTesting() {
   treeState = createFileTreeState();
   pendingLoads.clear();
+  if (cleanupRafId !== null) {
+    cancelAnimationFrame(cleanupRafId);
+    cleanupRafId = null;
+  }
+  rafScheduled = false;
+  pendingMutations = [];
+  suppressPaths.clear();
   rootRefreshCount = 0;
   incrementalBatchCount = 0;
   localPatchCount = 0;
   recoveryRescanCount = 0;
+}
+
+export function cleanup() {
+  // Cancel pending rAF
+  if (cleanupRafId !== null) {
+    cancelAnimationFrame(cleanupRafId);
+    cleanupRafId = null;
+  }
+  rafScheduled = false;
+  pendingMutations = [];
+  // Cancel pending loads
+  pendingLoads.clear();
+  // Clear suppress paths
+  suppressPaths.clear();
+}
+
+/** Drain pendingMutations synchronously (for tests that need DOM updates before rAF fires). */
+export function flushPendingMutations() {
+  rafScheduled = false;
+  const mutations = pendingMutations;
+  pendingMutations = [];
+  for (const fn of mutations) fn();
 }
 
 /** @visibleForTesting */

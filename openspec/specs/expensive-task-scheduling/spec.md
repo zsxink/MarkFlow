@@ -18,6 +18,7 @@
 - Word count: 200ms debounce
 - Outline refresh: 300ms debounce
 - Line number recalculation: 150ms debounce
+- 文件树增量更新: 16ms debounce（rAF 窗口）
 
 #### Scenario: Debounce防止冗余执行
 - **WHEN** 用户在编辑器中快速输入
@@ -28,6 +29,10 @@
 #### Scenario: 去抖定时器在新触发时重置
 - **WHEN** 去抖任务有一个待处理的计时器并且新的触发器到达
 - **THEN** 之前的计时器取消，新的计时器开始
+
+#### Scenario: 文件树变更事件去抖
+- **WHEN** 16ms 内收到多个文件变更事件
+- **THEN** SHALL 合并为一次 DOM 操作，不触发多次重绘
 
 ### Requirement: 任务取消
 当新的触发器到达时，系统 MUST 支持取消正在进行的昂贵任务。
@@ -41,6 +46,13 @@
 - **WHEN** 任务执行中被取消
 - **THEN** 任何部分结果将被丢弃
 - **THEN** 没有对文档应用部分状态
+
+### Requirement: 新请求使过期任务结果失效
+新请求 MUST 使过期任务结果失效。
+
+#### Scenario: 文件树增量更新取消旧请求
+- **WHEN** 新的文件变更事件到达且有 pending 的 rAF 回调
+- **THEN** SHALL 取消旧的 rAF 回调，使用新的变更队列
 
 ### Requirement: 渲染复杂度限制
 系统 MUST 对渲染子系统实施复杂性限制，以防止主线程阻塞。

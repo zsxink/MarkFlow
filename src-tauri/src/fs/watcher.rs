@@ -458,8 +458,8 @@ mod tests {
         // stop() must be idempotent and safe to call twice.
         let dir = std::env::temp_dir().join(format!("markflow-watch-test2-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
-        let mut watcher = FileWatcher::new(dir.clone(), IgnoreMatcher::defaults(), |_event| {})
-            .expect("watcher should start on an existing dir");
+        let mut watcher =
+            FileWatcher::new(dir.clone(), IgnoreMatcher::defaults(), |_event| {}).unwrap();
         watcher.stop();
         watcher.stop(); // second call must be a no-op
         let _ = std::fs::remove_dir_all(&dir);

@@ -1,5 +1,5 @@
 use crate::commands::settings::load_settings_inner;
-use crate::error::lock_mutex;
+use crate::error::{lock_mutex, AppError};
 use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
@@ -27,7 +27,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, AppError> {
         let http_client = reqwest::Client::builder()
             .connect_timeout(Duration::from_secs(5))
             .read_timeout(Duration::from_secs(10))
@@ -36,9 +36,9 @@ impl AppState {
             .pool_max_idle_per_host(4)
             .dns_resolver(Arc::new(ValidatingResolver))
             .build()
-            .expect("Failed to build HTTP client");
+            .map_err(|e| AppError::internal(format!("Failed to build HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             workspace_root: Mutex::new(None),
             watcher: Mutex::new(None),
             pending_file: Mutex::new(HashMap::new()),
@@ -48,7 +48,7 @@ impl AppState {
             image_download_semaphore: Semaphore::new(4),
             http_client,
             http_semaphore: Semaphore::new(3),
-        }
+        })
     }
 
     pub fn set_workspace(
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn set_workspace_switches_without_leaking_watcher_thread() {
-        let state = AppState::new();
+        let state = AppState::new().unwrap();
         let dir_a = std::env::temp_dir().join(format!("markflow-ws-a-{}", std::process::id()));
         let dir_b = std::env::temp_dir().join(format!("markflow-ws-b-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir_a);
@@ -134,7 +134,7 @@ mod tests {
 
     #[test]
     fn stop_all_is_safe_to_call_repeatedly() {
-        let state = AppState::new();
+        let state = AppState::new().unwrap();
         state.stop_all();
         state.stop_all();
     }

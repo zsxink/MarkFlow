@@ -8,6 +8,9 @@ mod paths;
 mod state;
 
 use commands::files;
+use commands::files_image;
+use commands::files_meta;
+use commands::files_pagination;
 use commands::settings;
 use error::AppError;
 use paths::normalize_path;
@@ -316,7 +319,7 @@ pub fn run() {
             files::save_mermaid_png_export,
             files::save_image_export,
             files::save_document_export,
-            files::read_dir,
+            files_pagination::read_dir,
             files::read_path_entry,
             files::create_file,
             files::create_dir,
@@ -328,9 +331,9 @@ pub fn run() {
             files::get_file_stats,
             files::read_file_as_base64,
             files::write_file_from_base64,
-            files::fetch_remote_image_as_base64,
-            files::fetch_page_title,
-            files::download_image,
+            files_image::fetch_remote_image_as_base64,
+            files_meta::fetch_page_title,
+            files_image::download_image,
             confirm_window_close,
             settings::load_settings,
             settings::save_settings,

@@ -28,5 +28,5 @@
 ## 5. 提交与归档
 
 - [x] 5.1 提交所有变更，commit message 格式：`perf: 前端性能优化 — 文件树增量更新、内存泄漏修复、Bundle 分析`
-- [ ] 5.2 运行 `openspec archive frontend-performance-optimization` 归档变更
-- [ ] 5.3 创建 PR，标题：`perf: 前端性能优化 (#129)`
+- [x] 5.2 运行 `openspec archive frontend-performance-optimization` 归档变更
+- [x] 5.3 创建 PR，标题：`perf: 前端性能优化 (#129)`

@@ -125,8 +125,7 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
     // Store pending file path for the new window's frontend to pull
     {
         let state = app.state::<AppState>();
-        let mut pending =
-            error::lock_mutex(&state.pending_file).map_err(|e| e.to_string())?;
+        let mut pending = error::lock_mutex(&state.pending_file).map_err(|e| e.to_string())?;
         pending.insert(label.clone(), path.clone());
     }
 

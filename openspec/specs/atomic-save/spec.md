@@ -1,63 +1,69 @@
 # atomic-save Specification
 
 ## Purpose
-Define the atomic write infrastructure that prevents file corruption on crash or power loss, used by document save and settings persistence.
+定义原子写入基础设施，防止崩溃或断电导致文件损坏，并供文档和设置持久化使用。
+
+## Agent Context
+- **源码入口：** `src-tauri/src/commands/files.rs` 中的 `atomic_write` 与 `write_file`；`src-tauri/src/commands/settings.rs` 中的 `save_settings_inner`。
+- **关联规范：** `autosave-reliability`、`error-handling`、`type-system`。
+- **不变量：** 临时文件必须与目标位于同一目录；只有同步成功后才能替换目标；任一失败路径都不得截断旧文件，并应尽力清理临时文件。
+- **验证：** `cd src-tauri && cargo test atomic_write`；`npx openspec validate atomic-save --strict`。
 
 ## Requirements
 
-### Requirement: Atomic file write
+### Requirement: 原子文件写入
 The system SHALL provide an `atomic_write` function that writes content to a file atomically, ensuring the target file is never left in a truncated or corrupted state.
 
-#### Scenario: Successful atomic write
-- **WHEN** `atomic_write(path, content)` is called
-- **THEN** a temporary file SHALL be created in the same directory as the target
-- **THEN** the content SHALL be written to the temporary file
-- **THEN** the temporary file SHALL be synced to disk
-- **THEN** the temporary file SHALL be atomically renamed to the target path
-- **THEN** the old target file content SHALL be fully replaced
+#### Scenario: 原子写入成功
+- **WHEN** `atomic_write(path, content)` 被调用
+- **THEN** 应在与目标相同的目录中创建临时文件
+- **THEN** 内容应写入临时文件
+- **THEN** 临时文件应同步到磁盘
+- **THEN** 临时文件应自动重命名为目标路径
+- **THEN** 旧的目标文件内容将全部替换
 
-#### Scenario: Write failure preserves old file
-- **WHEN** `atomic_write(path, content)` is called
-- **AND** the write to the temporary file fails (e.g., disk full, permission error)
-- **THEN** the temporary file SHALL be deleted
-- **THEN** the original file at `path` SHALL remain unchanged and uncorrupted
+#### Scenario: 写入失败保留旧文件
+- **WHEN** `atomic_write(path, content)` 被调用
+- **AND** 写入临时文件失败（如磁盘已满、权限错误）
+- **THEN** 临时文件应被删除
+- **THEN** `path` 的原始文件应保持不变且不损坏
 
-#### Scenario: Rename failure cleans up
-- **WHEN** `atomic_write(path, content)` is called
-- **AND** the write succeeds but the rename to target fails
-- **THEN** the temporary file SHALL be deleted
-- **THEN** the original file at `path` SHALL remain unchanged
+#### Scenario: 重命名失败清理
+- **WHEN** `atomic_write(path, content)` 被调用
+- **AND** 写入成功但重命名为目标失败
+- **THEN** 临时文件应被删除
+- **THEN** `path` 的原始文件应保持不变
 
-#### Scenario: Parent directory auto-created
-- **WHEN** `atomic_write(path, content)` is called
-- **AND** the parent directory of `path` does not exist
-- **THEN** the parent directory SHALL be created before writing
+#### Scenario: 父目录自动创建
+- **WHEN** `atomic_write(path, content)` 被调用
+- **AND** `path`的父目录不存在
+- **THEN** 写入前应先创建父目录
 
-### Requirement: Cleanup of leftover temporary files
-The system SHALL clean up leftover temporary files from previous failed writes on startup.
+### Requirement: 清理剩余临时文件
+系统 MUST 在启动时清除之前写入失败留下的临时文件。
 
-#### Scenario: Leftover temp files are removed
-- **WHEN** the application starts
-- **AND** temporary files matching the pattern `*.pid.tmp` or `*.tmp` exist in a watched directory
-- **THEN** stale temporary files (older than a threshold or from dead processes) SHALL be deleted
+#### Scenario: 剩余的临时文件被删除
+- **WHEN** 申请开始
+- **AND** 监视目录中存在与模式 `*.pid.tmp` 或 `*.tmp` 匹配的临时文件
+- **THEN** 过时的临时文件（早于阈值或来自死进程）应被删除
 
-#### Scenario: Active temp files are not removed
-- **WHEN** the application starts
-- **AND** a temporary file belongs to a still-running process
-- **THEN** the temporary file SHALL NOT be deleted
+#### Scenario: 活动临时文件未删除
+- **WHEN** 申请开始
+- **AND** 临时文件属于仍在运行的进程
+- **THEN** 临时文件不得删除
 
-### Requirement: Document save uses atomic write
+### Requirement: 文档保存使用原子写入
 The `write_file` Tauri command SHALL use `atomic_write` to save document content.
 
-#### Scenario: Document save is atomic
-- **WHEN** the `write_file` command is invoked to save a markdown file
-- **THEN** the write SHALL use `atomic_write` under the hood
-- **THEN** if the write fails, the original file SHALL remain intact
+#### Scenario: 文档保存是原子的
+- **WHEN** 调用`write_file`命令保存Markdown文件
+- **THEN** 写入应在幕后使用 `atomic_write`
+- **THEN** 如果写入失败，原文件应保持完整
 
-### Requirement: Settings save uses atomic write
+### Requirement: 设置保存使用原子写入
 The `save_settings_inner` function SHALL use `atomic_write` to persist settings.
 
-#### Scenario: Settings save is atomic
-- **WHEN** `save_settings_inner(settings)` is called
-- **THEN** the write SHALL use `atomic_write` to write `settings.json`
-- **THEN** if the write fails, the original `settings.json` SHALL remain intact
+#### Scenario: 设置保存是原子的
+- **WHEN** `save_settings_inner(settings)` 被调用
+- **THEN** 写入应使用`atomic_write`写入`settings.json`
+- **THEN** 如果写入失败，原来的`settings.json`应保持不变

@@ -1,8 +1,31 @@
 # MarkFlow 技术架构
 
+> 版本：2.1.0 ｜ 状态：已发布 ｜ 更新日期：2026-07-19
+>
 > 技术栈、项目结构与核心架构设计。
+>
+> 详细设计见 [technical-design.md](technical-design.md)
 
 ---
+
+## 整体架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       MarkFlow 客户端                        │
+│                                                             │
+│  ┌─────────────────┐        IPC        ┌──────────────────┐ │
+│  │ Tauri 前端       │◄─────────────────►│ Tauri 后端 (Rust)│ │
+│  │ (系统 WebView)   │                    │                  │ │
+│  │                 │                    │ 命令处理器       │ │
+│  │ UI 组件          │                    │ · file_*         │ │
+│  │ ProseMirror      │                    │ · settings_*     │ │
+│  │ (Tiptap) 编辑器  │                    │                  │ │
+│  │ CodeMirror 源码  │                    │ 文件系统/监听     │ │
+│  │ Mermaid 渲染     │                    │ 配置与应用状态    │ │
+│  └─────────────────┘                    └──────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## 技术栈
 
@@ -10,7 +33,7 @@
 |------|------|------|
 | 桌面框架 | Tauri v2 | 跨平台原生桌面应用，使用系统 WebView |
 | 前端语言 | TypeScript | UI 逻辑与编辑器编排 |
-| 编辑器引擎 | Tiptap / ProseMirror | 节点化 WYSIWYG 编辑，Markdown 双向同步 |
+| 编辑器引擎 | ProseMirror (Tiptap) | 节点化 WYSIWYG 编辑，Markdown 双向同步 |
 | 源码编辑 | CodeMirror v6 | 源码模式编辑 |
 | 构建工具 | Vite | 开发服务器与生产构建 |
 | 后端 | Rust | 文件 I/O、文件监听、配置管理 |
@@ -27,26 +50,33 @@
 markflow/
 ├── src/                          # 前端源码 (TypeScript + CSS)
 │   ├── main.ts                   # 入口
-│   ├── styles/
-│   │   ├── main.css              # 布局、组件样式、主题
+│   ├── styles/                   # 布局、组件、编辑器与主题样式
+│   │   ├── app.css
+│   │   ├── components.css
+│   │   ├── editor.css
+│   │   ├── sidebar.css
+│   │   ├── toolbar.css
 │   │   └── variables.css         # CSS 自定义属性 (light/dark/sepia)
 │   ├── components/
 │   │   ├── toolbar.ts            # 顶部工具栏
 │   │   ├── sidebar.ts            # 侧边栏容器
 │   │   ├── statusbar.ts          # 底部状态栏
 │   │   ├── settings.ts           # 设置面板
-│   │   ├── fileTree.ts           # 文件树渲染
+│   │   ├── fileTree*.ts          # 文件树协调、状态、懒加载与拖放
 │   │   ├── outline.ts            # 文档大纲提取
 │   │   ├── contextMenu.ts        # 右键菜单
 │   │   ├── toast.ts              # 提示通知
-│   │   └── newFileDialog.ts      # 新建文件/文件夹对话框
+│   │   ├── newFileDialog.ts      # 新建文件/文件夹对话框
+│   │   └── ui/                   # 可复用上下文菜单、对话框与模态框
 │   ├── lib/
-│   │   ├── editor.ts             # Tiptap 编辑器配置 + Markdown 同步
+│   │   ├── editor*.ts            # ProseMirror (Tiptap) 编辑器、扩展与序列化
 │   │   ├── imageUtils.ts         # 图片存储、路径解析、粘贴逻辑
 │   │   ├── pathUtils.ts          # 路径工具函数
 │   │   ├── storage.ts            # Tauri IPC 文件系统封装
 │   │   ├── theme.ts              # 主题切换逻辑
-│   │   └── mermaid.ts            # Mermaid 图表渲染
+│   │   ├── mermaid*.ts           # Mermaid 图表渲染与懒加载
+│   │   └── store.ts              # 全局状态存储
+│   ├── types/                    # 编辑器、文件树、设置与事件类型
 │   └── utils/
 │       ├── dom.ts                # DOM 工具
 │       └── keyboard.ts           # 快捷键处理
@@ -57,23 +87,21 @@ markflow/
 │   │   ├── commands/
 │   │   │   ├── files.rs          # 文件操作命令
 │   │   │   └── settings.rs       # 设置读写命令
-│   │   ├── fs/
-│   │   │   ├── watcher.rs        # notify 文件监听
-│   │   │   └── tree.rs           # 文件树构建
+│   │   ├── fs/                   # 文件监听与忽略规则
 │   │   ├── config/
 │   │   │   └── settings.rs       # Settings 结构体与持久化
 │   │   ├── logger.rs             # 日志配置
 │   │   ├── paths.rs              # 路径工具函数
-│   │   └── state.rs              # 应用状态管理
+│   │   ├── state.rs              # 应用状态管理
+│   │   ├── error.rs              # 应用错误类型
+│   │   └── http.rs               # 网络图片下载
 │   ├── Cargo.toml
 │   ├── tauri.conf.json           # Tauri 配置
 │   └── capabilities/             # Tauri v2 权限声明
-├── openspec/                     # 规范文档
+├── openspec/                     # OpenSpec 规范与变更追踪
 │   ├── specs/                    #   - 产品规格、架构、技术设计等
 │   ├── ui-design/                #   - UI 设计稿
 │   └── changes/                  #   - 变更追踪
-├── openspec/                     # OpenSpec 规范文档（canonical）
-│   └── specs/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts

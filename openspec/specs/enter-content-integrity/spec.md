@@ -1,63 +1,70 @@
-## Purpose
+# enter-content-integrity Specification
 
-确保 WYSIWYG（所见即所得）模式到源码模式的 Markdown 序列化保真度，防止回车或其他编辑操作导致内容丢失。
+## Purpose
+确保 WYSIWYG 模式按 Enter 后生成有效 Markdown，并在模式切换中保持内容完整性。
+
+## Agent Context
+- **源码入口：** `src/lib/editor.ts`、`src/lib/editor.source.ts` 与 `src/lib/editor.serializer.ts`。
+- **关联规范：** `codemirror-source-editor`、`active-document-state`、`atomic-save`。
+- **不变量：** Enter 前后的文本与嵌套结构必须可往返序列化；模式切换不得丢失内容；完整性检查失败不得静默覆盖用户内容。
+- **验证：** `npm test -- src/lib/editor.test.ts src/lib/markdown.test.ts`；`npx openspec validate enter-content-integrity --strict`。
 
 ## Requirements
 
-### Requirement: WYSIWYG Enter produces valid Markdown
+### Requirement: WYSIWYG Enter 产生有效的 Markdown
 
-The system SHALL ensure that pressing Enter in WYSIWYG mode always produces a ProseMirror document state that serializes to complete, valid Markdown without content loss.
+系统 MUST 确保在所见即所得模式下按 Enter 始终会产生 ProseMirror 文档状态，该状态可序列化为完整、有效的 Markdown，且不会丢失内容。
 
-#### Scenario: Paragraph split preserves surrounding content
-- **WHEN** user presses Enter in the middle of a paragraph in WYSIWYG mode
-- **THEN** all content before and after the split point SHALL be preserved in the Markdown serialization
-- **THEN** the serialized Markdown SHALL contain the exact same number of non-whitespace characters as the original document (excluding the added newline)
+#### Scenario: 段落分割保留周围内容
+- **WHEN** 用户以所见即所得模式在段落中间按 Enter
+- **THEN** 分割点前后的所有内容均应保留在Markdown序列化中
+- **THEN** 序列化的 Markdown 应包含与原始文档完全相同数量的非空白字符（不包括添加的换行符）
 
-#### Scenario: List item split preserves list continuation
-- **WHEN** user presses Enter in the middle of a list item in WYSIWYG mode
-- **THEN** the remaining list items after the split point SHALL be preserved when serialized to Markdown
-- **THEN** the total count of list items in serialized Markdown SHALL equal the pre-Enter count + 1 (the new item)
+#### Scenario: 列表项拆分保留列表延续
+- **WHEN** 用户在所见即所得模式的列表项中间按 Enter
+- **THEN** 序列化为 Markdown 时应保留分割点后的剩余列表项
+- **THEN** 序列化 Markdown 中的列表项总数应等于预输入计数 + 1（新项）
 
-#### Scenario: Blockquote Enter preserves quoted content
-- **WHEN** user presses Enter inside a blockquote in WYSIWYG mode
-- **THEN** all quoted content SHALL be serialized to Markdown without loss
-- **THEN** the blockquote structure SHALL remain valid after round-trip (Markdown → ProseMirror → Markdown)
+#### Scenario: Blockquote Enter 保留引用内容
+- **WHEN** 用户在所见即所得模式下在块引用内按 Enter
+- **THEN** 所有引用内容均应无损连载至Markdown
+- **THEN** 块引用结构在往返后仍然有效（Markdown → ProseMirror → Markdown）
 
-#### Scenario: Nested structure Enter preserves hierarchy
-- **WHEN** user presses Enter inside a complex nested structure (e.g., list inside blockquote) in WYSIWYG mode
-- **THEN** the full hierarchy SHALL be preserved in Markdown serialization
-- **THEN** switching to source mode and back SHALL produce an identical-looking document (visual fidelity preserved)
+#### Scenario: 嵌套结构 Enter 保留层次结构
+- **WHEN** 用户在所见即所得模式下的复杂嵌套结构（例如，块引用内的列表）内按 Enter
+- **THEN** 完整的层次结构应保留在 Markdown 序列化中
+- **THEN** 切换到源模式并返回应生成外观相同的文档（保留视觉保真度）
 
-#### Scenario: Code block near Enter point unaffected
-- **WHEN** user presses Enter near a fenced code block in WYSIWYG mode
-- **THEN** the code block content SHALL remain complete and unchanged in the serialized Markdown
+#### Scenario: 输入点附近的代码块不受影响
+- **WHEN** 用户在 WYSIWYG 模式下在围栏代码块附近按 Enter
+- **THEN** 序列化 Markdown 中代码块内容应保持完整且不变
 
-### Requirement: Source switch integrity check
+### Requirement: 源开关完整性检查
 
-The system SHALL perform a content integrity check when switching from WYSIWYG to source mode to detect serialization truncation.
+当从 WYSIWYG 切换到源模式时，系统 MUST 执行内容完整性检查，以检测序列化截断。
 
-#### Scenario: Truncation detected on switch
-- **WHEN** `getMarkdown()` output contains significantly fewer lines or characters than expected (based on ProseMirror doc node count)
-- **THEN** the system SHALL log a warning via `logException`
-- **THEN** the system SHALL display a warning toast to the user
-- **THEN** the truncated content SHALL NOT overwrite the source textarea without user confirmation
+#### Scenario: 交换机检测到截断
+- **WHEN** `getMarkdown()` 输出包含的行或字符明显少于预期（基于 ProseMirror 文档节点计数）
+- **THEN** 系统应通过 `logException` 记录警告
+- **THEN** 系统应向用户显示警告提示
+- **THEN** 未经用户确认，截断的内容不得覆盖源文本区域
 
-#### Scenario: Normal switch proceeds without warning
-- **WHEN** `getMarkdown()` output is complete and valid
-- **THEN** the system SHALL update the source textarea as normal
-- **THEN** no warning SHALL be shown
+#### Scenario: 正常切换，无警告
+- **WHEN** `getMarkdown()`输出完整有效
+- **THEN** 系统将正常更新源文本区域
+- **THEN** 不显示任何警告
 
-### Requirement: Round-trip fidelity
+### Requirement: 往返保真
 
 The system SHALL maintain content fidelity through WYSIWYG↔source mode switches.
 
-#### Scenario: Multiple mode switches preserve content
-- **WHEN** user switches from WYSIWYG to source mode and back repeatedly
-- **THEN** each mode switch SHALL produce consistent content
-- **THEN** after N round-trips, the Markdown content SHALL be identical to the original (modulo normalization of whitespace and image URLs)
+#### Scenario: 多种模式切换保留内容
+- **WHEN** 用户反复从所见即所得模式切换到源模式并返回
+- **THEN** 每个模式切换应产生一致的内容
+- **THEN** N次往返后，Markdown内容应与原始内容相同（空白和图像URL的模归一化）
 
-#### Scenario: Edit then switch preserves edits
-- **WHEN** user makes edits in WYSIWYG mode then switches to source
-- **THEN** all WYSIWYG edits SHALL be reflected in the source textarea content
-- **WHEN** user makes edits in source mode then switches to WYSIWYG
-- **THEN** all source edits SHALL be reflected in the WYSIWYG editor content
+#### Scenario: 编辑然后切换保留编辑
+- **WHEN** 用户以所见即所得模式进行编辑，然后切换到源
+- **THEN** 所有所见即所得编辑应反映在源文本区域内容中
+- **WHEN** 用户在源模式下进行编辑然后切换到所见即所得
+- **THEN** 所有源代码编辑均应反映在所见即所得编辑器内容中

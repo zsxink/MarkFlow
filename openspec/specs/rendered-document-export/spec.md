@@ -1,17 +1,24 @@
-## Purpose
+# rendered-document-export Specification
 
-定义将当前 WYSIWYG 文档以 PDF、Word 和 HTML 格式导出的行为与约束。
+## Purpose
+定义使用渲染后的 HTML 导出 HTML、Word 兼容文件和 PDF 的流程。
+
+## Agent Context
+- **源码入口：** `src/lib/documentExport.ts`、`src/components/toolbar.ts` 与 `src/lib/storage.ts`。
+- **关联规范：** `export-workspace-bypass`、`image-streaming`、`codemirror-source-editor`。
+- **不变量：** 导出源必须是当前渲染内容；asset 图片必须转换为可移植 data URI；并发导出不得产生重复或交叉写入。
+- **验证：** `npm test -- src/lib/documentExport.test.ts`；`npx openspec validate rendered-document-export --strict`。
 
 ## Requirements
 
-### Requirement: Export format entry point
-系统 SHALL 在现有工具栏或菜单中提供"导出"入口，列出 PDF、Word 和 HTML 三种格式，并对当前文档执行用户选择的导出操作。
+### Requirement: 导出格式入口
+系统 SHALL 在现有工具栏或菜单中提供“导出”入口，列出 PDF、Word 和 HTML 三种格式，并对当前文档执行用户选择的导出操作。
 
 #### Scenario: 用户选择一种导出格式
-- **WHEN** 用户从"导出"入口选择 PDF、Word 或 HTML
+- **WHEN** 用户从“导出”入口选择 PDF、Word 或 HTML
 - **THEN** 系统 SHALL 开始对应格式的导出流程
 
-### Requirement: Rendered HTML export source
+### Requirement: 渲染 HTML 导出源
 系统 SHALL 以当前 WYSIWYG 编辑器的渲染 HTML 为三种导出的共同内容来源，并保留其中已渲染的图片、图表和必要的样式。本地图片 SHALL 在导出时转换为可移植的 data URI 格式。
 
 #### Scenario: 文档含渲染内容
@@ -26,7 +33,7 @@
 - **WHEN** 用户在源码（CodeMirror）模式下触发导出
 - **THEN** 系统 SHALL 先将最新源码内容同步到 WYSIWYG 编辑器，再执行导出
 
-### Requirement: HTML file export
+### Requirement: HTML 文件导出
 系统 SHALL 通过原生保存对话框选择目标路径，并用现有文件写入能力将完整 HTML 文档写入用户选定的 `.html` 文件。
 
 #### Scenario: HTML 导出成功
@@ -41,7 +48,7 @@
 - **WHEN** 已选择的 HTML 目标路径无法写入
 - **THEN** 系统 SHALL 显示用户可理解的导出失败提示且不得报告导出成功
 
-### Requirement: Word-compatible file export
+### Requirement: Word 兼容文件导出
 系统 SHALL 将当前渲染 HTML 包装为带有 Word 所需命名空间与 MIME 元信息的 Word-compatible HTML，并通过原生保存对话框写入 `.doc` 文件；该实现 MUST NOT 引入新的运行时依赖。
 
 #### Scenario: Word 导出成功
@@ -56,7 +63,7 @@
 - **WHEN** 已选择的 Word 目标路径无法写入
 - **THEN** 系统 SHALL 显示用户可理解的导出失败提示且不得报告导出成功
 
-### Requirement: Browser-print PDF export
+### Requirement: 浏览器打印 PDF 导出
 系统 SHALL 使用浏览器打印流程承载当前渲染 HTML 以供用户另存为 PDF，并应用专用打印样式；实现 MUST NOT 引入 jsPDF、pdf-lib 或其他 PDF 生成依赖。打印流程 SHALL 无竞态条件。
 
 #### Scenario: 触发 PDF 导出

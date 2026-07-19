@@ -1,3 +1,14 @@
+# safe-http-fetch Specification
+
+## Purpose
+定义 HTTP 响应限额、DNS 与重定向校验、图片验证、并发控制和日志脱敏要求。
+
+## Agent Context
+- **源码入口：** `src-tauri/src/http.rs` 中的 `fetch_with_redirects`；`src-tauri/src/commands/files.rs` 中的 `fetch_remote_image_bytes` 与 `fetch_page_title_inner`；共享 Client 与信号量在 `src-tauri/src/state.rs`。
+- **关联规范：** `image-streaming`、`image-naming`、`error-handling`。
+- **不变量：** 每个初始 URL 与重定向目标都必须先完成 scheme、host、port 和解析 IP 校验；响应大小以实际流式读取字节数为准；远程请求共用 Client 且受全局信号量限制；日志不得泄露 query 或 fragment。
+- **验证：** `cd src-tauri && cargo test http`；`cd src-tauri && cargo test fetch_`；`npx openspec validate safe-http-fetch --strict`。
+
 ## Requirements
 
 ### Requirement: 流式读取响应体

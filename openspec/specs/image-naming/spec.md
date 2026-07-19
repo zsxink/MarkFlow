@@ -1,8 +1,13 @@
-# Image Naming — 图片命名
+# image-naming Specification
 
 ## Purpose
+定义粘贴图片的唯一命名策略，并保证既有图片引用和存储结构不受影响。
 
-定义 MarkFlow 编辑器中粘贴图片时的文件名生成规则，确保文件名唯一性，避免因同名文件互相覆盖导致图片引用失效。
+## Agent Context
+- **源码入口：** `src/lib/imageUtils.ts`、`src/lib/storage.ts` 与 `src-tauri/src/commands/files.rs`。
+- **关联规范：** `image-streaming`、`atomic-save`、`sidebar`。
+- **不变量：** 新名称必须保留安全扩展名；同名冲突不得覆盖既有图片；既有图片路径与引用不得被迁移。
+- **验证：** `npm test -- src/lib/imageUtils.test.ts`；`npx openspec validate image-naming --strict`。
 
 ## Requirements
 

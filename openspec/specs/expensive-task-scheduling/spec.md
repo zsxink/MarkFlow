@@ -1,65 +1,76 @@
-## ADDED Requirements
+# expensive-task-scheduling Specification
 
-### Requirement: Debounced expensive tasks
-Expensive operations SHALL be debounced to avoid per-keystroke execution.
+## Purpose
+定义高开销任务的防抖、取消、复杂度上限和增量计算要求，保障编辑器响应性。
+
+## Agent Context
+- **源码入口：** `src/lib/taskScheduler.ts`、`src/lib/editor.ts` 与 `src/components/statusbar.ts`。
+- **关联规范：** `document-size-tier`、`codemirror-source-editor`、`regression-coverage`。
+- **不变量：** 新请求必须使过期任务结果失效；各任务队列独立去抖；取消后不得发布部分结果。
+- **验证：** `npm test -- src/lib/taskScheduler.test.ts`；`npx openspec validate expensive-task-scheduling --strict`。
+
+## Requirements
+
+### Requirement: 去抖昂贵的任务
+昂贵的操作 MUST 进行去抖以避免每次击键执行。
 
 - Markdown serialization: 400ms debounce
 - Word count: 200ms debounce
 - Outline refresh: 300ms debounce
 - Line number recalculation: 150ms debounce
 
-#### Scenario: Debounce prevents redundant execution
-- **WHEN** user types rapidly in the editor
-- **THEN** the serialization task is not executed until 400ms after the last keystroke
-- **THEN** the word count task is not executed until 200ms after the last keystroke
-- **THEN** each task queue operates independently
+#### Scenario: Debounce防止冗余执行
+- **WHEN** 用户在编辑器中快速输入
+- **THEN** 最后一次按键后400ms才执行序列化任务
+- **THEN** 最后一次按键后200ms才执行字数统计任务
+- **THEN** 每个任务队列独立运行
 
-#### Scenario: Debounce timer resets on new trigger
-- **WHEN** a debounced task has a pending timer and a new trigger arrives
-- **THEN** the previous timer is cancelled and a new timer starts
+#### Scenario: 去抖定时器在新触发时重置
+- **WHEN** 去抖任务有一个待处理的计时器并且新的触发器到达
+- **THEN** 之前的计时器取消，新的计时器开始
 
-### Requirement: Task cancellation
-The system SHALL support cancellation of in-flight expensive tasks when a new trigger arrives.
+### Requirement: 任务取消
+当新的触发器到达时，系统 MUST 支持取消正在进行的昂贵任务。
 
-#### Scenario: Cancellation prevents stale results
-- **WHEN** a new serialization request arrives while a previous one is pending
-- **THEN** the previous pending request is cancelled (via AbortController)
-- **THEN** only the latest request executes
+#### Scenario: 取消可防止结果过时
+- **WHEN** 新的序列化请求到达，而前一个序列化请求正在等待处理
+- **THEN** 先前待处理的请求被取消（通过AbortController）
+- **THEN** 仅执行最新的请求
 
-#### Scenario: Partial computation is valid after cancellation
-- **WHEN** a task is cancelled mid-execution
-- **THEN** any partial results are discarded
-- **THEN** no partial state is applied to the document
+#### Scenario: 部分计算取消后仍有效
+- **WHEN** 任务执行中被取消
+- **THEN** 任何部分结果将被丢弃
+- **THEN** 没有对文档应用部分状态
 
-### Requirement: Complexity limits for rendering
-The system SHALL enforce complexity limits on rendering subsystems to prevent main thread blocking.
+### Requirement: 渲染复杂度限制
+系统 MUST 对渲染子系统实施复杂性限制，以防止主线程阻塞。
 
-#### Scenario: Syntax highlighting with line limit
-- **WHEN** a code block exceeds the configured maximum line count for syntax highlighting
-- **THEN** syntax highlighting is disabled for that block
-- **THEN** the block is rendered as plain text
-- **THEN** a note is shown on hover explaining why highlighting is disabled
+#### Scenario: 带行数限制的语法高亮
+- **WHEN** 某个代码块超出了语法高亮配置的最大行数
+- **THEN** 该块的语法高亮已禁用
+- **THEN** 该区块被渲染为纯文本
+- **THEN** 悬停时会显示一条注释，解释为什么突出显示被禁用
 
-#### Scenario: Mermaid rendering timeout
-- **WHEN** a Mermaid diagram takes longer than 5 seconds to render
-- **THEN** rendering is aborted
-- **THEN** a fallback display shows the source code with a "Render failed" message
-- **THEN** a retry button is available
+#### Scenario: 美人鱼渲染超时
+- **WHEN** 美人鱼图渲染时间超过5秒
+- **THEN** 渲染中止
+- **THEN** 后备显示显示带有 "Render failed" 消息的源代码
+- **THEN** 有重试按钮
 
-#### Scenario: Image parsing limit per document
-- **WHEN** the document contains more than 50 image references
-- **THEN** images beyond the 50th are not resolved/loaded
-- **THEN** placeholder elements are shown instead with count of unresolved images
+#### Scenario: 每个文档的图像解析限制
+- **WHEN** 文档包含超过50张图片参考
+- **THEN** 超过50张的图片无法解析/加载
+- **THEN** 显示占位符元素，并显示未解析图像的数量
 
-### Requirement: Incremental computation
-Where feasible, expensive computations SHALL use incremental updates rather than full recalculation.
+### Requirement: 增量计算
+在可行的情况下，昂贵的计算 MUST 使用增量更新而不是完全重新计算。
 
-#### Scenario: Word count is recalculated incrementally
-- **WHEN** user edits a small portion of a large document
-- **THEN** the word count is updated by computing the delta rather than recounting the entire document
-- **THEN** the result is consistent with a full recount
+#### Scenario: 字数增量重新计算
+- **WHEN** 用户编辑大文档的一小部分
+- **THEN** 字数统计是通过计算增量而不是重新计算整个文档来更新的
+- **THEN** 结果与全面重新计票一致
 
-#### Scenario: Outline updates only changed headings
-- **WHEN** user modifies a single heading in the document
-- **THEN** only the changed heading entry is updated in the outline
-- **THEN** the order of unchanged headings is preserved
+#### Scenario: 大纲更新仅更改标题
+- **WHEN** 用户修改文档中的单个标题
+- **THEN** 大纲中仅更新更改的标题条目
+- **THEN** 未改变的标题顺序被保留

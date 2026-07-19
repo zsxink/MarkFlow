@@ -1,8 +1,21 @@
-# MarkFlow 右键菜单规范
+# context-menu Specification
+
+## Purpose
+定义 MarkFlow 右键菜单的 API、DOM 结构、定位和关闭交互规范。
+
+## Agent Context
+- **源码入口：** `src/components/ui/contextMenu.ts`；调用方包括 `src/components/contextMenu.ts` 和 `src/components/imageContextMenu.ts`。
+- **关联规范：** `safe-dom-construction`、`sidebar`、`dialog-system`。
+- **不变量：** 菜单必须经统一工厂创建；关闭行为不得泄漏全局事件监听器；用户可控标签必须作为文本插入。
+- **验证：** `npm test -- src/components/contextMenu.test.ts`；`npx openspec validate context-menu --strict`。
 
 > 定义 MarkFlow 所有右键菜单（Context Menu）的统一结构和交互模式
 
-## 1. API
+## Requirements
+
+### Requirement: 右键菜单 API
+
+所有右键菜单 MUST 通过统一的 `showContextMenuStatic()` API 创建。
 
 所有右键菜单 SHALL 通过 `showContextMenuStatic()` 工厂函数创建：
 
@@ -20,7 +33,13 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 - `containerId?: string` — 容器元素 ID，默认 `'context-menu'`
 - `className?: string` — 追加到 `.context-menu` 的额外 CSS 类
 
-## 2. DOM 结构
+#### Scenario: 通过统一 API 创建菜单
+- **WHEN** 调用方需要显示右键菜单
+- **THEN** 调用 `showContextMenuStatic(items, position, options)` 创建菜单
+
+### Requirement: 右键菜单 DOM 结构
+
+右键菜单 MUST 使用规定的容器、菜单项和分隔线 DOM 结构。
 
 ```html
 <div id="context-menu" class="context-menu">
@@ -31,9 +50,15 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 </div>
 ```
 
-## 3. 交互规范
+#### Scenario: 菜单按规定结构渲染
+- **WHEN** 右键菜单包含普通项、危险项和分隔线
+- **THEN** 菜单渲染对应的 `.context-menu`、按钮和分隔线元素
 
-### 3.1 定位
+### Requirement: 右键菜单交互
+
+右键菜单 MUST 按规定完成定位、关闭和单例交互。
+
+**定位**
 
 菜单位置 SHALL 由 `clampMenuPosition()` 函数限定在视口内，确保菜单不会超出屏幕边界。
 
@@ -41,7 +66,7 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 - **WHEN** position 靠近屏幕边缘
 - **THEN** 菜单被调整到视口范围内
 
-### 3.2 关闭方式
+**关闭方式**
 
 右键菜单 SHALL 支持以下关闭方式：
 1. 点击菜单项 — 执行 onClick 后关闭
@@ -57,7 +82,7 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 - **WHEN** 用户点击菜单之外的区域
 - **THEN** 菜单关闭
 
-### 3.3 单例行为
+**单例行为**
 
 同一时刻只显示一个右键菜单。后一次调用 `showContextMenuStatic` 会自动关闭前一个菜单。
 

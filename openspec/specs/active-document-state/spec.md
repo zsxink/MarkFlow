@@ -1,7 +1,13 @@
 # active-document-state Specification
 
 ## Purpose
-管理当前活动文档路径的独立共享模块，为 sidebar 和 fileTree 子模块提供无循环依赖的路径状态管理。
+定义活动文档路径的共享状态管理，并为侧边栏和文件树模块提供无循环依赖的路径操作。
+
+## Agent Context
+- **源码入口：** `src/components/activeDocument.ts`；调用方包括 `src/components/sidebar.fileops.ts`、`src/components/fileTree.dragdrop.ts` 和 `src/components/fileTree.inline.ts`。
+- **关联规范：** `sidebar`、`file-tree-architecture`、`document-size-tier`。
+- **不变量：** 活动路径是 store 的唯一事实来源；路径改写必须同时覆盖该路径下的活动文档；清除活动文档时必须同步编辑器、文件树选中状态和大纲。
+- **验证：** `npm test -- src/lib/store.test.ts src/components/fileTree.core.test.ts`；`npx openspec validate active-document-state --strict`。
 
 ## Requirements
 

@@ -61,7 +61,13 @@ impl AppState {
         // Narrow the lock scope: stop the previous watcher first, then start a
         // new one without holding the lock across the (potentially slow) setup.
         {
-            let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
+            let mut watcher = match lock_mutex(&self.watcher) {
+                Ok(g) => g,
+                Err(e) => {
+                    warn!(target: "backend.watcher", error = %e, "Cannot stop previous watcher: lock poisoned");
+                    return;
+                }
+            };
             if let Some(mut previous) = watcher.take() {
                 previous.stop();
                 debug!(target: "backend.watcher", path = %path_display, "Replaced previous workspace watcher");
@@ -71,24 +77,34 @@ impl AppState {
         let settings = load_settings_inner();
         let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
         match FileWatcher::new(path.clone(), matcher, event_handler) {
-            Ok(w) => {
-                let mut watcher = lock_mutex(&self.watcher).expect("watcher mutex poisoned");
-                *watcher = Some(w);
-                debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");
-            }
+            Ok(w) => match lock_mutex(&self.watcher) {
+                Ok(mut watcher) => {
+                    *watcher = Some(w);
+                    debug!(target: "backend.watcher", path = %path_display, "Workspace watcher ready");
+                }
+                Err(e) => {
+                    warn!(target: "backend.watcher", error = %e, "Cannot store workspace watcher: lock poisoned");
+                }
+            },
             Err(error) => {
                 error!(target: "backend.watcher", path = %path_display, error = %error, "Failed to start workspace watcher");
             }
         }
 
-        let mut root = lock_mutex(&self.workspace_root).expect("workspace_root mutex poisoned");
-        *root = Some(path);
+        match lock_mutex(&self.workspace_root) {
+            Ok(mut root) => {
+                *root = Some(path);
+            }
+            Err(e) => {
+                warn!(target: "backend.watcher", error = %e, "Cannot set workspace root: lock poisoned");
+            }
+        }
     }
 
     pub fn get_workspace(&self) -> Option<PathBuf> {
         lock_mutex(&self.workspace_root)
-            .expect("workspace_root mutex poisoned")
-            .clone()
+            .ok()
+            .and_then(|guard| guard.clone())
     }
 
     /// Stop all background tasks (watcher) so the process can exit cleanly.

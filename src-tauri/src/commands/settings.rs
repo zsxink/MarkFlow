@@ -18,9 +18,13 @@ fn parse_settings(content: &str) -> Result<Settings, serde_json::Error> {
 pub fn load_settings_inner() -> Settings {
     // Return cached settings if available
     {
-        let cache = lock_mutex(settings_cache())
-            .expect("settings cache mutex poisoned")
-            .clone();
+        let cache = match lock_mutex(settings_cache()) {
+            Ok(guard) => guard.clone(),
+            Err(e) => {
+                warn!(target: "backend.settings", error = %e, "Settings cache lock poisoned, ignoring cache");
+                None
+            }
+        };
         if let Some(cached) = cache {
             return cached;
         }
@@ -30,8 +34,14 @@ pub fn load_settings_inner() -> Settings {
     if !path.exists() {
         debug!(target: "backend.settings", path = %normalize_path(&path), "Settings file not found, using defaults");
         let settings = Settings::default();
-        *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") =
-            Some(settings.clone());
+        match lock_mutex(settings_cache()) {
+            Ok(mut cache) => {
+                *cache = Some(settings.clone());
+            }
+            Err(e) => {
+                warn!(target: "backend.settings", error = %e, "Cannot update settings cache");
+            }
+        }
         return settings;
     }
     let settings = match fs::read_to_string(&path) {
@@ -47,7 +57,14 @@ pub fn load_settings_inner() -> Settings {
             Settings::default()
         }
     };
-    *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
+    match lock_mutex(settings_cache()) {
+        Ok(mut cache) => {
+            *cache = Some(settings.clone());
+        }
+        Err(e) => {
+            warn!(target: "backend.settings", error = %e, "Cannot update settings cache");
+        }
+    }
     settings
 }
 
@@ -59,7 +76,14 @@ pub fn save_settings_inner(settings: &Settings) -> Result<(), AppError> {
     debug!(target: "backend.settings", path = %normalize_path(&path), "Saved settings");
 
     // Update cache after successful write
-    *lock_mutex(settings_cache()).expect("settings cache mutex poisoned") = Some(settings.clone());
+    match lock_mutex(settings_cache()) {
+        Ok(mut cache) => {
+            *cache = Some(settings.clone());
+        }
+        Err(e) => {
+            warn!(target: "backend.settings", error = %e, "Cannot update settings cache after save");
+        }
+    }
     Ok(())
 }
 

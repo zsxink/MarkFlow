@@ -459,7 +459,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("markflow-watch-test2-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let mut watcher = FileWatcher::new(dir.clone(), IgnoreMatcher::defaults(), |_event| {})
-            .expect("watcher should start on an existing dir");
+            .unwrap();
         watcher.stop();
         watcher.stop(); // second call must be a no-op
         let _ = std::fs::remove_dir_all(&dir);

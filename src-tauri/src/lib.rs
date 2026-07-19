@@ -126,7 +126,7 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
     {
         let state = app.state::<AppState>();
         let mut pending =
-            error::lock_mutex(&state.pending_file).expect("pending_file mutex poisoned");
+            error::lock_mutex(&state.pending_file).map_err(|e| e.to_string())?;
         pending.insert(label.clone(), path.clone());
     }
 
@@ -135,13 +135,25 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
 
 #[tauri::command]
 fn take_pending_file(window_label: String, state: tauri::State<AppState>) -> Option<String> {
-    let mut pending = error::lock_mutex(&state.pending_file).expect("pending_file mutex poisoned");
+    let mut pending = match error::lock_mutex(&state.pending_file) {
+        Ok(g) => g,
+        Err(e) => {
+            tracing::warn!(target: "backend.commands", error = %e, "Skipping take_pending_file due to poisoned lock");
+            return None;
+        }
+    };
     pending.remove(&window_label)
 }
 
 #[tauri::command]
 fn take_cli_file(state: tauri::State<AppState>) -> Option<String> {
-    let mut cli_file = error::lock_mutex(&state.cli_file).expect("cli_file mutex poisoned");
+    let mut cli_file = match error::lock_mutex(&state.cli_file) {
+        Ok(g) => g,
+        Err(e) => {
+            tracing::warn!(target: "backend.commands", error = %e, "Skipping take_cli_file due to poisoned lock");
+            return None;
+        }
+    };
     cli_file.take()
 }
 
@@ -273,7 +285,13 @@ pub fn run() {
     }
     tracing::info!(target: "backend.app", "Application starting");
 
-    let app_state = AppState::new();
+    let app_state = match AppState::new() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Fatal: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -340,8 +358,7 @@ pub fn run() {
             if let Some(file_path) = cli_file {
                 tracing::info!(target: "backend.app", path = %file_path.display(), "Opened via file association (single-file mode)");
                 let state = app.state::<AppState>();
-                let mut cli_file_lock = error::lock_mutex(&state.cli_file)
-                    .expect("cli_file mutex poisoned");
+                let mut cli_file_lock = error::lock_mutex(&state.cli_file)?;
                 *cli_file_lock = Some(file_path.to_string_lossy().to_string());
             } else if let Some(last_ws) = settings.last_workspace {
                 let path = PathBuf::from(&last_ws);
@@ -366,7 +383,10 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building MarkFlow");
+        .unwrap_or_else(|e| {
+            eprintln!("Fatal: failed to build MarkFlow: {}", e);
+            std::process::exit(1);
+        });
 
     app.run(|_app_handle, _event| {
         #[cfg(target_os = "macos")]
@@ -384,8 +404,13 @@ pub fn run() {
 
                 if !state.initial_file_handled.load(Ordering::SeqCst) {
                     tracing::info!(target: "backend.app", path = %path_str, "First RunEvent::Opened — storing to cli_file");
-                    let mut cli_file_lock = error::lock_mutex(&state.cli_file)
-                        .expect("cli_file mutex poisoned");
+                    let mut cli_file_lock = match error::lock_mutex(&state.cli_file) {
+                        Ok(g) => g,
+                        Err(e) => {
+                            tracing::warn!(target: "backend.app", error = %e, "Skipping RunEvent::Opened cli_file lock");
+                            continue;
+                        }
+                    };
                     *cli_file_lock = Some(path_str);
                 } else {
                     tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened (new window)");

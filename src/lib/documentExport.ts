@@ -1,6 +1,7 @@
 import { showToast } from '../components/toast';
 import { readFileAsBase64, saveDocumentExport } from './storage';
 import { getFileName } from './pathUtils';
+import { logException, logDebug } from './logger';
 
 export type ExportFormat = 'html' | 'word' | 'pdf';
 
@@ -95,7 +96,7 @@ export async function exportRenderedDocument(
     showToast(`已导出${format === 'word' ? ' Word 文档' : ' HTML 文件'}`);
     return true;
   } catch (error) {
-    console.error('Failed to export document', error);
+    logException('export', 'Failed to export document', error);
     showToast('导出失败，请重试');
     return false;
   } finally {
@@ -133,7 +134,7 @@ export function printDocument(documentHtml: string, hostDocument: Document = doc
         printWindow.print();
         settle(true);
       } catch (error) {
-        console.error('Failed to open print dialog', error);
+        logDebug('export', 'Failed to open print dialog', { error: String(error) });
         showToast('无法打开 PDF 打印窗口');
         settle(false);
       }

@@ -83,7 +83,7 @@ export async function saveActiveDocumentAsNewFile() {
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
       setLastReadStats(stats.mtime, stats.size);
-    } catch { /* non-critical */ }
+    } catch (e) { logDebug('fileops', 'Failed to get file stats after save-as (non-critical)', { path: targetPath, error: String(e) }); }
     markDocumentPersisted(currentContent);
     await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
     refreshOutline();
@@ -125,7 +125,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       try {
         const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
         setLastReadStats(stats.mtime, stats.size);
-      } catch { /* non-critical */ }
+      } catch (e) { logDebug('fileops', 'Failed to get file stats after save new file (non-critical)', { path: targetPath, error: String(e) }); }
       markDocumentPersisted(content, revision);
       addRecentFile(targetPath).catch((e) =>
         logDebug('sidebar.save', 'Failed to record recent file (best-effort)', { path: targetPath, error: String(e) }),
@@ -169,8 +169,9 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
           return false;
         }
       }
-    } catch {
+    } catch (e) {
       // If stat fails, proceed with save anyway
+      logDebug('fileops', 'Pre-save stat check failed, proceeding with save', { path: filePath, error: String(e) });
     }
   }
 
@@ -185,7 +186,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
       setLastReadStats(stats.mtime, stats.size);
-    } catch { /* non-critical */ }
+    } catch (e) { logDebug('fileops', 'Failed to get file stats after write (non-critical)', { path: filePath, error: String(e) }); }
     markDocumentPersisted(content, revision);
     if (interactive) {
       logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
@@ -287,7 +288,7 @@ export async function openFileInEditor(path: string) {
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path });
       setLastReadStats(stats.mtime, stats.size);
-    } catch { /* non-critical */ }
+    } catch (e) { logDebug('fileops', 'Failed to get file stats after open (non-critical)', { path, error: String(e) }); }
     resetEditorScroll();
     refreshOutline();
     showToast('已打开文件');

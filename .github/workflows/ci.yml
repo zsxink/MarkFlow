@@ -59,6 +59,12 @@ jobs:
       - name: Check capability security configuration
         run: scripts/check-capabilities.sh
 
+      - name: Validate OpenSpec specs
+        run: npx openspec validate --all
+
+      - name: Check archived changes are synced to main specs
+        run: bash scripts/check-archive-synced.sh
+
       - name: Build frontend
         run: npm run build
 

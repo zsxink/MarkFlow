@@ -72,6 +72,7 @@ CLI：`openspec new change <name>`、`openspec validate <change>`、`openspec ar
 ### 强制规则（不可省略）
 
 1. **归档前必须先同步 spec**：执行 `/opsx:archive`（或 `openspec archive`）时，若 change 含 delta spec（`openspec/changes/<name>/specs/**`），**先**将增量规范合并到 `openspec/specs/` 主规范（`openspec-sync-specs`），**再**移动 change 目录到 `archive/`。禁止「只搬目录、不同步主规范」。
+   - **归档后验证**：同步并归档后，运行 `npx openspec validate --all` 与 `bash scripts/check-archive-synced.sh`，确认主规范合法且 delta 已落地（CI 同款 gate）。
 
 2. **合入 / 归档前必须派独立 agent 复核**：在 merge PR 或 archive 之前，**派出一个独立的 sub-agent** 做一轮不偏不倚的复核与验证（静态走查 + 跑测试 `npm test` / `npx tsc --noEmit`），再执行 merge/archive。主执行流容易漏掉复核，必须显式交给独立 agent 完成并回读结论。
 

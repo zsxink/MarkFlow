@@ -21,6 +21,14 @@
   color: var(--accent);
 }
 
+/* ARIA button group containers — ensure wrapped buttons stay in a single horizontal row */
+#toolbar [role="group"] {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
 .toolbar-separator {
   width: 1px;
   height: 20px;

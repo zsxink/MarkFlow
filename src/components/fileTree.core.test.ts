@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createTreeNode,
   isSuppressedPath,
@@ -50,7 +50,6 @@ describe('cleanup', () => {
 
 describe('flushPendingMutations', () => {
   it('drains pending mutations synchronously', () => {
-    let called = false;
     // Access internal state via the module — flushPendingMutations is exported
     // We test it by verifying it doesn't throw when called
     expect(() => flushPendingMutations()).not.toThrow();

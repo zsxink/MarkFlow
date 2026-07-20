@@ -1,5 +1,4 @@
 import { getEditor, getMode, switchToSource, switchToWysiwyg } from '../lib/editor';
-import { cycleTheme } from '../lib/theme';
 import { open } from '@tauri-apps/plugin-dialog';
 import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree';
 import { showNewFileDialog } from './newFileDialog';
@@ -101,8 +100,6 @@ function bindToolbarEvents() {
       btn.setAttribute('aria-pressed', String(isActive));
     }
   });
-
-  bind('btn-theme', () => cycleTheme());
 
   bind('btn-settings', async () => {
     const { showSettings } = await import('./settings');

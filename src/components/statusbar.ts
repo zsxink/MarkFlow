@@ -3,6 +3,20 @@ import { cycleTheme } from '../lib/theme';
 import { store } from '../lib/store';
 
 export function initStatusBar() {
+  // WAI-ARIA: statusbar announces editor stats to screen readers
+  const statusbar = document.getElementById('statusbar');
+  if (statusbar) {
+    statusbar.setAttribute('role', 'status');
+    statusbar.setAttribute('aria-live', 'polite');
+  }
+
+  // WAI-ARIA: autosave banner announces save failures urgently
+  const banner = document.getElementById('autosave-banner');
+  if (banner) {
+    banner.setAttribute('role', 'alert');
+    banner.setAttribute('aria-live', 'assertive');
+  }
+
   store.on('editor:update', updateStats);
   store.on('autosave:status', updateAutosaveBanner);
 

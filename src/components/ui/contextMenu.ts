@@ -12,6 +12,7 @@ export interface ContextMenuItem {
   onClick?: () => void;
   danger?: boolean;
   divider?: boolean;
+  disabled?: boolean;
 }
 
 export interface ContextMenuOptions {
@@ -32,6 +33,9 @@ export function showContextMenuStatic(
     currentHide = null;
   }
 
+  // Track the element that triggered the menu for focus restoration
+  const previousFocus = document.activeElement as HTMLElement | null;
+
   const containerId = options?.containerId || 'context-menu';
   let menu = document.getElementById(containerId) as HTMLElement | null;
 
@@ -39,6 +43,7 @@ export function showContextMenuStatic(
     menu = document.createElement('div');
     menu.id = containerId;
     menu.className = 'context-menu';
+    menu.setAttribute('role', 'menu');
     document.body.appendChild(menu);
   }
 
@@ -50,10 +55,11 @@ export function showContextMenuStatic(
 
   menu.innerHTML = items.map(item => {
     if (item.divider) {
-      return '<hr style="border:none;border-top:1px solid var(--border);margin:4px 0">';
+      return '<hr style="border:none;border-top:1px solid var(--border);margin:4px 0" role="separator">';
     }
     const dangerClass = item.danger ? ' danger' : '';
-    return `<button class="context-menu-item${dangerClass}">${escapeHtml(item.label || '')}</button>`;
+    const disabledAttr = item.disabled ? ' aria-disabled="true" disabled' : '';
+    return `<button class="context-menu-item${dangerClass}" role="menuitem"${disabledAttr}>${escapeHtml(item.label || '')}</button>`;
   }).join('');
 
   // Menu is hidden by default; position then show
@@ -77,11 +83,16 @@ export function showContextMenuStatic(
   menu.style.visibility = '';
   menu.hidden = false;
 
+  // Focus the first menu item for keyboard accessibility
+  const firstItem = menu.querySelector('.context-menu-item') as HTMLElement | null;
+  firstItem?.focus();
+
   // Click handler for items
   const itemClickHandler = (e: Event) => {
     const target = e.target as HTMLElement;
     const button = target.closest('.context-menu-item') as HTMLElement | null;
     if (!button) return;
+    if (button.getAttribute('aria-disabled') === 'true') return;
     const index = Array.from(menu!.querySelectorAll('.context-menu-item')).indexOf(button);
     if (index >= 0 && index < items.length) {
       const item = items[index];
@@ -121,6 +132,11 @@ export function showContextMenuStatic(
     document.removeEventListener('scroll', scrollHandler, true);
     document.removeEventListener('keydown', keyHandler);
     currentHide = null;
+
+    // Restore focus to the element that triggered the menu
+    if (previousFocus && typeof previousFocus.focus === 'function') {
+      previousFocus.focus();
+    }
   };
 
   currentHide = hide;

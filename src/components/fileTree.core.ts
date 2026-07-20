@@ -9,6 +9,127 @@ import { applyTreeEvent, createFileTreeState, markDirectoryState, mergeDirectory
 import type { FileChangeEvent } from '../types/events';
 import { DEFAULT_SETTINGS } from '../types/settings';
 
+// --- ARIA / Accessibility ---
+
+/** Initialize WAI-ARIA attributes on the tree root container. */
+export function initTreeAria(container: HTMLElement) {
+  if (!container.hasAttribute('role')) {
+    container.setAttribute('role', 'tree');
+    container.setAttribute('aria-label', '文件树');
+    container.setAttribute('tabindex', '0');
+  }
+  if (!container.dataset.ariaInitialized) {
+    container.dataset.ariaInitialized = '1';
+    container.addEventListener('keydown', handleTreeKeydown);
+  }
+}
+
+/** Get all visible treeitem nodes (folders and files) in DOM order, excluding hidden ones. */
+function getVisibleTreeItems(): HTMLElement[] {
+  const container = document.getElementById('file-tree');
+  if (!container) return [];
+  const all = container.querySelectorAll<HTMLElement>('.tree-folder, .tree-file');
+  const visible: HTMLElement[] = [];
+  for (const el of all) {
+    if (el.offsetParent !== null) visible.push(el);
+  }
+  return visible;
+}
+
+/** Move roving tabindex + focus to a target treeitem. */
+function focusTreeItem(target: HTMLElement) {
+  const container = document.getElementById('file-tree');
+  if (!container) return;
+  container.querySelectorAll<HTMLElement>('.tree-folder, .tree-file').forEach(el => {
+    el.setAttribute('tabindex', '-1');
+  });
+  target.setAttribute('tabindex', '0');
+  target.focus();
+}
+
+/** Set aria-selected on the currently active file node. */
+function updateSelectedAria() {
+  const container = document.getElementById('file-tree');
+  if (!container) return;
+  container.querySelectorAll<HTMLElement>('[aria-selected="true"]').forEach(el => {
+    el.removeAttribute('aria-selected');
+  });
+  const activePath = getActiveFilePath();
+  if (!activePath) return;
+  const activeEl = container.querySelector(`.tree-file[data-path="${escapePathSelector(activePath)}"]`) as HTMLElement | null;
+  if (activeEl) {
+    activeEl.setAttribute('aria-selected', 'true');
+  }
+}
+
+/** Keydown handler for WAI-ARIA tree keyboard navigation. */
+function handleTreeKeydown(e: KeyboardEvent) {
+  const target = e.target as HTMLElement;
+  const items = getVisibleTreeItems();
+  if (items.length === 0) return;
+
+  const currentIndex = items.indexOf(target);
+
+  switch (e.key) {
+    case 'ArrowDown': {
+      e.preventDefault();
+      const next = currentIndex < items.length - 1 ? items[currentIndex + 1] : items[0];
+      focusTreeItem(next);
+      break;
+    }
+    case 'ArrowUp': {
+      e.preventDefault();
+      const prev = currentIndex > 0 ? items[currentIndex - 1] : items[items.length - 1];
+      focusTreeItem(prev);
+      break;
+    }
+    case 'ArrowRight': {
+      e.preventDefault();
+      if (target.classList.contains('tree-folder')) {
+        const chevron = target.querySelector('.tree-chevron');
+        if (chevron && !chevron.classList.contains('expanded')) {
+          // Collapsed folder: expand it
+          target.click();
+        } else {
+          // Expanded folder: move to first child
+          const childrenEl = target.parentElement?.querySelector(':scope > .tree-children') as HTMLElement | null;
+          const firstChild = childrenEl?.querySelector<HTMLElement>('.tree-folder, .tree-file');
+          if (firstChild) focusTreeItem(firstChild);
+        }
+      }
+      break;
+    }
+    case 'ArrowLeft': {
+      e.preventDefault();
+      if (target.classList.contains('tree-folder')) {
+        const chevron = target.querySelector('.tree-chevron');
+        if (chevron && chevron.classList.contains('expanded')) {
+          // Expanded folder: collapse it
+          target.click();
+        } else {
+          // Collapsed folder or file: move to parent
+          const parentWrapper = target.parentElement?.closest('.tree-folder-wrapper');
+          const parentFolder = parentWrapper?.parentElement?.closest('.tree-folder') as HTMLElement | null;
+          if (parentFolder) focusTreeItem(parentFolder);
+        }
+      } else if (target.classList.contains('tree-file')) {
+        // File: move to parent folder
+        const parentWrapper = target.closest('.tree-folder-wrapper');
+        const parentFolder = parentWrapper?.parentElement?.closest('.tree-folder') as HTMLElement | null;
+        if (parentFolder) focusTreeItem(parentFolder);
+      }
+      break;
+    }
+    case 'Enter': {
+      if (target.classList.contains('tree-file')) {
+        e.preventDefault();
+        target.click();
+      }
+      break;
+    }
+  }
+}
+
 // --- Drag state (shared with fileTree.dragdrop.ts) ---
 
 export const dragState: DragState = {
@@ -115,11 +236,14 @@ export async function refreshFileTree() {
   const wsPath = getWorkspacePath();
   if (!wsPath) return;
   try {
+    const container = document.getElementById('file-tree');
+    if (container) initTreeAria(container);
     saveExpandedState();
     treeState = createFileTreeState();
     rootRefreshCount++;
     await loadDirectory(wsPath, false);
     await restoreExpandedState();
+    updateSelectedAria();
   } catch (e) {
     logException('file-tree.refresh', 'Failed to refresh file tree', e, { path: wsPath });
   }
@@ -173,6 +297,7 @@ async function restoreExpandedState() {
           const children = folderDiv.parentElement?.querySelector(':scope > .tree-children');
           if (chevron && children) {
             chevron.classList.add('expanded');
+            (folderDiv as HTMLElement).setAttribute('aria-expanded', 'true');
             (children as HTMLElement).hidden = false;
                 await loadDirectory((folderDiv as HTMLElement).dataset.path || '', false);
                 currentContainer = children as HTMLElement;
@@ -264,6 +389,9 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
   folder.className = 'tree-folder';
   folder.dataset.path = entry.path;
   folder.style.paddingLeft = `${16 + depth * 12}px`;
+  folder.setAttribute('role', 'treeitem');
+  folder.setAttribute('aria-expanded', 'true');
+  folder.setAttribute('tabindex', '-1');
   folder.innerHTML = `
     <svg class="tree-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
@@ -272,6 +400,7 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
 
   const children = document.createElement('div');
   children.className = 'tree-children';
+  children.setAttribute('role', 'group');
   children.hidden = true;
   if (entry.children) {
     entry.children.forEach(child => {
@@ -284,6 +413,7 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
     const chevron = folder.querySelector('.tree-chevron');
     chevron?.classList.toggle('expanded');
     children.hidden = !children.hidden;
+    folder.setAttribute('aria-expanded', String(!children.hidden));
     if (!children.hidden) void loadDirectory(entry.path, false);
   });
 
@@ -312,7 +442,10 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
   file.className = 'tree-file';
   if (entry.path === getActiveFilePath()) {
     file.classList.add('active');
+    file.setAttribute('aria-selected', 'true');
   }
+  file.setAttribute('role', 'treeitem');
+  file.setAttribute('tabindex', '-1');
   file.dataset.path = entry.path;
   file.style.paddingLeft = `${28 + depth * 12}px`;
   file.innerHTML = `
@@ -333,6 +466,7 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
     const timer = setTimeout(() => {
       dbClickTimers.delete(file);
       openFileInEditor(path);
+      updateSelectedAria();
     }, 250);
     dbClickTimers.set(file, timer);
   });

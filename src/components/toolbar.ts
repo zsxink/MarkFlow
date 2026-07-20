@@ -15,6 +15,7 @@ import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport
 import { showContextMenuStatic } from './ui/contextMenu';
 
 export function initToolbar() {
+  initAriaAttributes();
   bindToolbarEvents();
 }
 
@@ -30,6 +31,7 @@ function bindToolbarEvents() {
       } else {
         btn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>`;
       }
+      btn.setAttribute('aria-pressed', String(!!isCollapsed));
     }
   });
 
@@ -93,6 +95,11 @@ function bindToolbarEvents() {
 
   bind('btn-focus', () => {
     document.getElementById('app')?.classList.toggle('focus-mode');
+    const btn = document.getElementById('btn-focus');
+    if (btn) {
+      const isActive = btn.classList.toggle('active');
+      btn.setAttribute('aria-pressed', String(isActive));
+    }
   });
 
   bind('btn-theme', () => cycleTheme());
@@ -116,6 +123,67 @@ function bindToolbarEvents() {
       { label: '导出 HTML', onClick: () => { void exportCurrentDocument('html'); } },
     ], { x: rect.left, y: rect.bottom });
   });
+}
+
+function initAriaAttributes() {
+  // 1. Toolbar container ARIA
+  const toolbar = document.getElementById('toolbar');
+  if (toolbar) {
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', '工具栏');
+  }
+
+  // 2. Button groups — wrap related buttons in role="group" containers
+  wrapGroup('toolbar-group-file', '文件操作', [
+    'sidebar-open-folder', 'toolbar-open-file', 'btn-new',
+    'btn-save', 'btn-export', 'btn-settings',
+  ]);
+  wrapGroup('toolbar-group-format', '文本格式', [
+    'btn-bold', 'btn-italic', 'btn-strike', 'btn-code',
+  ]);
+  wrapGroup('toolbar-group-block', '块级格式', [
+    'btn-h1', 'btn-h2', 'btn-quote', 'btn-link',
+    'btn-ul', 'btn-ol', 'btn-hr', 'btn-codeblock', 'btn-image',
+  ]);
+  wrapGroup('toolbar-group-view', '视图模式', [
+    'btn-wysiwyg', 'btn-source', 'btn-focus',
+  ]);
+
+  // 3. Toggle buttons — set initial aria-pressed state
+  setAriaPressed('sidebar-toggle', false);
+  setAriaPressed('btn-wysiwyg', true);   // WYSIWYG is active by default (has 'active' class)
+  setAriaPressed('btn-source', false);
+  setAriaPressed('btn-focus', false);
+}
+
+function wrapGroup(id: string, label: string, buttonIds: string[]) {
+  const toolbar = document.getElementById('toolbar');
+  if (!toolbar) return;
+
+  const buttons = buttonIds
+    .map((bid) => document.getElementById(bid))
+    .filter(Boolean) as HTMLElement[];
+  if (buttons.length === 0) return;
+
+  const group = document.createElement('span');
+  group.id = id;
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', label);
+
+  // Insert the group element before the first button in this group
+  toolbar.insertBefore(group, buttons[0]);
+
+  // Move each button into the group container
+  for (const btn of buttons) {
+    group.appendChild(btn);
+  }
+}
+
+function setAriaPressed(id: string, pressed: boolean) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.setAttribute('aria-pressed', String(pressed));
+  }
 }
 
 async function exportCurrentDocument(format: ExportFormat) {
@@ -145,6 +213,7 @@ function setActive(id: string, active = true) {
   if (el) {
     if (active) el.classList.add('active');
     else el.classList.remove('active');
+    el.setAttribute('aria-pressed', String(active));
   }
 }
 

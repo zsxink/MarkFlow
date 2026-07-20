@@ -332,6 +332,47 @@ pub async fn save_mermaid_png_export(
 }
 
 #[tauri::command]
+pub async fn save_plantuml_svg_export(
+    svg: String,
+    default_name: String,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let file_name = format!("{}.svg", default_name);
+    let Some(path) = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])?
+    else {
+        return Ok(false);
+    };
+
+    fs::write(&path, svg).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(&path), "Exported PlantUML SVG");
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn save_plantuml_png_export(
+    data: String,
+    default_name: String,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("Invalid base64 data: {}", e))?;
+    if bytes.len() as u64 > MAX_IMAGE_SIZE {
+        return Err("文件过大，最大支持 20MB".into());
+    }
+
+    let file_name = format!("{}.png", default_name);
+    let Some(path) = select_export_path(&app, "图片另存为 PNG", &file_name, "PNG", &["png"])?
+    else {
+        return Ok(false);
+    };
+
+    fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    info!(target: "backend.files", path = %normalize_path(&path), "Exported PlantUML PNG");
+    Ok(true)
+}
+
+#[tauri::command]
 pub async fn save_image_export(
     data: String,
     file_name: String,

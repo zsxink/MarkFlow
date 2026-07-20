@@ -12,7 +12,8 @@ import { getCachedSettings } from './storage';
 import { store } from './store';
 import { logDebug, logException, logWarn } from './logger';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
-import { getMermaidExportBaseName } from './editor.state';
+import { showPlantumlContextMenu } from '../components/plantumlContextMenu';
+import { getMermaidExportBaseName, getPlantUmlExportBaseName } from './editor.state';
 
 // ── Custom Link extension ──────────────────────────────────────────────
 
@@ -348,11 +349,18 @@ export function mermaidCodeBlockExtension() {
           previewEl.addEventListener('contextmenu', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (!renderedSvg || !isMermaid()) return;
-            showMermaidContextMenu(event.clientX, event.clientY, {
-              svg: renderedSvg,
-              defaultName: getMermaidExportBaseName(),
-            });
+            if (!renderedSvg) return;
+            if (isMermaid()) {
+              showMermaidContextMenu(event.clientX, event.clientY, {
+                svg: renderedSvg,
+                defaultName: getMermaidExportBaseName(),
+              });
+            } else {
+              showPlantumlContextMenu(event.clientX, event.clientY, {
+                svg: renderedSvg,
+                defaultName: getPlantUmlExportBaseName(),
+              });
+            }
           });
 
           previewPanel.append(errorEl, previewEl);

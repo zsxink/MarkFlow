@@ -75,6 +75,15 @@ export function getMermaidExportBaseName() {
   return `${baseName || 'mermaid-diagram'}-mermaid`;
 }
 
+export function getPlantUmlExportBaseName() {
+  const docPath = getActiveDocPath();
+  if (!docPath) return 'plantuml-diagram';
+  const fileName = getFileName(docPath);
+  const dotIndex = fileName.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+  return `${baseName || 'plantuml-diagram'}-plantuml`;
+}
+
 // ── Revision tracking ────────────────────────────────────────────────
 
 /** Increment the document revision counter. Call on each user edit. */

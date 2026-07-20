@@ -324,6 +324,8 @@ pub fn run() {
             files::write_file,
             files::save_mermaid_svg_export,
             files::save_mermaid_png_export,
+            files::save_plantuml_svg_export,
+            files::save_plantuml_png_export,
             files::save_image_export,
             files::save_document_export,
             files_pagination::read_dir,

@@ -103,6 +103,14 @@ export async function saveMermaidPngExport(data: string, defaultName: string): P
   return invoke<boolean>('save_mermaid_png_export', { data, defaultName });
 }
 
+export async function savePlantUmlSvgExport(svg: string, defaultName: string): Promise<boolean> {
+  return invoke<boolean>('save_plantuml_svg_export', { svg, defaultName });
+}
+
+export async function savePlantUmlPngExport(data: string, defaultName: string): Promise<boolean> {
+  return invoke<boolean>('save_plantuml_png_export', { data, defaultName });
+}
+
 export async function saveImageExport(data: string, fileName: string, extension: string): Promise<boolean> {
   return invoke<boolean>('save_image_export', { data, fileName, extension });
 }

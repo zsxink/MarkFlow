@@ -8,6 +8,7 @@ import {
   hasExternalModification,
   markExternalModification,
   getMermaidExportBaseName,
+  getPlantUmlExportBaseName,
   getDocumentState,
   bumpRevision,
   getRevision,
@@ -110,6 +111,27 @@ describe('hasExternalModification / markExternalModification', () => {
     markExternalModification();
     markExternalModification();
     expect(hasExternalModification()).toBe(true);
+  });
+});
+
+describe('getPlantUmlExportBaseName', () => {
+  it('returns "plantuml-diagram" when no active document path', () => {
+    expect(getPlantUmlExportBaseName()).toBe('plantuml-diagram');
+  });
+
+  it('derives base name from document file name with extension', () => {
+    setActiveDocumentPath('/path/to/report.md');
+    expect(getPlantUmlExportBaseName()).toBe('report-plantuml');
+  });
+
+  it('handles document path without extension', () => {
+    setActiveDocumentPath('/path/to/README');
+    expect(getPlantUmlExportBaseName()).toBe('README-plantuml');
+  });
+
+  it('handles document with multiple dots in the name', () => {
+    setActiveDocumentPath('/path/to/my.file.name.md');
+    expect(getPlantUmlExportBaseName()).toBe('my.file.name-plantuml');
   });
 });
 

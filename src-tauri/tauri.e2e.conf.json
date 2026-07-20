@@ -1,0 +1,22 @@
+{
+  "build": {
+    "beforeBuildCommand": "npm run build -- --mode e2e"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+        "capabilities": [
+          "main-capability",
+          {
+            "identifier": "e2e-capability",
+            "description": "仅向自动化测试窗口开放 WebDriver 控制接口。",
+            "windows": ["main"],
+            "permissions": ["wdio:default", "wdio-webdriver:default"]
+          }
+        ]
+    }
+  },
+  "bundle": {
+    "active": false
+  }
+}

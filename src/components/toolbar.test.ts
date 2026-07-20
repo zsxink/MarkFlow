@@ -25,4 +25,9 @@ describe('toolbar', () => {
     initToolbar(); document.getElementById('btn-export')!.click();
     expect(showContextMenuStatic).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ label: '导出 PDF' }), expect.objectContaining({ label: '导出 Word' }), expect.objectContaining({ label: '导出 HTML' })]), expect.any(Object));
   });
+  it('keeps mode controls exposed as pressed-state toggles', () => {
+    initToolbar();
+    expect(document.getElementById('btn-wysiwyg')?.getAttribute('aria-pressed')).toBe('true');
+    expect(document.getElementById('btn-source')?.getAttribute('aria-pressed')).toBe('false');
+  });
 });

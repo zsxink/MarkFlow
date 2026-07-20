@@ -430,6 +430,12 @@ pub fn validate_path_in_workspace(path: &Path, state: &State<AppState>) -> Resul
         return Err("Path outside workspace".into());
     }
 
+    // The workspace root itself has a parent outside the workspace. It is still
+    // a valid directory to read when initially rendering the file tree.
+    if candidate == workspace {
+        return Ok(());
+    }
+
     let parent = candidate.parent().ok_or("Invalid path")?;
     let relative_parent = parent
         .strip_prefix(&workspace)

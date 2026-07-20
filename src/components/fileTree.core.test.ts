@@ -28,6 +28,14 @@ describe('file tree DOM construction', () => {
     expect(node.querySelector('img')).toBeNull();
     expect(node.textContent).toContain('<img src=x onerror=alert(1)>.md');
   });
+
+  it('exposes a stable semantic locator for a file node', () => {
+    const node = createTreeNode({ name: 'note.md', path: '/workspace/note.md', isDir: false }, 0);
+
+    expect(node.getAttribute('role')).toBe('treeitem');
+    expect(node.getAttribute('data-testid')).toBe('file-tree-item');
+    expect(node.getAttribute('data-path')).toBe('/workspace/note.md');
+  });
 });
 
 describe('watcher path suppression', () => {

@@ -44,7 +44,7 @@ export async function initEditor() {
 
   const editorDiv = document.createElement('div');
   editorDiv.className = 'editor-container';
-  editorDiv.innerHTML = '<div id="wysiwyg-editor"></div><div id="source-editor-wrapper" class="source-editor-wrapper" hidden></div>';
+  editorDiv.innerHTML = '<div id="wysiwyg-editor" data-testid="editor-wysiwyg"></div><div id="source-editor-wrapper" class="source-editor-wrapper" data-testid="editor-source" hidden></div>';
   container.appendChild(editorDiv);
 
   const editorEl = document.getElementById('wysiwyg-editor');

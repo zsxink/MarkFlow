@@ -30,6 +30,10 @@ let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Settings = { ...DEFAULT_SETTINGS };
 
 document.addEventListener('DOMContentLoaded', async () => {
+  if (import.meta.env.MODE === 'e2e') {
+    await import('@wdio/tauri-plugin');
+  }
+
   logInfo('app.lifecycle', 'Application boot started');
   setToastReporter((msg) => showToast(msg));
 
@@ -165,7 +169,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-startAutoSave();
+  startAutoSave();
+  document.getElementById('app')?.setAttribute('data-app-ready', 'true');
 });
 
 async function restoreWorkspace() {

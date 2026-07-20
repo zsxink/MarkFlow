@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 output/
+e2e/artifacts/
+e2e/.tmp-*/
 
 # Rust build artifacts
 src-tauri/target/

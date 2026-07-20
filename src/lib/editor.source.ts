@@ -107,6 +107,7 @@ export function createSourceEditor(
     extensions: extList,
     parent: container,
   });
+  view.contentDOM.dataset.testid = 'editor-source-content';
 
   currentView = view;
   return view;
@@ -145,5 +146,4 @@ export function setSourceContent(content: string): void {
     programmaticUpdate = false;
   }
 }
-
 

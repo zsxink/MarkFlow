@@ -295,7 +295,7 @@ pub fn run() {
         }
     };
 
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
@@ -309,7 +309,14 @@ pub fn run() {
                     let _ = open_file_in_new_window(path_str, app.clone());
                 }
             }
-        }))
+        }));
+
+    #[cfg(feature = "e2e")]
+    let builder = builder
+        .plugin(tauri_plugin_wdio::init())
+        .plugin(tauri_plugin_wdio_webdriver::init());
+
+    let app = builder
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             files::read_file,

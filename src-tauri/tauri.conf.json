@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "capabilities": ["main-capability"],
+      "capabilities": ["main-capability", "plantuml-http-capability"],
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' asset: http://asset.localhost https: data:; script-src 'self'",
       "assetProtocol": {
         "enable": true,

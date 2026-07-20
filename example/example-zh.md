@@ -84,6 +84,43 @@ sequenceDiagram
   E->>S: 保存原始 Markdown 源码
 ```
 
+## PlantUML 示例
+
+```plantuml
+@startuml
+Alice -> Bob: 认证请求
+Bob --> Alice: 认证响应
+
+Alice -> Bob: 再次请求
+Bob --> Alice: 再次响应
+@enduml
+```
+
+```plantuml
+@startuml
+start
+:用户打开文档;
+if (是否有 PlantUML 配置?) then (是)
+  :渲染图表;
+else (否)
+  :显示代码块;
+endif
+stop
+@enduml
+```
+
+## 链接
+
+支持 [内联链接](https://example.com) 和 [带标题的链接](https://example.com "示例标题")。
+
+裸 URL 如 https://example.com 会被自动识别装饰，Ctrl+单击或 Cmd+单击即可直接打开。
+
+## 图片
+
+除上文 logo 外，MarkFlow 支持在文档任意位置插入图片：
+
+![MarkFlow 标识](../assets/markflow-wordmark.png)
+
 ## 结束
 
 感谢使用 MarkFlow。

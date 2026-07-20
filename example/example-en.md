@@ -84,6 +84,43 @@ sequenceDiagram
   E->>S: Save raw Markdown source
 ```
 
+## PlantUML Example
+
+```plantuml
+@startuml
+Alice -> Bob: Authentication Request
+Bob --> Alice: Authentication Response
+
+Alice -> Bob: Another request
+Bob --> Alice: Another response
+@enduml
+```
+
+```plantuml
+@startuml
+start
+:User opens document;
+if (Has PlantUML?) then (yes)
+  :Render diagram;
+else (no)
+  :Show code block;
+endif
+stop
+@enduml
+```
+
+## Links
+
+You can create [inline links](https://example.com) and [links with titles](https://example.com "Example Title").
+
+Bare URLs like https://example.com are automatically detected and decorated. Ctrl+Click or Cmd+Click to open them directly.
+
+## Images
+
+In addition to the logo above, MarkFlow supports inline images anywhere in your document:
+
+![MarkFlow Logo](../assets/markflow-wordmark.png)
+
 ## Ending
 
 Thanks for using MarkFlow.

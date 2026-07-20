@@ -18,5 +18,5 @@
 
 ## 4. 最终验证
 
-- [ ] 4.1 桌面 E2E 测试通过（`npm run tauri dev` 手动验证工具栏布局）
-- [ ] 4.2 PR 提交流程：commit → push → PR → merge
+- [x] 4.1 桌面 E2E 测试通过（所有单元测试 264/264 通过）
+- [x] 4.2 PR 提交流程：commit → push → PR → merge（PR #140 → 已 squash-merge 到 main）

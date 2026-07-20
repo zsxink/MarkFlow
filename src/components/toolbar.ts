@@ -251,27 +251,26 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
   const isEdit = !!options?.onReplace;
 
   const modal = showModal({
+    className: 'image-insert-dialog',
     content: `
-      <div class="modal">
-        <div class="modal-header">
-          <span>${isEdit ? '编辑图片' : '插入图片'}</span>
-          <button class="modal-close" id="image-close">✕</button>
+      <div class="modal-header">
+        <span>${isEdit ? '编辑图片' : '插入图片'}</span>
+        <button class="modal-close" id="image-close">✕</button>
+      </div>
+      <div style="padding:16px 24px;">
+        <div class="image-source-tabs">
+          <button class="image-source-tab${isEdit ? '' : ' active'}" data-tab="local">本地文件</button>
+          <button class="image-source-tab${isEdit ? ' active' : ''}" data-tab="url">网络图片</button>
         </div>
-        <div style="padding:16px 24px;">
-          <div class="image-source-tabs">
-            <button class="image-source-tab${isEdit ? '' : ' active'}" data-tab="local">本地文件</button>
-            <button class="image-source-tab${isEdit ? ' active' : ''}" data-tab="url">网络图片</button>
-          </div>
-          <div id="image-tab-local" ${isEdit ? 'hidden' : ''}>
-            <button class="file-pick-btn" id="image-pick-local">点击选择图片文件</button>
-          </div>
-          <div id="image-tab-url" ${isEdit ? '' : 'hidden'}>
-            <input class="url-input" id="image-url-input" placeholder="https://example.com/image.png" />
-          </div>
-          <div class="modal-footer" style="padding-top:16px;display:flex;justify-content:flex-end;gap:8px;">
-            <button class="btn-secondary" id="image-cancel">取消</button>
-            <button class="btn-primary" id="image-confirm">${isEdit ? '替换' : '确定'}</button>
-          </div>
+        <div id="image-tab-local" ${isEdit ? 'hidden' : ''}>
+          <button class="file-pick-btn" id="image-pick-local">点击选择图片文件</button>
+        </div>
+        <div id="image-tab-url" ${isEdit ? '' : 'hidden'}>
+          <input class="url-input" id="image-url-input" placeholder="https://example.com/image.png" />
+        </div>
+        <div class="modal-footer" style="padding-top:16px;display:flex;justify-content:flex-end;gap:8px;">
+          <button class="btn-secondary" id="image-cancel">取消</button>
+          <button class="btn-primary" id="image-confirm">${isEdit ? '替换' : '确定'}</button>
         </div>
       </div>
     `,

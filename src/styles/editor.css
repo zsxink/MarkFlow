@@ -511,7 +511,7 @@
 }
 
 /* Image insert dialog */
-.image-insert-dialog .modal {
+.image-insert-dialog {
   width: 480px;
 }
 

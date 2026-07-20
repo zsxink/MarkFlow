@@ -17,6 +17,8 @@ export interface DialogOptions {
   body: string | HTMLElement;
   buttons: DialogButton[];
   width?: string;
+  /** 正文与底部按钮区域的内边距，默认 '16px 24px' */
+  padding?: string;
   onClose?: () => void;
 }
 
@@ -51,16 +53,17 @@ export function showDialog(options: DialogOptions): Promise<string | null> {
       : '';
 
     // Body
+    const pad = options.padding ?? '16px 24px';
     let bodyHtml: string;
     if (typeof options.body === 'string') {
-      bodyHtml = `<div style="padding:16px 24px;">${options.body}</div>`;
+      bodyHtml = `<div style="padding:${pad};">${options.body}</div>`;
     } else {
       bodyHtml = '';
     }
 
     // Buttons
     const btnHtml = options.buttons.length
-      ? `<div class="modal-footer" style="padding:16px 24px;display:flex;justify-content:flex-end;gap:8px;">
+      ? `<div class="modal-footer" style="padding:${pad};display:flex;justify-content:flex-end;gap:8px;">
           ${options.buttons.map((b, i) => {
             const cls = b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : 'btn-secondary';
             return `<button type="button" class="${cls}" data-dialog-value="${escapeHtml(b.value)}" data-dialog-index="${i}">${escapeHtml(b.label)}</button>`;
@@ -83,7 +86,7 @@ export function showDialog(options: DialogOptions): Promise<string | null> {
       const modal = overlay.querySelector('.modal')!;
       const existingHeader = modal.querySelector('.modal-header');
       const container = document.createElement('div');
-      container.style.padding = '16px 24px';
+      container.style.padding = pad;
       container.appendChild(options.body);
       if (existingHeader) {
         existingHeader.after(container);

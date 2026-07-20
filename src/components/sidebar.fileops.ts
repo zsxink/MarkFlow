@@ -31,17 +31,18 @@ export async function confirmDocumentTransition(): Promise<boolean> {
   const title = conflicted ? '外部修改冲突' : '未保存的更改';
   const body = conflicted
     ? '当前文件已被外部修改。切换到其他文件前希望如何处理？'
-    : '当前文件有未保存的更改。切换到其他文件前希望如何处理？';
+    : '有未保存的内容，是否保存？';
 
   const result = await showDialog({
     title,
-    body: `<p style="margin:0 0 16px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>`,
+    body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>`,
     buttons: [
       { label: '取消', value: 'cancel' },
       { label: '不保存', value: 'discard' },
       { label: '保存', value: 'save', primary: true },
     ],
-    width: '360px',
+    width: '320px',
+    padding: '12px 20px',
   });
 
   if (result === 'save') {

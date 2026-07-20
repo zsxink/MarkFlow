@@ -53,11 +53,17 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Type check
+        run: npx tsc --noEmit
+
       - name: Check capability security configuration
         run: scripts/check-capabilities.sh
 
       - name: Build frontend
         run: npm run build
+
+      - name: Check bundle size
+        run: bash scripts/check-bundle-size.sh
 
       - name: Run Rust tests
         working-directory: src-tauri

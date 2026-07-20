@@ -111,7 +111,7 @@ stop
 
 ## 链接
 
-支持 [内联链接](https://example.com) 和 [带标题的链接](https://example.com "示例标题")。
+支持 [内联链接](https://example.com) 和 [带标题的链接](https://example.com)。
 
 裸 URL 如 https://example.com 会被自动识别装饰，Ctrl+单击或 Cmd+单击即可直接打开。
 

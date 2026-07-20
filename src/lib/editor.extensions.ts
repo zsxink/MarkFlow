@@ -10,6 +10,7 @@ import { renderPlantUml } from './plantuml';
 import { isBlankPlantUmlSource } from './plantuml-lazy';
 import { getCachedSettings } from './storage';
 import { store } from './store';
+import { logDebug, logException, logWarn } from './logger';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { getMermaidExportBaseName } from './editor.state';
 
@@ -228,9 +229,13 @@ export function mermaidCodeBlockExtension() {
             previewEl.innerHTML = svg;
             previewEl.title = `左键点击编辑 ${diagramName()} 源码`;
           } catch (error) {
-            if (destroyed || version !== renderVersion || !previewEl) return;
+            if (destroyed || version !== renderVersion || !previewEl) {
+              logWarn('editor.diagram', 'Render result stale (cancelled by newer render)', { version, renderVersion, diagram: diagramName() });
+              return;
+            }
             renderedSvg = '';
             const message = error instanceof Error ? error.message : `${diagramName()} 渲染失败`;
+            logException('editor.diagram', `渲染 ${diagramName()} 失败`, error, { serverUrl: plantUmlServerUrl, sourceLen: code.length, diagram: diagramName() });
             syncError('');
             previewEl.className = 'mermaid-preview is-error';
             previewEl.textContent = message;
@@ -364,8 +369,13 @@ export function mermaidCodeBlockExtension() {
           // Must be before the diagram path to avoid creating a non-interactive preview
           // when contentDOM is frozen as undefined at NodeView construction.
           if (isPlantUml() && isBlankPlantUmlSource(currentNode.textContent)) {
+            logDebug('editor.diagram', 'Skipping blank PlantUML source', { diagram: diagramName() });
             setCodeBlock();
             return;
+          }
+
+          if (isPlantUml() && !plantUmlServerUrl) {
+            logWarn('editor.diagram', 'PlantUML skipped — server URL not configured', { diagram: diagramName() });
           }
 
           dom.className = `mermaid-block${isEditing ? ' is-editor-open' : ''}`;

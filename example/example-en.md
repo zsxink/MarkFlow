@@ -111,7 +111,7 @@ stop
 
 ## Links
 
-You can create [inline links](https://example.com) and [links with titles](https://example.com "Example Title").
+You can create [inline links](https://example.com) and [links with titles](https://example.com).
 
 Bare URLs like https://example.com are automatically detected and decorated. Ctrl+Click or Cmd+Click to open them directly.
 

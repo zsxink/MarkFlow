@@ -1,5 +1,6 @@
 import { deflateRaw } from 'pako';
 import { fetch } from '@tauri-apps/plugin-http';
+import { logDebug, logError, logInfo } from './logger';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_SOURCE_BYTES = 512 * 1024;
@@ -11,6 +12,7 @@ const svgCache = new Map<string, string>();
 
 /** Clear the SVG cache (exported for testing). */
 export function clearSvgCache(): void {
+  logDebug('plantuml.cache', 'Clearing SVG cache', { sizeBeforeClear: svgCache.size });
   svgCache.clear();
 }
 
@@ -48,7 +50,9 @@ export function buildPlantUmlSvgUrl(serverUrl: string, source: string): string {
   }
   if (base.hostname.endsWith('plantuml.com') && base.pathname === '/') base.pathname = '/plantuml/';
   if (!base.pathname.endsWith('/')) base.pathname += '/';
-  return new URL(`svg/${encodePlantUml(source)}`, base).toString();
+  const url = new URL(`svg/${encodePlantUml(source)}`, base).toString();
+  logDebug('plantuml.build-url', 'Built PlantUML SVG URL', { serverUrl, urlLen: url.length });
+  return url;
 }
 
 /** Returns true if the source is effectively empty (whitespace or bare @startuml/@enduml). */
@@ -128,12 +132,27 @@ export async function renderPlantUmlSvg(serverUrl: string, source: string): Prom
   // Check cache first
   const cacheKey = `${serverUrl}\0${source}`;
   const cached = svgCache.get(cacheKey);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    logDebug('plantuml.render', 'Cache hit', { cacheKeyLen: cacheKey.length });
+    return cached;
+  }
+
+  if (!serverUrl) {
+    logError('plantuml.render', 'Server URL is empty');
+    throw new Error('PlantUML 服务器地址未配置');
+  }
+
+  const url = buildPlantUmlSvgUrl(serverUrl, source);
+  const sourceLen = source.length;
+  logInfo('plantuml.render', 'Starting PlantUML render', { serverUrl, sourceLen, urlLen: url.length });
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => {
+    logError('plantuml.render', 'Request timed out', { serverUrl, sourceLen });
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(buildPlantUmlSvgUrl(serverUrl, source), {
+    const response = await fetch(url, {
       method: 'GET',
       signal: controller.signal,
       maxRedirections: 0,
@@ -141,15 +160,25 @@ export async function renderPlantUmlSvg(serverUrl: string, source: string): Prom
       referrerPolicy: 'no-referrer',
       connectTimeout: REQUEST_TIMEOUT_MS,
     });
+    logInfo('plantuml.render', 'Server responded', { status: response.status, statusText: response.statusText });
     if (!response.ok) throw new Error(`PlantUML 服务器请求失败（HTTP ${response.status}）`);
     const svg = sanitizePlantUmlSvg(await readTextWithLimit(response, MAX_SVG_BYTES));
     svgCache.set(cacheKey, svg);
+    logInfo('plantuml.render', 'Render succeeded', { svgLen: svg.length, serverUrl });
     return svg;
   } catch (error) {
     if ((error instanceof DOMException && error.name === 'AbortError')
       || (error instanceof Error && error.message === 'Request cancelled')) {
       throw new Error('PlantUML 渲染超时（超过 10 秒）');
     }
+    // Log all render failures with structured context
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logError('plantuml.render', 'Render failed', {
+      serverUrl,
+      sourceLen,
+      urlLen: url.length,
+      errorMessage,
+    });
     throw error;
   } finally {
     clearTimeout(timeout);

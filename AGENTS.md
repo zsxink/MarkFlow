@@ -69,6 +69,12 @@ closes #N
 
 CLI：`openspec new change <name>`、`openspec validate <change>`、`openspec archive <change>`
 
+### 强制规则（不可省略）
+
+1. **归档前必须先同步 spec**：执行 `/opsx:archive`（或 `openspec archive`）时，若 change 含 delta spec（`openspec/changes/<name>/specs/**`），**先**将增量规范合并到 `openspec/specs/` 主规范（`openspec-sync-specs`），**再**移动 change 目录到 `archive/`。禁止「只搬目录、不同步主规范」。
+
+2. **合入 / 归档前必须派独立 agent 复核**：在 merge PR 或 archive 之前，**派出一个独立的 sub-agent** 做一轮不偏不倚的复核与验证（静态走查 + 跑测试 `npm test` / `npx tsc --noEmit`），再执行 merge/archive。主执行流容易漏掉复核，必须显式交给独立 agent 完成并回读结论。
+
 ## 调试规则
 
 - **先查运行日志再改代码**：日志目录由 `app_config_dir().join("logs")` 动态决定（启动时打印 `log_dir=`），各平台默认位置见下表

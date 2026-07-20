@@ -135,6 +135,9 @@ Issue 描述应包含：
 
 将 change 目录移至 `openspec/changes/archive/`，增量 spec 合并到 main specs。
 
+> **强制**：archive 若含 delta spec，**先** `openspec-sync-specs` 合并到主规范，**再**移动目录。禁止「只搬目录不同步」。
+> **强制**：archive 前必须先派独立 agent 完成复核（见 §6.2）。
+
 ---
 
 ## 5. 提交规范
@@ -175,8 +178,11 @@ closes #N
 - [ ] 变更已自测（手动运行验证）
 - [ ] 构建通过（`npm run build`）
 - [ ] 测试通过（`npm test`）
+- [ ] 独立 agent 复核完成（见下方「强制复核」）
 - [ ] 提交消息遵循规范（squash 后）
 - [ ] 无死代码、无调试日志、无意外文件变更
+
+> **强制复核（不可省略）**：merge PR 或 archive 之前，必须**派出一个独立的 sub-agent** 做不偏不倚的复核与验证（静态走查 + 跑 `npm test` / `npx tsc --noEmit`），主执行流不可自我豁免。复核结论需回读确认后再 merge/archive。
 
 ### 6.3 Review 规则
 

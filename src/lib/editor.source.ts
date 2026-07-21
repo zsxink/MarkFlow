@@ -13,14 +13,29 @@ async function loadLang(name: string): Promise<LanguageSupport> {
   return (await getLanguageExtension(name)) ?? plainText;
 }
 
-/** Module-level compartment so readOnly can be toggled at runtime */
+/** Module-level compartments so readOnly and highlight can be toggled at runtime */
 const readOnlyCompartment = new Compartment();
+const highlightCompartment = new Compartment();
 
 /** Toggle readOnly on the current source editor without destroying/recreating */
 export function setSourceReadOnly(readOnly: boolean): void {
   if (!currentView) return;
   currentView.dispatch({
     effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
+  });
+}
+
+/**
+ * Toggle syntax highlighting on the current source editor.
+ * When disabled, uses an empty HighlightStyle to render all text in monochrome.
+ */
+export function setSourceHighlight(enabled: boolean): void {
+  if (!currentView) return;
+  const style = enabled
+    ? syntaxHighlighting(markdownHighlightStyle, { fallback: true })
+    : syntaxHighlighting(HighlightStyle.define([]), { fallback: true });
+  currentView.dispatch({
+    effects: highlightCompartment.reconfigure(style),
   });
 }
 
@@ -78,7 +93,7 @@ export function createSourceEditor(
 
   const extList: any[] = [
     basicSetup,
-    syntaxHighlighting(markdownHighlightStyle),
+    highlightCompartment.of(syntaxHighlighting(markdownHighlightStyle)),
     markdown({ codeLanguages: [
         LanguageDescription.of({ name: 'javascript', extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'], load: () => loadLang('javascript') }),
         LanguageDescription.of({ name: 'css',        extensions: ['css', 'scss', 'less'],     load: () => loadLang('css') }),

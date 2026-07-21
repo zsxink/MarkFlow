@@ -7,7 +7,8 @@ export interface Settings {
   autosaveInterval: number;
   spellcheck: boolean;
   softWrap: boolean;
-  livePreview: boolean;
+  /** @deprecated No longer controls any behavior */
+  livePreview?: boolean;
   codeHighlight: boolean;
   plantumlServerUrl: string;
   lineNumbers?: boolean;
@@ -15,12 +16,22 @@ export interface Settings {
   showTooltips: boolean;
   followSystemTheme: boolean;
   lastWorkspace?: string | null;
-  imageStorageMode?: string;
+  /** "workspace-assets" (default) | "doc-assets" | "custom" */
+  imageStorageMode: string;
   imageCustomPath?: string;
-  imagePreferRelative?: boolean;
+  /** @deprecated Use imageLocalFileBehavior instead */
   imageAutoCopyLocal?: boolean;
+  /** @deprecated Use imageNetworkBehavior instead */
   imageDownloadNetwork?: boolean;
+  /** @deprecated Use imageReferenceStyle instead */
+  imagePreferRelative?: boolean;
   imageNamingStrategy?: string;
+  /** "copy" (default) | "reference" */
+  imageLocalFileBehavior: string;
+  /** "keep-url" (default) | "download" */
+  imageNetworkBehavior: string;
+  /** "relative" (default) | "absolute" */
+  imageReferenceStyle: string;
   codeLineNumbers?: boolean;
   codeWordWrap?: boolean;
   lastSidebarTab?: string;
@@ -40,7 +51,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 1,
+  version: 2,
   theme: 'light',
   fontSize: 18,
   lineHeight: 1.7,
@@ -48,7 +59,6 @@ export const DEFAULT_SETTINGS: Settings = {
   autosaveInterval: 10000,
   spellcheck: true,
   softWrap: true,
-  livePreview: true,
   codeHighlight: true,
   plantumlServerUrl: '',
   showSidebar: true,
@@ -57,10 +67,10 @@ export const DEFAULT_SETTINGS: Settings = {
   lastWorkspace: null,
   imageStorageMode: 'workspace-assets',
   imageCustomPath: '',
-  imagePreferRelative: true,
-  imageAutoCopyLocal: true,
-  imageDownloadNetwork: false,
   imageNamingStrategy: 'timestamp',
+  imageLocalFileBehavior: 'copy',
+  imageNetworkBehavior: 'keep-url',
+  imageReferenceStyle: 'relative',
   codeLineNumbers: false,
   codeWordWrap: true,
   largeFileThreshold: 1048576,    // 1MB

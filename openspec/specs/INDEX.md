@@ -14,7 +14,7 @@
 | 导出 HTML、Word 或 PDF | [rendered-document-export](rendered-document-export/spec.md)、[export-workspace-bypass](export-workspace-bypass/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/toolbar.ts`、`src/lib/documentExport.ts`、`storage.ts` | `npm test`、`npm run build` |
 | 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/lib/editor.image.*.ts`、`imageUtils.ts`、`mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
 | 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/lib/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
-| 体积、字体、CI 或回归测试 | [bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`.github/` | `npm test`、`npm run check-size`（体积改动） |
+| 体积、字体、CI、回归测试或 archive 门禁 | [bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`.github/`、`scripts/check-archive-synced.sh` | `npm test`、`npm run check-size`（体积改动）、`bash scripts/check-archive-synced.sh` |
 
 所有改动完成后运行 `npx openspec validate --specs`。路由没有覆盖的任务，先从 `src/main.ts` 和最接近的模块测试反查实际入口，再为受影响行为补充或更新模块规范。
 
@@ -71,6 +71,7 @@
 
 - [bundle-budget](bundle-budget/spec.md) — 构建产物与字体体积预算。
 - [crash-logging](crash-logging/spec.md) — 崩溃日志与敏感信息脱敏。
+- [archive-sync-gate](archive-sync-gate/spec.md) — 归档变更的 spec 同步完整性校验与 CI 验证门禁。
 - [dep-audit-ci](dep-audit-ci/spec.md) — 依赖审计与 CI 质量要求。
 - [error-handling](error-handling/spec.md) — 锁恢复、错误分类与前端异常。
 - [regression-coverage](regression-coverage/spec.md) — 核心与高风险路径的回归覆盖。

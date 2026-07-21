@@ -11,7 +11,7 @@ MarkFlow lets you write Markdown as if it were rich text. Type and see it render
 ## Features
 
 - **WYSIWYG editing** — Markdown syntax renders in real-time, similar to Typora
-- **Full GFM support** — Headings, bold, italic, strikethrough, inline code, code blocks, blockquotes, lists, task lists, tables, links, images, and horizontal rules
+- **Full GFM support** — Headings, bold, italic, strikethrough, inline code, code blocks, blockquotes, lists, task lists, tables, links, images, and horizontal rules, extended with Mermaid / PlantUML diagram rendering
 - **Image support** — Insert via toolbar, paste from clipboard, drag-and-drop, or manual syntax. Supports local and network images
 - **Three built-in themes** — Light, dark, and sepia. Switch with one click
 - **File tree sidebar** — Browse your workspace folder structure and manage files
@@ -19,7 +19,13 @@ MarkFlow lets you write Markdown as if it were rich text. Type and see it render
 - **Source mode** — Toggle to a plain-text editor for raw Markdown (`Ctrl+/`)
 - **Focus mode** — Hide toolbar, sidebar, and status bar for distraction-free writing (`Ctrl+Shift+F`)
 - **Mermaid diagrams** — Write Mermaid syntax in code blocks, rendered as diagrams automatically
-- **Settings panel** — Configure auto-save, font size, line height, code highlighting, image storage, and more
+- **PlantUML diagrams** — Write PlantUML syntax in code blocks, rendered as diagrams automatically; right-click to export as SVG, PNG, or copy to clipboard
+- **Accessibility** — ARIA attributes on core UI components for screen reader support
+- **Context menu** — Right-click files in the file tree to create, rename, duplicate, or delete
+- **File drag and drop** — Drag files and folders within the file tree to move them
+- **URL auto-detection** — URLs are automatically converted to clickable links
+- **Font settings** — Customize the editor font family in the settings panel
+- **Settings panel** — Configure auto-save, font size, line height, code highlighting, image storage, font family, and more
 - **External file watching** — Detects changes from other editors. Clean documents reload silently; dirty documents show a conflict dialog
 
 ---

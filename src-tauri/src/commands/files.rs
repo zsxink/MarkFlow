@@ -260,10 +260,9 @@ const MAX_READ_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
 
 #[tauri::command]
 pub fn write_file(path: String, content: String, state: State<AppState>) -> Result<(), String> {
+    // Document save — user-opened files may live outside the workspace.
+    // Workspace boundary is enforced by file-tree commands, not by document save.
     let path = resolve_path(&path, &state)?;
-    if state.get_workspace().is_some() {
-        validate_path_in_workspace(&path, &state)?;
-    }
     atomic_write(&path, &content)
 }
 
@@ -871,4 +870,10 @@ mod tests {
             PathBuf::from("/workspace/notes/draft.md")
         );
     }
+
+    // --- write_file: workspace check removed ---
+    // write_file now delegates directly to resolve_path + atomic_write.
+    // The removed validate_path_in_workspace call is verified by integration
+    // tests (macOS cold-start scenario). Existing atomic_write tests cover
+    // the write path itself.
 }

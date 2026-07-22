@@ -14,8 +14,8 @@ export async function showUnsavedDialog(destroyFn: () => Promise<void>) {
   });
 
   if (result === 'save') {
-    const saved = await saveActiveDocument({ interactive: true });
-    if (!saved) return;
+    const saveResult = await saveActiveDocument({ interactive: true });
+    if (saveResult !== 'saved') return;
     await destroyFn();
   } else if (result === 'discard') {
     await destroyFn();

@@ -23,31 +23,40 @@ pub struct Settings {
     pub show_tooltips: bool,
     pub follow_system_theme: bool,
     pub last_workspace: Option<String>,
-    /// Storage location mode: "workspace-assets" | "doc-assets" | "custom"
-    #[serde(default)]
+    /// Storage location mode: "custom" | "document-dir" | "document-named-dir"
+    #[serde(default = "default_image_storage_mode")]
     pub image_storage_mode: String,
-    #[serde(default)]
+    #[serde(default = "default_image_custom_path")]
     pub image_custom_path: Option<String>,
-    /// DEPRECATED: Use image_local_file_behavior instead
+    /// DEPRECATED: Retained only to read version 1 settings.
     #[serde(default)]
     pub image_auto_copy_local: Option<bool>,
-    /// DEPRECATED: Use image_network_behavior instead
+    /// DEPRECATED: Retained only to read version 1 settings.
     #[serde(default)]
     pub image_download_network: Option<bool>,
-    /// DEPRECATED: Use image_reference_style instead
+    /// DEPRECATED: Retained only to read version 1 settings.
     #[serde(default)]
     pub image_prefer_relative: Option<bool>,
     #[serde(default)]
     pub image_naming_strategy: Option<String>,
-    /// Local file image behavior: "copy" (default) or "reference"
+    /// DEPRECATED in version 3: use image_apply_to_local.
     #[serde(default = "default_image_local_file_behavior")]
     pub image_local_file_behavior: String,
-    /// Network image behavior: "keep-url" (default) or "download"
+    /// DEPRECATED in version 3: use image_apply_to_network.
     #[serde(default = "default_image_network_behavior")]
     pub image_network_behavior: String,
     /// Markdown reference style: "relative" (default) or "absolute"
     #[serde(default = "default_image_reference_style")]
     pub image_reference_style: String,
+    /// Whether local image files should be copied into the configured storage location.
+    #[serde(default = "default_image_apply_to_local")]
+    pub image_apply_to_local: bool,
+    /// Whether network images should be downloaded into the configured storage location.
+    #[serde(default = "default_image_apply_to_network")]
+    pub image_apply_to_network: bool,
+    /// Naming template used only for clipboard images.
+    #[serde(default = "default_image_clipboard_name_template")]
+    pub image_clipboard_name_template: String,
     #[serde(default)]
     pub code_line_numbers: Option<bool>,
     #[serde(default)]
@@ -91,6 +100,21 @@ fn default_window_height() -> f64 {
 fn default_image_local_file_behavior() -> String {
     "copy".into()
 }
+fn default_image_storage_mode() -> String {
+    "custom".into()
+}
+fn default_image_custom_path() -> Option<String> {
+    Some("./images".into())
+}
+fn default_image_apply_to_local() -> bool {
+    true
+}
+fn default_image_apply_to_network() -> bool {
+    true
+}
+fn default_image_clipboard_name_template() -> String {
+    "img-${date:yyyyMMdd}${time:HHmmss}".into()
+}
 fn default_image_network_behavior() -> String {
     "keep-url".into()
 }
@@ -127,7 +151,7 @@ fn default_file_tree_auto_load_depth() -> usize {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            version: 2,
+            version: 3,
             theme: "light".into(),
             font_size: 18,
             line_height: 1.7,
@@ -143,8 +167,8 @@ impl Default for Settings {
             show_tooltips: true,
             follow_system_theme: false,
             last_workspace: None,
-            image_storage_mode: "workspace-assets".into(),
-            image_custom_path: None,
+            image_storage_mode: default_image_storage_mode(),
+            image_custom_path: default_image_custom_path(),
             image_auto_copy_local: None,
             image_download_network: None,
             image_prefer_relative: None,
@@ -152,6 +176,9 @@ impl Default for Settings {
             image_local_file_behavior: default_image_local_file_behavior(),
             image_network_behavior: default_image_network_behavior(),
             image_reference_style: default_image_reference_style(),
+            image_apply_to_local: default_image_apply_to_local(),
+            image_apply_to_network: default_image_apply_to_network(),
+            image_clipboard_name_template: default_image_clipboard_name_template(),
             code_line_numbers: None,
             code_word_wrap: None,
             last_sidebar_tab: None,

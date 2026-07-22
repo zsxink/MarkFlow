@@ -2,6 +2,7 @@ import { setMarkdown, getEditor } from '../lib/editor';
 import { store } from '../lib/store';
 import { refreshOutline } from './outline';
 import { hideDegradationBar } from './degradationBar';
+import { discardActiveImageDraft } from '../lib/imageUtils';
 
 export function getActiveFilePath(): string | null {
   return store.getState().activeFilePath;
@@ -29,6 +30,7 @@ export function clearActiveDocumentIfMatches(path: string) {
 }
 
 export function clearActiveDocument() {
+  void discardActiveImageDraft();
   setMarkdown('');
   setActiveFilePath(null);
   refreshOutline();

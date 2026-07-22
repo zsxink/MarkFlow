@@ -6,6 +6,7 @@ import { showModal } from './ui/modal';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
 import { setSourceHighlight } from '../lib/editor.source';
+import { open } from '@tauri-apps/plugin-dialog';
 
 type Theme = 'light' | 'dark' | 'sepia';
 
@@ -161,14 +162,14 @@ function createSettingsContent(): string {
               </div>
             </div>
             <div class="settings-group">
-              <div class="settings-group-title">Markdown</div>
+              <div class="settings-group-title">代码块</div>
               <div class="settings-row">
-                <div class="settings-label">代码高亮</div>
+                <div>
+                  <div class="settings-label">代码高亮</div>
+                  <div class="settings-desc">在所见即所得和源码模式中高亮代码语法</div>
+                </div>
                 <button class="toggle active" id="setting-codehighlight"></button>
               </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">代码块</div>
               <div class="settings-row">
                 <div>
                   <div class="settings-label">代码块行号</div>
@@ -183,21 +184,13 @@ function createSettingsContent(): string {
             </div>
             <div class="settings-group">
               <div class="settings-group-title">PlantUML</div>
-              <div class="settings-row settings-row-vertical">
-                <div>
-                  <div class="settings-label">PlantUML 服务器地址</div>
+              <div class="settings-field">
+                <label class="settings-label" for="setting-plantuml-server-url">PlantUML 服务器地址</label>
+                <div class="settings-warning">
+                  ⚠ 使用外部 PlantUML 服务器会将图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容请使用自建服务器。
+                  <span class="settings-copy-hint">默认服务器（请自行复制）：<code>https://www.plantuml.com/plantuml</code></span>
                 </div>
-              </div>
-              <div class="settings-row settings-row-warning">
-                <div class="settings-desc" style="color:var(--warning);">
-                  ⚠ 使用外部 PlantUML 服务器会将该图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容请使用自建服务器。
-                </div>
-              </div>
-              <div class="settings-row">
-                <span class="settings-desc settings-desc-inline" style="user-select:text;">默认：<code style="user-select:text;">https://www.plantuml.com/plantuml</code></span>
-              </div>
-              <div class="settings-row">
-                <input class="newfile-input" id="setting-plantuml-server-url" style="width:260px" placeholder="https://www.plantuml.com/plantuml" />
+                <input class="newfile-input settings-input-full" id="setting-plantuml-server-url" placeholder="粘贴 PlantUML 服务器地址" />
               </div>
             </div>
             <div class="settings-group">
@@ -215,75 +208,71 @@ function createSettingsContent(): string {
           <div id="panel-image" class="settings-panel" hidden>
             <div class="settings-group">
               <div class="settings-group-title">存储</div>
-              <div class="settings-row">
+              <div class="settings-field">
                 <div>
-                  <div class="settings-label">存放位置</div>
-                  <div class="settings-desc">粘贴或拖入图片的保存位置</div>
+                  <label class="settings-label" for="setting-image-storage">插入图片时</label>
+                  <div class="settings-desc">剪贴板图片始终保存到这里；本地和网络图片可分别选择是否保存</div>
                 </div>
-                <select class="settings-select" id="setting-image-storage">
-                  <option value="workspace-assets" selected>工作区 assets/</option>
-                  <option value="doc-assets">与文档同级 assets/</option>
-                  <option value="custom">自定义路径</option>
+                <select class="settings-select settings-control-full" id="setting-image-storage">
+                  <option value="custom" selected>复制到指定路径（默认）</option>
+                  <option value="document-dir">复制到当前文件夹 ./（和文档同级）</option>
+                  <option value="document-named-dir">复制到 ./\${filename}-images</option>
                 </select>
               </div>
-              <div class="settings-row" id="setting-image-custom-row" hidden>
+              <div class="settings-field settings-subfield" id="setting-image-custom-row">
                 <div>
-                  <div class="settings-label">自定义路径</div>
+                  <label class="settings-label" for="setting-image-custom-path">指定路径</label>
                   <div class="settings-desc">支持相对路径（相对于文档）、绝对路径、Windows 盘符路径和 UNC 路径</div>
                 </div>
-                <input class="newfile-input" id="setting-image-custom-path" style="width:200px" placeholder="./images, ../assets, /absolute/path, D:\Pictures" />
+                <div class="settings-path-control">
+                  <input class="newfile-input" id="setting-image-custom-path" placeholder="./images, ../assets, /absolute/path, D:&#92;Pictures" />
+                  <button class="settings-button" id="setting-image-choose-folder" type="button" aria-label="选择图片存储文件夹">选择文件夹…</button>
+                </div>
               </div>
+              <div class="settings-desc settings-rule-example" id="setting-image-named-dir-help" hidden><code>\${filename}</code> 不含 <code>.md</code> 扩展名，例如 <code>guide.md → ./guide-images/</code></div>
             </div>
             <div class="settings-group">
-              <div class="settings-group-title">本地图片行为</div>
+              <div class="settings-group-title">应用范围</div>
               <div class="settings-row">
                 <div>
-                  <div class="settings-label">处理方式</div>
-                  <div class="settings-desc">粘贴/拖入本地图片时的处理方式。引用模式：图片文件移动后路径可能失效</div>
+                  <div class="settings-label">对本地图片应用</div>
+                  <div class="settings-desc">开启后将本地图片复制到上述位置；关闭则保留原始路径</div>
                 </div>
-                <select class="settings-select" id="setting-image-local-behavior">
-                  <option value="copy">复制到存储位置</option>
-                  <option value="reference">保留原始路径（引用）</option>
-                </select>
+                <button class="toggle active" id="setting-image-apply-local" type="button"></button>
               </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">网络图片行为</div>
               <div class="settings-row">
                 <div>
-                  <div class="settings-label">处理方式</div>
-                  <div class="settings-desc">插入网络图片时是否下载到本地存储</div>
+                  <div class="settings-label">对网络图片应用</div>
+                  <div class="settings-desc">开启后将网络图片下载到上述位置；关闭则保留原始 URL</div>
                 </div>
-                <select class="settings-select" id="setting-image-network-behavior">
-                  <option value="keep-url">保留 URL（默认）</option>
-                  <option value="download">下载到存储位置</option>
-                </select>
+                <button class="toggle active" id="setting-image-apply-network" type="button"></button>
               </div>
             </div>
             <div class="settings-group">
               <div class="settings-group-title">引用路径</div>
-              <div class="settings-row">
+              <div class="settings-field">
                 <div>
                   <div class="settings-label">Markdown 引用样式</div>
                   <div class="settings-desc">图片在 Markdown 中的路径引用格式</div>
                 </div>
-                <select class="settings-select" id="setting-image-reference-style">
+                <select class="settings-select settings-control-full" id="setting-image-reference-style">
                   <option value="relative" selected>相对路径（推荐）</option>
                   <option value="absolute">绝对路径</option>
                 </select>
               </div>
             </div>
             <div class="settings-group">
-              <div class="settings-group-title">命名</div>
-              <div class="settings-row">
+              <div class="settings-group-title">剪贴板图片命名</div>
+              <div class="settings-field">
                 <div>
-                  <div class="settings-label">文件命名策略</div>
-                  <div class="settings-desc">截图粘贴时自动生成文件名</div>
+                  <label class="settings-label" for="setting-image-clipboard-template">文件名模板</label>
+                  <div class="settings-desc">仅用于剪贴板图片；扩展名自动保留原始格式，只有重名时才追加序号</div>
                 </div>
-                <select class="settings-select" id="setting-image-naming">
-                  <option value="timestamp" selected>时间戳</option>
-                  <option value="sequence">自动序号</option>
-                </select>
+                <input class="newfile-input settings-input-full" id="setting-image-clipboard-template" value="img-\${date:yyyyMMdd}\${time:HHmmss}" />
+                <div class="settings-template-help">
+                  可用变量：<code>\${filename}</code> 当前文档文件名（不含扩展名），<code>\${date:yyyyMMdd}</code> 日期，<code>\${time:HHmmss}</code> 时间。
+                  未保存文档的 <code>\${filename}</code> 为 <code>untitled</code>。
+                </div>
               </div>
             </div>
           </div>
@@ -350,10 +339,11 @@ function bindSettingsEvents(hide: () => void) {
 
   const storageSelect = document.getElementById('setting-image-storage') as HTMLSelectElement | null;
   const customRow = document.getElementById('setting-image-custom-row');
+  const namedDirHelp = document.getElementById('setting-image-named-dir-help');
   if (storageSelect && customRow) {
     storageSelect.addEventListener('change', () => {
       customRow.hidden = storageSelect.value !== 'custom';
-      void persistSettingsFromUI();
+      if (namedDirHelp) namedDirHelp.hidden = storageSelect.value !== 'document-named-dir';
     });
   }
 
@@ -363,8 +353,17 @@ function bindSettingsEvents(hide: () => void) {
     });
   });
 
-  document.getElementById('setting-image-custom-path')?.addEventListener('input', () => {
-    void persistSettingsFromUI();
+  for (const id of ['setting-image-custom-path', 'setting-image-clipboard-template']) {
+    document.getElementById(id)?.addEventListener('change', () => void persistSettingsFromUI());
+  }
+  document.getElementById('setting-image-choose-folder')?.addEventListener('click', async () => {
+    const selected = await open({ directory: true, multiple: false });
+    if (typeof selected !== 'string') return;
+    setInputValue('setting-image-custom-path', selected);
+    if (storageSelect) storageSelect.value = 'custom';
+    if (customRow) customRow.hidden = false;
+    if (namedDirHelp) namedDirHelp.hidden = true;
+    await persistSettingsFromUI();
   });
   document.getElementById('setting-plantuml-server-url')?.addEventListener('change', () => void persistSettingsFromUI());
   for (const id of ['setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth']) {
@@ -397,14 +396,14 @@ function applySettingsToUI(settings: Settings) {
 
   setSelectValue('setting-fontsize', String(settings.fontSize ?? 18));
   setSelectValue('setting-lineheight', String(settings.lineHeight ?? 1.7));
-  setSelectValue('setting-image-storage', String(settings.imageStorageMode ?? 'workspace-assets'));
-  setInputValue('setting-image-custom-path', String(settings.imageCustomPath ?? ''));
-  setSelectValue('setting-image-local-behavior', String(settings.imageLocalFileBehavior ?? 'copy'));
-  setSelectValue('setting-image-network-behavior', String(settings.imageNetworkBehavior ?? 'keep-url'));
+  setSelectValue('setting-image-storage', String(settings.imageStorageMode ?? 'custom'));
+  setInputValue('setting-image-custom-path', String(settings.imageCustomPath ?? './images'));
+  setToggleState('setting-image-apply-local', settings.imageApplyToLocal !== false);
+  setToggleState('setting-image-apply-network', settings.imageApplyToNetwork !== false);
   setSelectValue('setting-image-reference-style', String(settings.imageReferenceStyle ?? 'relative'));
   setToggleState('setting-code-linenumbers', settings.codeLineNumbers === true);
   setToggleState('setting-code-wordwrap', settings.codeWordWrap !== false);
-  setSelectValue('setting-image-naming', String(settings.imageNamingStrategy ?? 'timestamp'));
+  setInputValue('setting-image-clipboard-template', String(settings.imageClipboardNameTemplate ?? 'img-${date:yyyyMMdd}${time:HHmmss}'));
   setInputValue('setting-filetree-ignore', (settings.fileTreeIgnorePatterns ?? DEFAULT_SETTINGS.fileTreeIgnorePatterns ?? []).join(', '));
   setInputValue('setting-filetree-page-size', String(settings.fileTreePageSize ?? 500));
   setInputValue('setting-filetree-depth', String(settings.fileTreeAutoLoadDepth ?? 8));
@@ -416,8 +415,12 @@ function applySettingsToUI(settings: Settings) {
   });
 
   const customRow = document.getElementById('setting-image-custom-row');
+  const namedDirHelp = document.getElementById('setting-image-named-dir-help');
   if (customRow) {
     customRow.hidden = getSelectValue('setting-image-storage') !== 'custom';
+  }
+  if (namedDirHelp) {
+    namedDirHelp.hidden = getSelectValue('setting-image-storage') !== 'document-named-dir';
   }
 }
 
@@ -475,7 +478,7 @@ async function persistSettingsFromUI() {
 function buildSettingsFromUI(): Settings {
   return {
     ...currentSettings,
-    version: 2,
+    version: 3,
     theme: getSelectedTheme(),
     fontSize: Number(getSelectValue('setting-fontsize') || 18),
     lineHeight: Number(getSelectValue('setting-lineheight') || 1.7),
@@ -490,12 +493,12 @@ function buildSettingsFromUI(): Settings {
     showSidebar: getToggleState('setting-sidebar'),
     showTooltips: getToggleState('setting-tooltips'),
     followSystemTheme: getToggleState('setting-follow-system'),
-    imageStorageMode: getSelectValue('setting-image-storage') || 'workspace-assets',
-    imageCustomPath: getInputValue('setting-image-custom-path'),
-    imageLocalFileBehavior: getSelectValue('setting-image-local-behavior') || 'copy',
-    imageNetworkBehavior: getSelectValue('setting-image-network-behavior') || 'keep-url',
-    imageReferenceStyle: getSelectValue('setting-image-reference-style') || 'relative',
-    imageNamingStrategy: getSelectValue('setting-image-naming') || 'timestamp',
+    imageStorageMode: (getSelectValue('setting-image-storage') || 'custom') as Settings['imageStorageMode'],
+    imageCustomPath: getInputValue('setting-image-custom-path').trim() || './images',
+    imageApplyToLocal: getToggleState('setting-image-apply-local'),
+    imageApplyToNetwork: getToggleState('setting-image-apply-network'),
+    imageReferenceStyle: (getSelectValue('setting-image-reference-style') || 'relative') as Settings['imageReferenceStyle'],
+    imageClipboardNameTemplate: getInputValue('setting-image-clipboard-template').trim() || 'img-${date:yyyyMMdd}${time:HHmmss}',
     fileTreeIgnorePatterns: getInputValue('setting-filetree-ignore').split(',').map(value => value.trim()).filter(Boolean),
     fileTreePageSize: Math.min(5000, Math.max(50, Number(getInputValue('setting-filetree-page-size')) || 500)),
     fileTreeAutoLoadDepth: Math.min(32, Math.max(1, Number(getInputValue('setting-filetree-depth')) || 8)),

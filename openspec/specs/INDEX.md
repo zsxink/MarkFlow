@@ -12,7 +12,8 @@
 | 源码编辑器、语言高亮或大文档降级 | [codemirror-source-editor](codemirror-source-editor/spec.md)、[lazy-code-languages](lazy-code-languages/spec.md)、[document-size-tier](document-size-tier/spec.md)、[expensive-task-scheduling](expensive-task-scheduling/spec.md) | `src/lib/editor.source.ts`、`codemirror-languages.ts`、`codemirror-highlight-limit.ts`、`fileSizeTier.ts`、`src/components/degradationBar.ts` | `npm test`、`npm run build` |
 | 菜单、对话框、状态栏或工具栏交互 | [dialog-system](dialog-system/spec.md)、[context-menu](context-menu/spec.md)、[statusbar](statusbar/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/ui/dialog.ts`、`ui/modal.ts`、`contextMenu.ts`、`toolbar.ts`、`statusbar.ts` | `npm test`、`npm run build` |
 | 导出 HTML、Word 或 PDF | [rendered-document-export](rendered-document-export/spec.md)、[export-workspace-bypass](export-workspace-bypass/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/toolbar.ts`、`src/lib/documentExport.ts`、`storage.ts` | `npm test`、`npm run build` |
-| 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/lib/editor.image.*.ts`、`imageUtils.ts`、`mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
+| 图片设置、存储规则、粘贴命名或首次保存 | [image-storage-engine](image-storage-engine/spec.md)、[image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[settings-code-highlight](settings-code-highlight/spec.md) | `src/lib/imageUtils.ts`、`pathUtils.ts`、`storage.ts`、`src-tauri/src/commands/files_image.rs` | `npm test`、`cargo test` |
+| 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[image-storage-engine](image-storage-engine/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/lib/editor.image.*.ts`、`imageUtils.ts`、`mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
 | 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/lib/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
 | 体积、字体、CI、回归测试或 archive 门禁 | [bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`.github/`、`scripts/check-archive-synced.sh` | `npm test`、`npm run check-size`（体积改动）、`bash scripts/check-archive-synced.sh` |
 
@@ -44,6 +45,7 @@
 - [expensive-task-scheduling](expensive-task-scheduling/spec.md) — 高开销编辑任务的调度。
 - [keyboard-shortcuts](keyboard-shortcuts/spec.md) — 全局快捷键与编辑器命令。
 - [lazy-code-languages](lazy-code-languages/spec.md) — 语言包按需加载与回退。
+- [settings-code-highlight](settings-code-highlight/spec.md) — 代码高亮开关与即时生效。
 - [url-decoration](url-decoration/spec.md) — 裸 URL 的非侵入式装饰、打开与复制。
 
 ### 工作区与文件
@@ -52,7 +54,9 @@
 - [background-task-lifecycle](background-task-lifecycle/spec.md) — 文件监听等后台任务生命周期。
 - [export-workspace-bypass](export-workspace-bypass/spec.md) — 导出绕过工作区路径限制。
 - [file-tree-architecture](file-tree-architecture/spec.md) — 文件树架构、加载与增量更新。
+- [font-stack](font-stack/spec.md) — 跨平台字体栈与分发。
 - [image-naming](image-naming/spec.md) — 粘贴图片命名。
+- [image-storage-engine](image-storage-engine/spec.md) — 图片存储规则、路径解析与暂存生命周期。
 - [image-streaming](image-streaming/spec.md) — 图片传输、临时文件与并发控制。
 - [rendered-document-export](rendered-document-export/spec.md) — HTML、Word、PDF 导出。
 

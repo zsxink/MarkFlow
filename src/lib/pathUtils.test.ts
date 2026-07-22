@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   getFileName,
+  getDocumentBaseName,
+  getDocumentNamedImageDir,
   getParentDir,
   resolveImagePath,
   computeRelativePath,
   getImageMimeType,
+  normalizeImageStoragePath,
 } from './pathUtils';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +40,21 @@ describe('getFileName', () => {
   });
 });
 
+describe('document-named image directory', () => {
+  it('uses a single sibling directory and removes only the final extension', () => {
+    expect(getDocumentBaseName('/docs/README.zh-CN.md')).toBe('README.zh-CN');
+    expect(getDocumentNamedImageDir('/docs/guide.md')).toBe('/docs/guide-images');
+    expect(getDocumentNamedImageDir('/docs/README.zh-CN.md')).toBe('/docs/README.zh-CN-images');
+  });
+
+  it('joins POSIX, Windows and UNC filesystem roots without changing roots', () => {
+    expect(getDocumentNamedImageDir('/guide.md')).toBe('/guide-images');
+    expect(getDocumentNamedImageDir('C:\\guide.md')).toBe('C:/guide-images');
+    expect(getDocumentNamedImageDir('\\\\server\\share\\guide.md'))
+      .toBe('//server/share/guide-images');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // getParentDir
 // ---------------------------------------------------------------------------
@@ -50,18 +68,16 @@ describe('getParentDir', () => {
     expect(getParentDir('C:\\Users\\user\\file.md')).toBe('C:\\Users\\user');
   });
 
-  it('returns the same path when there is no separator', () => {
-    expect(getParentDir('file.md')).toBe('file.md');
+  it('returns current directory when there is no separator', () => {
+    expect(getParentDir('file.md')).toBe('.');
   });
 
   it('strips the trailing slash from a directory path', () => {
     expect(getParentDir('/home/user/')).toBe('/home/user');
   });
 
-  it('handles root path (sep at position 0 returns the path itself)', () => {
-    // When the only separator is at index 0, the condition `lastSep > 0`
-    // is false, so the full string is returned.
-    expect(getParentDir('/root.txt')).toBe('/root.txt');
+  it('handles a file in the filesystem root', () => {
+    expect(getParentDir('/root.txt')).toBe('/');
   });
 });
 
@@ -141,10 +157,32 @@ describe('computeRelativePath', () => {
   });
 
   it('handles docPath with file in root', () => {
-    // getParentDir('/readme.md') returns '/readme.md' (sep at index 0),
-    // so computeRelativePath treats it as a directory component.
     const result = computeRelativePath('/readme.md', '/images/logo.png');
-    expect(result).toBe('../images/logo.png');
+    expect(result).toBe('images/logo.png');
+  });
+
+  it('returns an absolute target across Windows drives', () => {
+    expect(computeRelativePath('C:\\docs\\readme.md', 'D:\\images\\logo.png'))
+      .toBe('D:/images/logo.png');
+  });
+});
+
+describe('normalizeImageStoragePath', () => {
+  it('resolves ./images relative to the document directory', () => {
+    expect(normalizeImageStoragePath('./images', '/workspace/docs/readme.md'))
+      .toBe('/workspace/docs/images');
+  });
+
+  it('normalizes an absolute path without adding the document directory', () => {
+    expect(normalizeImageStoragePath('/Users/me/../shared/images', '/workspace/readme.md'))
+      .toBe('/Users/shared/images');
+  });
+
+  it('preserves Windows and UNC roots while normalizing separators', () => {
+    expect(normalizeImageStoragePath('D:\\Pictures\\MarkFlow', '/workspace/readme.md'))
+      .toBe('D:/Pictures/MarkFlow');
+    expect(normalizeImageStoragePath('\\\\server\\share\\images', '/workspace/readme.md'))
+      .toBe('//server/share/images');
   });
 });
 

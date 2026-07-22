@@ -20,6 +20,7 @@
 - 路径安全（符号链接、`..` 逃逸保护）
 - 旧版 settings.json 自动迁移到新数据模型
 - 所有改动均添加/更新测试覆盖
+- 未保存文档中的图片具备跨平台、可恢复且可清理的暂存机制
 
 **Non-Goals:**
 - 不改设置持久化方式（仍使用 `settings.json` + Rust cache）
@@ -27,6 +28,7 @@
 - 不改图片编辑气泡 UI 框架
 - 不改图片右键菜单
 - 不引入新的外部依赖
+- 不自动搬迁已有 Markdown 中已经落盘的图片
 
 ## Decisions
 
@@ -42,11 +44,11 @@
 
 **备选**: 前端 `hydrateSettingsUI` 时检测旧字段。会增加前端复杂度且迁移时机不可控（settings 可能尚未加载）。
 
-### 3. 图片服务：单服务 vs 继续分散
+### 3. 图片服务：统一模块 vs 继续分散
 
-**决策**: 新增 `ImageService` class 封装所有图片处理入口，替换 `imageUtils.ts` 中的导出函数。Service 持有 `ImageSettings` 状态并在设置变更时刷新。保持 `imageUtils.ts` 作为薄封装层对外暴露兼容接口，减少外部调用方的改动量。
+**决策**: 由 `imageUtils.ts` 作为统一图片服务模块，集中导出剪贴板、本地文件和网络图片三个来源的处理入口，并复用同一套路径、命名、暂存与迁移逻辑。设置在每次操作时显式传入，避免全局缓存与设置变更不同步；草稿暂存状态只保留在该模块内部。
 
-**备选**: 将所有函数在 imageUtils.ts 内用内部状态管理。但会导致该文件继续膨胀且难以测试。
+**备选**: 新增持有 `ImageSettings` 的 `ImageService` class。当前调用点均为模块级函数，增加实例生命周期和刷新机制只会提高集成复杂度，因此不采用。
 
 ### 4. 代码高亮生效方式：CSS 隐藏 vs 插件控制
 
@@ -62,11 +64,51 @@
 
 **备选**: 前端做路径解析 + 逃逸检测。但 Rust 有更好的文件系统权限控制，且 escape 检测必须由后端强制执行以避免绕过。
 
+### 6. 三种存储目录规则
+
+**决策**: `imageStorageMode` 使用 `custom | document-dir | document-named-dir`。
+
+- `custom` 默认路径为 `./images`，只有该模式显示输入框与目录选择器；绝对路径立即可用，相对路径以 Markdown 文档目录解析
+- `document-dir` 解析为 Markdown 文档父目录
+- `document-named-dir` 解析为 Markdown 文档父目录下的 `${documentBaseName}-images`，例如 `/docs/guide.md` → `/docs/guide-images/`，不是 `/docs/guide/images/`
+
+`${filename}` 始终表示不含最终扩展名的 Markdown 文件名；包含多个点的文件名只移除最后一个扩展名，例如 `README.zh-CN.md` → `README.zh-CN-images`。
+
+### 7. 图片来源与存储规则解耦
+
+**决策**: 剪贴板图片始终进入存储流程；本地图片和网络图片分别使用 boolean 开关决定是否应用该流程。关闭本地开关时保留原始路径，关闭网络开关时保留 URL。开启后两者保留来源文件名，仅在冲突时追加序号，不使用剪贴板命名模板。
+
+### 8. 剪贴板图片命名模板
+
+**决策**: 新增 `imageClipboardNameTemplate`，默认值为 `img-${date:yyyyMMdd}${time:HHmmss}`。支持 `${filename}`（当前 Markdown 文件名，无扩展名；未保存时为 `untitled`）、`${date:<format>}`、`${time:<format>}`。模板不包含扩展名和序号：扩展名根据剪贴板 MIME 保留原格式；只有目标文件重名时才按 `-1`、`-2` 递增。
+
+模板渲染后必须清理路径分隔符、控制字符和平台非法文件名，并在结果为空时回退到 `img`。
+
+### 9. 未保存文档图片暂存目录
+
+**决策**: 不使用公共系统临时目录，也不直接拼接 `$HOME`。Rust 通过平台目录 API 解析当前用户的本地应用数据目录，并建立 `MarkFlow/pending-images/<draft-id>/`：
+
+- macOS: `~/Library/Application Support/MarkFlow/pending-images/`
+- Windows: `%LOCALAPPDATA%\\MarkFlow\\pending-images\\`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/MarkFlow/pending-images/`
+
+每个未保存文档使用随机 `draft-id` 和清单文件。显式放弃草稿时立即清理；异常退出保留，启动时清理超过 7 天且不属于可恢复文档的目录。目录由后端生成与授权，前端不能提交任意暂存根路径。
+
+### 10. 首次保存事务顺序
+
+**决策**: 首次保存采用“迁移图片 → 更新编辑器引用 → 写 Markdown → 清理暂存”的顺序。迁移先复制到目标目录并使用原子落盘；任一图片失败则中止文档保存并保留暂存内容。Markdown 写入成功后才删除对应草稿目录。绝对自定义路径在未保存阶段可直接写入，不创建暂存项。
+
+为避免在 ProseMirror 与 CodeMirror 中分别维护两套替换逻辑，迁移函数接收当前 Markdown 字符串和待迁移清单，返回更新后的 Markdown 与最终映射；调用方再用统一的 `setMarkdown` 同步当前编辑器模式。
+
+保存事务开始时持有图片写入屏障：事务开始前已经排队的图片写入必须完成后才迁移；事务开始后新插入的图片等待迁移、Markdown 写入与旧草稿清理结束，再进入新的草稿。若 Markdown 写入失败，只释放屏障并保留旧草稿，新图片随后继续写入同一草稿，下一次保存统一重试。
+
 ## Risks / Trade-offs
 
 - **[风险]** 旧版 settings.json 中的废弃字段在新 Rust struct 中不反序列化 → **缓解**: `#[serde(default)]` + `#[serde(deny_unknown_fields)]` 不使用，允许未知字段被静默忽略
 - **[风险]** 设置迁移逻辑测试覆盖不足，导致用户升级后设置丢失 → **缓解**: Rust 端编写测试覆盖所有旧→新版迁移场景；前端 hydration 时若缺少新字段则使用 DEFAULT_SETTINGS 填充
 - **[风险]** 剪贴板图片始终保存到存储位置可能不符合部分用户预期（原 `'none'` 模式下 inline base64 更快） → **缓解**: 移除 `'none'` 的决策经过 issue 讨论确认；如用户要求可在后续迭代中支持「保存为 base64」选项（新枚举值不破坏向后兼容）
 - **[风险]** WYSIWYG CSS 覆盖高亮方式可能因 tiptap 版本升级导致选择器失效 → **缓解**: 使用 `.ProseMirror` 容器级 class 而非依赖具体 DOM 结构；测试中验证关闭高亮时 `window.getComputedStyle` 颜色值
-- **[风险]** `imageLocalFileBehavior: 'reference'` 引用源文件路径，文件移动后引用断裂 → **缓解**: 这是已知行为，在设置描述中明确提示用户「引用模式——图片文件移动后路径可能失效」
+- **[风险]** `imageApplyToLocal: false` 引用源文件路径，文件移动后引用断裂 → **缓解**: 这是已知行为，在设置描述中明确提示用户「不应用存储规则时，图片文件移动后路径可能失效」
 - **[风险]** Windows 路径大小写（`D:` vs `d:`）不一致 → **缓解**: 使用 `Path::canonicalize` 统一归一化
+- **[风险]** 应用崩溃留下暂存图片 → **缓解**: 按草稿隔离并在启动时执行 7 天过期清理；正常放弃与成功迁移立即删除
+- **[风险]** 图片迁移成功但 Markdown 保存失败产生孤立文件 → **缓解**: 保留暂存清单并允许重试，目标命名采用幂等映射；不覆盖已有文件

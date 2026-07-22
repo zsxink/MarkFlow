@@ -7,11 +7,12 @@ import { showToast } from './toast';
 import { showModal } from './ui/modal';
 import { addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
-import { copyLocalFileToStorage, handleNetworkImage, getImageSettings } from '../lib/imageUtils';
-import { getActiveDocPath } from '../lib/editor.state';
+import { copyLocalFileToStorage, handleNetworkImage, getImageSettings, imagePathToSrc } from '../lib/imageUtils';
+import { assetToOriginalMap, getActiveDocPath } from '../lib/editor.state';
 import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
 import { showContextMenuStatic } from './ui/contextMenu';
+import { getSourceView } from '../lib/editor.source';
 
 export function initToolbar() {
   initAriaAttributes();
@@ -225,25 +226,22 @@ function updateModeIndicator(mode: string) {
 function insertImageSrc(src: string) {
   const mode = getMode();
   if (mode === 'source') {
-    const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;
-    if (!textarea) return;
-    // Strip Tauri asset protocol — source markdown should have filesystem paths
-    let fsPath = src;
-    if (src.startsWith('asset://localhost/')) {
-      const urlDecoded = decodeURIComponent(src.slice('asset://localhost/'.length));
-      fsPath = urlDecoded;
-      // On Windows asset://localhost/C:/ → /C:/ → C:/
-      if (fsPath.match(/^\/[A-Za-z]:\//)) fsPath = fsPath.slice(1);
-    }
-    const pos = textarea.selectionStart;
-    const before = textarea.value.substring(0, pos);
-    const after = textarea.value.substring(pos);
-    const md = `![](${fsPath})`;
-    textarea.value = before + md + after;
-    textarea.selectionStart = textarea.selectionEnd = pos + md.length;
-    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    const view = getSourceView();
+    if (!view) return;
+    const selection = view.state.selection.main;
+    const md = `![](${src})`;
+    view.dispatch({
+      changes: { from: selection.from, to: selection.to, insert: md },
+      selection: { anchor: selection.from + md.length },
+    });
+    view.focus();
   } else {
-    getEditor()?.chain().focus().setImage({ src }).run();
+    let renderSrc = src;
+    if (!/^(?:https?:|data:|asset:)/.test(src)) {
+      renderSrc = imagePathToSrc(src, getActiveDocPath());
+      if (renderSrc !== src) assetToOriginalMap.set(renderSrc, src);
+    }
+    getEditor()?.chain().focus().setImage({ src: renderSrc }).run();
   }
 }
 

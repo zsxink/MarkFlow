@@ -12,18 +12,21 @@ Issue #156 指出当前设置面板存在多个结构性问题：设置项位置
 
 ### 图片设置重构
 
-- **存储模式 enum 化**：以枚举替代松散字符串，明确区分行为
-  - `imageLocalFileBehavior: 'copy' | 'reference'` — 本地图片：复制到存储位置（默认）或保留原始路径
-  - `imageNetworkBehavior: 'keep-url' | 'download'` — 网络图片：保留 URL（默认）或下载到存储位置
-  - `imageStorageMode: 'workspace-assets' | 'doc-assets' | 'custom'` — 存储位置：去掉「无特殊操作」模式
-  - `imageReferenceStyle: 'relative' | 'absolute'` — Markdown 引用样式
+- **存储模式 enum 化**：以三个面向用户的目录规则替代工作区/文档 assets 混合语义
+  - `custom`（默认）— 复制到指定路径，显示路径输入框和目录选择器，默认 `./images`，支持相对路径与跨平台绝对路径
+  - `document-dir` — 复制到当前 Markdown 文档同级目录 `./`，不显示路径输入框
+  - `document-named-dir` — 复制到文档同级的 `./${filename}-images`，例如 `guide.md` 对应 `./guide-images/`，不显示路径输入框
+- **按来源应用规则**：剪贴板图片始终保存；本地图片和网络图片分别通过开关决定是否复制/下载到存储位置，未勾选时保留原始本地引用或网络 URL
+- **引用样式**：支持相对路径（默认）与绝对路径；相对路径始终相对于 Markdown 文档目录
 - **剪贴板图片行为变更**：不再提供选项，始终保存到存储位置
+- **剪贴板命名模板**：默认 `img-${date:yyyyMMdd}${time:HHmmss}`，仅作用于剪贴板图片；扩展名保持剪贴板图片的实际格式，重名时才追加 `-1`、`-2`
 - **自定义路径增强**：支持 `./images`、`../assets`、POSIX 绝对路径、Windows 盘符路径（如 `D:\Pictures\MarkFlow`）、UNC 路径；相对路径以当前 Markdown 文档所在目录为基准
+- **未保存文档暂存**：相对目录规则在文档首次保存前写入当前用户的 MarkFlow 本地数据目录；首次保存时先迁移图片并更新引用，再写入 Markdown。绝对路径可立即生效
 
 ### 数据模型迁移
 
 - 用枚举替换松散 boolean/string 字段，确保默认值与 JSON 序列化向后兼容
-- 设置版本号提升（version: 1 → version: 2），迁移逻辑自动填充新字段
+- 设置版本号提升到 version 3，迁移逻辑自动填充新字段；已有文档和已有图片不移动，仅影响后续插入
 
 ### 代码高亮设置生效
 
@@ -35,7 +38,7 @@ Issue #156 指出当前设置面板存在多个结构性问题：设置项位置
 - 图片相关文件操作走专用的 Rust 命令（不走通用的文件 IPC），限制操作范围
 - 符号链接和 `..` 遍历不允许逃逸出已授权的图片存储根目录
 
-**BREAKING**: `imageStorageMode` 的 `'none'` 值移除，`imageAutoCopyLocal`、`imageDownloadNetwork`、`imagePreferRelative` 废弃并由新枚举替代
+**BREAKING**: `imageStorageMode` 的旧工作区/文档 assets 值迁移到新的三种目录规则；命名策略改为剪贴板专用模板
 
 ## Capabilities
 

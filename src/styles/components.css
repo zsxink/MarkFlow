@@ -204,11 +204,12 @@
 
 /* Settings modal */
 .modal-settings {
-  width: 680px;
+  width: min(760px, calc(100vw - 48px));
 }
 
 .settings-body {
   display: flex;
+  height: min(620px, calc(100vh - 140px));
   min-height: 400px;
 }
 
@@ -247,6 +248,7 @@
   flex: 1;
   padding: 16px 24px 16px 0;
   overflow-y: auto;
+  min-width: 0;
 }
 
 .settings-group {
@@ -267,6 +269,93 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.settings-field[hidden] {
+  display: none;
+}
+
+.settings-subfield {
+  margin-top: 2px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.settings-rule-example {
+  padding-top: 4px;
+}
+
+.settings-warning {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.settings-copy-hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--fg);
+  user-select: text;
+}
+
+.settings-copy-hint code,
+.settings-field .settings-desc code,
+.settings-rule-example code,
+.settings-template-help code {
+  user-select: text;
+  font-family: var(--font-code);
+}
+
+.settings-template-help {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.settings-input-full,
+.settings-control-full {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.settings-path-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.settings-path-control .newfile-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 13px var(--font-ui);
+  cursor: pointer;
+}
+
+.settings-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .settings-label {
@@ -322,6 +411,15 @@
   font-size: 13px;
   font-family: var(--font-ui);
   cursor: pointer;
+}
+
+/* CodeMirror's basic setup includes a fallback highlight style. This class is
+   the final visual guard when syntax highlighting is disabled. */
+.cm-editor.no-code-highlight .cm-line span {
+  color: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  text-decoration: none !important;
 }
 
 /* Theme swatch */
@@ -553,4 +651,3 @@ body.sepia .degradation-bar {
 .degradation-close:hover {
   opacity: 1;
 }
-

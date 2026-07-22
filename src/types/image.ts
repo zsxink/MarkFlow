@@ -1,29 +1,23 @@
 // ── Image Settings (new enum-based model) ───────────────────────────────
 
-export type ImageStorageMode = 'workspace-assets' | 'doc-assets' | 'custom';
-
-export type ImageLocalFileBehavior = 'copy' | 'reference';
-
-export type ImageNetworkBehavior = 'keep-url' | 'download';
+export type ImageStorageMode = 'custom' | 'document-dir' | 'document-named-dir';
 
 export type ImageReferenceStyle = 'relative' | 'absolute';
-
-export type ImageNamingStrategy = 'timestamp' | 'sequence';
 
 export interface ImageSettings {
   storageMode: ImageStorageMode;
   customPath: string;
-  localFileBehavior: ImageLocalFileBehavior;
-  networkBehavior: ImageNetworkBehavior;
+  applyToLocal: boolean;
+  applyToNetwork: boolean;
   referenceStyle: ImageReferenceStyle;
-  namingStrategy: ImageNamingStrategy;
+  clipboardNameTemplate: string;
 }
 
 export const DEFAULT_IMAGE_SETTINGS: ImageSettings = {
-  storageMode: 'workspace-assets',
-  customPath: '',
-  localFileBehavior: 'copy',
-  networkBehavior: 'keep-url',
+  storageMode: 'custom',
+  customPath: './images',
+  applyToLocal: true,
+  applyToNetwork: true,
   referenceStyle: 'relative',
-  namingStrategy: 'timestamp',
+  clipboardNameTemplate: 'img-${date:yyyyMMdd}${time:HHmmss}',
 };

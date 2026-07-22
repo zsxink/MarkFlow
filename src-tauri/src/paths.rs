@@ -12,6 +12,24 @@ pub fn app_config_dir() -> PathBuf {
         .join("MarkFlow")
 }
 
+/// Per-user local application data. Pending images live here rather than in a
+/// public temporary directory so they survive an application restart.
+pub fn app_local_data_dir() -> PathBuf {
+    #[cfg(feature = "e2e")]
+    {
+        return e2e_data_dir(std::env::var_os("MARKFLOW_E2E_DATA_DIR"));
+    }
+
+    #[cfg(not(feature = "e2e"))]
+    dirs::data_local_dir()
+        .unwrap_or_else(app_config_dir)
+        .join("MarkFlow")
+}
+
+pub fn pending_images_dir() -> PathBuf {
+    app_local_data_dir().join("pending-images")
+}
+
 #[cfg(feature = "e2e")]
 fn e2e_data_dir(value: Option<std::ffi::OsString>) -> PathBuf {
     let path = value

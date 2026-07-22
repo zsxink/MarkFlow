@@ -142,7 +142,7 @@ export function mermaidCodeBlockExtension() {
           serialize(state: any, node: any) {
             state.write("```" + (node.attrs.language || "") + "\n");
             state.text(node.textContent, false);
-            state.ensureNewLine();
+            state.write("\n");
             state.write("```");
             state.closeBlock(node);
           },

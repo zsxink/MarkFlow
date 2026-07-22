@@ -43,7 +43,7 @@ The system SHALL prefer streaming local image files through the Tauri `asset://`
 系统 MUST 将网络图像下载流式传输到临时文件，并在完成后自动重命名。
 
 #### Scenario: 网络下载写入临时文件
-- **WHEN** 触发网络图片下载
+- **WHEN** `imageApplyToNetwork` 为 `true` 且触发网络图片下载
 - **THEN** 下载流被写入与目标目录相同的临时文件中
 - **THEN** 临时文件名使用 `.tmp` 扩展名加上随机后缀
 

@@ -53,7 +53,9 @@
     },
     "fileAssociations": [
       {
-        "ext": ["md"],
+        "ext": ["md", "markdown"],
+        "contentTypes": ["net.daringfireball.markdown"],
+        "name": "Markdown Document",
         "mimeType": "text/markdown",
         "description": "Markdown 文件",
         "role": "Editor"

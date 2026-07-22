@@ -186,6 +186,27 @@ async function restoreWorkspace() {
   }
 }
 
+/** Single autosave tick — extracted for testability. */
+export async function runAutoSaveTick() {
+  if (isSavingInProgress()) return; // skip — previous save still running
+  if (!isDocumentDirty()) return;   // skip — no changes to persist
+  const filePath = getActiveFilePath();
+  if (filePath) {
+    const result = await saveActiveDocument({ interactive: false });
+    // Persistent visibility: only count actual write failures as errors;
+    // skips (clean doc, in-progress, external mod) are not failures.
+    if (result === 'failed') {
+      const next = store.getState().autosaveErrorCount + 1;
+      store.setState({ autosaveErrorCount: next });
+    } else if (result === 'saved') {
+      if (store.getState().autosaveErrorCount !== 0) {
+        store.setState({ autosaveErrorCount: 0 });
+      }
+    }
+    // 'skipped' — no action needed
+  }
+}
+
 function startAutoSave() {
   stopAutoSave();
   const enabled = settings.autosave !== false;
@@ -193,23 +214,7 @@ function startAutoSave() {
   logDebug('app.autosave', 'Updated autosave schedule', { enabled, interval });
 
   if (enabled) {
-    autoSaveTimer = setInterval(async () => {
-      if (isSavingInProgress()) return; // skip — previous save still running
-      const filePath = getActiveFilePath();
-      if (filePath) {
-        const saved = await saveActiveDocument({ interactive: false });
-        // Persistent visibility: keep a running failure count; only surface a
-        // persistent banner after consecutive failures, and clear on success.
-        if (saved) {
-          if (store.getState().autosaveErrorCount !== 0) {
-            store.setState({ autosaveErrorCount: 0 });
-          }
-        } else {
-          const next = store.getState().autosaveErrorCount + 1;
-          store.setState({ autosaveErrorCount: next });
-        }
-      }
-    }, interval);
+    autoSaveTimer = setInterval(runAutoSaveTick, interval);
   }
 }
 

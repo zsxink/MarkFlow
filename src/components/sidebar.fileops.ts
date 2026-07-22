@@ -102,25 +102,27 @@ export async function saveActiveDocumentAsNewFile() {
   }
 }
 
-export async function saveActiveDocument(options: { interactive?: boolean } = {}) {
+export type SaveResult = 'saved' | 'skipped' | 'failed';
+
+export async function saveActiveDocument(options: { interactive?: boolean } = {}): Promise<SaveResult> {
   const { interactive = true } = options;
 
   // ── Serial guard: skip if a save is already in progress ──────────
   if (savingInProgress) {
     logDebug('sidebar.save', 'Save skipped — previous save still in progress');
-    return false;
+    return 'skipped';
   }
 
   let filePath = getActiveFilePath();
 
   if (!filePath) {
-    if (!interactive) return false;
+    if (!interactive) return 'skipped';
     const targetPath = await save({
       title: '保存文件',
       defaultPath: 'untitled.md',
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
-    if (!targetPath) return false;
+    if (!targetPath) return 'skipped';
     const content = getMarkdown();
     const revision = getRevision();
     savingInProgress = true;
@@ -149,12 +151,12 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       );
       logInfo('sidebar.save', 'Saved new file', { path: targetPath });
       showToast('已保存');
-      return true;
+      return 'saved';
     } catch (e) {
       abortPendingImagesSave();
       logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
       showToast('保存失败');
-      return false;
+      return 'failed';
     } finally {
       savingInProgress = false;
     }
@@ -162,11 +164,11 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
 
   // ── External modification check (mtime + size) ──────────────────
   if (hasExternalModification()) {
-    if (!interactive) return false;
+    if (!interactive) return 'skipped';
     const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
     if (!confirmed) {
       showToast('已取消保存');
-      return false;
+      return 'skipped';
     }
   }
 
@@ -179,12 +181,12 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       if (stats.mtime !== lastMtime || stats.size !== lastSize) {
         if (!interactive) {
           logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
-          return false;
+          return 'skipped';
         }
         const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
         if (!confirmed) {
           showToast('已取消保存');
-          return false;
+          return 'skipped';
         }
       }
     } catch (e) {
@@ -220,13 +222,13 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
       showToast('已保存');
     }
-    return true;
+    return 'saved';
   } catch (e) {
     abortPendingImagesSave();
     // Keep dirty state on failure — user sees error toast in interactive mode
     logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
     if (interactive) showToast('保存失败，请重试');
-    return false;
+    return 'failed';
   } finally {
     savingInProgress = false;
   }

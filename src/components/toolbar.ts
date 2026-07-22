@@ -116,8 +116,8 @@ function bindToolbarEvents() {
     if (!button) return;
     const rect = button.getBoundingClientRect();
     showContextMenuStatic([
-      { label: '导出 PDF', onClick: () => { void exportCurrentDocument('pdf'); } },
-      { label: '导出 Word', onClick: () => { void exportCurrentDocument('word'); } },
+      { label: '打印 / 另存为 PDF', onClick: () => { void exportCurrentDocument('pdf'); } },
+      { label: '导出 Word (.docx)', onClick: () => { void exportCurrentDocument('word'); } },
       { label: '导出 HTML', onClick: () => { void exportCurrentDocument('html'); } },
     ], { x: rect.left, y: rect.bottom });
   });

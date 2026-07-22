@@ -90,6 +90,29 @@ Issue 描述应包含：
 
 ---
 
+## 3.5 一键快速路径（推荐）
+
+> 如果你不想手动走流程，可以使用 `/markflow-issue` 一键完成全部阶段。
+
+```bash
+/markflow-issue <issue号>
+```
+
+**自动完成：**
+1. 从 GitHub Issue 拉取数据（title/body/labels）
+2. 创建分支（`type/issue-N-slug`）
+3. Propose（生成 proposal/specs/design/tasks）
+4. Apply（sub agent 实施代码改动）
+5. Verify（sub agent 代码审查 + tsc + build + test）
+6. Archive（sync specs + 移入 archive）
+7. Push + PR + merge（squash merge 到 main）
+
+**故障处理：** verify 失败自动修复（最多 3 轮），3 轮后暂停等你决策。
+
+详见 `.claude/commands/markflow-issue`。
+
+---
+
 ## 4. SDD 开发循环
 
 > **前置条件：已在 feature 分支上（`git checkout -b <type>/<#issue>-<描述> main`）**

@@ -21,6 +21,7 @@ src-tauri/gen/
 .claude/*
 !.claude/rules/
 !.claude/memory/
+!.claude/commands/
 .claude/settings.local.json
 
 # OS files

@@ -5,7 +5,7 @@ const { renderMermaid, renderPlantUml, getCachedSettings, store } = vi.hoisted((
 }));
 vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource: vi.fn(() => false) })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
 import { BlockImage, CustomLink, mermaidCodeBlockExtension } from './editor.extensions';
-import { MarkdownSerializerState, defaultMarkdownParser, schema } from 'prosemirror-markdown';
+import { MarkdownSerializerState, defaultMarkdownParser } from 'prosemirror-markdown';
 
 /**
  * Helper to create a minimal codeBlock-like node for serializer tests.
@@ -22,10 +22,11 @@ function codeBlockNode(textContent: string, language = 'bash') {
  * Run the custom codeBlock serialize function and return its output.
  */
 function serializeCodeBlock(textContent: string, language?: string): string {
-  const state = new MarkdownSerializerState({}, {}, { tightLists: false } as any);
-  const serialize = (mermaidCodeBlockExtension().config.addStorage!() as any).markdown.serialize;
+  // @internal — constructor and out are stripped from .d.ts but available at runtime
+  const state = new (MarkdownSerializerState as any)({}, {}, { tightLists: false });
+  const serialize = (mermaidCodeBlockExtension().config.addStorage!.call({} as any) as any).markdown.serialize;
   serialize(state, codeBlockNode(textContent, language));
-  return state.out;
+  return (state as any).out;
 }
 
 describe('editor extensions', () => {

@@ -99,6 +99,24 @@ export async function writeFileFromBase64(path: string, data: string): Promise<v
   return invoke('write_file_from_base64', { path, data });
 }
 
+export async function writeImageToStorage(
+  path: string,
+  storageRoot: string,
+  data: string,
+  documentPath: string | null,
+): Promise<void> {
+  return invoke('write_image_to_storage', { path, storageRoot, data, documentPath });
+}
+
+export async function copyImageToStorageFile(
+  from: string,
+  to: string,
+  storageRoot: string,
+  documentPath: string | null,
+): Promise<void> {
+  return invoke('copy_image_to_storage', { from, to, storageRoot, documentPath });
+}
+
 export async function saveMermaidPngExport(data: string, defaultName: string): Promise<boolean> {
   return invoke<boolean>('save_mermaid_png_export', { data, defaultName });
 }
@@ -129,6 +147,85 @@ export async function fetchPageTitle(url: string): Promise<string> {
 
 export async function downloadImage(url: string, dest: string): Promise<string> {
   return invoke<string>('download_image', { url, dest });
+}
+
+export async function downloadImageToStorage(
+  url: string,
+  dest: string,
+  storageRoot: string,
+  useMimeExtension: boolean,
+  documentPath: string | null,
+): Promise<{ path: string; mimeType: string }> {
+  return invoke('download_image_to_storage', {
+    url,
+    dest,
+    storageRoot,
+    useMimeExtension,
+    documentPath,
+  });
+}
+
+export interface PendingImage {
+  draftId: string;
+  path: string;
+}
+
+export interface PendingImageMapping {
+  from: string;
+  to: string;
+}
+
+export interface PendingImageMigration {
+  draftId: string;
+  mappings: PendingImageMapping[];
+}
+
+/** Write an image into MarkFlow's backend-owned per-draft data directory. */
+export async function writePendingImage(
+  fileName: string,
+  data: string,
+  draftId: string | null = null,
+): Promise<PendingImage> {
+  return invoke('write_pending_image', { draftId, fileName, data });
+}
+
+export async function copyImageToPending(
+  fileName: string,
+  from: string,
+  draftId: string | null = null,
+): Promise<PendingImage> {
+  return invoke('copy_image_to_pending', { draftId, fileName, from });
+}
+
+export async function downloadImageToPending(
+  fileName: string,
+  url: string,
+  draftId: string | null = null,
+): Promise<PendingImage> {
+  return invoke('download_image_to_pending', { draftId, fileName, url });
+}
+
+/** Copy all staged images to the storage target calculated by the backend. */
+export async function migratePendingImages(
+  draftId: string,
+  documentPath: string,
+): Promise<PendingImageMigration> {
+  return invoke('migrate_pending_images', { draftId, documentPath });
+}
+
+export async function cleanupPendingImages(draftId: string): Promise<void> {
+  return invoke('cleanup_pending_images', { draftId });
+}
+
+export async function cleanupExpiredPendingImages(
+  recoverableDraftIds: string[] = [],
+): Promise<number> {
+  return invoke<number>('cleanup_expired_pending_images', { recoverableDraftIds });
+}
+
+/** Add the current image storage directory to Tauri's asset protocol scope. */
+export async function authorizeImageStorage(documentPath: string): Promise<string> {
+  return invoke<string>('authorize_image_storage', { documentPath });
 }
 
 export async function fileExists(path: string): Promise<boolean> {

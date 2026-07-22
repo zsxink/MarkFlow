@@ -1,3 +1,5 @@
+import type { ImageReferenceStyle, ImageStorageMode } from './image';
+
 export interface Settings {
   version: number;
   theme: string;
@@ -16,22 +18,24 @@ export interface Settings {
   showTooltips: boolean;
   followSystemTheme: boolean;
   lastWorkspace?: string | null;
-  /** "workspace-assets" (default) | "doc-assets" | "custom" */
-  imageStorageMode: string;
-  imageCustomPath?: string;
-  /** @deprecated Use imageLocalFileBehavior instead */
-  imageAutoCopyLocal?: boolean;
-  /** @deprecated Use imageNetworkBehavior instead */
-  imageDownloadNetwork?: boolean;
-  /** @deprecated Use imageReferenceStyle instead */
-  imagePreferRelative?: boolean;
+  imageStorageMode: ImageStorageMode;
+  imageCustomPath: string;
+  imageApplyToLocal: boolean;
+  imageApplyToNetwork: boolean;
+  imageClipboardNameTemplate: string;
+  imageReferenceStyle: ImageReferenceStyle;
+  /** @deprecated Migrated to imageApplyToLocal in settings version 3 */
+  imageLocalFileBehavior?: string;
+  /** @deprecated Migrated to imageApplyToNetwork in settings version 3 */
+  imageNetworkBehavior?: string;
+  /** @deprecated Replaced by imageClipboardNameTemplate in settings version 3 */
   imageNamingStrategy?: string;
-  /** "copy" (default) | "reference" */
-  imageLocalFileBehavior: string;
-  /** "keep-url" (default) | "download" */
-  imageNetworkBehavior: string;
-  /** "relative" (default) | "absolute" */
-  imageReferenceStyle: string;
+  /** @deprecated Legacy version 1 setting */
+  imageAutoCopyLocal?: boolean;
+  /** @deprecated Legacy version 1 setting */
+  imageDownloadNetwork?: boolean;
+  /** @deprecated Legacy version 1 setting */
+  imagePreferRelative?: boolean;
   codeLineNumbers?: boolean;
   codeWordWrap?: boolean;
   lastSidebarTab?: string;
@@ -51,7 +55,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  version: 2,
+  version: 3,
   theme: 'light',
   fontSize: 18,
   lineHeight: 1.7,
@@ -65,11 +69,11 @@ export const DEFAULT_SETTINGS: Settings = {
   showTooltips: true,
   followSystemTheme: false,
   lastWorkspace: null,
-  imageStorageMode: 'workspace-assets',
-  imageCustomPath: '',
-  imageNamingStrategy: 'timestamp',
-  imageLocalFileBehavior: 'copy',
-  imageNetworkBehavior: 'keep-url',
+  imageStorageMode: 'custom',
+  imageCustomPath: './images',
+  imageApplyToLocal: true,
+  imageApplyToNetwork: true,
+  imageClipboardNameTemplate: 'img-${date:yyyyMMdd}${time:HHmmss}',
   imageReferenceStyle: 'relative',
   codeLineNumbers: false,
   codeWordWrap: true,

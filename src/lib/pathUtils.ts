@@ -3,13 +3,31 @@ export function getFileName(filePath: string): string {
   return lastSep >= 0 ? filePath.substring(lastSep + 1) : filePath;
 }
 
+/** Return the final path segment without its last extension. */
+export function getDocumentBaseName(filePath: string): string {
+  const fileName = getFileName(filePath);
+  const dot = fileName.lastIndexOf('.');
+  return dot > 0 ? fileName.slice(0, dot) : fileName;
+}
+
+/** Resolve the single-level `<document-name>-images` directory beside a document. */
+export function getDocumentNamedImageDir(documentPath: string): string {
+  const parent = normalizePathSegments(getParentDir(documentPath));
+  const baseName = getDocumentBaseName(documentPath) || 'untitled';
+  const separator = parent.endsWith('/') ? '' : '/';
+  return normalizePathSegments(`${parent}${separator}${baseName}-images`);
+}
+
 export function getParentDir(filePath: string): string {
   const lastSep = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-  return lastSep > 0 ? filePath.substring(0, lastSep) : filePath;
+  if (lastSep < 0) return '.';
+  if (lastSep === 0) return filePath[0];
+  if (lastSep === 2 && isWindowsDrivePath(filePath)) return filePath.substring(0, 3);
+  return filePath.substring(0, lastSep);
 }
 
 export function isWindowsDrivePath(path: string): boolean {
-  return /^[a-zA-Z]:/.test(path);
+  return /^[a-zA-Z]:[\\/]/.test(path);
 }
 
 export function isUNCPath(path: string): boolean {
@@ -29,45 +47,71 @@ export function isAbsolutePath(path: string): boolean {
  * All paths are converted to POSIX-style forward slashes.
  */
 export function normalizeImageStoragePath(customPath: string, baseDir: string): string {
-  const normalizedPath = customPath.replace(/\\/g, '/');
-  // Absolute paths (POSIX, Windows drive, UNC) used as-is
-  if (isWindowsDrivePath(normalizedPath) || normalizedPath.startsWith('/')) {
-    return normalizedPath;
-  }
-  // Relative paths resolved against base dir
-  if (normalizedPath.startsWith('./') || normalizedPath.startsWith('../')) {
-    return resolveImagePath(normalizedPath, baseDir);
-  }
-  // Fallback: treat as relative
+  const normalizedPath = normalizePathSegments(customPath);
+  if (isAbsolutePath(normalizedPath)) return normalizedPath;
   return resolveImagePath(normalizedPath, baseDir);
 }
 
 export function resolveImagePath(imagePath: string, docPath: string): string {
-  // Windows drive paths and POSIX absolute paths are used as-is
-  if (isAbsolutePath(imagePath)) {
-    return imagePath.replace(/\\/g, '/');
-  }
-  const docDir = getParentDir(docPath);
-  const parts = imagePath.split('/');
-  const docParts = docDir.split('/');
-  for (const part of parts) {
-    if (part === '.' || part === '') continue;
-    if (part === '..') { docParts.pop(); }
-    else { docParts.push(part); }
-  }
-  return docParts.join('/');
+  if (isAbsolutePath(imagePath)) return normalizePathSegments(imagePath);
+  const docDir = normalizePathSegments(getParentDir(docPath));
+  return normalizePathSegments(`${docDir}/${imagePath}`);
 }
 
 export function computeRelativePath(from: string, to: string): string {
-  const fromParts = getParentDir(from).split('/');
-  const toParts = to.split('/');
+  const fromDir = normalizePathSegments(getParentDir(from));
+  const normalizedTo = normalizePathSegments(to);
+  const fromRoot = getPathRoot(fromDir);
+  const toRoot = getPathRoot(normalizedTo);
+  if (fromRoot.toLowerCase() !== toRoot.toLowerCase()) return normalizedTo;
+
+  const fromParts = stripPathRoot(fromDir, fromRoot).split('/').filter(Boolean);
+  const toParts = stripPathRoot(normalizedTo, toRoot).split('/').filter(Boolean);
   let i = 0;
-  while (i < fromParts.length && i < toParts.length && fromParts[i] === toParts[i]) {
+  const caseInsensitive = isWindowsDrivePath(fromDir) || isUNCPath(fromDir);
+  while (i < fromParts.length && i < toParts.length
+    && (caseInsensitive ? fromParts[i].toLowerCase() === toParts[i].toLowerCase() : fromParts[i] === toParts[i])) {
     i++;
   }
   const ups = fromParts.length - i;
   const rel = [...Array(ups).fill('..'), ...toParts.slice(i)];
-  return rel.join('/');
+  return rel.join('/') || '.';
+}
+
+/** Normalize `.` and `..` without consulting the host filesystem. */
+export function normalizePathSegments(input: string): string {
+  const path = input.trim().replace(/\\/g, '/');
+  const root = getPathRoot(path);
+  const rest = stripPathRoot(path, root);
+  const parts: string[] = [];
+  for (const part of rest.split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') {
+      if (parts.length && parts[parts.length - 1] !== '..') parts.pop();
+      else if (!root) parts.push('..');
+      continue;
+    }
+    parts.push(part);
+  }
+  if (!root) return parts.join('/') || '.';
+  if (root === '/') return `/${parts.join('/')}` || '/';
+  if (root === '//') return `//${parts.join('/')}`;
+  return `${root}${parts.join('/')}`;
+}
+
+function getPathRoot(path: string): string {
+  const normalized = path.replace(/\\/g, '/');
+  if (normalized.startsWith('//')) {
+    const [server, share] = normalized.slice(2).split('/');
+    return server && share ? `//${server}/${share}/` : '//';
+  }
+  const drive = normalized.match(/^[a-zA-Z]:\//)?.[0];
+  if (drive) return drive;
+  return normalized.startsWith('/') ? '/' : '';
+}
+
+function stripPathRoot(path: string, root: string): string {
+  return root ? path.replace(/\\/g, '/').slice(root.length) : path.replace(/\\/g, '/');
 }
 
 const MIME_MAP: Record<string, string> = {

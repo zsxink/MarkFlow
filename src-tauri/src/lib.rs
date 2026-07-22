@@ -340,9 +340,19 @@ pub fn run() {
             files::get_file_stats,
             files::read_file_as_base64,
             files::write_file_from_base64,
+            files_image::write_image_to_storage,
+            files_image::copy_image_to_storage,
+            files_image::authorize_image_storage,
+            files_image::write_pending_image,
+            files_image::copy_image_to_pending,
+            files_image::download_image_to_pending,
+            files_image::migrate_pending_images,
+            files_image::cleanup_pending_images,
+            files_image::cleanup_expired_pending_images,
             files_image::fetch_remote_image_as_base64,
             files_meta::fetch_page_title,
             files_image::download_image,
+            files_image::download_image_to_storage,
             confirm_window_close,
             settings::load_settings,
             settings::save_settings,
@@ -363,6 +373,7 @@ pub fn run() {
 
             // Clean up stale temp files from previous crashed writes
             files::cleanup_stale_temp_files(&paths::app_config_dir());
+            files_image::cleanup_expired_pending_images_on_startup();
 
             let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
 

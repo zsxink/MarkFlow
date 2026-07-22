@@ -86,6 +86,7 @@ markflow/
 │   │   ├── lib.rs                # 库入口，命令注册
 │   │   ├── commands/
 │   │   │   ├── files.rs          # 文件操作命令
+│   │   │   ├── files_image.rs    # 图片专用命令（写入、复制、下载、暂存、迁移、清理）
 │   │   │   └── settings.rs       # 设置读写命令
 │   │   ├── fs/                   # 文件监听与忽略规则
 │   │   ├── config/
@@ -122,6 +123,8 @@ markflow/
 - **tiptap-markdown** 扩展负责 Markdown 的双向序列化
 - **自定义 ProseMirror 插件**：
   - `imageSrcResolverPlugin` — 将相对路径转换为 Tauri asset protocol URL
+- `imageUtils.ts` — 统一图片存储、路径解析、命名和草稿生命周期
+- `files_image.rs` — 图片专用 IPC 命令（写入、复制、下载、暂存、迁移、清理）
   - `imageBubblePlugin` — 点击图片弹出路径编辑气泡
 - **DOM 级事件处理**：图片粘贴/拖拽通过 `paste`/`drop` 事件监听实现
 

@@ -5,6 +5,7 @@ import { HighlightStyle, syntaxHighlighting, LanguageDescription, LanguageSuppor
 import { tags } from '@lezer/highlight';
 import { getLanguageExtension } from './codemirror-languages';
 import { highlightLimitPlugin } from './codemirror-highlight-limit';
+import { getCachedSettings } from './storage';
 
 // Fallback: empty LanguageSupport (plain text) when a language fails to load
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -33,10 +34,11 @@ export function setSourceHighlight(enabled: boolean): void {
   if (!currentView) return;
   const style = enabled
     ? syntaxHighlighting(markdownHighlightStyle, { fallback: true })
-    : syntaxHighlighting(HighlightStyle.define([]), { fallback: true });
+    : syntaxHighlighting(noHighlightStyle, { fallback: true });
   currentView.dispatch({
     effects: highlightCompartment.reconfigure(style),
   });
+  currentView.dom.classList.toggle('no-code-highlight', !enabled);
 }
 
 // ── Syntax highlighting theme ───────────────────────────────────────────
@@ -69,6 +71,16 @@ const markdownHighlightStyle = HighlightStyle.define([
   { tag: tags.separator, color: 'var(--muted)' },
 ]);
 
+const noHighlightStyle = HighlightStyle.define([
+  {
+    tag: tags.content,
+    color: 'var(--fg)',
+    fontWeight: '400',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+  },
+]);
+
 // ── Module-level state ────────────────────────────────────────────────
 
 let currentView: EditorView | null = null;
@@ -93,7 +105,9 @@ export function createSourceEditor(
 
   const extList: any[] = [
     basicSetup,
-    highlightCompartment.of(syntaxHighlighting(markdownHighlightStyle)),
+    highlightCompartment.of(syntaxHighlighting(
+      getCachedSettings().codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
+    )),
     markdown({ codeLanguages: [
         LanguageDescription.of({ name: 'javascript', extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'], load: () => loadLang('javascript') }),
         LanguageDescription.of({ name: 'css',        extensions: ['css', 'scss', 'less'],     load: () => loadLang('css') }),
@@ -125,6 +139,7 @@ export function createSourceEditor(
   view.contentDOM.dataset.testid = 'editor-source-content';
 
   currentView = view;
+  currentView.dom.classList.toggle('no-code-highlight', getCachedSettings().codeHighlight === false);
   return view;
 }
 
@@ -161,4 +176,3 @@ export function setSourceContent(content: string): void {
     programmaticUpdate = false;
   }
 }
-

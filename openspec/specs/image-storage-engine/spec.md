@@ -4,12 +4,12 @@
 定义统一的图片处理服务，覆盖本地文件、剪贴板、网络三种来源的图片存储与路径解析行为。提供跨平台路径解析层，支持 `./images`、`../assets`、POSIX 绝对路径、Windows 盘符路径和 UNC 路径，并确保符号链接和 `..` 遍历不逃逸出授权的图片存储根目录。
 
 ## Agent Context
-- **源码入口：** `src/lib/imageUtils.ts`、`src/lib/pathUtils.ts`、`src/lib/storage.ts`、`src-tauri/src/commands/files.rs`
-- **关联规范：** `image-streaming`（本变更）、`image-naming`（本变更）、`safe-http-fetch`
+- **源码入口：** `src/lib/imageUtils.ts`、`src/lib/pathUtils.ts`、`src/lib/storage.ts`、`src-tauri/src/commands/files_image.rs`
+- **关联规范：** `image-streaming`、`image-naming`、`safe-http-fetch`
 - **不变量：** 存储位置必须经过授权目录校验；剪贴板图片始终保存到存储位置，不提供引用选项；本地图片默认复制到存储位置
 - **验证：** `npm test -- src/lib/imageUtils.test.ts src/lib/pathUtils.test.ts`；`cargo test`
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: 统一图片处理入口
 
@@ -219,7 +219,7 @@
 #### Scenario: 旧版 storageMode none 迁移
 - **WHEN** settings.json version 为 1
 - **AND** `imageStorageMode` 为 `'none'`
-- **THEN** version 1 → 2 中间迁移保留其“引用原路径”语义
+- **THEN** version 1 → 2 中间迁移保留其"引用原路径"语义
 - **AND** version 2 → 3 最终迁移后 `imageStorageMode` 为 `'custom'`、`imageCustomPath` 为 `'./images'`
 - **AND** `imageApplyToLocal` 为 `false`
 

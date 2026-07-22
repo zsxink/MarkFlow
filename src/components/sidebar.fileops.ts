@@ -1,4 +1,4 @@
-import { readFile, writeFile, addRecentFile, getFileMetadata } from '../lib/storage';
+import { readFile, writeFile, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
 import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
@@ -13,6 +13,12 @@ import { determineTier, formatFileSize } from '../lib/fileSizeTier';
 import { showDegradationBar, hideDegradationBar } from './degradationBar';
 import { store } from '../lib/store';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  abortPendingImagesSave,
+  completePendingImagesSave,
+  discardActiveImageDraft,
+  preparePendingImagesForSave,
+} from '../lib/imageUtils';
 
 // ── Serial save guard ────────────────────────────────────────────────
 
@@ -119,15 +125,25 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     const revision = getRevision();
     savingInProgress = true;
     try {
+      const prepared = await preparePendingImagesForSave(content, targetPath);
       suppressNextWatcherRefresh(targetPath);
-      await writeFile(targetPath, content);
+      await writeFile(targetPath, prepared.markdown);
       setActiveFilePath(targetPath);
+      if (prepared.markdown !== content) setMarkdown(prepared.markdown);
       // Record mtime + size for future external-modification checks
       try {
         const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
         setLastReadStats(stats.mtime, stats.size);
       } catch (e) { logDebug('fileops', 'Failed to get file stats after save new file (non-critical)', { path: targetPath, error: String(e) }); }
-      markDocumentPersisted(content, revision);
+      markDocumentPersisted(prepared.markdown, revision);
+      try {
+        await completePendingImagesSave(prepared.draftId);
+      } catch (e) {
+        logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
+          path: targetPath,
+          error: String(e),
+        });
+      }
       addRecentFile(targetPath).catch((e) =>
         logDebug('sidebar.save', 'Failed to record recent file (best-effort)', { path: targetPath, error: String(e) }),
       );
@@ -135,6 +151,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       showToast('已保存');
       return true;
     } catch (e) {
+      abortPendingImagesSave();
       logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
       showToast('保存失败');
       return false;
@@ -181,20 +198,31 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   const revision = getRevision();
   savingInProgress = true;
   try {
+    const prepared = await preparePendingImagesForSave(content, filePath);
     suppressNextWatcherRefresh(filePath);
-    await writeFile(filePath, content);
+    await writeFile(filePath, prepared.markdown);
+    if (prepared.markdown !== content) setMarkdown(prepared.markdown);
     // Record mtime + size after successful write
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
       setLastReadStats(stats.mtime, stats.size);
     } catch (e) { logDebug('fileops', 'Failed to get file stats after write (non-critical)', { path: filePath, error: String(e) }); }
-    markDocumentPersisted(content, revision);
+    markDocumentPersisted(prepared.markdown, revision);
+    try {
+      await completePendingImagesSave(prepared.draftId);
+    } catch (e) {
+      logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
+        path: filePath,
+        error: String(e),
+      });
+    }
     if (interactive) {
       logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
       showToast('已保存');
     }
     return true;
   } catch (e) {
+    abortPendingImagesSave();
     // Keep dirty state on failure — user sees error toast in interactive mode
     logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
     if (interactive) showToast('保存失败，请重试');
@@ -258,6 +286,7 @@ export async function openFileInEditor(path: string) {
 
       if (choice === 'readonly') {
         const content = await readFile(path);
+        await prepareImageLifecycleForOpenedDocument(path);
         setActiveDocumentPath(path);
         setActiveFilePath(path);
         setMarkdown(content);
@@ -272,6 +301,7 @@ export async function openFileInEditor(path: string) {
     }
 
     const content = await readFile(path);
+    await prepareImageLifecycleForOpenedDocument(path);
     setActiveDocumentPath(path);
     setActiveFilePath(path);
     setMarkdown(content);
@@ -295,6 +325,25 @@ export async function openFileInEditor(path: string) {
     showToast('已打开文件');
   } catch (e) {
     showToast(`打开失败: ${e}`);
+  }
+}
+
+async function prepareImageLifecycleForOpenedDocument(path: string): Promise<void> {
+  try {
+    await authorizeImageStorage(path);
+  } catch (e) {
+    logDebug('fileops', 'Failed to authorize image storage while opening document', {
+      path,
+      error: String(e),
+    });
+  }
+  try {
+    await discardActiveImageDraft();
+  } catch (e) {
+    logDebug('fileops', 'Failed to clean discarded image draft while opening document', {
+      path,
+      error: String(e),
+    });
   }
 }
 

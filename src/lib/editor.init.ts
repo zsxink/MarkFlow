@@ -9,7 +9,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import { Markdown } from 'tiptap-markdown';
 
-import { pasteImageFile, getImageSettings } from './imageUtils';
+import { copyLocalFileToStorage, imagePathToSrc, pasteImageFile, getImageSettings } from './imageUtils';
 import type { ImageSettings } from '../types/image';
 import { loadSettings } from './storage';
 import { syncCodeLineNumberGutters } from './editor.helpers';
@@ -31,6 +31,7 @@ import {
   getDocumentState,
   getMode,
   getActiveDocPath,
+  assetToOriginalMap,
   bumpRevision,
 } from './editor.state';
 import { store } from './store';
@@ -163,7 +164,12 @@ export async function initEditor() {
     for (let i = 0; i < files.length; i += MAX_CONCURRENT_IMAGE_READS) {
       const batch = files.slice(i, i + MAX_CONCURRENT_IMAGE_READS);
       const results = await Promise.allSettled(
-        batch.map(file => pasteImageFile(file, docPath, settings))
+        batch.map(file => {
+          const localPath = source === 'drop' ? (file as File & { path?: string }).path : undefined;
+          return localPath
+            ? copyLocalFileToStorage(localPath, docPath, settings)
+            : pasteImageFile(file, docPath, settings);
+        })
       );
       for (let j = 0; j < results.length; j++) {
         const r = results[j];
@@ -178,7 +184,12 @@ export async function initEditor() {
       }
     }
     // Insert sequentially to avoid editor state conflicts
-    for (const src of srcs) {
+    for (const reference of srcs) {
+      let src = reference;
+      if (!/^(?:https?:|data:|asset:)/.test(reference)) {
+        src = imagePathToSrc(reference, docPath);
+        if (src !== reference) assetToOriginalMap.set(src, reference);
+      }
       getEditor()?.chain().focus().setImage({ src }).run();
     }
   }

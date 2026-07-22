@@ -1,7 +1,10 @@
 import { showToast } from '../components/toast';
-import { readFileAsBase64, saveDocumentExport } from './storage';
+import { saveDocumentExport } from './storage';
 import { getFileName } from './pathUtils';
-import { logException, logDebug } from './logger';
+import { logException } from './logger';
+import { buildExportSnapshot } from './exportSnapshot';
+import { triggerPdfExport } from './pdfExport';
+import { createDocxFromHtml, saveDocxFile } from './docxExport';
 
 export type ExportFormat = 'html' | 'word' | 'pdf';
 
@@ -23,7 +26,7 @@ export function getExportFileName(path: string | null | undefined, format: Exclu
   const fileName = path ? getFileName(path) : 'untitled';
   const dotIndex = fileName.lastIndexOf('.');
   const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
-  return `${baseName || 'untitled'}.${format === 'word' ? 'doc' : 'html'}`;
+  return `${baseName || 'untitled'}.${format === 'word' ? 'docx' : 'html'}`;
 }
 
 export function createHtmlExport(title: string, renderedHtml: string): string {
@@ -32,23 +35,6 @@ export function createHtmlExport(title: string, renderedHtml: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(title)}</title>
-  <style>${EXPORT_STYLE}</style>
-</head>
-<body>
-${renderedHtml}
-</body>
-</html>`;
-}
-
-export function createWordExport(title: string, renderedHtml: string): string {
-  return `<!doctype html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta name="ProgId" content="Word.Document">
-  <meta name="Generator" content="MarkFlow">
   <title>${escapeHtml(title)}</title>
   <style>${EXPORT_STYLE}</style>
 </head>
@@ -75,25 +61,28 @@ export async function exportRenderedDocument(
   const title = getExportFileName(activePath, 'html').replace(/\.html$/, '');
   exportInProgress = true;
   try {
-    await convertLocalImages(renderedRoot);
-    const renderedHtml = renderedRoot.innerHTML;
+    const snapshot = await buildExportSnapshot(renderedRoot);
+    const div = document.createElement('div');
+    div.appendChild(snapshot.cloneNode(true));
+    const renderedHtml = div.innerHTML;
 
     if (format === 'pdf') {
-      return await printDocument(createHtmlExport(title, renderedHtml));
+      return await triggerPdfExport(createHtmlExport(title, renderedHtml));
     }
 
-    const output = format === 'word'
-      ? createWordExport(title, renderedHtml)
-      : createHtmlExport(title, renderedHtml);
+    if (format === 'word') {
+      const docxData = await createDocxFromHtml(renderedHtml, title);
+      return await saveDocxFile(docxData, getExportFileName(activePath, 'word'));
+    }
+
+    const output = createHtmlExport(title, renderedHtml);
 
     const defaultName = getExportFileName(activePath, format);
-    const filterName = format === 'word' ? 'Word 文档' : 'HTML 文档';
-    const extensions = [format === 'word' ? 'doc' : 'html'];
 
-    const saved = await saveDocumentExport(output, defaultName, filterName, extensions);
+    const saved = await saveDocumentExport(output, defaultName, 'HTML 文档', ['html']);
     if (!saved) return false;
 
-    showToast(`已导出${format === 'word' ? ' Word 文档' : ' HTML 文件'}`);
+    showToast('已导出 HTML 文件');
     return true;
   } catch (error) {
     logException('export', 'Failed to export document', error);
@@ -104,46 +93,6 @@ export async function exportRenderedDocument(
   }
 }
 
-export function printDocument(documentHtml: string, hostDocument: Document = document): Promise<boolean> {
-  return new Promise(resolve => {
-    let settled = false;
-    const settle = (value: boolean) => {
-      if (settled) return;
-      settled = true;
-      window.setTimeout(() => {
-        iframe.remove();
-        resolve(value);
-      }, 1000);
-    };
-
-    const iframe = hostDocument.createElement('iframe');
-    iframe.setAttribute('title', 'MarkFlow PDF export');
-    iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
-
-    // Safety timeout: if load never fires, clean up and resolve false
-    const safetyTimeout = window.setTimeout(() => {
-      settle(false);
-    }, 10_000);
-
-    iframe.addEventListener('load', () => {
-      clearTimeout(safetyTimeout);
-      try {
-        const printWindow = iframe.contentWindow;
-        if (!printWindow) throw new Error('Print frame is unavailable');
-        printWindow.focus();
-        printWindow.print();
-        settle(true);
-      } catch (error) {
-        logDebug('export', 'Failed to open print dialog', { error: String(error) });
-        showToast('无法打开 PDF 打印窗口');
-        settle(false);
-      }
-    }, { once: true });
-
-    hostDocument.body.appendChild(iframe);
-    iframe.srcdoc = documentHtml;
-  });
-}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, character => ({
@@ -153,54 +102,4 @@ function escapeHtml(value: string): string {
     "'": '&#39;',
     '"': '&quot;',
   })[character]!);
-}
-
-function assetUrlToFsPath(assetUrl: string): string {
-  // asset://localhost/path/to/image.png → /path/to/image.png
-  let path = assetUrl.replace(/^asset:\/\/localhost/, '');
-  // URL-decode the path
-  path = decodeURIComponent(path);
-  // On Windows asset://localhost/C:/ → /C:/ → C:/
-  if (path.match(/^\/[A-Za-z]:\//)) path = path.slice(1);
-  return path;
-}
-
-function inferMimeType(src: string): string {
-  const ext = src.split('.').pop()?.toLowerCase() ?? '';
-  const mimeMap: Record<string, string> = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    svg: 'image/svg+xml',
-    bmp: 'image/bmp',
-    ico: 'image/x-icon',
-  };
-  return mimeMap[ext] ?? 'image/png';
-}
-
-async function convertLocalImages(root: HTMLElement): Promise<void> {
-  const images = root.querySelectorAll('img');
-  const conversions: Promise<void>[] = [];
-
-  images.forEach(img => {
-    const src = img.getAttribute('src');
-    if (!src || !src.startsWith('asset://')) return;
-
-    const promise = (async () => {
-      try {
-        const fsPath = assetUrlToFsPath(src);
-        const base64 = await readFileAsBase64(fsPath);
-        const mimeType = inferMimeType(src);
-        img.setAttribute('src', `data:${mimeType};base64,${base64}`);
-      } catch (error) {
-        console.warn('Failed to convert image to data URI, keeping original:', src, error);
-      }
-    })();
-
-    conversions.push(promise);
-  });
-
-  await Promise.all(conversions);
 }

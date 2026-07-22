@@ -122,10 +122,11 @@ describe('normalizeImageMarkdown', () => {
     expect(result).toBe('![alt](img.png)\n\ncontent');
   });
 
-  it('collapses three or more consecutive blank lines to two', () => {
+  it('preserves user-entered consecutive blank lines (does not collapse)', () => {
     const input = 'a\n\n\n\n\nb';
     const result = normalizeImageMarkdown(input);
-    expect(result).toBe('a\n\nb');
+    // Global 3+ newline compression is removed; user blank lines are preserved.
+    expect(result).toBe('a\n\n\n\n\nb');
   });
 
   it('preserves content inside code fences (no collapsing of newlines)', () => {
@@ -137,9 +138,9 @@ describe('normalizeImageMarkdown', () => {
   it('handles multiple standalone images in a row', () => {
     const input = '![a](a.png)\n![b](b.png)';
     const result = normalizeImageMarkdown(input);
-    // First image is at start → no blank before; each image gets blank after.
-    // join produces a trailing newline from the final blank entry.
-    expect(result).toBe('![a](a.png)\n\n![b](b.png)\n');
+    // First image is at start → no blank before; images separated by a blank.
+    // No trailing blank entry because there is no content after the last image.
+    expect(result).toBe('![a](a.png)\n\n![b](b.png)');
   });
 
   it('trims trailing whitespace from image lines', () => {
@@ -170,6 +171,38 @@ describe('normalizeImageMarkdown', () => {
     const input = '![alt](img.png)### Subheading';
     const result = normalizeImageMarkdown(input);
     expect(result).toContain('![alt](img.png)\n\n### Subheading');
+  });
+
+  // -- Empty line preservation (Issue #154) --------------------------------
+
+  it('preserves user-entered consecutive blank lines without images', () => {
+    const input = '第 1 行\n\n\n第 2 行（前面有两个空行）\n\n第 3 行';
+    const result = normalizeImageMarkdown(input);
+    // No images → no changes (CRLF normalization aside)
+    expect(result).toBe(input);
+  });
+
+  it('preserves blank lines around regular text before and after an image', () => {
+    const input = 'a\n\n\n\n\n![img](i.png)\n\n\n\n\nb';
+    const result = normalizeImageMarkdown(input);
+    // Image gets a blank line before (only one needed) and after.
+    // User-entered triple-blanks before the image are preserved.
+    expect(result).toBe('a\n\n\n\n\n![img](i.png)\n\n\n\n\nb');
+  });
+
+  it('preserves blank lines around images in code fences', () => {
+    const input = '```\n![img](i.png)\n\n\n\ncode\n```';
+    const result = normalizeImageMarkdown(input);
+    // Code fence content is never touched
+    expect(result).toBe('```\n![img](i.png)\n\n\n\ncode\n```');
+  });
+
+  it('preserves multiple images with user-entered spacing', () => {
+    const input = 'a\n\n![1](a.png)\n\n\n![2](b.png)\n\nb';
+    const result = normalizeImageMarkdown(input);
+    // User-entered blank lines between images are preserved (not collapsed).
+    // Each image already has a blank line after it, so no extra blanks added.
+    expect(result).toBe('a\n\n![1](a.png)\n\n\n![2](b.png)\n\nb');
   });
 
   // -- \\r\\n normalisation ------------------------------------------------

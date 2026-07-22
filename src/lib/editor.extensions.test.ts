@@ -5,6 +5,28 @@ const { renderMermaid, renderPlantUml, getCachedSettings, store } = vi.hoisted((
 }));
 vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource: vi.fn(() => false) })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
 import { BlockImage, CustomLink, mermaidCodeBlockExtension } from './editor.extensions';
+import { MarkdownSerializerState, defaultMarkdownParser, schema } from 'prosemirror-markdown';
+
+/**
+ * Helper to create a minimal codeBlock-like node for serializer tests.
+ */
+function codeBlockNode(textContent: string, language = 'bash') {
+  return {
+    type: { name: 'codeBlock' },
+    attrs: { language },
+    textContent,
+  };
+}
+
+/**
+ * Run the custom codeBlock serialize function and return its output.
+ */
+function serializeCodeBlock(textContent: string, language?: string): string {
+  const state = new MarkdownSerializerState({}, {}, { tightLists: false } as any);
+  const serialize = (mermaidCodeBlockExtension().config.addStorage!() as any).markdown.serialize;
+  serialize(state, codeBlockNode(textContent, language));
+  return state.out;
+}
 
 describe('editor extensions', () => {
   it('creates an image node view and displays an inline error on image failure', () => {
@@ -22,6 +44,52 @@ describe('editor extensions', () => {
     const close = (CustomLink.config.addStorage!.call({} as never) as any).markdown.serialize.close;
     expect(close(null, { attrs: { href: 'https://a.test/(x)', title: 'A "title"' } })).toBe('](https://a.test/\\(x\\) "A \\"title\\"")');
     expect(CustomLink.config.addInputRules!.call({} as never)).toHaveLength(1);
+  });
+
+  describe('codeBlock serialize trailing newline preservation', () => {
+    it('serializes code block without trailing newline correctly', () => {
+      const result = serializeCodeBlock('sudo apt update');
+      expect(result).toBe('```bash\nsudo apt update\n```');
+    });
+
+    it('preserves one trailing newline in code block content', () => {
+      const result = serializeCodeBlock('sudo apt update\n');
+      expect(result).toBe('```bash\nsudo apt update\n\n```');
+    });
+
+    it('preserves two trailing newlines in code block content', () => {
+      const result = serializeCodeBlock('sudo apt update\n\n');
+      expect(result).toBe('```bash\nsudo apt update\n\n\n```');
+    });
+
+    it('handles code block with no language set', () => {
+      const result = serializeCodeBlock('plain code', '');
+      expect(result).toBe('```\nplain code\n```');
+    });
+
+    it('handles code block with trailing newline and no language', () => {
+      const result = serializeCodeBlock('plain code\n', '');
+      expect(result).toBe('```\nplain code\n\n```');
+    });
+
+    it('round-trips code block trailing newlines through serialize → parse', () => {
+      // Serialize with custom serializer, then parse back with standard parser
+      const markdown = serializeCodeBlock('sudo apt update\n');
+      const doc = defaultMarkdownParser.parse(markdown);
+      expect(doc).not.toBeNull();
+      const codeBlock = doc!.firstChild;
+      expect(codeBlock?.type.name).toBe('code_block');
+      expect(codeBlock?.textContent).toBe('sudo apt update\n');
+    });
+
+    it('round-trips code block with no trailing newline (no phantom newline)', () => {
+      const markdown = serializeCodeBlock('sudo apt update');
+      const doc = defaultMarkdownParser.parse(markdown);
+      expect(doc).not.toBeNull();
+      const codeBlock = doc!.firstChild;
+      expect(codeBlock?.type.name).toBe('code_block');
+      expect(codeBlock?.textContent).toBe('sudo apt update');
+    });
   });
 
   it('creates, updates and destroys Mermaid diagram node views', async () => {

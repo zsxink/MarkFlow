@@ -8,9 +8,7 @@
 - **关联规范：** `codemirror-source-editor`、`active-document-state`、`atomic-save`。
 - **不变量：** Enter 前后的文本与嵌套结构必须可往返序列化；模式切换不得丢失内容；完整性检查失败不得静默覆盖用户内容。
 - **验证：** `npm test -- src/lib/editor.test.ts src/lib/markdown.test.ts`；`npx openspec validate enter-content-integrity --strict`。
-
 ## Requirements
-
 ### Requirement: WYSIWYG Enter 产生有效的 Markdown
 
 系统 MUST 确保在所见即所得模式下按 Enter 始终会产生 ProseMirror 文档状态，该状态可序列化为完整、有效的 Markdown，且不会丢失内容。
@@ -114,3 +112,20 @@ WYSIWYG 编辑器中作为续写入口的末尾空段落 SHALL NOT 通过 `&nbsp
 #### Scenario: 空段落加载后消失
 - **WHEN** 从 Markdown 加载文档到 WYSIWYG
 - **THEN** 加载后的文档末尾不存在空段落（除非原始 Markdown 本身包含空内容）
+
+### Requirement: 代码块尾随换行往返保真
+
+系统 MUST 确保围栏代码块在 WYSIWYG ↔ Source 模式切换时，节点内容末尾的换行符数量不变。
+
+#### Scenario: 代码块尾随换行在往返中保留
+- **WHEN** 用户在 WYSIWYG 模式中在代码块末尾按 Enter 新增一个空行
+- **THEN** 切换到源码模式后，结束围栏前保留该空行
+- **THEN** 切换回 WYSIWYG 模式后，代码块末尾仍有一个空行
+
+#### Scenario: 多个尾随换行在往返中保留
+- **WHEN** 代码块末尾有多个空行（如 2 个）
+- **THEN** 经过 WYSIWYG → Source → WYSIWYG 往返后，空行数量不变
+
+#### Scenario: 无尾随换行的代码块不受影响
+- **WHEN** 代码块末尾没有空行
+- **THEN** 经过 WYSIWYG → Source → WYSIWYG 往返后，代码块末尾仍没有空行

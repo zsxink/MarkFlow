@@ -85,9 +85,9 @@ describe('resolveImagePath', () => {
     expect(result).toBe('/absolute/photo.png');
   });
 
-  it('keeps a Windows drive-letter path unchanged', () => {
+  it('keeps a Windows drive-letter path unchanged (normalized to POSIX)', () => {
     const result = resolveImagePath('D:\\photos\\img.png', '/docs/page.md');
-    expect(result).toBe('D:\\photos\\img.png');
+    expect(result).toBe('D:/photos/img.png');
   });
 
   it('handles "./" prefix', () => {

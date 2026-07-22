@@ -99,15 +99,11 @@ describe('imagePathToSrc', () => {
 // ---------------------------------------------------------------------------
 
 describe('generateImageName', () => {
-  describe('strategy: original', () => {
-    it('returns the original name as-is', async () => {
+  describe('strategy: timestamp (previously "original")', () => {
+    it('uses timestamp strategy (original no longer special-cased)', async () => {
       const name = await generateImageName('photo.png', 'original');
-      expect(name).toBe('photo.png');
-    });
-
-    it('falls through to timestamp logic when original name is empty', async () => {
-      const name = await generateImageName('', 'original');
-      // '' is falsy so the `originalName` guard fails and timestamp logic runs.
+      // original strategy falls through to sequence (image- prefix) since it's not
+      // 'timestamp' or 'sequence' — uses default logic
       expect(name).toMatch(/^image-\d{14}\.png$/);
     });
   });
@@ -153,14 +149,10 @@ describe('generateImageName', () => {
   });
 
   describe('fallback behaviour', () => {
-    it('falls back to the original name for unknown strategy when name exists', async () => {
+    it('falls back to sequence naming for unknown strategy', async () => {
       const name = await generateImageName('custom.svg', 'unknown-strategy');
-      expect(name).toBe('custom.svg');
-    });
-
-    it('falls back to a timestamp name for unknown strategy when original is empty', async () => {
-      const name = await generateImageName('', 'unknown-strategy');
-      expect(name).toMatch(/^image-\d{14}\.png$/);
+      // Unknown strategy falls through to sequence (image- prefix)
+      expect(name).toMatch(/^image-\d{14}\.svg$/);
     });
   });
 });
@@ -180,19 +172,19 @@ describe('getImageSettings', () => {
     vi.mocked(loadSettings).mockResolvedValueOnce({
       imageStorageMode: 'custom',
       imageCustomPath: './my-images',
-      imagePreferRelative: false,
-      imageAutoCopyLocal: false,
-      imageDownloadNetwork: true,
-      imageNamingStrategy: 'original',
+      imageLocalFileBehavior: 'reference',
+      imageNetworkBehavior: 'download',
+      imageReferenceStyle: 'absolute',
+      imageNamingStrategy: 'timestamp',
     } as any);
 
     const settings = await getImageSettings();
     expect(settings.storageMode).toBe('custom');
     expect(settings.customPath).toBe('./my-images');
-    expect(settings.preferRelative).toBe(false);
-    expect(settings.autoCopyLocal).toBe(false);
-    expect(settings.downloadNetwork).toBe(true);
-    expect(settings.namingStrategy).toBe('original');
+    expect(settings.localFileBehavior).toBe('reference');
+    expect(settings.networkBehavior).toBe('download');
+    expect(settings.referenceStyle).toBe('absolute');
+    expect(settings.namingStrategy).toBe('timestamp');
   });
 
   it('fills missing optional settings from defaults', async () => {

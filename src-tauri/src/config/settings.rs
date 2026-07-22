@@ -11,7 +11,9 @@ pub struct Settings {
     pub autosave_interval: u64,
     pub spellcheck: bool,
     pub soft_wrap: bool,
-    pub live_preview: bool,
+    /// DEPRECATED: No longer controls any behavior. Kept for backward compat.
+    #[serde(default)]
+    pub live_preview: Option<bool>,
     pub code_highlight: bool,
     #[serde(default)]
     pub plantuml_server_url: String,
@@ -21,18 +23,31 @@ pub struct Settings {
     pub show_tooltips: bool,
     pub follow_system_theme: bool,
     pub last_workspace: Option<String>,
+    /// Storage location mode: "workspace-assets" | "doc-assets" | "custom"
     #[serde(default)]
-    pub image_storage_mode: Option<String>,
+    pub image_storage_mode: String,
     #[serde(default)]
     pub image_custom_path: Option<String>,
+    /// DEPRECATED: Use image_local_file_behavior instead
+    #[serde(default)]
+    pub image_auto_copy_local: Option<bool>,
+    /// DEPRECATED: Use image_network_behavior instead
+    #[serde(default)]
+    pub image_download_network: Option<bool>,
+    /// DEPRECATED: Use image_reference_style instead
     #[serde(default)]
     pub image_prefer_relative: Option<bool>,
     #[serde(default)]
-    pub image_auto_copy_local: Option<bool>,
-    #[serde(default)]
-    pub image_download_network: Option<bool>,
-    #[serde(default)]
     pub image_naming_strategy: Option<String>,
+    /// Local file image behavior: "copy" (default) or "reference"
+    #[serde(default = "default_image_local_file_behavior")]
+    pub image_local_file_behavior: String,
+    /// Network image behavior: "keep-url" (default) or "download"
+    #[serde(default = "default_image_network_behavior")]
+    pub image_network_behavior: String,
+    /// Markdown reference style: "relative" (default) or "absolute"
+    #[serde(default = "default_image_reference_style")]
+    pub image_reference_style: String,
     #[serde(default)]
     pub code_line_numbers: Option<bool>,
     #[serde(default)]
@@ -73,6 +88,15 @@ fn default_window_width() -> f64 {
 fn default_window_height() -> f64 {
     800.0
 }
+fn default_image_local_file_behavior() -> String {
+    "copy".into()
+}
+fn default_image_network_behavior() -> String {
+    "keep-url".into()
+}
+fn default_image_reference_style() -> String {
+    "relative".into()
+}
 fn default_large_file_threshold() -> u64 {
     1048576
 }
@@ -103,7 +127,7 @@ fn default_file_tree_auto_load_depth() -> usize {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             theme: "light".into(),
             font_size: 18,
             line_height: 1.7,
@@ -111,7 +135,7 @@ impl Default for Settings {
             autosave_interval: 10000,
             spellcheck: true,
             soft_wrap: true,
-            live_preview: true,
+            live_preview: None,
             code_highlight: true,
             plantuml_server_url: String::new(),
             line_numbers: None,
@@ -119,12 +143,15 @@ impl Default for Settings {
             show_tooltips: true,
             follow_system_theme: false,
             last_workspace: None,
-            image_storage_mode: None,
+            image_storage_mode: "workspace-assets".into(),
             image_custom_path: None,
-            image_prefer_relative: None,
             image_auto_copy_local: None,
             image_download_network: None,
+            image_prefer_relative: None,
             image_naming_strategy: None,
+            image_local_file_behavior: default_image_local_file_behavior(),
+            image_network_behavior: default_image_network_behavior(),
+            image_reference_style: default_image_reference_style(),
             code_line_numbers: None,
             code_word_wrap: None,
             last_sidebar_tab: None,

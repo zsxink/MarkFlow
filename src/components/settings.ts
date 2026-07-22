@@ -5,6 +5,7 @@ import { store } from '../lib/store';
 import { showModal } from './ui/modal';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
+import { setSourceHighlight } from '../lib/editor.source';
 
 type Theme = 'light' | 'dark' | 'sepia';
 
@@ -89,17 +90,6 @@ function createSettingsContent(): string {
                 <input class="newfile-input" type="number" min="1" max="32" id="setting-filetree-depth" style="width:100px" />
               </div>
             </div>
-            <div class="settings-group">
-              <div class="settings-group-title">编辑器</div>
-              <div class="settings-row">
-                <div class="settings-label">拼写检查</div>
-                <button class="toggle active" id="setting-spellcheck"></button>
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">自动换行</div>
-                <button class="toggle active" id="setting-softwrap"></button>
-              </div>
-            </div>
           </div>
           <div id="panel-appearance" class="settings-panel" hidden>
             <div class="settings-group">
@@ -160,11 +150,18 @@ function createSettingsContent(): string {
           </div>
           <div id="panel-editor" class="settings-panel" hidden>
             <div class="settings-group">
-              <div class="settings-group-title">Markdown</div>
+              <div class="settings-group-title">编辑器</div>
               <div class="settings-row">
-                <div class="settings-label">实时预览</div>
-                <button class="toggle active" id="setting-livepreview"></button>
+                <div class="settings-label">拼写检查</div>
+                <button class="toggle active" id="setting-spellcheck"></button>
               </div>
+              <div class="settings-row">
+                <div class="settings-label">自动换行</div>
+                <button class="toggle active" id="setting-softwrap"></button>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">Markdown</div>
               <div class="settings-row">
                 <div class="settings-label">代码高亮</div>
                 <button class="toggle active" id="setting-codehighlight"></button>
@@ -180,17 +177,26 @@ function createSettingsContent(): string {
                 <button class="toggle" id="setting-code-linenumbers"></button>
               </div>
               <div class="settings-row">
-                <div class="settings-label">自动换行</div>
+                <div class="settings-label">代码块自动换行</div>
                 <button class="toggle active" id="setting-code-wordwrap"></button>
               </div>
             </div>
             <div class="settings-group">
               <div class="settings-group-title">PlantUML</div>
-              <div class="settings-row">
+              <div class="settings-row settings-row-vertical">
                 <div>
                   <div class="settings-label">PlantUML 服务器地址</div>
-                  <div class="settings-desc">使用外部 PlantUML 服务器会将该图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容请使用自建服务器。</div>
                 </div>
+              </div>
+              <div class="settings-row settings-row-warning">
+                <div class="settings-desc" style="color:var(--warning);">
+                  ⚠ 使用外部 PlantUML 服务器会将该图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容请使用自建服务器。
+                </div>
+              </div>
+              <div class="settings-row">
+                <span class="settings-desc settings-desc-inline" style="user-select:text;">默认：<code style="user-select:text;">https://www.plantuml.com/plantuml</code></span>
+              </div>
+              <div class="settings-row">
                 <input class="newfile-input" id="setting-plantuml-server-url" style="width:260px" placeholder="https://www.plantuml.com/plantuml" />
               </div>
             </div>
@@ -218,39 +224,53 @@ function createSettingsContent(): string {
                   <option value="workspace-assets" selected>工作区 assets/</option>
                   <option value="doc-assets">与文档同级 assets/</option>
                   <option value="custom">自定义路径</option>
-                  <option value="none">无特殊操作</option>
                 </select>
               </div>
               <div class="settings-row" id="setting-image-custom-row" hidden>
                 <div>
                   <div class="settings-label">自定义路径</div>
-                  <div class="settings-desc">支持相对路径，如 ./assets</div>
+                  <div class="settings-desc">支持相对路径（相对于文档）、绝对路径、Windows 盘符路径和 UNC 路径</div>
                 </div>
-                <input class="newfile-input" id="setting-image-custom-path" style="width:200px" placeholder="./images" />
+                <input class="newfile-input" id="setting-image-custom-path" style="width:200px" placeholder="./images, ../assets, /absolute/path, D:\Pictures" />
               </div>
             </div>
             <div class="settings-group">
-              <div class="settings-group-title">路径与行为</div>
+              <div class="settings-group-title">本地图片行为</div>
               <div class="settings-row">
                 <div>
-                  <div class="settings-label">优先使用相对路径</div>
-                  <div class="settings-desc">Markdown 中使用相对路径引用图片</div>
+                  <div class="settings-label">处理方式</div>
+                  <div class="settings-desc">粘贴/拖入本地图片时的处理方式。引用模式：图片文件移动后路径可能失效</div>
                 </div>
-                <button class="toggle active" id="setting-image-relative"></button>
+                <select class="settings-select" id="setting-image-local-behavior">
+                  <option value="copy">复制到存储位置</option>
+                  <option value="reference">保留原始路径（引用）</option>
+                </select>
               </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">网络图片行为</div>
               <div class="settings-row">
                 <div>
-                  <div class="settings-label">对本地图片应用</div>
-                  <div class="settings-desc">粘贴/拖入本地图片时复制到存储位置</div>
+                  <div class="settings-label">处理方式</div>
+                  <div class="settings-desc">插入网络图片时是否下载到本地存储</div>
                 </div>
-                <button class="toggle active" id="setting-image-auto-copy"></button>
+                <select class="settings-select" id="setting-image-network-behavior">
+                  <option value="keep-url">保留 URL（默认）</option>
+                  <option value="download">下载到存储位置</option>
+                </select>
               </div>
+            </div>
+            <div class="settings-group">
+              <div class="settings-group-title">引用路径</div>
               <div class="settings-row">
                 <div>
-                  <div class="settings-label">对网络图片应用</div>
-                  <div class="settings-desc">插入网络图片时下载到本地</div>
+                  <div class="settings-label">Markdown 引用样式</div>
+                  <div class="settings-desc">图片在 Markdown 中的路径引用格式</div>
                 </div>
-                <button class="toggle" id="setting-image-download"></button>
+                <select class="settings-select" id="setting-image-reference-style">
+                  <option value="relative" selected>相对路径（推荐）</option>
+                  <option value="absolute">绝对路径</option>
+                </select>
               </div>
             </div>
             <div class="settings-group">
@@ -261,7 +281,6 @@ function createSettingsContent(): string {
                   <div class="settings-desc">截图粘贴时自动生成文件名</div>
                 </div>
                 <select class="settings-select" id="setting-image-naming">
-                  <option value="original">原文件名</option>
                   <option value="timestamp" selected>时间戳</option>
                   <option value="sequence">自动序号</option>
                 </select>
@@ -371,7 +390,6 @@ function applySettingsToUI(settings: Settings) {
   setSelectValue('setting-autosave-interval', String(settings.autosaveInterval ?? 10000));
   setToggleState('setting-spellcheck', settings.spellcheck !== false);
   setToggleState('setting-softwrap', settings.softWrap !== false);
-  setToggleState('setting-livepreview', settings.livePreview !== false);
   setToggleState('setting-codehighlight', settings.codeHighlight !== false);
   setToggleState('setting-sidebar', settings.showSidebar !== false);
   setToggleState('setting-tooltips', settings.showTooltips !== false);
@@ -381,11 +399,11 @@ function applySettingsToUI(settings: Settings) {
   setSelectValue('setting-lineheight', String(settings.lineHeight ?? 1.7));
   setSelectValue('setting-image-storage', String(settings.imageStorageMode ?? 'workspace-assets'));
   setInputValue('setting-image-custom-path', String(settings.imageCustomPath ?? ''));
-  setToggleState('setting-image-relative', settings.imagePreferRelative !== false);
-  setToggleState('setting-image-auto-copy', settings.imageAutoCopyLocal !== false);
+  setSelectValue('setting-image-local-behavior', String(settings.imageLocalFileBehavior ?? 'copy'));
+  setSelectValue('setting-image-network-behavior', String(settings.imageNetworkBehavior ?? 'keep-url'));
+  setSelectValue('setting-image-reference-style', String(settings.imageReferenceStyle ?? 'relative'));
   setToggleState('setting-code-linenumbers', settings.codeLineNumbers === true);
   setToggleState('setting-code-wordwrap', settings.codeWordWrap !== false);
-  setToggleState('setting-image-download', settings.imageDownloadNetwork === true);
   setSelectValue('setting-image-naming', String(settings.imageNamingStrategy ?? 'timestamp'));
   setInputValue('setting-filetree-ignore', (settings.fileTreeIgnorePatterns ?? DEFAULT_SETTINGS.fileTreeIgnorePatterns ?? []).join(', '));
   setInputValue('setting-filetree-page-size', String(settings.fileTreePageSize ?? 500));
@@ -429,6 +447,9 @@ function applyRuntimeSettings(settings: Settings) {
       root.style.whiteSpace = settings.softWrap === false ? 'pre' : 'normal';
     }
   }
+
+  // Apply code highlight to source editor (CodeMirror)
+  setSourceHighlight(settings.codeHighlight !== false);
 }
 
 async function persistSettingsFromUI() {
@@ -454,7 +475,7 @@ async function persistSettingsFromUI() {
 function buildSettingsFromUI(): Settings {
   return {
     ...currentSettings,
-    version: 1,
+    version: 2,
     theme: getSelectedTheme(),
     fontSize: Number(getSelectValue('setting-fontsize') || 18),
     lineHeight: Number(getSelectValue('setting-lineheight') || 1.7),
@@ -462,7 +483,6 @@ function buildSettingsFromUI(): Settings {
     autosaveInterval: Number(getSelectValue('setting-autosave-interval') || 10000),
     spellcheck: getToggleState('setting-spellcheck'),
     softWrap: getToggleState('setting-softwrap'),
-    livePreview: getToggleState('setting-livepreview'),
     codeHighlight: getToggleState('setting-codehighlight'),
     plantumlServerUrl: getInputValue('setting-plantuml-server-url').trim(),
     codeLineNumbers: getToggleState('setting-code-linenumbers'),
@@ -472,9 +492,9 @@ function buildSettingsFromUI(): Settings {
     followSystemTheme: getToggleState('setting-follow-system'),
     imageStorageMode: getSelectValue('setting-image-storage') || 'workspace-assets',
     imageCustomPath: getInputValue('setting-image-custom-path'),
-    imagePreferRelative: getToggleState('setting-image-relative'),
-    imageAutoCopyLocal: getToggleState('setting-image-auto-copy'),
-    imageDownloadNetwork: getToggleState('setting-image-download'),
+    imageLocalFileBehavior: getSelectValue('setting-image-local-behavior') || 'copy',
+    imageNetworkBehavior: getSelectValue('setting-image-network-behavior') || 'keep-url',
+    imageReferenceStyle: getSelectValue('setting-image-reference-style') || 'relative',
     imageNamingStrategy: getSelectValue('setting-image-naming') || 'timestamp',
     fileTreeIgnorePatterns: getInputValue('setting-filetree-ignore').split(',').map(value => value.trim()).filter(Boolean),
     fileTreePageSize: Math.min(5000, Math.max(50, Number(getInputValue('setting-filetree-page-size')) || 500)),

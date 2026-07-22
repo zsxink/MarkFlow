@@ -208,6 +208,37 @@
   color: #b45309;
 }
 
+/* When code highlighting is disabled, all hljs tokens inherit color */
+.ProseMirror.no-code-highlight pre code .hljs-comment,
+.ProseMirror.no-code-highlight pre code .hljs-quote,
+.ProseMirror.no-code-highlight pre code .hljs-keyword,
+.ProseMirror.no-code-highlight pre code .hljs-selector-tag,
+.ProseMirror.no-code-highlight pre code .hljs-subst,
+.ProseMirror.no-code-highlight pre code .hljs-string,
+.ProseMirror.no-code-highlight pre code .hljs-doctag,
+.ProseMirror.no-code-highlight pre code .hljs-regexp,
+.ProseMirror.no-code-highlight pre code .hljs-template-variable,
+.ProseMirror.no-code-highlight pre code .hljs-title,
+.ProseMirror.no-code-highlight pre code .hljs-section,
+.ProseMirror.no-code-highlight pre code .hljs-name,
+.ProseMirror.no-code-highlight pre code .hljs-selector-id,
+.ProseMirror.no-code-highlight pre code .hljs-selector-class,
+.ProseMirror.no-code-highlight pre code .hljs-attr,
+.ProseMirror.no-code-highlight pre code .hljs-attribute,
+.ProseMirror.no-code-highlight pre code .hljs-literal,
+.ProseMirror.no-code-highlight pre code .hljs-number,
+.ProseMirror.no-code-highlight pre code .hljs-symbol,
+.ProseMirror.no-code-highlight pre code .hljs-bullet,
+.ProseMirror.no-code-highlight pre code .hljs-link,
+.ProseMirror.no-code-highlight pre code .hljs-built_in,
+.ProseMirror.no-code-highlight pre code .hljs-type,
+.ProseMirror.no-code-highlight pre code .hljs-class .hljs-title,
+.ProseMirror.no-code-highlight pre code .hljs-function .hljs-title,
+.ProseMirror.no-code-highlight pre code .hljs-meta,
+.ProseMirror.no-code-highlight pre code .hljs-meta .hljs-keyword {
+  color: inherit !important;
+}
+
 .ProseMirror .mermaid-block {
   margin-bottom: 1em;
 }

@@ -10,7 +10,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import { Markdown } from 'tiptap-markdown';
 
 import { pasteImageFile, getImageSettings } from './imageUtils';
-import type { ImageSettings } from '../types/editor';
+import type { ImageSettings } from '../types/image';
 import { loadSettings } from './storage';
 import { syncCodeLineNumberGutters } from './editor.helpers';
 import { logException } from './logger';
@@ -130,6 +130,7 @@ export async function initEditor() {
     const root = getEditor()?.view.dom;
     if (!root) return;
     root.classList.toggle('code-no-word-wrap', settings.codeWordWrap === false);
+    root.classList.toggle('no-code-highlight', settings.codeHighlight === false);
     const enabled = settings.codeLineNumbers === true;
     syncCodeLineNumberGutters(root, enabled);
   }

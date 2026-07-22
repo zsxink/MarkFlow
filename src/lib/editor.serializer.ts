@@ -23,27 +23,45 @@ function fixCorruptedImageNewlines(markdown: string): string {
 }
 
 // Normalize standalone image blocks: image on its own line, blank line before and after.
+// Does NOT collapse blank lines elsewhere — user-entered whitespace is preserved.
+// Skips content inside code fences.
 function fixImageNewlines(markdown: string): string {
   const normalized = markdown.replace(/\r\n/g, '\n');
   const lines = normalized.split('\n');
   const out: string[] = [];
   const isStandaloneImage = (line: string) => /^\s*!\[[^\]]*\]\([^\n)]*\)\s*$/.test(line);
+  let insideFence = false;
 
   for (const line of lines) {
-    if (isStandaloneImage(line)) {
-      if (out.length > 0 && out[out.length - 1] !== '') out.push('');
+    // Toggle fence state
+    if (/^\s*```/.test(line.trim())) {
+      insideFence = !insideFence;
+      out.push(line);
+      continue;
+    }
+
+    if (!insideFence && isStandaloneImage(line)) {
+      // Ensure exactly one blank line before image (if not at document start
+      // and previous output isn't already blank)
+      if (out.length > 0 && out[out.length - 1] !== '') {
+        out.push('');
+      }
       out.push(line.trim());
-      out.push('');
       continue;
     }
     out.push(line);
   }
 
-  const joined = out.join('\n');
-  return joined.replace(/(```[\s\S]*?```)|(\n{3,})/g, (_match, codeFence) => {
-    if (codeFence) return codeFence;
-    return '\n\n';
-  });
+  // Ensure each standalone image is followed by a blank line when the next
+  // content line is non-empty (needed for proper Markdown block rendering).
+  for (let i = 0; i < out.length - 1; i++) {
+    if (isStandaloneImage(out[i]) && out[i + 1] !== '') {
+      out.splice(i + 1, 0, '');
+      i++; // skip the blank we just inserted
+    }
+  }
+
+  return out.join('\n');
 }
 
 export function normalizeImageMarkdown(markdown: string): string {

@@ -38,6 +38,7 @@ import { store } from './store';
 import { scheduler } from './taskScheduler';
 import { getSourceContent } from './editor.source';
 import { normalizeImageMarkdown, replaceAssetUrlsWithOriginal } from './editor.serializer';
+import { ensureContinuationParagraph } from './editor.continuation';
 
 export async function initEditor() {
   const container = document.getElementById('editor-area');
@@ -191,6 +192,10 @@ export async function initEditor() {
         if (src !== reference) assetToOriginalMap.set(src, reference);
       }
       getEditor()?.chain().focus().setImage({ src }).run();
+    }
+    // Only create one continuation paragraph after all images are inserted
+    if (srcs.length > 0) {
+      ensureContinuationParagraph();
     }
   }
 

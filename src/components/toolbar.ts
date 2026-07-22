@@ -1,4 +1,4 @@
-import { getEditor, getMode, switchToSource, switchToWysiwyg } from '../lib/editor';
+import { getEditor, getMode, switchToSource, switchToWysiwyg, ensureContinuationParagraph } from '../lib/editor';
 import { open } from '@tauri-apps/plugin-dialog';
 import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree';
 import { showNewFileDialog } from './newFileDialog';
@@ -68,14 +68,67 @@ function bindToolbarEvents() {
   bind('btn-code', () => getEditor()?.chain().focus().toggleCode().run());
   bind('btn-h1', () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run());
   bind('btn-h2', () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run());
-  bind('btn-quote', () => getEditor()?.chain().focus().toggleBlockquote().run());
+  bind('btn-quote', () => {
+    if (getMode() === 'source') {
+      // CM6: wrap selection/current line with > prefix
+      const view = getSourceView();
+      if (!view) return;
+      const { state, dispatch } = view;
+      const { from, to } = state.selection.main;
+      const text = state.sliceDoc(from, to);
+      if (text.length > 0) {
+        const quoted = text.split('\n').map(l => `> ${l}`).join('\n');
+        dispatch({
+          changes: { from, to, insert: quoted },
+          selection: { anchor: from },
+        });
+      } else {
+        // No selection: insert "> " at the start of the current line
+        const line = state.doc.lineAt(from);
+        dispatch({
+          changes: { from: line.from, insert: '> ' },
+          selection: { anchor: line.from + 2 },
+        });
+      }
+      view.focus();
+    } else {
+      getEditor()?.chain().focus().toggleBlockquote().run();
+      ensureContinuationParagraph();
+    }
+  });
   bind('btn-link', () => {
     showLinkDialog();
   });
   bind('btn-ul', () => getEditor()?.chain().focus().toggleBulletList().run());
   bind('btn-ol', () => getEditor()?.chain().focus().toggleOrderedList().run());
   bind('btn-hr', () => getEditor()?.chain().focus().setHorizontalRule().run());
-  bind('btn-codeblock', () => getEditor()?.chain().focus().toggleCodeBlock().run());
+  bind('btn-codeblock', () => {
+    if (getMode() === 'source') {
+      // CM6: wrap selection with ``` fences
+      const view = getSourceView();
+      if (!view) return;
+      const { state, dispatch } = view;
+      const { from, to } = state.selection.main;
+      const text = state.sliceDoc(from, to);
+      if (text.length > 0) {
+        // Cursor before closing fence (spec: "光标位于结束围栏之前")
+        dispatch({
+          changes: { from, to, insert: '```\n' + text + '\n```' },
+          selection: { anchor: from + 4 + text.length },
+        });
+      } else {
+        // No selection: insert a code block placeholder and place cursor inside
+        dispatch({
+          changes: { from, insert: '```\n\n```' },
+          selection: { anchor: from + 4 },
+        });
+      }
+      view.focus();
+    } else {
+      getEditor()?.chain().focus().toggleCodeBlock().run();
+      ensureContinuationParagraph();
+    }
+  });
 
   bind('btn-image', () => showImageInsertDialog());
 
@@ -242,6 +295,7 @@ function insertImageSrc(src: string) {
       if (renderSrc !== src) assetToOriginalMap.set(renderSrc, src);
     }
     getEditor()?.chain().focus().setImage({ src: renderSrc }).run();
+    ensureContinuationParagraph();
   }
 }
 

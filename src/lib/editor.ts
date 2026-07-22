@@ -185,6 +185,8 @@ export function switchToWysiwyg() {
   }
 }
 
+export { ensureContinuationParagraph } from './editor.continuation';
+
 // ── Image settings (re-export for external use if needed) ──────────────
 
 export { DEFAULT_IMAGE_SETTINGS } from './imageUtils';

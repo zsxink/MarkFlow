@@ -4,7 +4,7 @@ use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -18,7 +18,10 @@ pub struct AppState {
     pub pending_file: Mutex<HashMap<String, String>>,
     pub cli_file: Mutex<Option<String>>,
     pub initial_file_handled: AtomicBool,
-    pub close_allowed: Arc<AtomicBool>,
+    /// Per-window close permissions keyed by window label.
+    /// A label is present only between `confirm_window_close` and the
+    /// subsequent `CloseRequested` event that consumes it.
+    pub close_permissions: Arc<Mutex<HashSet<String>>>,
     pub image_download_semaphore: Semaphore,
     /// Shared HTTP client with configured timeouts and connection pooling.
     pub http_client: reqwest::Client,
@@ -44,11 +47,33 @@ impl AppState {
             pending_file: Mutex::new(HashMap::new()),
             cli_file: Mutex::new(None),
             initial_file_handled: AtomicBool::new(false),
-            close_allowed: Arc::new(AtomicBool::new(false)),
+            close_permissions: Arc::new(Mutex::new(HashSet::new())),
             image_download_semaphore: Semaphore::new(4),
             http_client,
             http_semaphore: Semaphore::new(3),
         })
+    }
+
+    /// Grant close permission for a specific window (called by `confirm_window_close`).
+    pub fn grant_close_permission(&self, label: &str) {
+        if let Ok(mut perms) = lock_mutex(&self.close_permissions) {
+            perms.insert(label.to_string());
+        }
+    }
+
+    /// Consume (and remove) the close permission for a specific window.
+    /// Returns `true` if the permission existed and was consumed.
+    pub fn consume_close_permission(&self, label: &str) -> bool {
+        lock_mutex(&self.close_permissions)
+            .map(|mut perms| perms.remove(label))
+            .unwrap_or(false)
+    }
+
+    /// Remove any stale close permission for a window that was destroyed.
+    pub fn cleanup_close_permission(&self, label: &str) {
+        if let Ok(mut perms) = lock_mutex(&self.close_permissions) {
+            perms.remove(label);
+        }
     }
 
     pub fn set_workspace(
@@ -153,5 +178,40 @@ mod tests {
         let state = AppState::new().unwrap();
         state.stop_all();
         state.stop_all();
+    }
+
+    // --- Per-window close permission tests ---
+
+    #[test]
+    fn grant_for_window_a_does_not_grant_for_window_b() {
+        let state = AppState::new().unwrap();
+        state.grant_close_permission("window-a");
+        // window-a has permission
+        assert!(state.consume_close_permission("window-a"));
+        // window-b must NOT have permission
+        assert!(!state.consume_close_permission("window-b"));
+    }
+
+    #[test]
+    fn consumed_permission_is_removed_and_cannot_be_consumed_again() {
+        let state = AppState::new().unwrap();
+        state.grant_close_permission("main-1");
+        assert!(state.consume_close_permission("main-1"));
+        // Second consume must return false (already consumed)
+        assert!(!state.consume_close_permission("main-1"));
+    }
+
+    #[test]
+    fn cleanup_removes_correct_label_without_affecting_others() {
+        let state = AppState::new().unwrap();
+        state.grant_close_permission("window-a");
+        state.grant_close_permission("window-b");
+
+        state.cleanup_close_permission("window-a");
+
+        // window-a cleaned up
+        assert!(!state.consume_close_permission("window-a"));
+        // window-b still present
+        assert!(state.consume_close_permission("window-b"));
     }
 }

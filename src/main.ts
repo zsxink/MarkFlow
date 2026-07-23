@@ -158,8 +158,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Intercept close request: prompt to save if document is dirty
   // Close requests are intercepted on the Rust side (WebviewWindow::on_window_event)
   // which prevents the native close and emits a custom "close-requested" event.
-  // Uses a flag pattern: 1st close → prevent + emit, 2nd close → let through via confirm.
-  listen<null>('close-requested', async () => {
+  // Uses a per-window permission pattern: 1st close → prevent + emit, 2nd close → let through via confirm.
+  listen<{ windowLabel: string }>('close-requested', async (event) => {
+    // Ignore events targeted at a different window (defense in depth)
+    if (event.payload.windowLabel !== getCurrentWebviewWindow().label) {
+      return;
+    }
     if (!isDocumentDirty()) {
       await invoke('confirm_window_close');
       return;

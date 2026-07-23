@@ -1,4 +1,9 @@
-## ADDED Requirements
+# docx-export Specification
+
+## Purpose
+定义 DOCX 导出的 OOXML 格式要求、语义映射规则、样式定义和导出入口。
+
+## Requirements
 
 ### Requirement: DOCX 文件生成
 系统 SHALL 使用 OOXML 标准生成 `.docx` 文件，文件 MUST 是有效的 ZIP/OOXML 格式（以 `PK` 头开始，包含 `[Content_Types].xml` 和 `word/document.xml`）。

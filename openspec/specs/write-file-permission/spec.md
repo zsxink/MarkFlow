@@ -1,4 +1,9 @@
-## MODIFIED Requirements
+# write-file-permission Specification
+
+## Purpose
+定义文档写入的原子性保证和文件树操作的工作区边界检查规则。
+
+## Requirements
 
 ### Requirement: 文档保存使用原子写入
 The `write_file` Tauri command SHALL use `atomic_write` to save document content. The command SHALL NOT reject saves based on the global workspace boundary — user-opened documents may reside outside the workspace.
@@ -16,8 +21,6 @@ The `write_file` Tauri command SHALL use `atomic_write` to save document content
 #### Scenario: 文档保存失败保留旧文件
 - **WHEN** 调用 `write_file` 保存文件但写入失败（如磁盘已满、权限错误）
 - **THEN** 原文件应保持完整且不损坏
-
-## ADDED Requirements
 
 ### Requirement: 文件树命令保留工作区边界
 文件树操作命令（`create_file`、`create_dir`、`rename_path`、`delete_path`、`copy_file`）SHALL 继续执行工作区边界检查和符号链接校验。

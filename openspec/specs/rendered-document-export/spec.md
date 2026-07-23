@@ -1,4 +1,9 @@
-## ADDED Requirements
+# rendered-document-export Specification
+
+## Purpose
+定义渲染文档导出（PDF/Word/HTML）的快照机制、日志规范和导出格式入口。
+
+## Requirements
 
 ### Requirement: 导出快照
 系统 SHALL 在导出前从编辑器 DOM 克隆创建只读导出快照，所有导出预处理操作（图片转换、编辑器标记清理）均在克隆上执行，不得修改编辑器实时 DOM。
@@ -29,8 +34,6 @@
 - **THEN** 系统 SHALL 输出 `export.pdf.afterprint` 日志
 - **WHEN** 导出超时或出错
 - **THEN** 系统 SHALL 输出 `export.pdf.timeout` 或 `export.pdf.error` 日志
-
-## MODIFIED Requirements
 
 ### Requirement: 导出格式入口
 系统 SHALL 在现有工具栏或菜单中提供"导出"入口，列出 PDF、Word 和 HTML 三种格式，并对当前文档执行用户选择的导出操作。PDF 菜单项 SHALL 标注"打印 / 另存为 PDF"，Word 菜单项 SHALL 标注为"Word (.docx)"。
@@ -96,12 +99,3 @@
 - **THEN** 系统 SHALL 忽略重复请求
 - **AND** 显示"正在导出中，请稍候"提示
 
-## REMOVED Requirements
-
-### Requirement: Word 兼容文件导出
-**Reason**: 由原生 OOXML DOCX 导出替代。HTML 包装的 `.doc` 在 Word/WPS 中排版严重失真，且不支持图片、图表等语义结构。
-**Migration**: 用户现应使用"Word (.docx)"菜单项导出真正的 DOCX 文件。
-
-### Requirement: Word 兼容文件导出（子场景）
-**Reason**: 同上。
-**Migration**: 导出文件名后缀从 `.doc` 改为 `.docx`。

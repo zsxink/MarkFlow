@@ -1,4 +1,9 @@
-## ADDED Requirements
+# multi-window-close-isolation Specification
+
+## Purpose
+确保多窗口关闭请求事件精确投递到发起窗口，关闭权限按窗口隔离且一次性消费，防止窗口间关闭串扰。
+
+## Requirements
 
 ### Requirement: Close request event targets only the originating window
 

@@ -11,6 +11,7 @@ npm run build        # tsc + vite build
 npm test             # vitest run
 npm run tauri dev    # Tauri 桌面开发
 npm run tauri build  # 生产构建
+npm run validate:openspec  # OpenSpec 校验
 ```
 
 ## 分支命名

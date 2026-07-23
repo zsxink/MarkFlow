@@ -63,6 +63,7 @@ impl AppState {
 
     /// Consume (and remove) the close permission for a specific window.
     /// Returns `true` if the permission existed and was consumed.
+    #[allow(dead_code)]
     pub fn consume_close_permission(&self, label: &str) -> bool {
         lock_mutex(&self.close_permissions)
             .map(|mut perms| perms.remove(label))
@@ -70,6 +71,7 @@ impl AppState {
     }
 
     /// Remove any stale close permission for a window that was destroyed.
+    #[allow(dead_code)]
     pub fn cleanup_close_permission(&self, label: &str) {
         if let Ok(mut perms) = lock_mutex(&self.close_permissions) {
             perms.remove(label);

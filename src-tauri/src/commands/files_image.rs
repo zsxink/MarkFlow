@@ -482,7 +482,7 @@ fn write_pending_image_bytes_at(
     bytes: &[u8],
 ) -> Result<PendingImageWriteResult, String> {
     validate_pending_file_name(file_name)?;
-    validate_image_bytes(&bytes)?;
+    validate_image_bytes(bytes)?;
 
     ensure_safe_directory(pending_root)?;
     let (draft_dir, mut manifest) = match draft_id {
@@ -1006,9 +1006,10 @@ mod tests {
         let root = temp_dir();
         let document = root.join("README.zh-CN.md");
         let document_string = document.to_string_lossy();
-        let mut settings = Settings::default();
-
-        settings.image_storage_mode = "document-dir".into();
+        let mut settings = Settings {
+            image_storage_mode: "document-dir".into(),
+            ..Settings::default()
+        };
         assert_eq!(
             storage_root_for_settings(&settings, Some(&document_string)).unwrap(),
             root

@@ -500,6 +500,7 @@ fn unique_pdf_job_id() -> Result<String, String> {
     Ok(format!("{timestamp}-{sequence}"))
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn inject_pdf_ready_script(html: &str, ready_url: &str) -> String {
     let encoded_ready_url =
         serde_json::to_string(ready_url).expect("serializing a URL string cannot fail");
@@ -532,6 +533,7 @@ fn inject_pdf_ready_script(html: &str, ready_url: &str) -> String {
     }
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn temporary_pdf_path(output_path: &Path, job_id: &str) -> Result<PathBuf, String> {
     let parent = output_path
         .parent()

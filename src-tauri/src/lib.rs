@@ -341,6 +341,7 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::export::print_webview,
+            commands::export::create_pdf,
             commands::export::write_file_binary,
             commands::export::save_binary_export,
             files::read_file,

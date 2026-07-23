@@ -2,6 +2,7 @@ import { logException, logDebug, logInfo } from './logger';
 import { showToast } from '../components/toast';
 import { invoke } from '@tauri-apps/api/core';
 import { convertSvgToPngDataUrl } from './exportSnapshot';
+import { buildExportTheme, exportThemeToDocxStyles, type ExportTheme } from './exportTheme';
 
 function d(): Promise<typeof import('docx')> {
   return import('docx');
@@ -10,8 +11,17 @@ function d(): Promise<typeof import('docx')> {
 /**
  * Create a real OOXML .docx file from cleaned HTML content.
  * Uses the `docx` npm package, lazy-loaded to avoid increasing the main bundle.
+ * Uses `Packer.toArrayBuffer()` (browser-compatible) instead of `Packer.toBuffer()` (Node.js only).
+ *
+ * @param html - HTML content to convert
+ * @param _title - Document title (unused currently)
+ * @param theme - Optional ExportTheme for styling. If not provided, uses light theme defaults.
  */
-export async function createDocxFromHtml(html: string, _title: string): Promise<Uint8Array> {
+export async function createDocxFromHtml(
+  html: string,
+  _title: string,
+  theme?: ExportTheme,
+): Promise<Uint8Array> {
   const docx = await d();
 
   // Parse HTML to DOM
@@ -33,31 +43,16 @@ export async function createDocxFromHtml(html: string, _title: string): Promise<
     }
   }
 
-  const children: any[] = [];
-  processNodeList(bodyEl.childNodes, children, docx);
+  // Build theme-based styles or use defaults
+  const resolvedTheme = theme ?? buildExportTheme('light');
+  const docxStyles = exportThemeToDocxStyles(resolvedTheme) as any;
 
-  // Build the document
+  const children: any[] = [];
+  processNodeList(bodyEl.childNodes, children, docx, resolvedTheme);
+
+  // Build the document using theme-based styles (no hardcoded values)
   const docxDoc = new docx.Document({
-    styles: {
-      default: {
-        document: {
-          run: { font: 'Times New Roman', size: 24 },
-          paragraph: { spacing: { after: 200 } },
-        },
-        heading1: {
-          run: { font: 'Times New Roman', size: 36, bold: true, color: '1F2937' },
-          paragraph: { spacing: { before: 360, after: 200 } },
-        },
-        heading2: {
-          run: { font: 'Times New Roman', size: 30, bold: true, color: '374151' },
-          paragraph: { spacing: { before: 360, after: 200 } },
-        },
-        heading3: {
-          run: { font: 'Times New Roman', size: 26, bold: true, color: '4B5563' },
-          paragraph: { spacing: { before: 360, after: 200 } },
-        },
-      },
-    },
+    styles: docxStyles,
     sections: [
       {
         properties: {
@@ -76,7 +71,8 @@ export async function createDocxFromHtml(html: string, _title: string): Promise<
     ],
   });
 
-  const buffer = await docx.Packer.toBuffer(docxDoc);
+  // Use toArrayBuffer() which is browser-compatible (not toBuffer() which requires Node.js)
+  const buffer = await docx.Packer.toArrayBuffer(docxDoc);
   const uint8 = new Uint8Array(buffer);
   logInfo('export.docx', 'DOCX generated', { size: uint8.length });
   return uint8;
@@ -107,17 +103,26 @@ export async function saveDocxFile(data: Uint8Array, defaultName: string): Promi
 
 // --- DOM-to-DOCX processing ---
 
-function processNodeList(nodes: NodeList, children: any[], docx: any): void {
+function pxToHalfPt(px: string): number {
+  const num = parseFloat(px);
+  return Math.round(num * 0.75 * 2);
+}
+
+function hexColor(c: string): string {
+  return c.replace(/^#/, '');
+}
+
+function processNodeList(nodes: NodeList, children: any[], docx: any, theme: ExportTheme): void {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (node.nodeType === Node.ELEMENT_NODE) {
-      processElement(node as HTMLElement, children, docx, nodes, i);
+      processElement(node as HTMLElement, children, docx, theme);
     } else if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim();
       if (text) {
         children.push(
           new docx.Paragraph({
-            children: [new docx.TextRun({ text, size: 24 })],
+            children: [new docx.TextRun({ text, size: pxToHalfPt(theme.body.fontSize) })],
             spacing: { after: 200 },
           }),
         );
@@ -126,8 +131,14 @@ function processNodeList(nodes: NodeList, children: any[], docx: any): void {
   }
 }
 
-function processElement(el: HTMLElement, children: any[], docx: any, _parentNodes?: NodeList, _index?: number): void {
+function processElement(el: HTMLElement, children: any[], docx: any, theme: ExportTheme): void {
   const tag = el.tagName.toLowerCase();
+  const codeFont = theme.fonts.code;
+  const codeBgHex = hexColor(theme.colors.codeBg);
+  const borderHex = hexColor(theme.colors.border);
+  const mutedHex = hexColor(theme.colors.muted);
+  const bodySize = pxToHalfPt(theme.body.fontSize);
+  const codeSize = pxToHalfPt(theme.codeBlock.fontSize);
 
   switch (tag) {
     case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6': {
@@ -142,7 +153,7 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
       ];
       children.push(
         new docx.Paragraph({
-          children: buildTextRuns(el, docx),
+          children: buildTextRuns(el, docx, theme),
           heading: headingLevels[level - 1],
           spacing: { before: 360, after: 200 },
         }),
@@ -154,7 +165,7 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
       const align = getAlignment(el, docx);
       children.push(
         new docx.Paragraph({
-          children: buildTextRuns(el, docx),
+          children: buildTextRuns(el, docx, theme),
           spacing: { after: 200 },
           alignment: align,
         }),
@@ -165,10 +176,10 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
     case 'blockquote': {
       children.push(
         new docx.Paragraph({
-          children: buildTextRuns(el, docx),
+          children: buildTextRuns(el, docx, theme),
           spacing: { before: 200, after: 200 },
           indent: { left: docx.convertInchesToTwip(0.5) },
-          shading: { type: docx.ShadingType.CLEAR, fill: 'F3F4F6' },
+          shading: { type: docx.ShadingType.CLEAR, fill: codeBgHex },
         }),
       );
       break;
@@ -183,10 +194,10 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
         if (line === '' && i === lines.length - 1) return;
         children.push(
           new docx.Paragraph({
-            children: [new docx.TextRun({ text: line || ' ', font: 'Consolas', size: 20 })],
+            children: [new docx.TextRun({ text: line || ' ', font: codeFont, size: codeSize })],
             spacing: { before: i === 0 ? 200 : 0, after: i === lines.length - 1 ? 200 : 0 },
             indent: { left: docx.convertInchesToTwip(0.3) },
-            shading: { type: docx.ShadingType.CLEAR, fill: 'F3F4F6' },
+            shading: { type: docx.ShadingType.CLEAR, fill: codeBgHex },
           }),
         );
       });
@@ -200,10 +211,10 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
       const codeText = el.textContent || '';
       children.push(
         new docx.Paragraph({
-          children: [new docx.TextRun({ text: codeText, font: 'Consolas', size: 20 })],
+          children: [new docx.TextRun({ text: codeText, font: codeFont, size: codeSize })],
           spacing: { before: 200, after: 200 },
           indent: { left: docx.convertInchesToTwip(0.3) },
-          shading: { type: docx.ShadingType.CLEAR, fill: 'F3F4F6' },
+          shading: { type: docx.ShadingType.CLEAR, fill: codeBgHex },
         }),
       );
       break;
@@ -212,7 +223,7 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
     case 'hr': {
       children.push(
         new docx.Paragraph({
-          children: [new docx.TextRun({ text: '─────────────────────', color: '9CA3AF', size: 20 })],
+          children: [new docx.TextRun({ text: '─────────────────────', color: mutedHex, size: codeSize })],
           spacing: { before: 200, after: 200 },
           alignment: docx.AlignmentType.CENTER,
         }),
@@ -233,7 +244,7 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
         const prefix = isTask ? (checked ? '☑ ' : '☐ ') : (isOrdered ? `${itemIndex}. ` : '• ');
         children.push(
           new docx.Paragraph({
-            children: [new docx.TextRun({ text: prefix, size: 24, bold: !isOrdered && !isTask }), ...buildTextRuns(liEl, docx)],
+            children: [new docx.TextRun({ text: prefix, size: bodySize, bold: !isOrdered && !isTask }), ...buildTextRuns(liEl, docx, theme)],
             spacing: { after: 100 },
             indent: { left: docx.convertInchesToTwip(0.5), hanging: docx.convertInchesToTwip(0.25) },
           }),
@@ -257,16 +268,16 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
             new docx.TableCell({
               children: [
                 new docx.Paragraph({
-                  children: [new docx.TextRun({ text: cellText, size: 22, bold: isHeader })],
+                  children: [new docx.TextRun({ text: cellText, size: pxToHalfPt('11px'), bold: isHeader })],
                 }),
               ],
               width: { size: 100 / cells.length, type: docx.WidthType.PERCENTAGE },
-              shading: isHeader ? { type: docx.ShadingType.CLEAR, fill: 'F3F4F6' } : undefined,
+              shading: isHeader ? { type: docx.ShadingType.CLEAR, fill: codeBgHex } : undefined,
               borders: {
-                top: { style: docx.BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
-                bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
-                left: { style: docx.BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
-                right: { style: docx.BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                top: { style: docx.BorderStyle.SINGLE, size: 1, color: borderHex },
+                bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: borderHex },
+                left: { style: docx.BorderStyle.SINGLE, size: 1, color: borderHex },
+                right: { style: docx.BorderStyle.SINGLE, size: 1, color: borderHex },
               },
             }),
           );
@@ -303,14 +314,14 @@ function processElement(el: HTMLElement, children: any[], docx: any, _parentNode
       // Generic container — process children
       if (el.children.length > 0) {
         for (let i = 0; i < el.children.length; i++) {
-          processElement(el.children[i] as HTMLElement, children, docx);
+          processElement(el.children[i] as HTMLElement, children, docx, theme);
         }
       } else {
         const text = el.textContent?.trim();
         if (text) {
           children.push(
             new docx.Paragraph({
-              children: [new docx.TextRun({ text, size: 24 })],
+              children: [new docx.TextRun({ text, size: bodySize })],
               spacing: { after: 200 },
             }),
           );
@@ -377,8 +388,11 @@ function createImageParagraph(el: HTMLElement, children: any[], docx: any): void
 
 // --- Inline text runs ---
 
-function buildTextRuns(parent: HTMLElement, docx: any): any[] {
+function buildTextRuns(parent: HTMLElement, docx: any, theme: ExportTheme): any[] {
   const rawRuns: any[] = [];
+  const codeFont = theme.fonts.code;
+  const bodySize = pxToHalfPt(theme.body.fontSize);
+  const codeSize = pxToHalfPt(theme.inlineCode.fontSize);
 
   function walk(nodes: NodeList, bold = false, italic = false, strike = false, code = false, linkHref?: string) {
     for (let i = 0; i < nodes.length; i++) {
@@ -392,8 +406,8 @@ function buildTextRuns(parent: HTMLElement, docx: any): any[] {
           bold,
           italics: italic,
           strike,
-          font: code ? 'Consolas' : undefined,
-          size: code ? 20 : 24,
+          font: code ? codeFont : undefined,
+          size: code ? codeSize : bodySize,
           ...(linkHref ? { link: linkHref } : {}),
         });
         continue;

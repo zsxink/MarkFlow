@@ -37,14 +37,25 @@ vi.mock('./logger', () => ({
 }));
 vi.mock('./exportSnapshot', () => ({
   buildExportSnapshot: buildExportSnapshotMock,
+  waitForFontsReady: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('./pdfExport', () => ({
   triggerPdfExport: triggerPdfExportMock,
+  exportPdfToFile: triggerPdfExportMock, // reuse the same mock for simplicity
 }));
 vi.mock('./docxExport', () => ({
   createDocxFromHtml: createDocxFromHtmlMock,
   saveDocxFile: saveDocxFileMock,
 }));
+
+// Mock only generateInlineFontCss from exportTheme (keep buildExportTheme and exportThemeToCss real)
+vi.mock('./exportTheme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./exportTheme')>();
+  return {
+    ...actual,
+    generateInlineFontCss: vi.fn().mockResolvedValue('/* font css */'),
+  };
+});
 
 import {
   createHtmlExport,
@@ -71,12 +82,15 @@ describe('rendered document export', () => {
     expect(getExportFileName(null, 'html')).toBe('untitled.html');
   });
 
-  it('wraps rendered HTML in a standalone HTML document', () => {
-    const html = createHtmlExport('A < B', '<h1>报告</h1><img src="diagram.svg">');
+  it('wraps rendered HTML in a standalone HTML document', async () => {
+    const html = await createHtmlExport('A < B', '<h1>报告</h1><img src="diagram.svg">');
     expect(html).toContain('<!doctype html>');
     expect(html).toContain('<title>A &lt; B</title>');
     expect(html).toContain('<h1>报告</h1><img src="diagram.svg">');
-    expect(html).toContain('@media print');
+    // Theme-based CSS includes .ProseMirror content selectors
+    expect(html).toContain('.ProseMirror');
+    expect(html).toContain(':root {');
+    expect(html).toContain('--color-fg:');
   });
 
   it('does not write when the save dialog is cancelled', async () => {

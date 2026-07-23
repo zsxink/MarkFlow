@@ -35,7 +35,7 @@
 
 ### Requirement: 图片操作在两个模式已有适配
 
-图片插入操作 `insertImageSrc()` 已实现双模式适配，本规范不做修改。
+图片插入操作 `insertImageSrc()` SHALL 保持双模式适配，本规范不做修改。
 
 #### Scenario: 源码模式图片插入
 - **WHEN** 当前模式为 source

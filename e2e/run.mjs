@@ -119,7 +119,7 @@ try {
   await rm(artifactsDir, { recursive: true, force: true });
   await Promise.all([mkdir(dataDir, { recursive: true }), mkdir(workspace, { recursive: true }), mkdir(artifactsDir, { recursive: true })]);
   await writeFile(path.join(dataDir, 'settings.json'), `${JSON.stringify(defaultSettings(workspace), null, 2)}\n`);
-  await writeFile(path.join(workspace, 'welcome.md'), '# MarkFlow E2E\n\nInitial test document.\n');
+  await writeFile(path.join(workspace, 'welcome.md'), '# MarkFlow E2E Testing\n\n这是 E2E 测试的初始文档，包含段落内容。\n\n- 列表项一\n- 列表项二\n- 列表项三\n');
   await run('npm', ['run', 'test:e2e:build'], environment);
   await run('npx', ['wdio', 'run', 'e2e/wdio.conf.mjs', '--suite', suite], environment);
   failed = false;

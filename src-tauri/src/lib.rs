@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use tauri::RunEvent;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::EventTarget;
 use tauri_plugin_single_instance::init as single_instance_init;
 
 #[tauri::command]
@@ -123,7 +124,7 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         Err(e) => return Err(format!("Failed to create window: {}", e)),
     };
 
-    intercept_close_request(&window, app.state::<AppState>().close_allowed.clone());
+    intercept_close_request(&window, app.state::<AppState>().close_permissions.clone());
 
     // Store pending file path for the new window's frontend to pull
     {
@@ -176,22 +177,42 @@ fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(),
 }
 
 /// Register close-request interception on a WebviewWindow.
-/// Uses a flag pattern to avoid macOS CloseRequested one-shot behavior:
-///   1st close → flag=false → prevent_close + emit "close-requested"
-///   2nd close → flag=true  → let it through (don't prevent)
+/// Uses a per-window permission pattern to avoid macOS CloseRequested one-shot behavior:
+///   1st close → no permission → prevent_close + emit "close-requested" to this window only
+///   2nd close → permission granted → consume and let it through
 fn intercept_close_request(
     window: &tauri::WebviewWindow,
-    close_allowed: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    close_permissions: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
 ) {
     let w = window.clone();
+    let label = window.label().to_string();
     window.on_window_event(move |event| {
-        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-            if close_allowed.load(std::sync::atomic::Ordering::SeqCst) {
-                // User confirmed close via dialog — let it through
-                return;
+        match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                // Try to consume this window's close permission
+                let has_permission = error::lock_mutex(&close_permissions)
+                    .map(|mut perms| perms.remove(&label))
+                    .unwrap_or(false);
+                if has_permission {
+                    tracing::debug!(target: "backend.close", label = %label, "Close permission consumed, allowing close");
+                    return;
+                }
+                api.prevent_close();
+                tracing::debug!(target: "backend.close", label = %label, "Close intercepted, emitting close-requested");
+                let _ = w.emit_to(
+                    EventTarget::WebviewWindow { label: label.clone() },
+                    "close-requested",
+                    serde_json::json!({ "windowLabel": label }),
+                );
             }
-            api.prevent_close();
-            let _ = w.emit("close-requested", ());
+            tauri::WindowEvent::Destroyed => {
+                // Clean up any stale close permission for this window
+                if let Ok(mut perms) = error::lock_mutex(&close_permissions) {
+                    perms.remove(&label);
+                }
+                tracing::debug!(target: "backend.close", label = %label, "Cleaned up close permission on window destroy");
+            }
+            _ => {}
         }
     });
 }
@@ -201,10 +222,10 @@ fn confirm_window_close(
     window: tauri::WebviewWindow,
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
-    state
-        .close_allowed
-        .store(true, std::sync::atomic::Ordering::SeqCst);
-    let _ = window.close(); // triggers CloseRequested again, but flag is now true → let it through
+    let label = window.label();
+    state.grant_close_permission(label);
+    tracing::debug!(target: "backend.close", label = %label, "Close permission granted");
+    let _ = window.close(); // triggers CloseRequested again, but permission is now granted → let it through
     Ok(())
 }
 
@@ -400,10 +421,12 @@ pub fn run() {
             }
 
             // Intercept close requests on all windows — emit to frontend for dirty check
-            let close_allowed = app.state::<AppState>().close_allowed.clone();
+            let close_permissions = app.state::<AppState>().close_permissions.clone();
             for (_, window) in app.webview_windows() {
-                intercept_close_request(&window, close_allowed.clone());
+                intercept_close_request(&window, close_permissions.clone());
             }
+
+            // Window destruction cleanup is handled inside intercept_close_request
 
             Ok(())
         })

@@ -170,9 +170,9 @@ function bindToolbarEvents() {
     const rect = button.getBoundingClientRect();
     showContextMenuStatic([
       { label: '导出 PDF (.pdf)', onClick: () => { void exportCurrentDocument('pdf'); } },
-      { label: '打印...', onClick: () => { void exportCurrentDocument('print'); } },
       { label: '导出 Word (.docx)', onClick: () => { void exportCurrentDocument('word'); } },
       { label: '导出 HTML (.html)', onClick: () => { void exportCurrentDocument('html'); } },
+      { label: '打印...', onClick: () => { void exportCurrentDocument('print'); } },
     ], { x: rect.left, y: rect.bottom });
   });
 }

@@ -1,45 +1,40 @@
-# pdf-export Specification
-
-## Purpose
-定义平台原生 PDF 生成能力，使用 WebView 原生 API 直接生成 PDF 文件，不依赖系统打印面板或 PDF 打印机。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 平台原生 PDF 生成
 系统 SHALL 使用平台 WebView 原生 API 直接生成 PDF 文件，不依赖系统打印面板或 PDF 打印机；系统 MUST NOT 以无条件失败的占位实现代替已声明支持的平台能力。
 
 #### Scenario: macOS 11 及以上 PDF 生成
-- **WHEN** 用户在 macOS 11 或更高版本选择"导出 PDF"
+- **WHEN** 用户在 macOS 11 或更高版本选择“导出 PDF”
 - **THEN** 系统 SHALL 使用 WKWebView `createPDF(configuration:completionHandler:)` 或经验证具有同等直接保存与分页能力的 WebKit 原生操作生成 PDF
 - **AND** 不经过系统打印面板
 - **AND** 不要求系统存在 PDF 打印机
 
 #### Scenario: macOS 10.15 PDF 生成
-- **WHEN** 用户在 macOS 10.15 上选择"导出 PDF"
+- **WHEN** 用户在 macOS 10.15 上选择“导出 PDF”
 - **THEN** 系统 SHALL 在调用前检测原生 selector 能力
 - **AND** 使用不显示面板的 WKWebView save print operation 生成 PDF，或返回稳定、可理解的系统版本不支持错误
 - **AND** 系统 MUST NOT 调用不存在的 selector 或发生崩溃
 
 #### Scenario: Windows PDF 生成
-- **WHEN** 用户在 Windows 上选择"导出 PDF"
+- **WHEN** 用户在 Windows 上选择“导出 PDF”
 - **THEN** 系统 SHALL 使用 WebView2 `PrintToPdf` 或 `PrintToPdfStream` 生成 PDF
 - **AND** 不经过系统打印面板
 
 #### Scenario: Linux PDF 生成
-- **WHEN** 用户在 Linux 上选择"导出 PDF"
+- **WHEN** 用户在 Linux 上选择“导出 PDF”
 - **THEN** 系统 SHALL 使用 WebKitGTK `WebKitPrintOperation` 配合 GTK PDF export 功能生成 PDF
 - **AND** 不经过系统打印对话框
 
 #### Scenario: 当前构建尚未实现的平台
 - **WHEN** 当前平台的直接 PDF 后端尚未实现
 - **THEN** 系统 SHALL 返回稳定的 `PDF_UNSUPPORTED` 能力错误
-- **AND** "导出 PDF" MUST NOT 静默打开打印对话框或报告成功
+- **AND** “导出 PDF” MUST NOT 静默打开打印对话框或报告成功
 
 ### Requirement: PDF 保存对话框
 系统 SHALL 在生成 PDF 前打开原生保存对话框，让用户选择目标路径，并将所选路径交给后端直接生成和原子保存。
 
 #### Scenario: 选择保存路径
-- **WHEN** 用户选择"导出 PDF"
+- **WHEN** 用户选择“导出 PDF”
 - **THEN** 系统 SHALL 在创建导出 WebView 前打开原生保存对话框
 - **AND** 默认文件名 SHALL 使用当前文档名称并以 `.pdf` 结尾
 - **AND** 默认位置 SHALL 为用户文档目录或上次保存位置
@@ -82,6 +77,8 @@
 - **WHEN** 页面就绪或原生 PDF 生成在规定时间内未完成
 - **THEN** 系统 SHALL 输出 `export.pdf.timeout` 日志
 - **AND** 后端 SHALL 终止导出作业并清理临时资源
+
+## ADDED Requirements
 
 ### Requirement: PDF 临时资源生命周期
 系统 SHALL 为每次直接 PDF 导出创建隔离作业，并在成功、失败、取消或超时后关闭临时 WebView、删除临时 HTML 和未提交 PDF。

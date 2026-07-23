@@ -79,6 +79,7 @@ describe('rendered document export', () => {
   it('derives format-specific names from the active Markdown file', () => {
     expect(getExportFileName('/notes/meeting.md', 'html')).toBe('meeting.html');
     expect(getExportFileName('C:\\notes\\meeting.markdown', 'word')).toBe('meeting.docx');
+    expect(getExportFileName('/notes/meeting.md', 'pdf')).toBe('meeting.pdf');
     expect(getExportFileName(null, 'html')).toBe('untitled.html');
   });
 
@@ -91,6 +92,17 @@ describe('rendered document export', () => {
     expect(html).toContain('.ProseMirror');
     expect(html).toContain(':root {');
     expect(html).toContain('--color-fg:');
+  });
+
+  it('includes print-specific CSS for PDF HTML', async () => {
+    const html = await createHtmlExport(
+      '报告',
+      '<div class="ProseMirror"><p>内容</p></div>',
+      undefined,
+      { print: true },
+    );
+    expect(html).toContain('@page {');
+    expect(html).toContain('@media print {');
   });
 
   it('does not write when the save dialog is cancelled', async () => {
@@ -131,6 +143,20 @@ describe('rendered document export', () => {
     expect(result).toBe(true);
     expect(createDocxFromHtmlMock).toHaveBeenCalled();
     expect(saveDocxFileMock).toHaveBeenCalledWith(expect.any(Uint8Array), 'a.docx');
+  });
+
+  it('passes print HTML and the active document name to PDF export', async () => {
+    const container = document.createElement('div');
+    container.className = 'ProseMirror';
+    container.innerHTML = '<p>内容</p>';
+
+    const result = await exportRenderedDocument('pdf', container, '/notes/a.md');
+
+    expect(result).toBe(true);
+    expect(triggerPdfExportMock).toHaveBeenCalledWith(
+      expect.stringContaining('@media print {'),
+      'a.pdf',
+    );
   });
 
   it('reports export failure when backend command throws', async () => {

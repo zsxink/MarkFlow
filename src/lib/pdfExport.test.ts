@@ -1,37 +1,48 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const { invokeMock, showToastMock } = vi.hoisted(() => ({
+const { invokeMock, saveMock, showToastMock, logInfoMock, logExceptionMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
+  saveMock: vi.fn(),
   showToastMock: vi.fn(),
+  logInfoMock: vi.fn(),
+  logExceptionMock: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
 }));
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  save: saveMock,
+}));
 vi.mock('../components/toast', () => ({
   showToast: showToastMock,
 }));
 vi.mock('./logger', () => ({
-  logInfo: vi.fn(),
-  logException: vi.fn(),
+  logInfo: logInfoMock,
+  logException: logExceptionMock,
   logDebug: vi.fn(),
 }));
 
 import { exportPdfToFile, triggerPdfExport } from './pdfExport';
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  saveMock.mockResolvedValue('/tmp/document.pdf');
 });
 
 afterEach(() => {
   invokeMock.mockReset();
+  saveMock.mockReset();
   showToastMock.mockReset();
-  vi.useRealTimers();
+  logInfoMock.mockReset();
+  logExceptionMock.mockReset();
 });
 
 describe('PDF export - file generation', () => {
   it('shows warning when another export is in progress', async () => {
-    invokeMock.mockImplementation(() => new Promise(() => {}));
+    let finishExport!: (result: { bytesWritten: number }) => void;
+    invokeMock.mockImplementation(() => new Promise(resolve => {
+      finishExport = resolve;
+    }));
 
     // Start first export (will hang)
     const first = exportPdfToFile('<html>test</html>');
@@ -41,51 +52,82 @@ describe('PDF export - file generation', () => {
     expect(await second).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('正在导出中，请稍候');
 
-    // Cleanup: resolve the first one
-    invokeMock.mockResolvedValue([37, 80, 68, 70, 45]); // %PDF-
-    vi.advanceTimersByTime(65000); // timeout
+    finishExport({ bytesWritten: 512 });
     await first;
   });
 
-  it('validates PDF file header', async () => {
-    // Return invalid PDF bytes (not starting with %PDF-)
-    invokeMock.mockResolvedValue([0, 0, 0, 0, 0]);
+  it('does not call the backend when the save dialog is cancelled', async () => {
+    saveMock.mockResolvedValue(null);
 
     const result = await exportPdfToFile('<html>test</html>');
     expect(result).toBe(false);
-    expect(showToastMock).toHaveBeenCalledWith('PDF 生成失败：文件格式无效');
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(showToastMock).not.toHaveBeenCalled();
   });
 
-  it('reports success for valid PDF', async () => {
-    // Return valid PDF header bytes
-    invokeMock.mockResolvedValue([37, 80, 68, 70, 45, 49, 46, 55]); // %PDF-1.7
-    // Mock save dialog to return true
-    invokeMock.mockResolvedValueOnce([37, 80, 68, 70, 45]);
-    invokeMock.mockResolvedValueOnce(true);
+  it('selects a PDF path before invoking the backend', async () => {
+    saveMock.mockResolvedValue('/tmp/report.pdf');
+    invokeMock.mockResolvedValue({ bytesWritten: 1_024 });
+
+    const result = await exportPdfToFile('<html>test</html>', 'report');
+
+    expect(result).toBe(true);
+    expect(saveMock).toHaveBeenCalledWith({
+      defaultPath: 'report.pdf',
+      filters: [{ name: 'PDF 文档', extensions: ['pdf'] }],
+    });
+    expect(invokeMock).toHaveBeenCalledWith('create_pdf', {
+      htmlContent: '<html>test</html>',
+      outputPath: '/tmp/report.pdf',
+    });
+    expect(showToastMock).toHaveBeenCalledWith('已导出 PDF 文件');
+  });
+
+  it('logs the successful lifecycle in order', async () => {
+    invokeMock.mockResolvedValue({ bytesWritten: 512 });
 
     await exportPdfToFile('<html>test</html>');
-    // The create_pdf command will be called with the HTML content
-    expect(invokeMock).toHaveBeenCalledWith('create_pdf', { htmlContent: '<html>test</html>' });
+
+    expect(logInfoMock.mock.calls.map(call => call.slice(0, 2))).toEqual([
+      ['export.pdf', 'start'],
+      ['export.pdf', 'ready'],
+      ['export.pdf', 'generating'],
+      ['export.pdf', 'written'],
+      ['export.pdf', 'validated'],
+    ]);
+  });
+
+  it('rejects invalid backend metadata', async () => {
+    invokeMock.mockResolvedValue({ bytesWritten: 0 });
+
+    const result = await exportPdfToFile('<html>test</html>');
+
+    expect(result).toBe(false);
+    expect(showToastMock).toHaveBeenCalledWith('PDF 导出失败，请重试');
   });
 
   it('handles timeout gracefully', async () => {
-    // Never resolve the create_pdf call
-    invokeMock.mockImplementation(() => new Promise(() => {}));
+    invokeMock.mockRejectedValue('PDF_TIMEOUT: native PDF generation timed out');
 
-    const promise = exportPdfToFile('<html>test</html>');
-
-    // Advance timers past the timeout
-    vi.advanceTimersByTime(65000);
-
-    const result = await promise;
+    const result = await exportPdfToFile('<html>test</html>');
     expect(result).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('PDF 导出超时，请重试');
+    expect(logInfoMock).toHaveBeenCalledWith('export.pdf', 'timeout');
+  });
+
+  it('shows a specific message for unsupported systems', async () => {
+    invokeMock.mockRejectedValue('PDF_UNSUPPORTED: macOS version is not supported');
+
+    const result = await exportPdfToFile('<html>test</html>');
+    expect(result).toBe(false);
+    expect(showToastMock).toHaveBeenCalledWith('当前系统版本暂不支持直接导出 PDF');
   });
 
   it('handles create_pdf command failure', async () => {
-    invokeMock.mockRejectedValue(new Error('Platform not supported'));
+    invokeMock.mockRejectedValue(new Error('PDF_GENERATION_FAILED: WebKit error'));
 
     const result = await exportPdfToFile('<html>test</html>');
+
     expect(result).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('PDF 导出失败，请重试');
   });

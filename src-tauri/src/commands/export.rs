@@ -544,6 +544,7 @@ fn temporary_pdf_path(output_path: &Path, job_id: &str) -> Result<PathBuf, Strin
     Ok(parent.join(format!(".{file_name}.{job_id}.tmp")))
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn validate_pdf_file(path: &Path) -> Result<u64, String> {
     let mut file = fs::File::open(path)
         .map_err(|error| format!("PDF_WRITE_FAILED: cannot open generated PDF: {error}"))?;
@@ -564,12 +565,14 @@ fn validate_pdf_file(path: &Path) -> Result<u64, String> {
     Ok(length)
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn commit_pdf_file(temp_path: &Path, output_path: &Path) -> Result<(), String> {
     validate_pdf_file(temp_path)?;
     fs::rename(temp_path, output_path)
         .map_err(|error| format!("PDF_WRITE_FAILED: cannot commit generated PDF: {error}"))
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn remove_file_if_present(path: &Path) {
     match fs::remove_file(path) {
         Ok(()) => {}

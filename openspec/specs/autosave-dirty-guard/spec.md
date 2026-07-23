@@ -1,4 +1,9 @@
-## ADDED Requirements
+# autosave-dirty-guard Specification
+
+## Purpose
+确保自动保存仅在文档有实际变更时触发写入，跳过干净文档和进行中的保存，避免无效 I/O 和并发冲突。
+
+## Requirements
 
 ### Requirement: 自动保存仅处理脏文档
 自动保存 tick SHALL 在文档无实际变更时不触发写入操作。

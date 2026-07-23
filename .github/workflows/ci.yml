@@ -60,7 +60,7 @@ jobs:
         run: scripts/check-capabilities.sh
 
       - name: Validate OpenSpec specs
-        run: npx openspec validate --all
+        run: npm run validate:openspec
 
       - name: Check archived changes are synced to main specs
         run: bash scripts/check-archive-synced.sh

@@ -45,7 +45,12 @@ describe('toolbar', () => {
     btn.id = 'btn-export';
     toolbar.appendChild(btn);
     initToolbar(); document.getElementById('btn-export')!.click();
-    expect(showContextMenuStatic).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ label: '打印 / 另存为 PDF' }), expect.objectContaining({ label: '导出 Word (.docx)' }), expect.objectContaining({ label: '导出 HTML' })]), expect.any(Object));
+    expect(showContextMenuStatic).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ label: '导出 PDF (.pdf)' }),
+      expect.objectContaining({ label: '打印...' }),
+      expect.objectContaining({ label: '导出 Word (.docx)' }),
+      expect.objectContaining({ label: '导出 HTML (.html)' }),
+    ]), expect.any(Object));
   });
   it('keeps mode controls exposed as pressed-state toggles', () => {
     initToolbar();

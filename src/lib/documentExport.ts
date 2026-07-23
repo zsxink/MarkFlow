@@ -2,41 +2,62 @@ import { showToast } from '../components/toast';
 import { saveDocumentExport } from './storage';
 import { getFileName } from './pathUtils';
 import { logException } from './logger';
-import { buildExportSnapshot } from './exportSnapshot';
-import { triggerPdfExport } from './pdfExport';
+import { buildExportSnapshot, waitForFontsReady } from './exportSnapshot';
+import { triggerPdfExport, exportPdfToFile } from './pdfExport';
 import { createDocxFromHtml, saveDocxFile } from './docxExport';
+import { buildExportTheme, exportThemeToCss, generateInlineFontCss, type ExportTheme } from './exportTheme';
 
-export type ExportFormat = 'html' | 'word' | 'pdf';
-
-const EXPORT_STYLE = `
-  :root { color-scheme: light; }
-  body { max-width: 860px; margin: 0 auto; padding: 40px; color: #1f2937; font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  img, svg, video { max-width: 100%; height: auto; }
-  pre { overflow: auto; padding: 12px; border-radius: 6px; background: #f3f4f6; }
-  code { font-family: "SFMono-Regular", Consolas, monospace; }
-  blockquote { margin-left: 0; padding-left: 1em; border-left: 3px solid #d1d5db; color: #4b5563; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 8px; border: 1px solid #d1d5db; text-align: left; }
-  @media print { body { max-width: none; padding: 0; } }
-`;
+export type ExportFormat = 'html' | 'word' | 'pdf' | 'print';
 
 let exportInProgress = false;
 
-export function getExportFileName(path: string | null | undefined, format: Exclude<ExportFormat, 'pdf'>): string {
+/**
+ * Build an ExportTheme from the live editor's current theme state.
+ * Reads `data-theme` from the editor's `.ProseMirror` root element.
+ */
+function buildThemeFromEditor(renderedRoot: HTMLElement | null): ExportTheme {
+  const themeAttr = renderedRoot?.getAttribute('data-theme') ?? null;
+  return buildExportTheme(themeAttr);
+}
+
+export function getExportFileName(path: string | null | undefined, format: Exclude<ExportFormat, 'pdf' | 'print'>): string {
   const fileName = path ? getFileName(path) : 'untitled';
   const dotIndex = fileName.lastIndexOf('.');
   const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
   return `${baseName || 'untitled'}.${format === 'word' ? 'docx' : 'html'}`;
 }
 
-export function createHtmlExport(title: string, renderedHtml: string): string {
+/**
+ * Create a self-contained HTML document from rendered snapshot.
+ * Uses ExportTheme for CSS instead of hardcoded EXPORT_STYLE.
+ * The snapshot preserves the `.ProseMirror` root with `data-theme`.
+ * Includes inline font-face declarations for offline display.
+ */
+export async function createHtmlExport(
+  title: string,
+  renderedHtml: string,
+  theme?: ExportTheme,
+): Promise<string> {
+  const resolvedTheme = theme ?? buildExportTheme('light');
+  const themeCss = exportThemeToCss(resolvedTheme);
+
+  // Generate inline font-face CSS with base64 data URIs for self-contained HTML
+  let fontCss = '';
+  try {
+    fontCss = await generateInlineFontCss();
+  } catch {
+    // If font inlining fails, proceed without inline fonts
+  }
+
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
-  <style>${EXPORT_STYLE}</style>
+  <style>
+${fontCss ? fontCss + '\n\n' : ''}${themeCss}
+  </style>
 </head>
 <body>
 ${renderedHtml}
@@ -59,23 +80,34 @@ export async function exportRenderedDocument(
   }
 
   const title = getExportFileName(activePath, 'html').replace(/\.html$/, '');
+  const theme = buildThemeFromEditor(renderedRoot);
+
   exportInProgress = true;
   try {
+    // Wait for fonts to be ready before snapshot (task 3.6)
+    await waitForFontsReady();
+
     const snapshot = await buildExportSnapshot(renderedRoot);
     const div = document.createElement('div');
     div.appendChild(snapshot.cloneNode(true));
     const renderedHtml = div.innerHTML;
 
+    if (format === 'print') {
+      // "Print..." — use the system print dialog (existing flow, task 4.6)
+      return await triggerPdfExport(await createHtmlExport(title, renderedHtml, theme));
+    }
+
     if (format === 'pdf') {
-      return await triggerPdfExport(createHtmlExport(title, renderedHtml));
+      // "Export PDF (.pdf)" — generate PDF file directly via platform API
+      return await exportPdfToFile(await createHtmlExport(title, renderedHtml, theme));
     }
 
     if (format === 'word') {
-      const docxData = await createDocxFromHtml(renderedHtml, title);
+      const docxData = await createDocxFromHtml(renderedHtml, title, theme);
       return await saveDocxFile(docxData, getExportFileName(activePath, 'word'));
     }
 
-    const output = createHtmlExport(title, renderedHtml);
+    const output = await createHtmlExport(title, renderedHtml, theme);
 
     const defaultName = getExportFileName(activePath, format);
 

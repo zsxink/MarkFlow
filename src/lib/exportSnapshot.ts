@@ -3,24 +3,60 @@ import { logDebug } from './logger';
 
 /**
  * Build a read-only export snapshot from the editor's rendered root.
+ * Preserves the `.ProseMirror` root container with `data-theme` attribute,
+ * so `.ProseMirror ...` content selectors naturally match in the export.
  * All preprocessing (image conversion, editor markup cleanup) happens on
  * a cloned DOM subtree — the live editor DOM is never modified.
+ *
+ * Returns a DocumentFragment containing the cloned `.ProseMirror` div.
  */
 export async function buildExportSnapshot(
   renderedRoot: HTMLElement,
 ): Promise<DocumentFragment> {
-  const fragment = document.createDocumentFragment();
-  // Clone children into the fragment (deep clone)
-  for (let i = 0; i < renderedRoot.childNodes.length; i++) {
-    const cloned = renderedRoot.childNodes[i].cloneNode(true);
-    fragment.appendChild(cloned);
+  // Clone the entire .ProseMirror root (not just children) to preserve
+  // class name and data-theme attribute for CSS selector matching
+  const clonedRoot = renderedRoot.cloneNode(true) as HTMLElement;
+
+  // Preserve data-theme from the live editor
+  const currentTheme = renderedRoot.getAttribute('data-theme');
+  if (currentTheme) {
+    clonedRoot.setAttribute('data-theme', currentTheme);
   }
+
+  // Ensure the ProseMirror class is present
+  if (!clonedRoot.classList.contains('ProseMirror')) {
+    clonedRoot.classList.add('ProseMirror');
+  }
+
+  // Create a fragment and insert the cloned root
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(clonedRoot);
 
   cleanupEditorMarkup(fragment);
   await convertLocalImages(fragment);
   await waitForMediaReady(fragment);
 
   return fragment;
+}
+
+/**
+ * Wait for document fonts to be ready, with a timeout.
+ * Returns after fonts are loaded or after the timeout (whichever comes first).
+ * Silently resolves if `document.fonts` is unavailable (e.g. in test environments).
+ */
+export async function waitForFontsReady(timeoutMs = 10_000): Promise<void> {
+  try {
+    // document.fonts may not exist in jsdom/happy-dom test environments
+    const fontsReady = document.fonts?.ready;
+    if (!fontsReady) return;
+
+    await Promise.race([
+      fontsReady,
+      new Promise<void>(resolve => setTimeout(resolve, timeoutMs)),
+    ]);
+  } catch {
+    // Ignore errors — proceed with whatever fonts are available
+  }
 }
 
 /**

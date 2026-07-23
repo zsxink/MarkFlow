@@ -169,9 +169,10 @@ function bindToolbarEvents() {
     if (!button) return;
     const rect = button.getBoundingClientRect();
     showContextMenuStatic([
-      { label: '打印 / 另存为 PDF', onClick: () => { void exportCurrentDocument('pdf'); } },
+      { label: '导出 PDF (.pdf)', onClick: () => { void exportCurrentDocument('pdf'); } },
+      { label: '打印...', onClick: () => { void exportCurrentDocument('print'); } },
       { label: '导出 Word (.docx)', onClick: () => { void exportCurrentDocument('word'); } },
-      { label: '导出 HTML', onClick: () => { void exportCurrentDocument('html'); } },
+      { label: '导出 HTML (.html)', onClick: () => { void exportCurrentDocument('html'); } },
     ], { x: rect.left, y: rect.bottom });
   });
 }

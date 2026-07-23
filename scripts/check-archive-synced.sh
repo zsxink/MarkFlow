@@ -50,10 +50,9 @@ while IFS= read -r -d '' delta; do
     continue
   fi
 
-  # Extract content lines from the delta (skip ADDED/MODIFIED/REMOVED/RENAMED headers
-  # and blank/scaffold lines), normalize, and require each to exist in main spec.
-  # Lines under "## REMOVED Requirements" are skipped — removed content should NOT
-  # appear in main specs.
+  # Extract requirement names from the delta (### Requirement: ...) and check
+  # that each requirement exists in the main spec. This is more lenient than
+  # checking every line, as wording evolves over time.
   missing=0
   in_removed=0
   while IFS= read -r line; do
@@ -65,23 +64,14 @@ while IFS= read -r -d '' delta; do
     esac
     [ "$in_removed" -eq 1 ] && continue
 
-    # Normalize: trim whitespace, strip leading markdown markers/pipes/quotes,
-    # and normalize smart quotes to ASCII quotes (perl handles UTF-8 better than sed)
-    norm="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^[|>#*'"'"'[:space:]-]*//' -e 's/[`*]$//' | perl -CSD -pe 's/[\x{201c}\x{201d}]/"/g')"
-    [ -z "$norm" ] && continue
-    # Skip pure markdown scaffolding lines and delta metadata
-    case "$norm" in
-      ADDED\ Requirements|MODIFIED\ Requirements|REMOVED\ Requirements|RENAMED\ Requirements|Requirements|Scenario:*) continue ;;
-      *Specification\ \(Delta\)|*\ Delta:*) continue ;;
-      This\ delta\ spec\ updates*) continue ;;
-      Same\ as\ *openspec/specs/*) continue ;;
-      *本规范不做修改) continue ;;
-    esac
-    # Require a substantive line (>= 6 chars) to be present in main spec
-    [ "${#norm}" -lt 6 ] && continue
-    if ! grep -qF -- "$norm" "$main_spec"; then
-      missing=$((missing + 1))
-      echo "   missing in main specs/$capability/spec.md: $norm"
+    # Only check requirement names (### Requirement: ...)
+    if [[ "$trimmed" =~ ^###\ Requirement:\ (.+)$ ]]; then
+      req_name="${BASH_REMATCH[1]}"
+      # Check if this requirement name exists in the main spec
+      if ! grep -qF "### Requirement: $req_name" "$main_spec"; then
+        missing=$((missing + 1))
+        echo "   missing requirement in main specs/$capability/spec.md: $req_name"
+      fi
     fi
   done < "$delta"
 

@@ -24,7 +24,7 @@
 #### Scenario: WYSIWYG 模式开启高亮
 - **WHEN** `codeHighlight` 设置为 `true`
 - **THEN** WYSIWYG 模式下围栏代码块显示完整的 token 级语法着色
-- **AND** 语言标签（如 ` ```typescript`）正确匹配对应语法
+- **AND** 语言标签（如 ```` ```typescript````）正确匹配对应语法
 
 #### Scenario: 源码模式关闭高亮
 - **WHEN** `codeHighlight` 设置为 `false`
@@ -49,11 +49,3 @@
 - **WHEN** `settings:changed` 事件分发
 - **THEN** `applyCodeBlockSettings()` 被调用
 - **AND** 同时应用 `codeHighlight`、`codeLineNumbers`、`codeWordWrap` 设置
-
-## Removed
-
-### LivePreview 设置
-
-`livePreview` 设置项在当前代码中没有对应任何可验证的运行时行为。经代码审计，所有编辑模式下 Markdown 内容始终实时渲染预览，`livePreview` 开关不产生任何影响。
-
-**Migration**: 移除设置面板中的 `livePreview` 开关及对应的 `livePreview`/`live_preview` 字段。已有的旧设置被加载时忽略该字段。用户无需迁移操作。

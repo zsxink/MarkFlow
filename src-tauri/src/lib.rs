@@ -17,9 +17,9 @@ use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use tauri::EventTarget;
 use tauri::RunEvent;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
-use tauri::EventTarget;
 use tauri_plugin_single_instance::init as single_instance_init;
 
 #[tauri::command]

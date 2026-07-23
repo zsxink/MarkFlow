@@ -16,9 +16,9 @@ The system SHALL prefer streaming local image files through the Tauri `asset://`
 
 #### Scenario: 通过资产URL显示本地图像
 - **WHEN** 文档中引用了本地图片文件
-- **THEN** 系统使用`convertFileSrc()`生成资产协议URL
+- **THEN** 系统使用 `convertFileSrc()` 生成资产协议 URL
 - **THEN** 浏览器直接从磁盘加载图片
-- **THEN** 图像数据没有发生Base64编码或IPC传输
+- **THEN** 图像数据没有发生 Base64 编码或 IPC 传输
 
 #### Scenario: 本地图片复制到存储
 - **WHEN** 用户粘贴/拖入本地图像文件
@@ -49,8 +49,8 @@ The system SHALL prefer streaming local image files through the Tauri `asset://`
 
 #### Scenario: 下载完成自动重命名
 - **WHEN** 网络下载成功完成
-- **THEN** 根据内容长度标头验证文件大小
-- **THEN** MIME类型验证以`image/`开头
+- **THEN** 根据 Content-Length 标头验证文件大小
+- **THEN** MIME 类型验证以 `image/` 开头
 - **THEN** 临时文件自动重命名为目标文件名
 - **THEN** 如果验证失败，临时文件被删除并返回错误
 
@@ -78,20 +78,20 @@ The system SHALL prefer streaming local image files through the Tauri `asset://`
 系统 MUST 限制并发图像处理操作和飞行中的总字节数。
 
 #### Scenario: 最大并发操作数
-- **WHEN** 同时请求超过4个图像处理操作
+- **WHEN** 同时请求超过 4 个图像处理操作
 - **THEN** 额外操作正在排队
 - **THEN** 操作按之前的操作完成处理
-- **THEN** 最多同时执行4个操作
+- **THEN** 最多同时执行 4 个操作
 
 #### Scenario: 对象URL清理
 - **WHEN** 文档中的图像被删除或文档被关闭
-- **THEN** 通过`URL.revokeObjectURL()`撤销关联对象URL
-- **THEN** 释放任何中间ArrayBuffer或Blob引用
+- **THEN** 通过 `URL.revokeObjectURL()` 撤销关联对象 URL
+- **THEN** 释放任何中间 ArrayBuffer 或 Blob 引用
 - **THEN** 未释放的图片资源没有发生内存泄漏
 
 #### Scenario: 浏览器内存管理
 - **WHEN** 图片加载并显示在编辑器中
-- **THEN** 在图像元素上设置`loading="lazy"`属性
+- **THEN** 在图像元素上设置 `loading="lazy"` 属性
 - **THEN** 浏览器可根据需要卸载离屏图像
 
 ### Requirement: 专用后端命令的安全约束

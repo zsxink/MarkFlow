@@ -3,13 +3,14 @@
 ## Purpose
 定义 MarkFlow 对话框的结构、样式、交互行为与创建方式。
 
+This delta spec documents the DOM structure changes in the settings panel: tab reorganization, removal of the livePreview toggle, image panel form element changes, and PlantUML layout adjustments.
+
 ## Agent Context
 - **源码入口：** `src/components/ui/modal.ts`、`src/components/newFileDialog.ts` 与 `src/components/linkDialog.ts`。
 - **关联规范：** `context-menu`、`safe-dom-construction`、`sidebar`。
 - **不变量：** 对话框遮罩和焦点必须在关闭时清理；Escape/关闭按钮不得执行主操作；表单内容不得以不安全 HTML 拼接用户输入。
 - **验证：** `npm test -- src/components`；`npx openspec validate dialog-system --strict`。
-
-> 定义 MarkFlow 所有对话框的统一结构、样式和交互模式
+Same as `openspec/specs/dialog-system/spec.md`.
 
 ## Requirements
 
@@ -313,6 +314,16 @@ showContextMenuStatic(items: ContextMenuItem[], position: {x, y}, options?): voi
 - **AND** 用户点击「通用」标签页
 - **THEN** 该标签页仅包含：文件（自动保存、自动保存间隔）、文件树性能（忽略目录、单次加载条目、自动恢复展开深度）
 - **AND** 拼写检查和自动换行已移出
+
+#### Scenario: 没有实时预览开关
+- **WHEN** 设置面板打开
+- **AND** 用户查看「编辑器」标签页
+- **THEN** Markdown 设置组中只有「代码高亮」开关
+- **AND** 没有「实时预览」开关或相关文字
+
+### Requirement: LivePreview 开关移除
+
+设置面板的编辑器标签页 SHALL 不再包含「实时预览」开关。
 
 #### Scenario: 没有实时预览开关
 - **WHEN** 设置面板打开

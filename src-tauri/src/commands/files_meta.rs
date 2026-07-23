@@ -1,6 +1,4 @@
-use crate::http::{
-    validate_external_url, MAX_TITLE_LEN, MAX_TITLE_READ_BYTES,
-};
+use crate::http::{validate_external_url, MAX_TITLE_LEN, MAX_TITLE_READ_BYTES};
 use crate::state::AppState;
 use futures::StreamExt;
 use tauri::State;

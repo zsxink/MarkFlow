@@ -45,7 +45,7 @@
 
 #### Scenario: URL 含 query/hash 时使用 MIME 类型
 - **WHEN** 网络图片 URL 包含 query 参数或 hash 片段
-- **THEN** 系统先发送 HEAD 请求获取响应 Content-Type
+- **THEN** 系统先发送 HEAD 请求获取 Content-Type
 - **AND** 如果 Content-Type 为 `image/jpeg`，扩展名使用 `.jpg`
 - **AND** 如果 Content-Type 不可用，从 URL 路径提取扩展名
 - **AND** 如果路径也无扩展名，回退到 `.png`

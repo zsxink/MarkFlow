@@ -52,18 +52,33 @@ while IFS= read -r -d '' delta; do
 
   # Extract content lines from the delta (skip ADDED/MODIFIED/REMOVED/RENAMED headers
   # and blank/scaffold lines), normalize, and require each to exist in main spec.
+  # Lines under "## REMOVED Requirements" are skipped — removed content should NOT
+  # appear in main specs.
   missing=0
+  in_removed=0
   while IFS= read -r line; do
+    # Detect section headers to track REMOVED blocks
+    trimmed="$(echo "$line" | sed 's/^[[:space:]]*//')"
+    case "$trimmed" in
+      "## REMOVED Requirements"*) in_removed=1; continue ;;
+      "## Requirements"|"## Purpose"|"## Agent Context"|"## ADDED Requirements"|"## MODIFIED Requirements") in_removed=0 ;;
+    esac
+    [ "$in_removed" -eq 1 ] && continue
+
     # Normalize: trim whitespace, strip leading markdown markers/pipes/quotes
     norm="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^[|>#*'"'"'[:space:]-]*//' -e 's/[`*]$//')"
     [ -z "$norm" ] && continue
-    # Skip pure markdown scaffolding lines
+    # Skip pure markdown scaffolding lines and delta metadata
     case "$norm" in
       ADDED\ Requirements|MODIFIED\ Requirements|REMOVED\ Requirements|RENAMED\ Requirements|Requirements|Scenario:*) continue ;;
+      *Specification\ \(Delta\)|*\ Delta:*) continue ;;
+      This\ delta\ spec\ updates*) continue ;;
+      Same\ as\ *openspec/specs/*) continue ;;
+      *本规范不做修改) continue ;;
     esac
     # Require a substantive line (>= 6 chars) to be present in main spec
     [ "${#norm}" -lt 6 ] && continue
-    if ! grep -qF "$norm" "$main_spec"; then
+    if ! grep -qF -- "$norm" "$main_spec"; then
       missing=$((missing + 1))
       echo "   missing in main specs/$capability/spec.md: $norm"
     fi

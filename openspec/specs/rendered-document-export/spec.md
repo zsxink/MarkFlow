@@ -1,7 +1,7 @@
 # rendered-document-export Specification
 
 ## Purpose
-定义渲染文档导出（PDF/Word/HTML）的快照机制、日志规范和导出格式入口。
+定义渲染文档导出（PDF/Word/HTML）的快照机制、日志规范、导出格式入口和浏览器打印流程，确保导出操作不干扰编辑器实时状态。
 
 ## Requirements
 

@@ -8,9 +8,19 @@ export const app = {
   filesTab: () => $('[data-tab="files"]'),
   sourceMode: () => $('#btn-source'),
   wysiwygMode: () => $('#btn-wysiwyg'),
-  settings: () => $('#btn-settings'),
+  settingsBtn: () => $('#btn-settings'),
   toast: () => $('[role="status"]'),
   file: (name) => $(`[data-testid="file-tree-item"]`).$(`span=${name}`),
+
+  // ── Settings modal ──────────────────────────────────────────────
+  settingsModal: () => $('.modal-settings'),
+  settingsTab: (panel) => $(`.settings-tab[data-panel="${panel}"]`),
+  settingsPanel: (panel) => $(`#panel-${panel}`),
+  settingsClose: () => $('#settings-close'),
+  themeSwatch: (theme) => $(`#theme-${theme}-preview`),
+
+  // ── File tree ───────────────────────────────────────────────────
+  fileTreeItem: (name) => $(`[data-testid="file-tree-item"][data-path$="/${name}"]`),
 };
 
 export async function waitForAppReady() {
@@ -20,4 +30,21 @@ export async function waitForAppReady() {
 
 export async function showFiles() {
   await (await app.filesTab()).click();
+}
+
+export async function openFileInTree(name) {
+  await showFiles();
+  const item = app.fileTreeItem(name);
+  await item.waitForDisplayed({ timeout: 10_000 });
+  await item.click();
+}
+
+export async function openSettings() {
+  await (await app.settingsBtn()).click();
+  await (await app.settingsModal()).waitForDisplayed({ timeout: 5_000 });
+}
+
+export async function closeSettings() {
+  await (await app.settingsClose()).click();
+  await (await app.settingsModal()).waitForDisplayed({ timeout: 5_000, reverse: true });
 }

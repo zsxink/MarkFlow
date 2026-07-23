@@ -74,15 +74,19 @@ pub async fn save_binary_export(
     let file = app
         .dialog()
         .file()
-        .add_filter(filter_name, &extensions.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+        .add_filter(
+            filter_name,
+            &extensions.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )
         .set_file_name(&default_name)
         .blocking_save_file();
 
     match file {
         Some(path) => {
-            let path_buf = path.into_path().map_err(|_| "Invalid save path".to_string())?;
-            std::fs::write(&path_buf, &data)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
+            let path_buf = path
+                .into_path()
+                .map_err(|_| "Invalid save path".to_string())?;
+            std::fs::write(&path_buf, &data).map_err(|e| format!("Failed to write file: {}", e))?;
             Ok(true)
         }
         None => Ok(false), // User cancelled

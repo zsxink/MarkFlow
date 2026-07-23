@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { save } from '@tauri-apps/plugin-dialog';
 import { logInfo, logException } from './logger';
 import { showToast } from '../components/toast';
 
@@ -16,16 +17,23 @@ export type PdfExportEvent =
 // ── Concurrent export protection (task 4.7) ───────────────────────────────
 
 let pdfExportInProgress = false;
-const PDF_TIMEOUT_MS = 60_000;
+const PRINT_TIMEOUT_MS = 60_000;
+
+interface PdfExportResult {
+  bytesWritten: number;
+}
 
 // ── Export PDF (file generation, not print) ────────────────────────────────
 
 /**
  * Export PDF by generating a .pdf file directly using platform-native API.
- * On macOS, uses WKWebView.createPDF() via Tauri command.
- * Opens a save dialog, generates PDF, validates the output, and saves.
+ * The destination is selected before the backend creates any temporary
+ * resources. The backend writes, validates, and atomically commits the file.
  */
-export async function exportPdfToFile(html: string): Promise<boolean> {
+export async function exportPdfToFile(
+  html: string,
+  defaultName = 'document.pdf',
+): Promise<boolean> {
   if (pdfExportInProgress) {
     showToast('正在导出中，请稍候');
     return false;
@@ -35,41 +43,40 @@ export async function exportPdfToFile(html: string): Promise<boolean> {
   logInfo('export.pdf', 'start');
 
   try {
-    // Create a timeout promise
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('PDF export timed out')), PDF_TIMEOUT_MS);
+    const outputPath = await save({
+      defaultPath: ensurePdfExtension(defaultName),
+      filters: [{ name: 'PDF 文档', extensions: ['pdf'] }],
     });
+    if (!outputPath) return false;
+
+    logInfo('export.pdf', 'ready');
 
     logInfo('export.pdf', 'generating');
 
-    // Race between PDF generation and timeout
-    const pdfBytes = await Promise.race([
-      invoke<number[]>('create_pdf', { htmlContent: html }),
-      timeoutPromise,
-    ]);
+    // The backend owns page/native timeouts and cleanup. Do not race the IPC
+    // call with a frontend timer: that would release the concurrency guard
+    // while the native job could still be writing the selected destination.
+    const result = await invoke<PdfExportResult>('create_pdf', {
+      htmlContent: html,
+      outputPath,
+    });
 
-    logInfo('export.pdf', 'written', { size: pdfBytes.length });
-
-    // Validate PDF file header (task 4.4)
-    if (!validatePdfHeader(pdfBytes)) {
-      logException('export.pdf', 'Invalid PDF file header', new Error('File does not start with %PDF-'));
-      showToast('PDF 生成失败：文件格式无效');
-      return false;
+    if (!Number.isFinite(result.bytesWritten) || result.bytesWritten < 5) {
+      throw new Error('PDF_INVALID: backend returned an invalid byte count');
     }
 
+    logInfo('export.pdf', 'written', { size: result.bytesWritten });
     logInfo('export.pdf', 'validated');
-
-    // Save via native dialog
-    const saved = await savePdfFile(pdfBytes);
-    if (saved) {
-      showToast('已导出 PDF 文件');
-    }
-    return saved;
+    showToast('已导出 PDF 文件');
+    return true;
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes('timed out')) {
+    const msg = getErrorMessage(error);
+    if (msg.includes('PDF_TIMEOUT') || msg.toLowerCase().includes('timed out')) {
       logInfo('export.pdf', 'timeout');
       showToast('PDF 导出超时，请重试');
+    } else if (msg.includes('PDF_UNSUPPORTED')) {
+      logException('export.pdf', 'error', error);
+      showToast('当前系统版本暂不支持直接导出 PDF');
     } else {
       logException('export.pdf', 'error', error);
       showToast('PDF 导出失败，请重试');
@@ -161,7 +168,7 @@ async function triggerWindowPrint(html: string): Promise<boolean> {
       logInfo('export.pdf', 'timeout');
       settle(false);
       printWindow.close();
-    }, PDF_TIMEOUT_MS);
+    }, PRINT_TIMEOUT_MS);
 
     printWindow.addEventListener('beforeprint', () => {
       logInfo('export.pdf', 'print_invoked');
@@ -188,30 +195,10 @@ async function triggerWindowPrint(html: string): Promise<boolean> {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Validate that the PDF bytes start with the %PDF- header (task 4.4).
- */
-function validatePdfHeader(bytes: number[] | Uint8Array): boolean {
-  if (bytes.length < 5) return false;
-  const header = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]);
-  return header === '%PDF-';
+function ensurePdfExtension(name: string): string {
+  return name.toLowerCase().endsWith('.pdf') ? name : `${name}.pdf`;
 }
 
-/**
- * Save PDF bytes via native save dialog.
- */
-async function savePdfFile(bytes: number[]): Promise<boolean> {
-  try {
-    const saved = await invoke<boolean>('save_binary_export', {
-      data: bytes,
-      defaultName: 'document.pdf',
-      filterName: 'PDF 文档',
-      extensions: ['pdf'],
-    });
-    return saved;
-  } catch (error) {
-    logException('export.pdf', 'Failed to save PDF file', error);
-    showToast('保存 PDF 失败');
-    return false;
-  }
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

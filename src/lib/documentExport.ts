@@ -20,11 +20,15 @@ function buildThemeFromEditor(renderedRoot: HTMLElement | null): ExportTheme {
   return buildExportTheme(themeAttr);
 }
 
-export function getExportFileName(path: string | null | undefined, format: Exclude<ExportFormat, 'pdf' | 'print'>): string {
+export function getExportFileName(
+  path: string | null | undefined,
+  format: Exclude<ExportFormat, 'print'>,
+): string {
   const fileName = path ? getFileName(path) : 'untitled';
   const dotIndex = fileName.lastIndexOf('.');
   const baseName = dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
-  return `${baseName || 'untitled'}.${format === 'word' ? 'docx' : 'html'}`;
+  const extension = format === 'word' ? 'docx' : format;
+  return `${baseName || 'untitled'}.${extension}`;
 }
 
 /**
@@ -37,9 +41,13 @@ export async function createHtmlExport(
   title: string,
   renderedHtml: string,
   theme?: ExportTheme,
+  options?: { print?: boolean },
 ): Promise<string> {
   const resolvedTheme = theme ?? buildExportTheme('light');
-  const themeCss = exportThemeToCss(resolvedTheme);
+  const themeCss = exportThemeToCss(
+    resolvedTheme,
+    options?.print ? { print: true } : undefined,
+  );
 
   // Generate inline font-face CSS with base64 data URIs for self-contained HTML
   let fontCss = '';
@@ -99,7 +107,10 @@ export async function exportRenderedDocument(
 
     if (format === 'pdf') {
       // "Export PDF (.pdf)" — generate PDF file directly via platform API
-      return await exportPdfToFile(await createHtmlExport(title, renderedHtml, theme));
+      return await exportPdfToFile(
+        await createHtmlExport(title, renderedHtml, theme, { print: true }),
+        getExportFileName(activePath, 'pdf'),
+      );
     }
 
     if (format === 'word') {

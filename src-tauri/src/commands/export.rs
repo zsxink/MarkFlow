@@ -1,5 +1,6 @@
 use crate::commands::settings::load_settings_inner;
 use serde::Serialize;
+#[cfg(any(target_os = "macos", test))]
 use std::{
     fs,
     io::Read,

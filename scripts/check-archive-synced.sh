@@ -65,8 +65,9 @@ while IFS= read -r -d '' delta; do
     esac
     [ "$in_removed" -eq 1 ] && continue
 
-    # Normalize: trim whitespace, strip leading markdown markers/pipes/quotes
-    norm="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^[|>#*'"'"'[:space:]-]*//' -e 's/[`*]$//')"
+    # Normalize: trim whitespace, strip leading markdown markers/pipes/quotes,
+    # and normalize smart quotes to ASCII quotes (perl handles UTF-8 better than sed)
+    norm="$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^[|>#*'"'"'[:space:]-]*//' -e 's/[`*]$//' | perl -CSD -pe 's/[\x{201c}\x{201d}]/"/g')"
     [ -z "$norm" ] && continue
     # Skip pure markdown scaffolding lines and delta metadata
     case "$norm" in

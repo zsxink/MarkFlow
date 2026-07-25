@@ -19,6 +19,9 @@ const documentState = {
   // external modifications before overwriting.
   lastReadMtime: 0,
   lastReadSize: 0,
+  // Trailing newlines at end of the original file (ProseMirror serializer drops them).
+  // Captured on setMarkdown, appended back in getMarkdown / dirty comparisons.
+  trailingNewlines: 0,
 };
 
 // ── Setters (module-local) ──────────────────────────────────────────

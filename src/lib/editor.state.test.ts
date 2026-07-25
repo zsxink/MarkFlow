@@ -32,6 +32,7 @@ beforeEach(() => {
   getDocumentState().programmaticUpdate = false;
   getDocumentState().lastPersistedMarkdown = '';
   getDocumentState().revision = 0;
+  getDocumentState().trailingNewlines = 0;
   getDocumentState().lastReadMtime = 0;
   getDocumentState().lastReadSize = 0;
   // Clear DOM so getActiveDocPath() does not pick up stale elements.

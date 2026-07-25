@@ -52,15 +52,35 @@ export {
 export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 export { initEditor } from './editor.init';
 
+// ── Trailing newline helpers ──────────────────────────────────────────
+
+/**
+ * Strip trailing \n characters. ProseMirror serializer discards them,
+ * so comparisons against serialized output must be agnostic to them.
+ */
+function stripTrailingNewlines(s: string): string {
+  return s.replace(/\n+$/, '');
+}
+
 // ── Markdown serialization ────────────────────────────────────────────
 
 export function getMarkdown(): string {
   if (getMode() === 'source') {
-    return normalizeImageMarkdown(getSourceContent());
+    const src = normalizeImageMarkdown(getSourceContent());
+    // If the user typed trailing newlines in source mode, preserve them
+    // directly.  Otherwise fall back to the metadata captured on open
+    // (e.g. after WYSIWYG→source switch, where the CodeMirror content
+    // was populated from the ProseMirror serializer which drops them).
+    if (/\n$/.test(src)) return src;
+    const tn = getDocumentState().trailingNewlines;
+    return tn > 0 ? src + '\n'.repeat(tn) : src;
   }
   if (!getEditor()) return '';
   const md = getEditor()!.storage.markdown.getMarkdown();
-  return normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
+  const normalized = normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
+  // ProseMirror serializer discards trailing newlines — restore from metadata.
+  const tn = getDocumentState().trailingNewlines;
+  return tn > 0 ? normalized + '\n'.repeat(tn) : normalized;
 }
 
 // ── Scroll reset ──────────────────────────────────────────────────────
@@ -70,10 +90,10 @@ export function resetEditorScroll() {
 }
 
 export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
-  // Store the persisted content as the new baseline.
-  // Callers pass already-normalized content (from getMarkdown()), so no
-  // re-normalization needed — that would risk non-idempotent transforms.
-  getDocumentState().lastPersistedMarkdown = markdown;
+  // Store the persisted content as the new baseline, without trailing newlines.
+  // ProseMirror's serializer never produces trailing newlines, so all dirty
+  // comparisons deal with content trimmed of them on both sides.
+  getDocumentState().lastPersistedMarkdown = stripTrailingNewlines(markdown);
 
   // If a revision was captured at save-start, only clear dirty when no newer
   // edits arrived during the write.  Without a revision (legacy callers) we
@@ -87,7 +107,7 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
   // was just persisted.  This handles edge cases where the revision counter
   // incremented (e.g. from a debounced onUpdate) but the current editor
   // content hasn't materially changed (just the debounce timer caught up).
-  const currentMd = normalizeImageMarkdown(getMarkdown());
+  const currentMd = stripTrailingNewlines(normalizeImageMarkdown(getMarkdown()));
   // A successful save clears the persistent autosave-failure banner, regardless
   // of whether the save came from autosave or an interactive (Ctrl+S) save.
   store.setState({
@@ -101,13 +121,19 @@ export function setMarkdown(content: string) {
   const ed = getEditor();
   if (ed) {
     assetToOriginalMap.clear();
-    const normalized = normalizeImageMarkdown(content);
+    // Capture trailing newlines before ProseMirror strips them
+    const match = content.match(/\n+$/);
+    getDocumentState().trailingNewlines = match ? match[0].length : 0;
+    const stripped = stripTrailingNewlines(content);
+    const normalized = normalizeImageMarkdown(stripped);
     getDocumentState().programmaticUpdate = true;
     ed.commands.setContent(normalized);
     if (getMode() === 'source') {
       setSourceContent(normalized);
     }
     getDocumentState().programmaticUpdate = false;
+    // Store the serializer-friendly version (no trailing newlines) as
+    // the baseline — dirty comparisons always strip trailing newlines.
     markDocumentPersisted(normalized);
   }
 }

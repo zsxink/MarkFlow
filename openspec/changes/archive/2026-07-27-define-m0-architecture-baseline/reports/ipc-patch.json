@@ -1,0 +1,23 @@
+{
+  "adrReference": "adr/adr-document-truth-save-owner.md",
+  "batchSize": 30,
+  "command": "cargo run --manifest-path openspec/changes/define-m0-architecture-baseline/spikes/Cargo.toml -- ipc",
+  "duplicateTransaction": {
+    "revision": 31,
+    "status": "duplicate"
+  },
+  "fixtureBytes": 10485791,
+  "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/generated/bench-10mb.md",
+  "maxMicros": 12319,
+  "p50Micros": 5241,
+  "p95Micros": 9500,
+  "resyncStrategy": "Return confirmed revision and require editor mirror resync; do not save pending front-end full text.",
+  "revisionMismatch": {
+    "baseRevision": 1,
+    "confirmedRevision": 31,
+    "resyncRequired": true,
+    "status": "revisionMismatch"
+  },
+  "scenario": "ipc patch simulation",
+  "transport50Mb": "JSON string transport should be remeasured with a native Tauri IPC harness; chunking remains the fallback if first-text p95 exceeds 5s or memory doubles."
+}

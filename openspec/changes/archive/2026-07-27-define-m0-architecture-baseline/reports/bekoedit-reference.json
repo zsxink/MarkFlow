@@ -1,0 +1,382 @@
+{
+  "adoptionOutcome": "reference only",
+  "adrReference": "adr/adr-bekoedit-adoption.md",
+  "benchmarks": [
+    {
+      "candidate": "bekoedit-markdown MarkdownIndex::build",
+      "fixtureBytes": 1048576,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/generated/bench-1mb.md",
+      "metrics": {
+        "candidate": "bekoedit-markdown",
+        "iterations": 3,
+        "maxMicros": 12890,
+        "p50Micros": 11548,
+        "p95Micros": 12890
+      },
+      "peakMemoryBytes": null
+    },
+    {
+      "candidate": "bekoedit-markdown MarkdownIndex::build",
+      "fixtureBytes": 10485760,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/generated/bench-10mb.md",
+      "metrics": {
+        "candidate": "bekoedit-markdown",
+        "iterations": 3,
+        "maxMicros": 111267,
+        "p50Micros": 104339,
+        "p95Micros": 111267
+      },
+      "peakMemoryBytes": null
+    },
+    {
+      "candidate": "bekoedit-markdown MarkdownIndex::build",
+      "fixtureBytes": 52428800,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/generated/bench-50mb.md",
+      "metrics": {
+        "candidate": "bekoedit-markdown",
+        "iterations": 1,
+        "maxMicros": 693452,
+        "p50Micros": 693452,
+        "p95Micros": 693452
+      },
+      "peakMemoryBytes": null
+    }
+  ],
+  "command": "cargo run --manifest-path openspec/changes/define-m0-architecture-baseline/spikes/Cargo.toml -- bekoedit",
+  "contractReview": {
+    "markdownSourceTruth": true,
+    "minimalSourcePatch": true,
+    "rawMarkdownIsland": true,
+    "revisionScopedBlockId": true,
+    "staleRevisionRejected": true,
+    "typedUiContract": "bekoedit-ui-contract 0.13.1 exposes versioned source editor payloads"
+  },
+  "fixtures": [
+    {
+      "blocks": 3,
+      "diagnostics": [],
+      "fixtureBytes": 70,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/crlf-basic.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "BulletList",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 3,
+      "diagnostics": [],
+      "fixtureBytes": 76,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/fence-styles.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "FencedCode",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "FencedCode",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 3,
+      "diagnostics": [
+        {
+          "message": "raw island (front matter)",
+          "range": {
+            "end": 134,
+            "start": 0
+          }
+        }
+      ],
+      "fixtureBytes": 162,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/frontmatter-lossless.md",
+      "headings": 1,
+      "rawIslands": 1,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "FrontMatter",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Heading",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 3,
+      "diagnostics": [],
+      "fixtureBytes": 108,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/gfm-table.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "SimpleTable",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "TaskList",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 3,
+      "diagnostics": [
+        {
+          "message": "raw island (HTML block)",
+          "range": {
+            "end": 34,
+            "start": 8
+          }
+        },
+        {
+          "message": "raw island (HTML block)",
+          "range": {
+            "end": 94,
+            "start": 36
+          }
+        }
+      ],
+      "fixtureBytes": 95,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/html-comments.md",
+      "headings": 1,
+      "rawIslands": 2,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "HtmlBlock",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "HtmlBlock",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 3,
+      "diagnostics": [],
+      "fixtureBytes": 82,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/lf-basic.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "BulletList",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 7,
+      "diagnostics": [],
+      "fixtureBytes": 69,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/list-markers.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "BulletList",
+          "ordinal": 1,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "BulletList",
+          "ordinal": 2,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 2,
+      "diagnostics": [
+        {
+          "message": "raw island (unclosed code fence)",
+          "range": {
+            "end": 95,
+            "start": 13
+          }
+        }
+      ],
+      "fixtureBytes": 96,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/malformed-recovery.md",
+      "headings": 1,
+      "rawIslands": 1,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "FencedCode",
+          "ordinal": 1,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 2,
+      "diagnostics": [],
+      "fixtureBytes": 60,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/mixed-eol.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 1,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 2,
+      "diagnostics": [],
+      "fixtureBytes": 47,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/trailing-newlines.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 1,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 2,
+      "diagnostics": [],
+      "fixtureBytes": 130,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/unicode-offsets.md",
+      "headings": 1,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Heading",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 1,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    },
+    {
+      "blocks": 2,
+      "diagnostics": [],
+      "fixtureBytes": 56,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/utf8-bom.md",
+      "headings": 0,
+      "rawIslands": 0,
+      "revisionScopedBlockIds": [
+        {
+          "kind": "Paragraph",
+          "ordinal": 0,
+          "revisionCreated": 1
+        },
+        {
+          "kind": "Paragraph",
+          "ordinal": 1,
+          "revisionCreated": 1
+        }
+      ],
+      "sourceTruth": "MarkdownIndex is a projection over canonical text, not an owner of rewritten Markdown."
+    }
+  ],
+  "license": "Apache-2.0",
+  "repository": "https://github.com/nabbisen/bekoedit",
+  "scenario": "bekoedit-markdown reference comparison",
+  "semanticCommandBehavior": {
+    "goodPatch": "Ok(PatchResult { affected_range: ByteRange { start: 9, end: 15 }, reparse_required: true })",
+    "stalePatch": "Err(DocumentRevisionMismatch { base: 1, current: 2 })"
+  },
+  "version": "0.13.1"
+}

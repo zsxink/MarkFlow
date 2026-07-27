@@ -1,0 +1,3 @@
+# Benchmark fixtures are generated on demand to avoid repository bloat.
+*.md
+

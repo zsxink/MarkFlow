@@ -521,7 +521,7 @@ mod tests {
 
     #[tokio::test]
     async fn allows_same_scheme_redirect() {
-        let url = reqwest::Url::parse("https://other.com/page").unwrap();
+        let url = reqwest::Url::parse("https://93.184.216.34/page").unwrap();
         assert!(validate_redirect_url(&url, "https").await.is_ok());
     }
 
@@ -666,7 +666,7 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_redirect_with_standard_port() {
-        let url = reqwest::Url::parse("https://other.com:443/page").unwrap();
+        let url = reqwest::Url::parse("https://93.184.216.34:443/page").unwrap();
         assert!(validate_redirect_url(&url, "https").await.is_ok());
     }
 }

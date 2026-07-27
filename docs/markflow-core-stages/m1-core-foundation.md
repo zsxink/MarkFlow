@@ -19,25 +19,24 @@
 M0 ADR 默认冻结为独立 crate：
 
 ```text
-crates/
-  markflow-core/
-    Cargo.toml
-    src/
-      lib.rs
-      document/
-        mod.rs
-        session.rs
-        snapshot.rs
-        line_index.rs
-        line_ending_map.rs
-        position_map.rs
-        text_buffer.rs
-        patch.rs
-      testing/
-        mod.rs
+markflow-core/
+  Cargo.toml
+  src/
+    lib.rs
+    document/
+      mod.rs
+      session.rs
+      snapshot.rs
+      line_index.rs
+      line_ending_map.rs
+      position_map.rs
+      text_buffer.rs
+      patch.rs
+    testing/
+      mod.rs
 ```
 
-只有 M0 workspace spike 证明独立 crate 会阻塞当前 Tauri 构建时，才允许暂时在 `src-tauri/src/core/` 孵化；该例外必须记录退出条件，public API 仍按独立 crate 设计。
+M1 默认在 repo root 建立 Cargo workspace，并将 `markflow-core` 作为顶层独立 crate。只有 workspace viability 证明独立 crate 会阻塞当前 Tauri 构建时，才允许暂时在 `src-tauri/src/core/` 孵化；该例外必须记录退出条件，public API 仍按独立 crate 设计。
 
 ### 2. DocumentSession
 
@@ -151,7 +150,7 @@ pub struct TextChange {
 建立 fixtures：
 
 ```text
-crates/markflow-core/fixtures/lossless/
+markflow-core/fixtures/lossless/
   lf.md
   crlf.md
   mixed-eol.md

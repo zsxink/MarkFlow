@@ -125,7 +125,7 @@ M0 必须完成五类最小验证：
 - `bekoedit-markdown` 对照测试覆盖 MarkFlow lossless fixture、语义命令、过期 revision 和 1/10/50MB 性能，并形成采用策略 ADR。
 - 性能目标使用 p95 数值并记录基准机，不使用“流畅”作为验收。
 - 功能迁移矩阵覆盖当前文件、编辑、图片、图表、导出、设置和冲突路径。
-- Rust/TS 基线测试不访问公网；现有 DNS 依赖测试已改为 mock/local resolver。
+- Rust/TS 基线测试不访问公网；现有 DNS 依赖测试已改为 mock/local resolver 或不触发 DNS 的 public-IP fixture。
 
 ## 测试要求
 
@@ -139,6 +139,25 @@ M0 不进入产品功能实现，但 spike 必须有测试：
 - IPC latency benchmark。
 - FrontMatter lossless fixture。
 - `bekoedit-markdown` differential fixture、API compatibility test 和 benchmark。
+
+## OpenSpec Apply 产物
+
+本阶段的可执行基线由 OpenSpec change `define-m0-architecture-baseline` 承载：
+
+- ADR：`openspec/changes/define-m0-architecture-baseline/adr/`
+- fixture：`openspec/changes/define-m0-architecture-baseline/fixtures/`
+- spike harness：`openspec/changes/define-m0-architecture-baseline/spikes/`
+- reports：`openspec/changes/define-m0-architecture-baseline/reports/`
+
+关键报告：
+
+- `reports/parser-comparison-report.md`：`markdown-rs` 与 `pulldown-cmark` 小 fixture 对照完成；1/10/50MB parser p50/p95 未冻结，release opt-in benchmark 在 apply 窗口内未完成。
+- `reports/position-eol-report.md`：LF、CRLF、Mixed EOL、UTF-8 BOM、Unicode、尾空行 round-trip 通过。
+- `reports/ipc-patch-report.md`：10MB Rust patch ack release 模拟 p95 约 9.5ms，低于初始 50ms 预算；M1/M3 仍必须用 native Tauri IPC 重测。
+- `reports/frontmatter-lossless-report.md`：FrontMatter 结构化编辑仅限安全 top-level scalar mapping；复杂 YAML 回退源码。
+- `reports/bekoedit-reference-report.md`：`bekoedit-markdown` v0.13.1 / Apache-2.0 作为参考实现；1/10/50MB release benchmark 已记录，采用结论仍为“仅参考设计”。
+
+当前 p95 预算仍沿用产品方案初始值，但 parser p95 未冻结，IPC 结果仍只是 Rust 模拟。后续 M1 不得把这些指标当作完整产品路径达标，只能把它们作为设计输入。
 
 ## 风险与缓解
 

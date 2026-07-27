@@ -67,42 +67,41 @@
 建议引入 workspace：
 
 ```text
-crates/
-  markflow-core/
-    Cargo.toml
-    src/
-      lib.rs
-      document/
-      parse/
-      style/
-      edit/
-      render/
-      diagnostics/
-      assets/
-      export/
-      providers/
-      testing/
-  markflow-runtime/
-    Cargo.toml
-    src/
-      session_registry.rs
-      document_service.rs
-      task_scheduler.rs
-      save_workflow.rs
-      asset_workflow.rs
-  markflow-tauri/
-    Cargo.toml
-    src/
-      commands/
-      session_registry.rs
-      app_bridge.rs
+markflow-core/
+  Cargo.toml
+  src/
+    lib.rs
+    document/
+    parse/
+    style/
+    edit/
+    render/
+    diagnostics/
+    assets/
+    export/
+    providers/
+    testing/
+markflow-runtime/
+  Cargo.toml
+  src/
+    session_registry.rs
+    document_service.rs
+    task_scheduler.rs
+    save_workflow.rs
+    asset_workflow.rs
+markflow-tauri/
+  Cargo.toml
+  src/
+    commands/
+    session_registry.rs
+    app_bridge.rs
 src-tauri/
   Cargo.toml
   src/
     lib.rs
 ```
 
-建议从 M1 直接建立 Cargo workspace 和独立 `markflow-core` crate。若 M0 spike 证明 workspace 调整存在阻塞，可短期在 `src-tauri` 内孵化，但必须满足依赖检查：Core module 不得 import Tauri，且 M3 前完成独立 crate 拆分。
+建议从 M1 直接建立 Cargo workspace 和顶层独立 `markflow-core` crate。若 M0/M1 workspace viability 证明独立 crate 会阻塞当前 Tauri 构建，可短期在 `src-tauri` 内孵化，但必须满足依赖检查：Core module 不得 import Tauri，且 M3 前完成独立 crate 拆分。
 
 ## 4. 核心数据模型
 
@@ -709,7 +708,7 @@ UI 层负责 CodeMirror offset 与 Core byte offset 映射。涉及非 ASCII 文
 
 ### 14.1 Core Fixture
 
-建立 `crates/markflow-core/fixtures/lossless/`：
+建立 `markflow-core/fixtures/lossless/`：
 
 - `frontmatter.md`
 - `html-comment.md`
@@ -914,3 +913,14 @@ M0 使用同一组 MarkFlow fixture 对自主 spike 与 `bekoedit-markdown` 做 
 - [yaml-edit](https://docs.rs/yaml-edit)：lossless YAML syntax tree 候选，不代表最终选型。
 - [CommonMark 0.31.2](https://spec.commonmark.org/current/)：fence、缩进、HTML block 等语义基线。
 - [GitHub Table 文档](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/organizing-information-with-tables)：GFM table alignment 与 escaped pipe。
+
+## 20. M0 OpenSpec 基线引用
+
+OpenSpec change `define-m0-architecture-baseline` 是 M1 Core Foundation 前的当前技术基线。它冻结以下约束：
+
+- `markflow-core` 不依赖 Tauri、DOM、CodeMirror、SolidJS、ProseMirror，也不直接执行文件、网络、剪贴板、对话框或打印副作用。
+- `markflow-runtime` 负责编排 session、task、save、sync 和 Host capability，Host Adapter 只执行平台能力。
+- Core confirmed snapshot 是保存、解析、history 和 export 的权威状态；CodeMirror 只能是 revision-bound optimistic mirror。
+- Rust 内部使用 UTF-8 logical byte offset；IPC/editor DTO 使用 UTF-16 offset；保存路径使用 source-byte reconstruction 与 `LineEndingMap`。
+- M0 spike code 位于 `openspec/changes/define-m0-architecture-baseline/spikes/`，不进入产品运行路径；为满足离线验证门禁，允许 scoped test fixture 修正，但不得改变运行时行为。
+- Parser p95 尚未冻结；`bekoedit-markdown` 是参考实现，不是生产依赖。

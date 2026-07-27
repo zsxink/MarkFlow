@@ -1,0 +1,100 @@
+{
+  "adrReference": "adr/adr-document-truth-save-owner.md",
+  "candidate": "yaml-rust2 parser plus MarkFlow source-slice preservation; yaml-rust2 is not lossless CST.",
+  "cases": [
+    {
+      "adrReference": "adr/adr-document-truth-save-owner.md",
+      "fallbackToSource": [
+        "anchors",
+        "aliases",
+        "custom tags",
+        "duplicate keys",
+        "flow-style rewrites",
+        "invalid YAML",
+        "non-YAML delimiters"
+      ],
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/frontmatter-lossless.md",
+      "parse": {
+        "duplicateTopLevelKeys": [],
+        "error": null,
+        "hasAlias": false,
+        "hasAnchor": false,
+        "hasCustomTag": false,
+        "parsed": true,
+        "preservesCommentsWhenParsed": false,
+        "preservesQuotesWhenParsed": false,
+        "safeForStructuredEdit": true
+      },
+      "safeStructuredEditSubset": [
+        "top-level mapping",
+        "string/number/bool/null scalar update",
+        "new top-level scalar key when no duplicate keys exist"
+      ]
+    },
+    {
+      "adrReference": "adr/adr-document-truth-save-owner.md",
+      "case": "anchors-and-aliases",
+      "parse": {
+        "duplicateTopLevelKeys": [],
+        "error": null,
+        "hasAlias": true,
+        "hasAnchor": true,
+        "hasCustomTag": false,
+        "parsed": true,
+        "preservesCommentsWhenParsed": false,
+        "preservesQuotesWhenParsed": false,
+        "safeForStructuredEdit": false
+      }
+    },
+    {
+      "adrReference": "adr/adr-document-truth-save-owner.md",
+      "case": "duplicate-keys",
+      "parse": {
+        "duplicateTopLevelKeys": [
+          "title"
+        ],
+        "error": "String(\"title\"): duplicated key in mapping at byte 18 line 2 column 8",
+        "hasAlias": false,
+        "hasAnchor": false,
+        "hasCustomTag": false,
+        "parsed": false,
+        "preservesCommentsWhenParsed": false,
+        "preservesQuotesWhenParsed": false,
+        "safeForStructuredEdit": false
+      }
+    },
+    {
+      "adrReference": "adr/adr-document-truth-save-owner.md",
+      "case": "invalid-yaml",
+      "parse": {
+        "duplicateTopLevelKeys": [],
+        "error": "while parsing a flow sequence, expected ',' or ']' at byte 21 line 2 column 1",
+        "hasAlias": false,
+        "hasAnchor": false,
+        "hasCustomTag": false,
+        "parsed": false,
+        "preservesCommentsWhenParsed": false,
+        "preservesQuotesWhenParsed": false,
+        "safeForStructuredEdit": false
+      }
+    },
+    {
+      "adrReference": "adr/adr-document-truth-save-owner.md",
+      "case": "custom-tag",
+      "parse": {
+        "duplicateTopLevelKeys": [],
+        "error": null,
+        "hasAlias": false,
+        "hasAnchor": false,
+        "hasCustomTag": true,
+        "parsed": true,
+        "preservesCommentsWhenParsed": false,
+        "preservesQuotesWhenParsed": false,
+        "safeForStructuredEdit": false
+      }
+    }
+  ],
+  "command": "cargo run --manifest-path openspec/changes/define-m0-architecture-baseline/spikes/Cargo.toml -- frontmatter",
+  "decision": "Safe structured edits are limited to simple top-level scalar mapping updates; complex YAML falls back to source editing.",
+  "scenario": "frontmatter lossless cst evaluation"
+}

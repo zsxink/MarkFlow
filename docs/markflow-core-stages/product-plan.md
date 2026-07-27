@@ -616,3 +616,13 @@ M7 和 M8 使用独立子里程碑，避免大阶段长期不可发布：
 - 表格需要支持所见即所得编辑。
 - SolidJS 放在 M4，位于 Core-backed Source Mode 之后、Core-backed WYSIWYG 之前。
 - 现有功能必须完整迁移与适配，不接受重构后功能缺口。
+
+## 14. M0 OpenSpec 基线引用
+
+OpenSpec change `define-m0-architecture-baseline` 冻结了 M0 apply 产物位置、ADR、fixture、spike harness、报告和验证记录。后续 M1-M8 proposal 应引用该 change，而不是重新解释以下产品边界：
+
+- Tauri 是第一个 Host Adapter，不是 Markdown 编辑模型 owner。
+- Markdown 原文是唯一文档真相；Source Mode、WYSIWYG、Preview、outline、widgets、export 都是投影。
+- 所见即所得编辑模式长期保留，终态由 Core-backed Live Preview / Editor Adapter 支撑。
+- 插件系统不进入本轮实施范围，只保留内部 provider 边界。
+- 超过 1MB 的 Markdown 文件进入未来 Core Large Document 策略；现有 `document-size-tier` 行数阈值另行通过后续 OpenSpec 对齐。

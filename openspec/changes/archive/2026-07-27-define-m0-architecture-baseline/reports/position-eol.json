@@ -1,0 +1,335 @@
+{
+  "adrReference": "adr/adr-position-eol-model.md",
+  "chosenModel": "UTF-8 logical LF text plus LineEndingMap; IPC uses UTF-16 ranges; save reconstructs source bytes with BOM and per-line EOL.",
+  "command": "cargo run --manifest-path openspec/changes/define-m0-architecture-baseline/spikes/Cargo.toml -- position",
+  "fixtures": [
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 70,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/crlf-basic.md",
+      "lineEndings": [
+        "CRLF",
+        "CRLF",
+        "CRLF",
+        "CRLF",
+        "CRLF"
+      ],
+      "logicalBytes": 65,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 79
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 76,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/fence-styles.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 76,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 85
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 162,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/frontmatter-lossless.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 162,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 171
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 108,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/gfm-table.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 108,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 117
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 95,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/html-comments.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 95,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 104
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 82,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/lf-basic.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 82,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 91
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 69,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/list-markers.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 69,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 78
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 96,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/malformed-recovery.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 96,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 105
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 60,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/mixed-eol.md",
+      "lineEndings": [
+        "CRLF",
+        "CRLF",
+        "LF",
+        "CR",
+        "LF"
+      ],
+      "logicalBytes": 58,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 69
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 47,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/trailing-newlines.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 47,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 56
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": false,
+      "fixtureBytes": 130,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/unicode-offsets.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 130,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 139
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    },
+    {
+      "adrReference": "adr/adr-position-eol-model.md",
+      "bom": true,
+      "fixtureBytes": 56,
+      "fixturePath": "/Users/xian/Project/book/MarkFlow/openspec/changes/define-m0-architecture-baseline/fixtures/small/utf8-bom.md",
+      "lineEndings": [
+        "LF",
+        "LF",
+        "LF"
+      ],
+      "logicalBytes": 53,
+      "patchPreservation": {
+        "lineEndingsPreserved": true,
+        "passed": true,
+        "rebuiltBytes": 65
+      },
+      "roundTrip": {
+        "failures": [],
+        "passed": true
+      }
+    }
+  ],
+  "propertyCases": [
+    {
+      "failures": [],
+      "passed": true,
+      "text": "中文"
+    },
+    {
+      "failures": [],
+      "passed": true,
+      "text": "😀"
+    },
+    {
+      "failures": [],
+      "passed": true,
+      "text": "𝄞"
+    },
+    {
+      "failures": [],
+      "passed": true,
+      "text": "é"
+    },
+    {
+      "failures": [],
+      "passed": true,
+      "text": "a\r\nb\nc\rd"
+    }
+  ],
+  "scenario": "buffer position eol"
+}

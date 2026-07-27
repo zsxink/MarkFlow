@@ -136,3 +136,21 @@ M8 只有在以下条件全部满足时才算完成：
 - 真实中文输入法、日文输入法至少各完成一个平台人工验收。
 - 旧 ProseMirror serializer 路径经过稳定观察期后移除。
 - 数据损坏、静默格式重写和错误路径写盘问题为零。
+
+## 11. M0 冻结当前基线
+
+M0 OpenSpec apply 未修改产品运行路径；仅为离线验证修正了 Rust HTTP redirect 测试 fixture，避免测试依赖公网 DNS。当前 owner 基线如下，后续迁移必须逐项更新 owner、阶段和验收记录。
+
+| 范围 | 当前 owner / 实现 | 目标 owner | 目标阶段 | M0 验收记录 |
+| --- | --- | --- | --- | --- |
+| 文件打开/保存 | TS workflow + Tauri file commands；保存内容来自 `getMarkdown()` | Runtime + Host | M3/M8 | CodeGraph 观察记录在 `implementation-notes.md` |
+| Source Mode | CodeMirror 6 前端镜像，切换时从 serializer 或源码同步 | Editor Adapter + Core | M3 | `parser-comparison-report.md` 与 `ipc-patch-report.md` |
+| WYSIWYG | Tiptap/ProseMirror + serializer | Core-backed Live Preview / Editor Adapter | M5-M8 | Product plan 明确长期保留 |
+| History | 编辑器 history | Core History | M6 | `adr-history-owner.md` |
+| 图片/资源 | TS image utils + Tauri image commands | Runtime asset workflow + Host | M6/M7 | 当前仅冻结 owner，不迁移 |
+| 图表 | 前端渲染与导出路径 | Internal provider + Host renderer/export | M7/M8 | 当前仅冻结 owner，不迁移 |
+| 导出/打印 | DOM/HTML snapshot + Tauri/WebView print/export | Export IR + Host | M8 | 当前仅冻结 owner，不迁移 |
+| Settings/Theme | TS store + Tauri settings config | App Service + Host | M4 | 当前仅冻结 owner，不迁移 |
+| 外部修改/冲突 | watcher + mtime/size + UI conflict flow | Runtime + Host | M3/M8 | 当前仅冻结 owner，不迁移 |
+| 大文件分级 | `document-size-tier` 同时使用 byte 与 line count | Core byte-based tier + budget inputs | M2/M4 | follow-up 记录在 `reports/document-size-tier-follow-up.md` |
+| 跨平台 release matrix | 依赖现有 e2e/release smoke | Host Adapter release gate | M8 | 归档/合入前需 macOS、Windows、Linux 记录 |

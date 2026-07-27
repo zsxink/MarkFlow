@@ -26,8 +26,12 @@
 | 文档 | 用途 | 何时阅读 |
 |---|---|---|
 | [product-spec.md](product-spec.md) | 用户、产品范围与核心体验 | 新功能、产品行为取舍 |
-| [architecture.md](architecture.md) | 分层、模块边界、数据与 IPC 架构 | 跨模块或前后端改动 |
-| [technical-design.md](technical-design.md) | 关键技术方案、实现约束与权衡 | 设计具体实现方案 |
+| [Core 重构产品方案](../../docs/markflow-core-stages/product-plan.md) | Core 重构后的产品目标、阶段边界与迁移策略 | 涉及文档真相、WYSIWYG 长期方案、保存 owner 或阶段取舍 |
+| [Core 重构技术方案](../../docs/markflow-core-stages/technical-plan.md) | 重构后的 Core / Runtime / Host / Editor Adapter 架构 | 涉及 Core API、保存链路、EOL 保真、Patch、Render IR、Export IR |
+| [Core 功能迁移矩阵](../../docs/markflow-core-stages/feature-migration-matrix.md) | 当前功能到目标 owner 和阶段的迁移表 | 判断旧实现 spec 是否应保留、改写或排除 |
+| [M0 架构基线](m0-architecture-baseline/spec.md) | 已归档的可执行重构基线、ADR 和 spike 验收要求 | 为 M1-M8 proposal 引用架构边界、fixture、预算和证据 |
+| [architecture.md](architecture.md) | Legacy/current-state：Core 重构前的 Tauri + ProseMirror 当前架构 | 仅用于定位旧实现路径，不作为重构目标架构 |
+| [technical-design.md](technical-design.md) | Legacy/current-state：Core 重构前的旧技术设计 | 仅用于理解历史实现，不作为 Core/Runtime/Host 方案依据 |
 | [development-flow.md](development-flow.md) | 分支、Issue、OpenSpec 与交付流程 | 开始任何需要提交的工作 |
 
 ## 可执行模块规范

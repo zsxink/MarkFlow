@@ -6,6 +6,8 @@
 >
 > 详细设计见 [technical-design.md](technical-design.md)
 
+> Legacy notice: 本文记录 Core 重构前的当前实现架构，仅用于理解现有 Tauri + TypeScript + ProseMirror 运行路径。新重构方案以 `docs/markflow-core-stages/technical-plan.md`、`feature-migration-matrix.md` 和 M0 ADR 为准；涉及 Core/Runtime/Host 边界、保存真相、EOL 保真、导出 IR 或迁移阶段时，不应把本文作为目标架构依据。
+
 ---
 
 ## 整体架构

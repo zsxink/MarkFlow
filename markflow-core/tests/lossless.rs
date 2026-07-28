@@ -3,13 +3,12 @@ use std::path::Path;
 
 mod common;
 
-use common::{fixture, open, patch_at};
-use markflow_core::{
-    BlockKind, DocumentSession, Revision, SourceRange, TextChange, TextPatch, TransactionId,
-};
+use common::open;
+use markflow_core::{BlockKind, DocumentSession};
 
 const FIXTURE_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/lossless");
 
+#[allow(dead_code)]
 fn block_kinds(session: &DocumentSession) -> Vec<BlockKind> {
     session
         .parse_index()

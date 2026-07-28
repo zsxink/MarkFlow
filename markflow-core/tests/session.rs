@@ -2,8 +2,7 @@ mod common;
 
 use common::{change, fixture, open, patch, patch_at};
 use markflow_core::{
-    BomKind, ByteOffset, CoreError, Revision, Selection, TextChange, TextPatch, TransactionId,
-    TRANSACTION_RETRY_WINDOW_CAPACITY,
+    BomKind, ByteOffset, CoreError, Revision, Selection, TRANSACTION_RETRY_WINDOW_CAPACITY,
 };
 
 #[test]

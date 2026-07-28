@@ -1,7 +1,6 @@
 use super::large_document_policy::LargeDocumentPolicy;
-use super::scanner::BlockScanner;
 use super::style_map::StyleMap;
-use crate::document::{LineEndingKind, Revision, SourceRange};
+use crate::document::{Revision, SourceRange};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BlockId(pub usize);
@@ -76,29 +75,6 @@ pub struct ParseIndex {
     pub blocks: Vec<BlockNode>,
     pub outline: Vec<OutlineItem>,
     pub block_by_line: Vec<BlockId>,
-}
-
-impl ParseIndex {
-    pub fn scan(revision: Revision, text: &str) -> ScanOutcome {
-        Self::scan_with_line_ending(revision, text, LineEndingKind::Lf)
-    }
-
-    pub fn scan_with_line_ending(
-        revision: Revision,
-        text: &str,
-        dominant_line_ending: LineEndingKind,
-    ) -> ScanOutcome {
-        Self::scan_with_document_bytes(revision, text, dominant_line_ending, text.len())
-    }
-
-    pub fn scan_with_document_bytes(
-        revision: Revision,
-        text: &str,
-        dominant_line_ending: LineEndingKind,
-        document_byte_len: usize,
-    ) -> ScanOutcome {
-        BlockScanner::new(revision, text, dominant_line_ending, document_byte_len).scan()
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -69,18 +69,13 @@ impl FileIdentity {
     /// Create a FileIdentity from file metadata and content.
     pub fn from_metadata(path: &PathBuf, bytes: &[u8]) -> Self {
         let canonical_path = path.canonicalize().ok();
-        let platform_id = std::fs::metadata(path).ok().and_then(|m| {
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::MetadataExt;
-                Some(m.ino().to_string())
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = m;
-                None
-            }
+        #[cfg(unix)]
+        let platform_id = std::fs::metadata(path).ok().map(|m| {
+            use std::os::unix::fs::MetadataExt;
+            m.ino().to_string()
         });
+        #[cfg(not(unix))]
+        let platform_id: Option<String> = None;
 
         let mtime_ms = std::fs::metadata(path)
             .ok()

@@ -220,7 +220,7 @@ pub fn open_document(
     let host = AppHost;
     let (bytes, identity) = host
         .read_document_bytes(&PathBuf::from(&path))
-        .map_err(|e| map_error(e))?;
+        .map_err(map_error)?;
 
     let session_id = registry
         .create(
@@ -230,12 +230,12 @@ pub fn open_document(
             identity.clone(),
             |sid, did| {
                 let session = markflow_core::DocumentSession::open_bytes(sid, did, &bytes)
-                    .map_err(|e| RuntimeError::from(e))?;
+                    .map_err(RuntimeError::from)?;
 
                 Ok(session)
             },
         )
-        .map_err(|e| map_error(e))?;
+        .map_err(map_error)?;
 
     // Read back session info
     let (text, revision, line_count, byte_count) =
@@ -246,7 +246,7 @@ pub fn open_document(
             let byte_count = state.core.text().logical_text().len();
             Ok((text, revision, line_count, byte_count))
         })
-        .map_err(|e| map_error(e))?;
+        .map_err(map_error)?;
 
     // Compute size class matching frontend thresholds (see src/lib/fileSizeTier.ts)
     let size_class = if byte_count >= 10_485_760 || line_count >= 50_000 {
@@ -378,7 +378,7 @@ pub fn apply_text_patch(
         let _outcome = state
             .core
             .apply_patch(text_patch)
-            .map_err(|e| RuntimeError::from(e))?;
+            .map_err(RuntimeError::from)?;
 
         let new_revision = state.core.revision();
 
@@ -396,7 +396,7 @@ pub fn apply_text_patch(
             revision: new_revision.0,
         })
     })
-    .map_err(|e| map_error(e))?;
+    .map_err(map_error)?;
 
     Ok(ack)
 }
@@ -411,7 +411,7 @@ pub fn save_document_command(session_id: u64) -> Result<SaveResultDto, AppError>
     let sid = SessionId(session_id);
     let host = AppHost;
 
-    let result = save_document(&registry, sid, &host).map_err(|e| map_error(e))?;
+    let result = save_document(&registry, sid, &host).map_err(map_error)?;
 
     Ok(SaveResultDto {
         revision: result.revision.0,
@@ -443,7 +443,7 @@ pub fn resync_document(
         let revision = state.core.revision();
         Ok((text, revision))
     })
-    .map_err(|e| map_error(e))?;
+    .map_err(map_error)?;
 
     Ok(ResyncResultDto {
         revision: revision.0,
@@ -462,8 +462,8 @@ pub fn flush_document(session_id: u64) -> Result<FlushResultDto, AppError> {
 
     let sid = SessionId(session_id);
 
-    let revision = with_session_state(&registry, sid, |state| Ok(state.core.revision()))
-        .map_err(|e| map_error(e))?;
+    let revision =
+        with_session_state(&registry, sid, |state| Ok(state.core.revision())).map_err(map_error)?;
 
     Ok(FlushResultDto {
         revision: revision.0,
@@ -484,7 +484,7 @@ pub fn get_document_text(session_id: u64) -> Result<DocumentTextResultDto, AppEr
         let revision = state.core.revision();
         Ok((text, revision))
     })
-    .map_err(|e| map_error(e))?;
+    .map_err(map_error)?;
 
     Ok(DocumentTextResultDto {
         text,
@@ -506,7 +506,7 @@ pub fn get_outline(session_id: u64) -> Result<OutlineResultDto, AppError> {
         // Full outline from ParseIndex would be implemented in M3 follow-up.
         Ok(OutlineResultDto { items: vec![] })
     })
-    .map_err(|e| map_error(e))
+    .map_err(map_error)
 }
 
 /// Get document stats (line count, byte count).
@@ -523,7 +523,7 @@ pub fn get_document_stats(session_id: u64) -> Result<DocumentStatsDto, AppError>
         let byte_count = state.core.text().logical_text().len();
         Ok((line_count, byte_count))
     })
-    .map_err(|e| map_error(e))?;
+    .map_err(map_error)?;
 
     Ok(DocumentStatsDto {
         line_count,
@@ -550,7 +550,7 @@ pub fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppError> {
         };
         Ok((text, revision, identity))
     })
-    .map_err(|e| map_error(e))?;
+    .map_err(map_error)?;
 
     Ok(ReloadResultDto {
         revision: revision.0,
@@ -568,7 +568,7 @@ pub fn close_document(session_id: u64) -> Result<(), AppError> {
 
     let sid = SessionId(session_id);
 
-    registry.close(sid).map_err(|e| map_error(e))?;
+    registry.close(sid).map_err(map_error)?;
 
     tracing::debug!(target: "runtime.command", session_id = session_id, "Document session closed");
 

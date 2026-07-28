@@ -104,6 +104,9 @@ const INITIAL_STATE: CoreSessionState = {
 let currentSession: CoreSessionState = { ...INITIAL_STATE };
 let onStateChange: ((state: CoreSessionState) => void) | null = null;
 
+/** Guard flag preventing concurrent closeCoreSession calls. */
+let closeInProgress = false;
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -241,7 +244,12 @@ export async function openCoreSession(
  */
 export async function closeCoreSession(): Promise<void> {
   if (!currentSession.isActive) return;
+  if (closeInProgress) {
+    logDebug('core.session', 'Close already in progress — skipping re-entrant call');
+    return;
+  }
 
+  closeInProgress = true;
   const sessionId = currentSession.sessionId;
   try {
     await closeDocument(sessionId);
@@ -249,6 +257,7 @@ export async function closeCoreSession(): Promise<void> {
   } catch (err) {
     logException('core.session', 'Error closing core session (non-fatal)', err, { sessionId });
   } finally {
+    closeInProgress = false;
     updateState({ ...INITIAL_STATE });
   }
 }
@@ -359,7 +368,6 @@ export async function saveCoreSession(options?: {
     });
     if (interactive) {
       const [toastMsg] = mapBridgeError(bridgeErr);
-      if (toastMsg) showToast(toastMsg);
       showToast(toastMsg ?? '保存失败，请重试');
     }
     return -1;
@@ -428,7 +436,15 @@ export function markSessionBlocked(): void {
  */
 export function isCoreSessionDirty(): boolean {
   if (!currentSession.isActive) return false;
-  if (currentSession.syncState === 'blocked') return false;
+  // Even when blocked, unsaved edits still count as dirty.
+  // Session may be blocked (e.g. unrecoverable error) but still have
+  // unacknowledged patches or a confirmed revision ahead of persisted.
+  if (currentSession.syncState === 'blocked') {
+    return (
+      currentSession.pendingCount > 0 ||
+      currentSession.confirmedRevision !== currentSession.persistedRevision
+    );
+  }
   return (
     currentSession.pendingCount > 0 ||
     currentSession.confirmedRevision !== currentSession.persistedRevision

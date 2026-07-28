@@ -10,11 +10,13 @@ use markflow_runtime::host::Host;
 use markflow_runtime::registry::SessionRegistry;
 use std::path::Path;
 use std::sync::LazyLock;
-use std::sync::Mutex;
 
 /// Global session registry shared across all Tauri commands.
-pub static SESSION_REGISTRY: LazyLock<Mutex<SessionRegistry>> =
-    LazyLock::new(|| Mutex::new(SessionRegistry::new()));
+///
+/// SessionRegistry is internally thread-safe (DashMap + AtomicU64), so no
+/// outer Mutex is needed.
+pub static SESSION_REGISTRY: LazyLock<SessionRegistry> =
+    LazyLock::new(SessionRegistry::new);
 
 /// The concrete Host implementation used by Tauri commands.
 pub struct AppHost;

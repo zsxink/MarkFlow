@@ -7,7 +7,7 @@
 use crate::error::{AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
-    ByteOffset, Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId,
+    Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId,
     Utf16Offset,
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
@@ -210,9 +210,7 @@ pub fn open_document(
     path: String,
     _state: State<crate::state::AppState>,
 ) -> Result<DocumentOpenedDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let source = DocumentSource::new_file(PathBuf::from(&path));
 
@@ -239,7 +237,7 @@ pub fn open_document(
 
     // Read back session info
     let (text, revision, line_count, byte_count) =
-        with_session_state(&registry, session_id, |state| {
+        with_session_state(registry, session_id, |state| {
             let text = state.core.text().logical_text().to_string();
             let revision = state.core.revision();
             let line_count = state.core.line_count();
@@ -304,13 +302,11 @@ pub fn apply_text_patch(
     let patch = envelope.payload;
     let frontend_txn_id = patch.transaction_id.clone();
 
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let base_revision = Revision(patch.base_revision);
 
-    let ack = with_session_state(&registry, session_id, |state| {
+    let ack = with_session_state(registry, session_id, |state| {
         // Verify base revision
         let current_revision = state.core.revision();
         if base_revision != current_revision {
@@ -354,18 +350,42 @@ pub fn apply_text_patch(
         // Map frontend string transaction ID to core u64 TransactionId
         let core_txn_id = map_frontend_txn(&patch.transaction_id);
 
-        // Convert selection if present
-        let selection_after = patch.selection_after.as_ref().map(|sel| {
-            // Clamp selection to the document bounds — if the patch removes or
-            // relocates content, the frontend may send out-of-range offsets;
-            // core will validate in selection_for_commit.
-            let text_len = state.core.text().len_bytes();
-            Selection {
-                anchor: ByteOffset(sel.anchor.min(text_len)),
-                head: ByteOffset(sel.head.min(text_len)),
-                revision: current_revision,
+        // Convert selection if present — the frontend sends UTF-16 offsets
+        // (CodeMirror convention), but Core expects byte offsets. Use
+        // byte_for_utf16() for proper conversion (same as TextChange above).
+        let selection_after = match patch.selection_after.as_ref() {
+            Some(sel) => {
+                let anchor_byte = state
+                    .core
+                    .byte_for_utf16(Utf16Offset(sel.anchor))
+                    .map_err(|_| {
+                        RuntimeError::new(
+                            RuntimeErrorCode::InvalidUtf16Boundary,
+                            format!(
+                                "Failed to convert selection anchor UTF-16 offset {} to byte offset",
+                                sel.anchor
+                            ),
+                        )
+                    })?;
+                let head_byte = state.core.byte_for_utf16(Utf16Offset(sel.head)).map_err(
+                    |_| {
+                        RuntimeError::new(
+                            RuntimeErrorCode::InvalidUtf16Boundary,
+                            format!(
+                                "Failed to convert selection head UTF-16 offset {} to byte offset",
+                                sel.head
+                            ),
+                        )
+                    },
+                )?;
+                Some(Selection {
+                    anchor: anchor_byte,
+                    head: head_byte,
+                    revision: current_revision,
+                })
             }
-        });
+            None => None,
+        };
 
         // Build TextPatch with byte-based changes
         let text_patch = TextPatch {
@@ -404,14 +424,12 @@ pub fn apply_text_patch(
 /// Save a document through the Runtime save workflow.
 #[tauri::command]
 pub fn save_document_command(session_id: u64) -> Result<SaveResultDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
     let host = AppHost;
 
-    let result = save_document(&registry, sid, &host).map_err(map_error)?;
+    let result = save_document(registry, sid, &host).map_err(map_error)?;
 
     Ok(SaveResultDto {
         revision: result.revision.0,
@@ -432,13 +450,11 @@ pub fn resync_document(
     session_id: u64,
     _confirmed_revision: u64,
 ) -> Result<ResyncResultDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
-    let (text, revision) = with_session_state(&registry, sid, |state| {
+    let (text, revision) = with_session_state(registry, sid, |state| {
         let text = state.core.text().logical_text().to_string();
         let revision = state.core.revision();
         Ok((text, revision))
@@ -456,14 +472,12 @@ pub fn resync_document(
 /// For async patches, this would wait for all pending acks.
 #[tauri::command]
 pub fn flush_document(session_id: u64) -> Result<FlushResultDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
     let revision =
-        with_session_state(&registry, sid, |state| Ok(state.core.revision())).map_err(map_error)?;
+        with_session_state(registry, sid, |state| Ok(state.core.revision())).map_err(map_error)?;
 
     Ok(FlushResultDto {
         revision: revision.0,
@@ -473,13 +487,11 @@ pub fn flush_document(session_id: u64) -> Result<FlushResultDto, AppError> {
 /// Get full document text.
 #[tauri::command]
 pub fn get_document_text(session_id: u64) -> Result<DocumentTextResultDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
-    let (text, revision) = with_session_state(&registry, sid, |state| {
+    let (text, revision) = with_session_state(registry, sid, |state| {
         let text = state.core.text().logical_text().to_string();
         let revision = state.core.revision();
         Ok((text, revision))
@@ -495,13 +507,11 @@ pub fn get_document_text(session_id: u64) -> Result<DocumentTextResultDto, AppEr
 /// Get document outline.
 #[tauri::command]
 pub fn get_outline(session_id: u64) -> Result<OutlineResultDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
-    with_session_state(&registry, sid, |_state| {
+    with_session_state(registry, sid, |_state| {
         // For now, return an empty outline.
         // Full outline from ParseIndex would be implemented in M3 follow-up.
         Ok(OutlineResultDto { items: vec![] })
@@ -512,13 +522,11 @@ pub fn get_outline(session_id: u64) -> Result<OutlineResultDto, AppError> {
 /// Get document stats (line count, byte count).
 #[tauri::command]
 pub fn get_document_stats(session_id: u64) -> Result<DocumentStatsDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
-    let (line_count, byte_count) = with_session_state(&registry, sid, |state| {
+    let (line_count, byte_count) = with_session_state(registry, sid, |state| {
         let line_count = state.core.line_count();
         let byte_count = state.core.text().logical_text().len();
         Ok((line_count, byte_count))
@@ -534,13 +542,11 @@ pub fn get_document_stats(session_id: u64) -> Result<DocumentStatsDto, AppError>
 /// Reload a document from disk.
 #[tauri::command]
 pub fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
-    let (text, revision, identity) = with_session_state(&registry, sid, |state| {
+    let (text, revision, identity) = with_session_state(registry, sid, |state| {
         let text = state.core.text().logical_text().to_string();
         let revision = state.core.revision();
         let identity = FileIdentityDto {
@@ -562,9 +568,7 @@ pub fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppError> {
 /// Close a document session.
 #[tauri::command]
 pub fn close_document(session_id: u64) -> Result<(), AppError> {
-    let registry = SESSION_REGISTRY
-        .lock()
-        .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
+    let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 

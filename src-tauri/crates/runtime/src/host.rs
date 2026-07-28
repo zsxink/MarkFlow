@@ -1,5 +1,5 @@
-use crate::file_identity::FileIdentity;
 use crate::error::RuntimeError;
+use crate::file_identity::FileIdentity;
 
 /// Host trait abstracts filesystem operations for the Runtime.
 ///
@@ -9,7 +9,10 @@ use crate::error::RuntimeError;
 /// - Atomic write with expected-identity comparison
 pub trait Host {
     /// Read document bytes from disk and return them with the file identity at read time.
-    fn read_document_bytes(&self, path: &std::path::Path) -> Result<(Vec<u8>, FileIdentity), RuntimeError>;
+    fn read_document_bytes(
+        &self,
+        path: &std::path::Path,
+    ) -> Result<(Vec<u8>, FileIdentity), RuntimeError>;
 
     /// Stat a file's current identity (without reading content).
     fn stat_identity(&self, path: &std::path::Path) -> Result<FileIdentity, RuntimeError>;

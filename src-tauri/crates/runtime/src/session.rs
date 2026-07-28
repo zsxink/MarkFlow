@@ -159,7 +159,10 @@ impl DocumentRuntimeState {
 
     /// The number of uncommitted revisions.
     pub fn dirty_revision_count(&self) -> u64 {
-        self.core.revision().0.saturating_sub(self.persisted_revision.0)
+        self.core
+            .revision()
+            .0
+            .saturating_sub(self.persisted_revision.0)
     }
 }
 

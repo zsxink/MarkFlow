@@ -37,6 +37,8 @@ impl DocumentSource {
 
     /// Return a key suitable for path-based indexing.
     pub fn source_key(&self) -> Option<DocumentSourceKey> {
-        self.path.as_ref().map(|p| DocumentSourceKey(p.to_string_lossy().to_string()))
+        self.path
+            .as_ref()
+            .map(|p| DocumentSourceKey(p.to_string_lossy().to_string()))
     }
 }

@@ -7,12 +7,12 @@
 use crate::error::{AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
-    ByteOffset, Revision, Selection, SessionId, SourceRange, TextChange, TextPatch,
-    TransactionId, Utf16Offset,
+    ByteOffset, Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId,
+    Utf16Offset,
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
-use markflow_runtime::registry::with_session_state;
 use markflow_runtime::host::Host;
+use markflow_runtime::registry::with_session_state;
 use markflow_runtime::save::save_document;
 use markflow_runtime::session::ClientId;
 use markflow_runtime::source::DocumentSource;
@@ -38,9 +38,7 @@ static FRONTEND_TXN_MAP: std::sync::LazyLock<Mutex<HashMap<String, TransactionId
 /// Map a frontend string transaction ID to a core u64 TransactionId.
 /// Returns the same core ID for repeated calls with the same string.
 fn map_frontend_txn(frontend_id: &str) -> TransactionId {
-    let mut map = FRONTEND_TXN_MAP
-        .lock()
-        .expect("Frontend txn map poisoned");
+    let mut map = FRONTEND_TXN_MAP.lock().expect("Frontend txn map poisoned");
     if let Some(id) = map.get(frontend_id) {
         return *id;
     }
@@ -224,19 +222,20 @@ pub fn open_document(
         .read_document_bytes(&PathBuf::from(&path))
         .map_err(|e| map_error(e))?;
 
-    let session_id = registry.create(
-        ClientId("default".into()),
-        "default".into(),
-        source,
-        identity.clone(),
-        |sid, did| {
-            let session = markflow_core::DocumentSession::open_bytes(sid, did, &bytes)
-                .map_err(|e| RuntimeError::from(e))?;
+    let session_id = registry
+        .create(
+            ClientId("default".into()),
+            "default".into(),
+            source,
+            identity.clone(),
+            |sid, did| {
+                let session = markflow_core::DocumentSession::open_bytes(sid, did, &bytes)
+                    .map_err(|e| RuntimeError::from(e))?;
 
-            Ok(session)
-        },
-    )
-    .map_err(|e| map_error(e))?;
+                Ok(session)
+            },
+        )
+        .map_err(|e| map_error(e))?;
 
     // Read back session info
     let (text, revision, line_count, byte_count) =
@@ -267,7 +266,9 @@ pub fn open_document(
         text,
         size_class: size_class.into(),
         file_identity: FileIdentityDto {
-            canonical_path: identity.canonical_path.map(|p| p.to_string_lossy().to_string()),
+            canonical_path: identity
+                .canonical_path
+                .map(|p| p.to_string_lossy().to_string()),
             size: identity.size,
             fingerprint_hash: identity.fingerprint.hash_prefix,
         },
@@ -329,20 +330,14 @@ pub fn apply_text_patch(
                 .map_err(|_| {
                     RuntimeError::new(
                         RuntimeErrorCode::InvalidUtf16Boundary,
-                        format!(
-                            "Failed to convert UTF-16 offset {} to byte offset",
-                            c.from
-                        ),
+                        format!("Failed to convert UTF-16 offset {} to byte offset", c.from),
                     )
                 })?;
 
             let to_byte = state.core.byte_for_utf16(Utf16Offset(c.to)).map_err(|_| {
                 RuntimeError::new(
                     RuntimeErrorCode::InvalidUtf16Boundary,
-                    format!(
-                        "Failed to convert UTF-16 offset {} to byte offset",
-                        c.to
-                    ),
+                    format!("Failed to convert UTF-16 offset {} to byte offset", c.to),
                 )
             })?;
 
@@ -408,9 +403,7 @@ pub fn apply_text_patch(
 
 /// Save a document through the Runtime save workflow.
 #[tauri::command]
-pub fn save_document_command(
-    session_id: u64,
-) -> Result<SaveResultDto, AppError> {
+pub fn save_document_command(session_id: u64) -> Result<SaveResultDto, AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -462,9 +455,7 @@ pub fn resync_document(
 /// this is a no-op because patches are applied synchronously.
 /// For async patches, this would wait for all pending acks.
 #[tauri::command]
-pub fn flush_document(
-    session_id: u64,
-) -> Result<FlushResultDto, AppError> {
+pub fn flush_document(session_id: u64) -> Result<FlushResultDto, AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -481,9 +472,7 @@ pub fn flush_document(
 
 /// Get full document text.
 #[tauri::command]
-pub fn get_document_text(
-    session_id: u64,
-) -> Result<DocumentTextResultDto, AppError> {
+pub fn get_document_text(session_id: u64) -> Result<DocumentTextResultDto, AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -497,14 +486,15 @@ pub fn get_document_text(
     })
     .map_err(|e| map_error(e))?;
 
-    Ok(DocumentTextResultDto { text, revision: revision.0 })
+    Ok(DocumentTextResultDto {
+        text,
+        revision: revision.0,
+    })
 }
 
 /// Get document outline.
 #[tauri::command]
-pub fn get_outline(
-    session_id: u64,
-) -> Result<OutlineResultDto, AppError> {
+pub fn get_outline(session_id: u64) -> Result<OutlineResultDto, AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -521,9 +511,7 @@ pub fn get_outline(
 
 /// Get document stats (line count, byte count).
 #[tauri::command]
-pub fn get_document_stats(
-    session_id: u64,
-) -> Result<DocumentStatsDto, AppError> {
+pub fn get_document_stats(session_id: u64) -> Result<DocumentStatsDto, AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -545,9 +533,7 @@ pub fn get_document_stats(
 
 /// Reload a document from disk.
 #[tauri::command]
-pub fn reload_document(
-    session_id: u64,
-) -> Result<ReloadResultDto, AppError> {
+pub fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -575,9 +561,7 @@ pub fn reload_document(
 
 /// Close a document session.
 #[tauri::command]
-pub fn close_document(
-    session_id: u64,
-) -> Result<(), AppError> {
+pub fn close_document(session_id: u64) -> Result<(), AppError> {
     let registry = SESSION_REGISTRY
         .lock()
         .map_err(|e| AppError::internal(format!("Registry lock poisoned: {}", e)))?;
@@ -619,18 +603,73 @@ mod tests {
             &str, // detail
         )> = vec![
             // These five map to specific AppErrorCode variants
-            (RuntimeErrorCode::RevisionMismatch, AppErrorCode::RevisionMismatch, "REVISION_MISMATCH", "expected rev 5, got 10"),
-            (RuntimeErrorCode::InvalidUtf16Boundary, AppErrorCode::InvalidUtf16Boundary, "INVALID_UTF16_BOUNDARY", "offset at 42"),
-            (RuntimeErrorCode::TransactionConflict, AppErrorCode::TransactionConflict, "TRANSACTION_CONFLICT", "concurrent edit detected"),
-            (RuntimeErrorCode::Conflict, AppErrorCode::ConflictDetected, "CONFLICT", "external modification detected"),
-            (RuntimeErrorCode::SessionNotFound, AppErrorCode::SessionNotFound, "SESSION_NOT_FOUND", "session id 42 not found"),
+            (
+                RuntimeErrorCode::RevisionMismatch,
+                AppErrorCode::RevisionMismatch,
+                "REVISION_MISMATCH",
+                "expected rev 5, got 10",
+            ),
+            (
+                RuntimeErrorCode::InvalidUtf16Boundary,
+                AppErrorCode::InvalidUtf16Boundary,
+                "INVALID_UTF16_BOUNDARY",
+                "offset at 42",
+            ),
+            (
+                RuntimeErrorCode::TransactionConflict,
+                AppErrorCode::TransactionConflict,
+                "TRANSACTION_CONFLICT",
+                "concurrent edit detected",
+            ),
+            (
+                RuntimeErrorCode::Conflict,
+                AppErrorCode::ConflictDetected,
+                "CONFLICT",
+                "external modification detected",
+            ),
+            (
+                RuntimeErrorCode::SessionNotFound,
+                AppErrorCode::SessionNotFound,
+                "SESSION_NOT_FOUND",
+                "session id 42 not found",
+            ),
             // These all map to Internal
-            (RuntimeErrorCode::InvalidRange, AppErrorCode::Internal, "INVALID_RANGE", "offset out of bounds"),
-            (RuntimeErrorCode::UnsupportedEncoding, AppErrorCode::Internal, "UNSUPPORTED_ENCODING", "utf-32 is not supported"),
-            (RuntimeErrorCode::PendingQueueFull, AppErrorCode::Internal, "PENDING_QUEUE_FULL", "max 100 items"),
-            (RuntimeErrorCode::SaveFlushTimeout, AppErrorCode::Internal, "SAVE_FLUSH_TIMEOUT", "timed out after 5 s"),
-            (RuntimeErrorCode::Cancelled, AppErrorCode::Internal, "CANCELLED", "operation cancelled by user"),
-            (RuntimeErrorCode::ProtocolVersionUnsupported, AppErrorCode::Internal, "PROTOCOL_VERSION_UNSUPPORTED", "version 2 is unsupported"),
+            (
+                RuntimeErrorCode::InvalidRange,
+                AppErrorCode::Internal,
+                "INVALID_RANGE",
+                "offset out of bounds",
+            ),
+            (
+                RuntimeErrorCode::UnsupportedEncoding,
+                AppErrorCode::Internal,
+                "UNSUPPORTED_ENCODING",
+                "utf-32 is not supported",
+            ),
+            (
+                RuntimeErrorCode::PendingQueueFull,
+                AppErrorCode::Internal,
+                "PENDING_QUEUE_FULL",
+                "max 100 items",
+            ),
+            (
+                RuntimeErrorCode::SaveFlushTimeout,
+                AppErrorCode::Internal,
+                "SAVE_FLUSH_TIMEOUT",
+                "timed out after 5 s",
+            ),
+            (
+                RuntimeErrorCode::Cancelled,
+                AppErrorCode::Internal,
+                "CANCELLED",
+                "operation cancelled by user",
+            ),
+            (
+                RuntimeErrorCode::ProtocolVersionUnsupported,
+                AppErrorCode::Internal,
+                "PROTOCOL_VERSION_UNSUPPORTED",
+                "version 2 is unsupported",
+            ),
         ];
 
         for (code, expected_app_code, expected_code_str, detail) in cases {

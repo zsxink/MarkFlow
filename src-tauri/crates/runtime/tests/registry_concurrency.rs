@@ -10,8 +10,7 @@ use std::thread;
 
 /// Helper: create a DocumentSession from bytes for use as opener closure.
 fn open_session(session_id: SessionId, document_id: DocumentId, bytes: &[u8]) -> DocumentSession {
-    DocumentSession::open_bytes(session_id, document_id, bytes)
-        .expect("Failed to open session")
+    DocumentSession::open_bytes(session_id, document_id, bytes).expect("Failed to open session")
 }
 
 #[test]

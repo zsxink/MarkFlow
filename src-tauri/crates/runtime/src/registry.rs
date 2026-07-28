@@ -1,8 +1,6 @@
 use crate::error::RuntimeError;
 use crate::file_identity::FileIdentity;
-use crate::session::{
-    ClientId, DocumentRuntimeState, DocumentSourceKey, SessionHandle, SessionId,
-};
+use crate::session::{ClientId, DocumentRuntimeState, DocumentSourceKey, SessionHandle, SessionId};
 use crate::source::DocumentSource;
 
 use dashmap::DashMap;
@@ -87,7 +85,10 @@ impl SessionRegistry {
                     "Multiple sessions for the same path"
                 );
             }
-            self.path_index.entry(key).or_insert_with(Vec::new).push(session_id);
+            self.path_index
+                .entry(key)
+                .or_insert_with(Vec::new)
+                .push(session_id);
         }
 
         tracing::debug!(target: "runtime.registry", session_id = session_id.0, "Session created");

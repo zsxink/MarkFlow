@@ -8,6 +8,7 @@ e2e/artifacts/
 e2e/.tmp-*/
 
 # Rust build artifacts
+target/
 src-tauri/target/
 
 # Tauri generated

@@ -1,0 +1,8 @@
+[package]
+name = "markflow-core"
+version = "0.1.0"
+edition = "2021"
+description = "Lossless Markdown document kernel for MarkFlow"
+license = "MIT"
+
+[dependencies]

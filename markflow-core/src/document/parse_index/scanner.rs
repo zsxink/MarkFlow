@@ -1,330 +1,88 @@
-use super::{ByteOffset, LineEndingKind, Revision, SourceRange, TextPatch};
+use super::heading::heading_title;
+use super::large_document_policy::LargeDocumentPolicy;
+use super::list::starts_task_checkbox;
+use super::style_map::{
+    BulletMarker, FenceMarker, FenceStyle, ListStyleSpan, OrderedDelimiter, OrderedMarker,
+    QuoteStyleSpan, StyleMap, TableStyleSpan,
+};
+use super::table::{parse_table_delimiter, split_table_cells, TableScan};
+use super::types::{
+    BlockId, BlockKind, BlockNode, LineRange, OutlineItem, ParseIndex, ScanOutcome,
+};
+use crate::document::{ByteOffset, LineEndingKind, Revision, SourceRange};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct BlockId(pub usize);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LineRange {
+#[derive(Debug, Clone, Copy)]
+pub struct LineInfo<'a> {
     pub start: usize,
     pub end: usize,
+    pub text: &'a str,
 }
 
-impl LineRange {
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
+impl<'a> LineInfo<'a> {
+    pub fn trimmed(&self) -> &'a str {
+        self.text.trim()
+    }
+
+    pub fn trimmed_start(&self) -> &'a str {
+        self.text.trim_start()
+    }
+
+    pub fn is_blank(&self) -> bool {
+        self.trimmed().is_empty()
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BlockKind {
-    Document,
-    FrontMatter,
-    HtmlComment,
-    Heading { level: u8 },
-    Paragraph,
-    Blockquote,
-    BulletList,
-    OrderedList,
-    TaskList,
-    CodeFence,
-    Table,
-    LinkReference,
-    ImageBlock,
-    ThematicBreak,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BlockNode {
-    pub id: BlockId,
-    pub kind: BlockKind,
-    pub range: SourceRange,
-    pub content_range: SourceRange,
-    pub line_range: LineRange,
-    pub parent: Option<BlockId>,
-    pub children: Vec<BlockId>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OutlineItem {
-    pub block_id: BlockId,
-    pub level: u8,
-    pub title: String,
-    pub range: SourceRange,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseIndex {
-    pub revision: Revision,
-    pub blocks: Vec<BlockNode>,
-    pub outline: Vec<OutlineItem>,
-    pub block_by_line: Vec<BlockId>,
-}
-
-impl ParseIndex {
-    pub fn scan(revision: Revision, text: &str) -> ScanOutcome {
-        Self::scan_with_line_ending(revision, text, LineEndingKind::Lf)
+pub fn collect_lines(text: &str) -> Vec<LineInfo<'_>> {
+    if text.is_empty() {
+        return vec![LineInfo {
+            start: 0,
+            end: 0,
+            text: "",
+        }];
     }
 
-    pub fn scan_with_line_ending(
-        revision: Revision,
-        text: &str,
-        dominant_line_ending: LineEndingKind,
-    ) -> ScanOutcome {
-        Self::scan_with_document_bytes(revision, text, dominant_line_ending, text.len())
-    }
-
-    pub fn scan_with_document_bytes(
-        revision: Revision,
-        text: &str,
-        dominant_line_ending: LineEndingKind,
-        document_byte_len: usize,
-    ) -> ScanOutcome {
-        BlockScanner::new(revision, text, dominant_line_ending, document_byte_len).scan()
-    }
-
-    pub fn update_after_patch(&mut self, patch: &TextPatch) -> AffectedRanges {
-        let mut ranges = Vec::new();
-        let mut requires_background_full_parse = false;
-        for change in &patch.changes {
-            let affected = self.affected_block_window(change.range.start.0, change.range.end.0);
-            let (start, end, structure_sensitive) =
-                affected.unwrap_or((change.range.start.0, change.range.end.0, false));
-            let end = end.max(change.range.end.0.saturating_add(change.replacement.len()));
-            let budgeted_end = end.saturating_add(SYNC_REPARSE_CONTEXT_BYTES);
-            if budgeted_end.saturating_sub(start) > SYNC_REPARSE_BUDGET_BYTES
-                || structure_sensitive
-                || replacement_may_change_block_structure(&change.replacement)
-            {
-                requires_background_full_parse = true;
-            }
-            ranges.push(SourceRange {
-                revision: patch.base_revision,
-                start: ByteOffset(start),
-                end: ByteOffset(budgeted_end),
+    let mut lines = Vec::new();
+    let mut start = 0;
+    for (idx, byte) in text.as_bytes().iter().enumerate() {
+        if *byte == b'\n' {
+            lines.push(LineInfo {
+                start,
+                end: idx,
+                text: &text[start..idx],
             });
-        }
-
-        AffectedRanges {
-            revision: patch.base_revision,
-            stale_ranges: ranges,
-            requires_background_full_parse,
-            synchronous_budget_exhausted: requires_background_full_parse,
+            start = idx + 1;
         }
     }
-
-    fn affected_block_window(&self, start: usize, end: usize) -> Option<(usize, usize, bool)> {
-        let mut affected_start = None::<usize>;
-        let mut affected_end = None::<usize>;
-        let mut structure_sensitive = false;
-
-        for block in self
-            .blocks
-            .iter()
-            .filter(|block| block.kind != BlockKind::Document)
-        {
-            let block_start = block.range.start.0;
-            let block_end = block.range.end.0;
-            let intersects = if start == end {
-                block_start <= start && start <= block_end
-            } else {
-                block_start < end && start < block_end
-            };
-            if !intersects {
-                continue;
-            }
-
-            affected_start =
-                Some(affected_start.map_or(block_start, |current| current.min(block_start)));
-            affected_end = Some(affected_end.map_or(block_end, |current| current.max(block_end)));
-            structure_sensitive |= block.kind.requires_conservative_reparse();
-        }
-
-        Some((affected_start?, affected_end?, structure_sensitive))
+    if start <= text.len() {
+        lines.push(LineInfo {
+            start,
+            end: text.len(),
+            text: &text[start..],
+        });
     }
+    lines
 }
 
-impl BlockKind {
-    fn requires_conservative_reparse(&self) -> bool {
-        matches!(
-            self,
-            BlockKind::HtmlComment
-                | BlockKind::Blockquote
-                | BlockKind::BulletList
-                | BlockKind::OrderedList
-                | BlockKind::TaskList
-                | BlockKind::CodeFence
-                | BlockKind::Table
-        )
-    }
+pub fn count_leading_spaces(text: &str) -> usize {
+    text.as_bytes()
+        .iter()
+        .take_while(|byte| **byte == b' ')
+        .count()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScanOutcome {
-    pub parse_index: ParseIndex,
-    pub style_map: StyleMap,
-    pub large_document_policy: LargeDocumentPolicy,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AffectedRanges {
-    pub revision: Revision,
-    pub stale_ranges: Vec<SourceRange>,
-    pub requires_background_full_parse: bool,
-    pub synchronous_budget_exhausted: bool,
+pub fn is_space(byte: u8) -> bool {
+    byte == b' ' || byte == b'\t'
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BulletMarker {
-    Dash,
-    Asterisk,
-    Plus,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OrderedMarker {
-    pub delimiter: OrderedDelimiter,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OrderedDelimiter {
-    Dot,
-    Paren,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FenceStyle {
-    pub marker: FenceMarker,
-    pub length: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FenceMarker {
-    Backtick,
-    Tilde,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ListStyleSpan {
-    pub block_id: BlockId,
-    pub line_range: LineRange,
+pub struct ListMarker {
+    pub indent: usize,
     pub bullet: Option<BulletMarker>,
     pub ordered: Option<OrderedMarker>,
     pub task: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct QuoteStyleSpan {
-    pub block_id: BlockId,
-    pub line_range: LineRange,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TableStyleSpan {
-    pub block_id: BlockId,
-    pub line_range: LineRange,
-    pub alignments: Vec<TableAlignment>,
-    pub has_leading_pipe: bool,
-    pub has_trailing_pipe: bool,
-    pub delimiter_padding: Vec<PipePadding>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TableAlignment {
-    None,
-    Left,
-    Center,
-    Right,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct PipePadding {
-    pub left: bool,
-    pub right: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StyleMap {
-    pub dominant_line_ending: LineEndingKind,
-    pub default_bullet: Option<BulletMarker>,
-    pub default_ordered_marker: Option<OrderedMarker>,
-    pub default_fence: Option<FenceStyle>,
-    pub list_spans: Vec<ListStyleSpan>,
-    pub quote_spans: Vec<QuoteStyleSpan>,
-    pub table_spans: Vec<TableStyleSpan>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DocumentSizeClass {
-    Normal,
-    Large,
-    Huge,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeferredWork {
-    Immediate,
-    OnDemand,
-    DisabledByDefault,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LargeDocumentPolicy {
-    pub byte_len: usize,
-    pub size_class: DocumentSizeClass,
-    pub block_scan: DeferredWork,
-    pub inline_parse: DeferredWork,
-    pub diagram_render: DeferredWork,
-    pub image_diagnostics: DeferredWork,
-    pub full_diagnostics: DeferredWork,
-    pub viewport_render: bool,
-    pub paged_search: bool,
-}
-
-impl LargeDocumentPolicy {
-    pub const LARGE_THRESHOLD_BYTES: usize = 1024 * 1024;
-    pub const HUGE_THRESHOLD_BYTES: usize = 10 * 1024 * 1024;
-
-    pub fn for_byte_len(byte_len: usize) -> Self {
-        let size_class = if byte_len > Self::HUGE_THRESHOLD_BYTES {
-            DocumentSizeClass::Huge
-        } else if byte_len > Self::LARGE_THRESHOLD_BYTES {
-            DocumentSizeClass::Large
-        } else {
-            DocumentSizeClass::Normal
-        };
-
-        let deferred = match size_class {
-            DocumentSizeClass::Normal => DeferredWork::Immediate,
-            DocumentSizeClass::Large => DeferredWork::OnDemand,
-            DocumentSizeClass::Huge => DeferredWork::DisabledByDefault,
-        };
-
-        Self {
-            byte_len,
-            size_class,
-            block_scan: DeferredWork::Immediate,
-            inline_parse: deferred,
-            diagram_render: deferred,
-            image_diagnostics: deferred,
-            full_diagnostics: deferred,
-            viewport_render: size_class != DocumentSizeClass::Normal,
-            paged_search: size_class != DocumentSizeClass::Normal,
-        }
-    }
-
-    pub fn permits_default_inline_parse(self) -> bool {
-        self.inline_parse == DeferredWork::Immediate
-    }
-
-    pub fn permits_default_full_diagnostics(self) -> bool {
-        self.full_diagnostics == DeferredWork::Immediate
-    }
-}
-
-const SYNC_REPARSE_CONTEXT_BYTES: usize = 16 * 1024;
-const SYNC_REPARSE_BUDGET_BYTES: usize = 256 * 1024;
-
-struct BlockScanner<'a> {
+pub struct BlockScanner<'a> {
     revision: Revision,
     text: &'a str,
     document_byte_len: usize,
@@ -336,7 +94,7 @@ struct BlockScanner<'a> {
 }
 
 impl<'a> BlockScanner<'a> {
-    fn new(
+    pub fn new(
         revision: Revision,
         text: &'a str,
         dominant_line_ending: LineEndingKind,
@@ -365,7 +123,7 @@ impl<'a> BlockScanner<'a> {
         }
     }
 
-    fn scan(mut self) -> ScanOutcome {
+    pub fn scan(mut self) -> ScanOutcome {
         let root_id = self.push_block(
             BlockKind::Document,
             0,
@@ -890,215 +648,4 @@ impl<'a> BlockScanner<'a> {
             task: false,
         })
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct LineInfo<'a> {
-    start: usize,
-    end: usize,
-    text: &'a str,
-}
-
-impl<'a> LineInfo<'a> {
-    fn trimmed(&self) -> &'a str {
-        self.text.trim()
-    }
-
-    fn trimmed_start(&self) -> &'a str {
-        self.text.trim_start()
-    }
-
-    fn is_blank(&self) -> bool {
-        self.trimmed().is_empty()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ListMarker {
-    indent: usize,
-    bullet: Option<BulletMarker>,
-    ordered: Option<OrderedMarker>,
-    task: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct TableScan {
-    alignments: Vec<TableAlignment>,
-    has_leading_pipe: bool,
-    has_trailing_pipe: bool,
-    delimiter_padding: Vec<PipePadding>,
-}
-
-fn collect_lines(text: &str) -> Vec<LineInfo<'_>> {
-    if text.is_empty() {
-        return vec![LineInfo {
-            start: 0,
-            end: 0,
-            text: "",
-        }];
-    }
-
-    let mut lines = Vec::new();
-    let mut start = 0;
-    for (idx, byte) in text.as_bytes().iter().enumerate() {
-        if *byte == b'\n' {
-            lines.push(LineInfo {
-                start,
-                end: idx,
-                text: &text[start..idx],
-            });
-            start = idx + 1;
-        }
-    }
-    if start <= text.len() {
-        lines.push(LineInfo {
-            start,
-            end: text.len(),
-            text: &text[start..],
-        });
-    }
-    lines
-}
-
-fn count_leading_spaces(text: &str) -> usize {
-    text.as_bytes()
-        .iter()
-        .take_while(|byte| **byte == b' ')
-        .count()
-}
-
-fn is_space(byte: u8) -> bool {
-    byte == b' ' || byte == b'\t'
-}
-
-fn heading_title(raw: &str) -> String {
-    let bytes = raw.as_bytes();
-    let mut start = 0;
-    while start < bytes.len() && is_space(bytes[start]) {
-        start += 1;
-    }
-
-    let mut end = bytes.len();
-    while end > start && is_space(bytes[end - 1]) {
-        end -= 1;
-    }
-
-    if end > start && bytes[end - 1] == b'#' {
-        let mut closing_start = end;
-        while closing_start > start && bytes[closing_start - 1] == b'#' {
-            closing_start -= 1;
-        }
-        if closing_start == start || is_space(bytes[closing_start - 1]) {
-            end = closing_start;
-            while end > start && is_space(bytes[end - 1]) {
-                end -= 1;
-            }
-        }
-    }
-
-    raw[start..end].to_string()
-}
-
-fn starts_task_checkbox(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    bytes.len() >= 3
-        && bytes[0] == b'['
-        && matches!(bytes[1], b' ' | b'x' | b'X')
-        && bytes[2] == b']'
-        && bytes.get(3).is_none_or(|byte| is_space(*byte))
-}
-
-fn replacement_may_change_block_structure(replacement: &str) -> bool {
-    replacement.lines().any(|line| {
-        let trimmed = line.trim_start();
-        trimmed.starts_with("<!--")
-            || starts_with_fence_marker(trimmed, b'`')
-            || starts_with_fence_marker(trimmed, b'~')
-            || starts_like_list_marker(trimmed)
-            || trimmed.starts_with('>')
-            || trimmed.contains('|')
-    })
-}
-
-fn starts_with_fence_marker(trimmed: &str, marker: u8) -> bool {
-    trimmed
-        .as_bytes()
-        .iter()
-        .take_while(|byte| **byte == marker)
-        .count()
-        >= 3
-}
-
-fn starts_like_list_marker(trimmed: &str) -> bool {
-    let bytes = trimmed.as_bytes();
-    if bytes.len() >= 2 && matches!(bytes[0], b'-' | b'*' | b'+') && is_space(bytes[1]) {
-        return true;
-    }
-
-    let digit_count = bytes
-        .iter()
-        .take_while(|byte| byte.is_ascii_digit())
-        .count();
-    digit_count > 0
-        && digit_count <= 9
-        && digit_count + 1 < bytes.len()
-        && matches!(bytes[digit_count], b'.' | b')')
-        && is_space(bytes[digit_count + 1])
-}
-
-fn parse_table_delimiter(line: &str) -> Option<TableScan> {
-    let trimmed = line.trim();
-    if !trimmed.contains('-') {
-        return None;
-    }
-
-    let has_leading_pipe = trimmed.starts_with('|');
-    let has_trailing_pipe = trimmed.ends_with('|');
-    let cells = split_table_cells(trimmed);
-    if cells.is_empty() {
-        return None;
-    }
-
-    let mut alignments = Vec::new();
-    let mut delimiter_padding = Vec::new();
-    for cell in cells {
-        let left = cell.starts_with(' ');
-        let right = cell.ends_with(' ');
-        let token = cell.trim();
-        if token.len() < 3 {
-            return None;
-        }
-        let bytes = token.as_bytes();
-        let starts_colon = bytes.first() == Some(&b':');
-        let ends_colon = bytes.last() == Some(&b':');
-        let dash_start = usize::from(starts_colon);
-        let dash_end = token.len().saturating_sub(usize::from(ends_colon));
-        if dash_start >= dash_end
-            || !token.as_bytes()[dash_start..dash_end]
-                .iter()
-                .all(|byte| *byte == b'-')
-        {
-            return None;
-        }
-        alignments.push(match (starts_colon, ends_colon) {
-            (true, true) => TableAlignment::Center,
-            (true, false) => TableAlignment::Left,
-            (false, true) => TableAlignment::Right,
-            (false, false) => TableAlignment::None,
-        });
-        delimiter_padding.push(PipePadding { left, right });
-    }
-
-    Some(TableScan {
-        alignments,
-        has_leading_pipe,
-        has_trailing_pipe,
-        delimiter_padding,
-    })
-}
-
-fn split_table_cells(trimmed: &str) -> Vec<&str> {
-    let without_leading = trimmed.strip_prefix('|').unwrap_or(trimmed);
-    let without_outer = without_leading.strip_suffix('|').unwrap_or(without_leading);
-    without_outer.split('|').collect()
 }

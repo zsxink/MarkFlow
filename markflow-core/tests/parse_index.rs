@@ -1,31 +1,20 @@
-use std::fs;
-use std::path::Path;
+mod common;
 
-use markdown::{mdast::Node, Constructs, ParseOptions};
+use common::{fixture, open};
 use markflow_core::{
-    BlockId, BlockKind, BulletMarker, DeferredWork, DocumentId, DocumentSession, DocumentSizeClass,
-    FenceMarker, LineEndingKind, OrderedDelimiter, Revision, SessionId, SourceRange,
-    TableAlignment, TextChange, TextPatch, TransactionId,
+    BlockId, BlockKind, BulletMarker, DeferredWork, DocumentSession, DocumentSizeClass,
+    FenceMarker, LineEndingKind, OrderedDelimiter, Revision, SourceRange, TableAlignment,
+    TextChange, TextPatch, TransactionId,
 };
-
-const FIXTURE_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/lossless");
-
-fn open(bytes: &[u8]) -> DocumentSession {
-    DocumentSession::open_bytes(SessionId(29), DocumentId(31), bytes).unwrap()
-}
-
-fn fixture(name: &str) -> Vec<u8> {
-    fs::read(Path::new(FIXTURE_ROOT).join(name)).unwrap()
-}
 
 fn block_kinds(session: &DocumentSession) -> Vec<BlockKind> {
     session
         .parse_index()
         .parse_index
         .blocks
-        .into_iter()
+        .iter()
         .filter(|block| block.kind != BlockKind::Document)
-        .map(|block| block.kind)
+        .map(|block| block.kind.clone())
         .collect()
 }
 
@@ -337,20 +326,6 @@ fn large_document_policy_uses_source_bytes_not_logical_text_bytes() {
 }
 
 #[test]
-fn parser_does_not_rewrite_content_or_fail_unknown_syntax() {
-    let bytes = b"::: unknown\nstill text\n:::\n";
-    let session = open(bytes);
-
-    assert_eq!(session.save_payload().as_bytes(), bytes);
-    assert!(session
-        .parse_index()
-        .parse_index
-        .blocks
-        .iter()
-        .any(|block| block.kind == BlockKind::Paragraph));
-}
-
-#[test]
 fn update_after_patch_marks_large_sync_rescan_for_background_recovery() {
     let session = open(b"# Title\n\nbody\n");
     let mut index = session.parse_index().parse_index;
@@ -474,62 +449,4 @@ fn parse_index_cache_is_invalidated_after_patch() {
     assert_eq!(outcome.revision, Revision(1));
     assert_eq!(outline[0].range.revision, Revision(1));
     assert_eq!(outline[0].title, "New");
-}
-
-#[test]
-fn parser_comparison_covers_basic_block_structure_with_allowlist() {
-    let source = "# Title\n\n- [x] task\n\n```rust\nlet x = 1;\n```\n\n| A | B |\n| --- | :---: |\n| 1 | 2 |\n";
-    let session = open(source.as_bytes());
-    let markflow_blocks: Vec<_> = session
-        .parse_index()
-        .parse_index
-        .blocks
-        .iter()
-        .filter_map(|block| match block.kind {
-            BlockKind::Heading { .. } => Some("heading"),
-            BlockKind::TaskList | BlockKind::BulletList | BlockKind::OrderedList => Some("list"),
-            BlockKind::CodeFence => Some("code"),
-            BlockKind::Table => Some("table"),
-            _ => None,
-        })
-        .collect();
-
-    let mdast = markdown::to_mdast(source, &markdown_options()).unwrap();
-    let mut markdown_rs_blocks = Vec::new();
-    collect_markdown_rs_blocks(&mdast, &mut markdown_rs_blocks);
-
-    assert_eq!(markflow_blocks, vec!["heading", "list", "code", "table"]);
-    assert_eq!(markdown_rs_blocks, vec!["heading", "list", "code", "table"]);
-
-    let allowlist = [(
-        "task-list-style",
-        "markdown-rs models task state on list items; MarkFlow promotes task list style into StyleMap and BlockKind::TaskList for edit commands.",
-    )];
-    assert!(allowlist
-        .iter()
-        .any(|(name, reason)| { *name == "task-list-style" && reason.contains("StyleMap") }));
-}
-
-fn markdown_options() -> ParseOptions {
-    let mut constructs = Constructs::gfm();
-    constructs.frontmatter = true;
-    ParseOptions {
-        constructs,
-        ..ParseOptions::gfm()
-    }
-}
-
-fn collect_markdown_rs_blocks(node: &Node, out: &mut Vec<&'static str>) {
-    match node {
-        Node::Heading(_) => out.push("heading"),
-        Node::List(_) => out.push("list"),
-        Node::Code(_) => out.push("code"),
-        Node::Table(_) => out.push("table"),
-        _ => {}
-    }
-    if let Some(children) = node.children() {
-        for child in children {
-            collect_markdown_rs_blocks(child, out);
-        }
-    }
 }

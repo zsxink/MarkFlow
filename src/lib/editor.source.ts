@@ -6,6 +6,7 @@ import { tags } from '@lezer/highlight';
 import { getLanguageExtension } from './codemirror-languages';
 import { highlightLimitPlugin } from './codemirror-highlight-limit';
 import { getCachedSettings } from './storage';
+import type { Transaction } from '@codemirror/state';
 
 // Fallback: empty LanguageSupport (plain text) when a language fails to load
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -13,6 +14,13 @@ const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as an
 async function loadLang(name: string): Promise<LanguageSupport> {
   return (await getLanguageExtension(name)) ?? plainText;
 }
+
+/**
+ * Callback type for raw CodeMirror transaction updates.
+ * Fires on every transaction (including doc changes and selection changes).
+ * Used by the Core-backed adapter for fine-grained change extraction.
+ */
+export type TransactionCallback = (update: { transactions: readonly Transaction[] }) => void;
 
 /** Module-level compartments so readOnly and highlight can be toggled at runtime */
 const readOnlyCompartment = new Compartment();
@@ -94,12 +102,19 @@ let programmaticUpdate = false;
 /**
  * Create a CodeMirror 6 editor in the given container.
  * Destroys any previous instance first.
+ *
+ * @param container - The DOM element to mount the editor in.
+ * @param content - Initial document content.
+ * @param onUpdate - Legacy callback fired on doc changes with the full document text.
+ * @param readOnly - Whether the editor starts in read-only mode.
+ * @param onTransaction - Optional callback for raw transaction access (used by Core-backed adapter).
  */
 export function createSourceEditor(
   container: HTMLElement,
   content: string,
   onUpdate: ((doc: string) => void) | null = null,
   readOnly: boolean = false,
+  onTransaction: TransactionCallback | null = null,
 ): EditorView {
   destroySourceEditor();
 
@@ -125,6 +140,9 @@ export function createSourceEditor(
       EditorView.updateListener.of(update => {
         if (update.docChanged && onUpdate && !programmaticUpdate) {
           onUpdate(update.state.doc.toString());
+        }
+        if (onTransaction && !programmaticUpdate) {
+          onTransaction({ transactions: update.transactions });
         }
       }),
       highlightLimitPlugin,

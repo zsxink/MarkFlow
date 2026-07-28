@@ -19,6 +19,7 @@ import {
   discardActiveImageDraft,
   preparePendingImagesForSave,
 } from '../lib/imageUtils';
+import { saveCoreSession, getCoreSessionState } from '../lib/coreSession';
 
 // ── Serial save guard ────────────────────────────────────────────────
 
@@ -169,6 +170,29 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     if (!confirmed) {
       showToast('已取消保存');
       return 'skipped';
+    }
+  }
+
+  // ── Core-backed save path (source mode with active Core session) ──
+  const sessionState = getCoreSessionState();
+  if (sessionState.isActive) {
+    savingInProgress = true;
+    try {
+      const savedRevision = await saveCoreSession({ interactive });
+      if (savedRevision >= 0) {
+        if (interactive) {
+          showToast('已保存');
+        }
+        return 'saved';
+      }
+      showToast('保存失败，请重试');
+      return 'failed';
+    } catch (e) {
+      logException('sidebar.save', 'Core-backed save failed', e, { path: filePath });
+      if (interactive) showToast('保存失败，请重试');
+      return 'failed';
+    } finally {
+      savingInProgress = false;
     }
   }
 

@@ -1,4 +1,5 @@
 import { getWordCount, getLineCount, getCursorPos } from '../lib/editor';
+import { onCoreSessionChange, getCoreSessionState } from '../lib/coreSession';
 import { cycleTheme } from '../lib/theme';
 import { store } from '../lib/store';
 
@@ -19,6 +20,9 @@ export function initStatusBar() {
 
   store.on('editor:update', updateStats);
   store.on('autosave:status', updateAutosaveBanner);
+  store.on('editor:mode', () => updateActiveEngineIndicator(getCoreSessionState()));
+  onCoreSessionChange(updateActiveEngineIndicator);
+  updateActiveEngineIndicator(getCoreSessionState());
 
   document.getElementById('sb-settings')?.addEventListener('click', async () => {
     const { showSettings } = await import('./settings');
@@ -55,5 +59,28 @@ function updateStats() {
   if (cursorPos) {
     const pos = getCursorPos();
     cursorPos.textContent = `行 ${pos.line}, 列 ${pos.col}`;
+  }
+}
+
+function updateActiveEngineIndicator(state: ReturnType<typeof getCoreSessionState>) {
+  const modeIndicator = document.getElementById('mode-indicator');
+  const pendingIndicator = document.getElementById('pending-indicator');
+  if (!modeIndicator) return;
+
+  if (state.isActive && state.syncState !== 'blocked') {
+    modeIndicator.textContent = 'Core Source';
+  } else if (store.getState().mode === 'source') {
+    modeIndicator.textContent = 'Source';
+  } else {
+    modeIndicator.textContent = 'WYSIWYG';
+  }
+
+  if (pendingIndicator) {
+    if (state.pendingCount > 0) {
+      pendingIndicator.textContent = 'sync...';
+      pendingIndicator.hidden = false;
+    } else {
+      pendingIndicator.hidden = true;
+    }
   }
 }

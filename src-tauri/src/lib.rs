@@ -5,6 +5,7 @@ mod fs;
 mod http;
 mod logger;
 mod paths;
+mod runtime_host;
 mod state;
 
 use commands::files;
@@ -340,6 +341,16 @@ pub fn run() {
     let app = builder
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
+            commands::core_bridge::open_document,
+            commands::core_bridge::apply_text_patch,
+            commands::core_bridge::save_document_command,
+            commands::core_bridge::resync_document,
+            commands::core_bridge::flush_document,
+            commands::core_bridge::get_document_text,
+            commands::core_bridge::get_outline,
+            commands::core_bridge::get_document_stats,
+            commands::core_bridge::reload_document,
+            commands::core_bridge::close_document,
             commands::export::print_webview,
             commands::export::create_pdf,
             commands::export::write_file_binary,

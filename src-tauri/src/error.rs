@@ -9,8 +9,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Stable error categories understood by the frontend (`classifyError`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+///
+/// Each variant serializes to match what the frontend expects:
+///
+///   * Old-style backend errors (files, settings) use kebab-case so the
+///     `error.ts` `CODE_KIND` map and its heuristic fallback all work.
+///   * Runtime Bridge protocol errors use SCREAMING_SNAKE_CASE so the
+///     `coreSession.ts` `mapBridgeError` switch and `editor.sourcePatcher.ts`
+///     branch on exact strings like `'REVISION_MISMATCH'`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AppErrorCode {
     /// A `Mutex` was poisoned by a previous panic; the operation cannot acquire the lock.
     LockPoisoned,
@@ -22,8 +29,75 @@ pub enum AppErrorCode {
     Serialization,
     /// The requested workspace path is not a directory (or went away).
     WorkspaceInvalid,
+    /// Revision mismatch during patch application.
+    RevisionMismatch,
+    /// File conflict (external modification, concurrent sessions).
+    ConflictDetected,
+    /// Session not found in registry.
+    SessionNotFound,
+    /// Transaction conflict from core.
+    TransactionConflict,
+    /// Invalid UTF-16 boundary.
+    InvalidUtf16Boundary,
     /// Any other unexpected backend failure.
     Internal,
+}
+
+impl serde::Serialize for AppErrorCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            Self::LockPoisoned => "lock-poisoned",
+            Self::WatcherStartFailed => "watcher-start-failed",
+            Self::Io => "io",
+            Self::Serialization => "serialization",
+            Self::WorkspaceInvalid => "workspace-invalid",
+            Self::RevisionMismatch => "REVISION_MISMATCH",
+            Self::ConflictDetected => "CONFLICT",
+            Self::SessionNotFound => "SESSION_NOT_FOUND",
+            Self::TransactionConflict => "TRANSACTION_CONFLICT",
+            Self::InvalidUtf16Boundary => "INVALID_UTF16_BOUNDARY",
+            Self::Internal => "internal",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for AppErrorCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "lock-poisoned" => Ok(Self::LockPoisoned),
+            "watcher-start-failed" => Ok(Self::WatcherStartFailed),
+            "io" => Ok(Self::Io),
+            "serialization" => Ok(Self::Serialization),
+            "workspace-invalid" => Ok(Self::WorkspaceInvalid),
+            "REVISION_MISMATCH" => Ok(Self::RevisionMismatch),
+            "CONFLICT" => Ok(Self::ConflictDetected),
+            "SESSION_NOT_FOUND" => Ok(Self::SessionNotFound),
+            "TRANSACTION_CONFLICT" => Ok(Self::TransactionConflict),
+            "INVALID_UTF16_BOUNDARY" => Ok(Self::InvalidUtf16Boundary),
+            "internal" => Ok(Self::Internal),
+            _ => Err(serde::de::Error::unknown_variant(&s, &[
+                "lock-poisoned",
+                "watcher-start-failed",
+                "io",
+                "serialization",
+                "workspace-invalid",
+                "REVISION_MISMATCH",
+                "CONFLICT",
+                "SESSION_NOT_FOUND",
+                "TRANSACTION_CONFLICT",
+                "INVALID_UTF16_BOUNDARY",
+                "internal",
+            ])),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

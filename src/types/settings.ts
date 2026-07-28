@@ -46,6 +46,8 @@ export interface Settings {
   fileTreeIgnorePatterns?: string[];
   fileTreePageSize?: number;
   fileTreeAutoLoadDepth?: number;
+  /** Enable Core-backed Source Mode (uses markflow-core for source editing). */
+  coreBackedSourceMode?: boolean;
   recentFiles: string[];
   recentFolders: string[];
   lastWindowWidth: number;
@@ -84,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fileTreeIgnorePatterns: ['.git', 'node_modules', 'target', 'dist'],
   fileTreePageSize: 500,
   fileTreeAutoLoadDepth: 8,
+  coreBackedSourceMode: false,
   recentFiles: [],
   recentFolders: [],
   lastWindowWidth: 1200,

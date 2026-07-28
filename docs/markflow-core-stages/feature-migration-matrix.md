@@ -1,9 +1,10 @@
 # MarkFlow Core 功能迁移矩阵
 
-> 状态：基线草案
-> 更新日期：2026-07-25
-> 用途：定义“现有功能完整迁移”的范围。每项必须有 owner、目标阶段、自动化测试或人工验收记录。
+> 状态：M3 实施中 — Core-backed Source Mode 测试与集成进行中
+> 更新日期：2026-07-28
+> 用途：定义”现有功能完整迁移”的范围。每项必须有 owner、目标阶段、自动化测试或人工验收记录。
 > 所属方案：MarkFlow Core 重构
+> M3 状态：Core-backed Source Mode save 路径已接入（`core-source` 调 `saveCoreSession()`，`legacy-wysiwyg` 走旧路径）。Source Mode 保存不调用 `getMarkdown()` / `write_file` 等 legacy API。3 个 1MB/10MB/50MB fixture 文件已就位。Core 会话管理、patch 同步、resync 流程、status bar 指示器、debug 日志均已实现。Tauri command 集成测试、适配器单元测试、冲突检测测试已覆盖。开发文档已记录 new/old 路径分派和回退方式。
 
 ## 1. 使用规则
 
@@ -17,13 +18,13 @@
 
 | 能力 | 当前实现 | 目标 owner | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- | --- |
-| 打开 Markdown | TS + Tauri file command | Runtime + Host | M3 | UTF-8/BOM/EOL 正确，创建 session |
+| 打开 Markdown | TS + Tauri file command → M3: Runtime crate (read + FileIdentity) + Session Registry + Host trait | Runtime + Host | M3 (已验收) | UTF-8/BOM/EOL 正确，创建 session |
 | 新建文档 | UI 临时状态 | Runtime | M3/M4 | 未命名 session 可编辑、另存 |
-| 保存 | `getMarkdown()` + Tauri write | Runtime + Host | M3/M8 | pending patch flush，原子写入 |
+| 保存 | `getMarkdown()` + Tauri write → M3: Runtime session.submit_patch + save workflow (pending patch flush, atomic write) | Runtime + Host | M3/M8 (M3 测试与验证中 — 路径已分派、集成测试已覆盖) | pending patch flush，原子写入 |
 | 自动保存 | `main.ts` timer | App Service | M4/M6 | 不并发保存，不丢 revision |
 | 另存为 | UI + dialog | Runtime + Host | M4/M8 | 路径和资源引用更新一致 |
 | 未保存提示 | UI dirty state | Runtime state + UI | M4 | dirty 以 confirmed revision 为准 |
-| 外部修改检测 | watcher + mtime/size | Runtime + Host | M3/M8 | clean reload、dirty conflict |
+| 外部修改检测 | watcher + mtime/size → M3: Runtime FileWatcher + SessionRegistry | Runtime + Host | M3/M8 (M3 测试与验证中) | clean reload、dirty conflict |
 | 外部删除 | watcher + UI | Runtime + Host | M4 | 明确保留/关闭/另存路径 |
 | 最近文件/目录 | Settings | App Service + Host | M4 | 兼容现有设置迁移 |
 | 单实例/CLI 打开 | Tauri lifecycle | Host Adapter | M8 | 不绕过 session lifecycle |
@@ -33,7 +34,7 @@
 
 | 能力 | 当前实现 | 目标 owner | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- | --- |
-| Source Mode | CodeMirror | Editor Adapter + Core | M3 | 小 patch 同步，不传全文 |
+| Source Mode | CodeMirror → M3: Runtime-backed source mode (patch-based sync via Session, 不传全文) | Editor Adapter + Core | M3 (测试与验证中 — 前端适配器已完成、单元测试已覆盖、resync/backpressure 逻辑已实现) | 小 patch 同步，不传全文 |
 | WYSIWYG | ProseMirror | CodeMirror Live Preview | M5-M8 | 长期保留，保存不经 serializer |
 | 模式切换 | 整篇序列化 | Editor Adapter | M5 | byte-for-byte 不变 |
 | Undo/Redo | 编辑器 history | Core History | M6 | 单 owner，IME 分组正确 |
@@ -116,7 +117,7 @@
 
 | 能力 | 目标阶段 | 最低验收 |
 | --- | --- | --- |
-| 原子写入 | M3/M8 | 失败不覆盖旧文件，保留权限 |
+| 原子写入 | M3/M8 (M3 实施中) | 失败不覆盖旧文件，保留权限 |
 | 路径穿越/符号链接防护 | M7/M8 | 复用并扩展现有 Rust 测试 |
 | 网络图片 SSRF 防护 | M7 | mock DNS，测试不依赖公网 |
 | 日志脱敏 | 全阶段 | 不记录正文、完整路径、凭据 |
@@ -143,14 +144,14 @@ M0 OpenSpec apply 未修改产品运行路径；仅为离线验证修正了 Rust
 
 | 范围 | 当前 owner / 实现 | 目标 owner | 目标阶段 | M0 验收记录 |
 | --- | --- | --- | --- | --- |
-| 文件打开/保存 | TS workflow + Tauri file commands；保存内容来自 `getMarkdown()` | Runtime + Host | M3/M8 | CodeGraph 观察记录在 `implementation-notes.md` |
-| Source Mode | CodeMirror 6 前端镜像，切换时从 serializer 或源码同步 | Editor Adapter + Core | M3 | `parser-comparison-report.md` 与 `ipc-patch-report.md` |
+| 文件打开/保存 | TS workflow + Tauri file commands；保存内容来自 `getMarkdown()` → M3: Runtime read/write + Session + Host trait | Runtime + Host | M3/M8 | CodeGraph 观察记录在 `implementation-notes.md`；分支 `feat/issue-205-m3-core-backed-source-mode`；6.3 save 路径分派已验证 |
+| Source Mode | CodeMirror 6 前端镜像，切换时从 serializer 或源码同步 → M3: Runtime-backed source mode (patch-based sync via Session) | Editor Adapter + Core | M3 (测试与验证中) | `parser-comparison-report.md` 与 `ipc-patch-report.md`；分支 `feat/issue-205-m3-core-backed-source-mode`；6.5/6.6 save 路径已接入 |
 | WYSIWYG | Tiptap/ProseMirror + serializer | Core-backed Live Preview / Editor Adapter | M5-M8 | Product plan 明确长期保留 |
 | History | 编辑器 history | Core History | M6 | `adr-history-owner.md` |
 | 图片/资源 | TS image utils + Tauri image commands | Runtime asset workflow + Host | M6/M7 | 当前仅冻结 owner，不迁移 |
 | 图表 | 前端渲染与导出路径 | Internal provider + Host renderer/export | M7/M8 | 当前仅冻结 owner，不迁移 |
 | 导出/打印 | DOM/HTML snapshot + Tauri/WebView print/export | Export IR + Host | M8 | 当前仅冻结 owner，不迁移 |
 | Settings/Theme | TS store + Tauri settings config | App Service + Host | M4 | 当前仅冻结 owner，不迁移 |
-| 外部修改/冲突 | watcher + mtime/size + UI conflict flow | Runtime + Host | M3/M8 | 当前仅冻结 owner，不迁移 |
+| 外部修改/冲突 | watcher + mtime/size + UI conflict flow → M3: Runtime FileWatcher + SessionRegistry conflict detection | Runtime + Host | M3/M8 (M3 实施中) | 当前仅冻结 owner，不迁移 |
 | 大文件分级 | `document-size-tier` 同时使用 byte 与 line count | Core byte-based tier + budget inputs | M2/M4 | follow-up 记录在 `reports/document-size-tier-follow-up.md` |
 | 跨平台 release matrix | 依赖现有 e2e/release smoke | Host Adapter release gate | M8 | 归档/合入前需 macOS、Windows、Linux 记录 |

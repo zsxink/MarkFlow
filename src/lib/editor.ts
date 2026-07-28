@@ -1,5 +1,5 @@
 import { showToast } from '../components/toast';
-import { logException } from './logger';
+import { logException, logDebug } from './logger';
 import { checkSerializationIntegrity } from './editor.helpers';
 import {
   normalizeImageMarkdown,
@@ -23,6 +23,7 @@ import {
   getLastReadMtime,
   getLastReadSize,
   setLastReadStats,
+  getActiveDocPath,
 } from './editor.state';
 import { store } from './store';
 import { scheduler } from './taskScheduler';
@@ -32,6 +33,20 @@ import {
   getSourceContent,
   setSourceContent,
 } from './editor.source';
+import {
+  openCoreSession,
+  closeCoreSession,
+  isCoreBackedSourceModeEnabled,
+  getCoreSessionState,
+} from './coreSession';
+import {
+  attachPatcher,
+  detachPatcher,
+  createPatcherCallback,
+  flushPendingPatches,
+} from './editor.sourcePatcher';
+import { showDegradationBar, hideDegradationBar } from '../components/degradationBar';
+import { formatFileSize } from './fileSizeTier';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -174,8 +189,57 @@ export function switchToSource() {
   // Clear stale scheduler task from any previous CM6 session
   scheduler.cancel('source-update');
 
-  // Create CM6 inside wrapper (respecting read-only state)
   const isReadOnly = store.getState().readOnly;
+  const coreBacked = isCoreBackedSourceModeEnabled();
+
+  // Check if we should use Core-backed source mode
+  if (coreBacked) {
+    const filePath = getActiveDocPath();
+    if (filePath) {
+      // Open a Core session in background (content will be set by Core)
+      openCoreSession(filePath).then((opened) => {
+        if (opened && coreBacked) {
+          logDebug('editor.switch', 'Core-backed source mode activated', {
+            sessionId: opened.session_id,
+            revision: opened.revision,
+          });
+          // B1: Initialize CodeMirror with Core's authoritative content
+          setSourceContent(opened.text);
+
+          // Show degradation bar for large/huge docs in Core mode
+          if (opened.size_class === 'large' || opened.size_class === 'huge') {
+            showDegradationBar({
+              tier: opened.size_class,
+              size: formatFileSize(opened.stats.byte_count),
+              lines: opened.stats.line_count,
+              readOnly: opened.size_class === 'huge',
+            });
+          } else {
+            hideDegradationBar();
+          }
+        }
+      });
+    }
+
+    // Create CM6 with onTransaction callback for the patcher
+    const onTxn = createPatcherCallback();
+    const view = createSourceEditor(wrapper, content, (doc) => {
+      bumpRevision();
+      store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
+      scheduler.schedule('source-update', 50, () => {
+        store.emit({ type: 'editor:update' });
+      });
+    }, isReadOnly, onTxn);
+
+    // Attach the patcher to the view
+    attachPatcher();
+
+    // Focus CM6 editor so user can type immediately
+    view.focus();
+    return;
+  }
+
+  // Legacy source mode path (no Core backing)
   const view = createSourceEditor(wrapper, content, (doc) => {
     bumpRevision();
     store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
@@ -188,10 +252,16 @@ export function switchToSource() {
   view.focus();
 }
 
-export function switchToWysiwyg() {
+export async function switchToWysiwyg() {
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
   if (!wysiwygEditor || !wrapper) return;
+
+  // B4: Wait for all pending patches to be acked before switching
+  await flushPendingPatches();
+
+  // Detach the Core-backed patcher before destroying the editor
+  detachPatcher();
 
   try {
     const ed = getEditor();
@@ -203,6 +273,17 @@ export function switchToWysiwyg() {
     getDocumentState().programmaticUpdate = false;
     wysiwygEditor.hidden = false;
     wrapper.hidden = true;
+
+    // Close the Core session when leaving source mode
+    const sessionState = getCoreSessionState();
+    if (sessionState.isActive) {
+      closeCoreSession().catch((err) => {
+        logDebug('editor.switch', 'Non-critical error closing core session on mode switch', {
+          error: String(err),
+        });
+      });
+    }
+
     destroySourceEditor();
     setMode('wysiwyg');
     getEditor()?.commands.focus();

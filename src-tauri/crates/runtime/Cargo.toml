@@ -1,0 +1,18 @@
+[package]
+name = "markflow-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Runtime layer for MarkFlow: session registry, save workflow, file identity"
+license = "MIT"
+
+[dependencies]
+markflow-core = { path = "../../../markflow-core" }
+serde = { version = "1", features = ["derive"], optional = true }
+thiserror = "2"
+dashmap = "6"
+tracing = "0.1"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+uuid = { version = "1", features = ["v4"] }
+
+[features]
+default = ["serde"]

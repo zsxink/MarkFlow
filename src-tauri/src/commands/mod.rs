@@ -1,3 +1,4 @@
+pub mod core_bridge;
 pub mod export;
 pub mod files;
 pub mod files_image;

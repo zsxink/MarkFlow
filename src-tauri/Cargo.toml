@@ -31,6 +31,8 @@ tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["fmt"] }
+markflow-core = { path = "../markflow-core" }
+markflow-runtime = { path = "crates/runtime" }
 libc = "0.2"
 tauri-plugin-wdio = { version = "1.2.0", optional = true }
 tauri-plugin-wdio-webdriver = { version = "1.2.0", optional = true }

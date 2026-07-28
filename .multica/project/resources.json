@@ -1,0 +1,16 @@
+{
+  "project_id": "51f5afd7-4cd2-4c22-a7ee-1ba5dc221863",
+  "project_title": "Markflow",
+  "project_description": "一个所见所得的 Markdown 编辑器",
+  "resources": [
+    {
+      "id": "456f9370-bc46-45b8-92fe-68baa192b219",
+      "resource_type": "local_directory",
+      "resource_ref": {
+        "label": "MarkFlow",
+        "daemon_id": "019f9326-7b2d-791c-847d-ae0f5cb95af4",
+        "local_path": "/Users/xian/Project/book/MarkFlow"
+      }
+    }
+  ]
+}

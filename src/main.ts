@@ -1,5 +1,6 @@
 import { initTheme } from './lib/theme';
 import { initEditor, isDocumentDirty, markExternalModification } from './lib/editor';
+import { isCoreSessionDirty, getCoreSessionState } from './lib/coreSession';
 import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
 import { initMenu } from './components/menu';
@@ -164,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (event.payload.windowLabel !== getCurrentWebviewWindow().label) {
       return;
     }
-    if (!isDocumentDirty()) {
+    if (getCoreSessionState().isActive ? !isCoreSessionDirty() : !isDocumentDirty()) {
       await invoke('confirm_window_close');
       return;
     }
@@ -193,7 +194,9 @@ async function restoreWorkspace() {
 /** Single autosave tick — extracted for testability. */
 export async function runAutoSaveTick() {
   if (isSavingInProgress()) return; // skip — previous save still running
-  if (!isDocumentDirty()) return;   // skip — no changes to persist
+  const sessionState = getCoreSessionState();
+  const isDirty = sessionState.isActive ? isCoreSessionDirty() : isDocumentDirty();
+  if (!isDirty) return;   // skip — no changes to persist
   const filePath = getActiveFilePath();
   if (filePath) {
     const result = await saveActiveDocument({ interactive: false });

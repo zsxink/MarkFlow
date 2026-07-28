@@ -263,6 +263,15 @@ function flushBatch(): void {
 
   if (batchChanges.length === 0) return;
 
+  // Check backpressure BEFORE clearing batch state — if we clear first,
+  // accumulated changes are lost forever when backpressure drops them.
+  if (getSyncState() === 'backpressure' || getSyncState() === 'blocked') {
+    logDebug('patcher', 'Skipping patch dispatch — sync state is', {
+      syncState: getSyncState(),
+    });
+    return;
+  }
+
   const patch: PendingPatch = {
     transactionId: nextTransactionId(),
     baseRevision: batchBaseRevision,
@@ -276,14 +285,6 @@ function flushBatch(): void {
   batchChanges = [];
   batchSelection = null;
   batchByteLength = 0;
-
-  // Check backpressure before sending
-  if (getSyncState() === 'backpressure' || getSyncState() === 'blocked') {
-    logDebug('patcher', 'Skipping patch dispatch — sync state is', {
-      syncState: getSyncState(),
-    });
-    return;
-  }
 
   // Mark as pending
   const accepted = markPatchPending(patch.byteLength);

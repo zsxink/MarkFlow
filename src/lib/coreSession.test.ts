@@ -243,8 +243,32 @@ describe('coreSession', () => {
       expect(isCoreSessionDirty()).toBe(true);
     });
 
-    it('returns false when blocked', async () => {
+    it('returns true when blocked but has unpersisted edits', async () => {
       mocks.openDocument.mockResolvedValue(sampleDto);
+      await openCoreSession('/tmp/test.md');
+
+      // After opening: confirmedRevision=5, persistedRevision=3 — dirty
+      markSessionBlocked();
+      expect(isCoreSessionDirty()).toBe(true);
+    });
+
+    it('returns false when blocked and no unsaved changes', async () => {
+      mocks.openDocument.mockResolvedValue(sampleDto);
+      await openCoreSession('/tmp/test.md');
+
+      // Make persistedRevision match confirmedRevision
+      const state = getCoreSessionState();
+      markPatchAcked(state.confirmedRevision, 0);
+      // Both revisions now match after the ack adjusts confirmed revision only.
+      // Actually ack doesn't adjust persistedRevision — we need a save.
+      // For this test, let's use a fresh session where they match.
+      await closeCoreSession();
+      vi.clearAllMocks();
+      mocks.closeDocument.mockResolvedValue(undefined);
+
+      // Open a session where persisted == confirmed
+      const cleanDto = { ...sampleDto, revision: 3, persisted_revision: 3 };
+      mocks.openDocument.mockResolvedValue(cleanDto);
       await openCoreSession('/tmp/test.md');
 
       markSessionBlocked();

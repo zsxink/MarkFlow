@@ -45,15 +45,18 @@ beforeEach(() => {
 });
 
 describe('Core-backed vs legacy save path routing', () => {
-  // 6.6: Source Mode save does NOT call getMarkdown()
-  it('core_backed_save_does_not_call_getMarkdown', async () => {
+  // Bug 4 fix: Core save now calls getMarkdown() for markDocumentPersisted
+  // to sync the legacy dirty-tracking state after the save completes.
+  it('core_backed_save_calls_getMarkdown_for_dirty_state_sync', async () => {
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.getCoreSessionState.mockReturnValue({ isActive: true });
 
     await expect(saveActiveDocument()).resolves.toBe('saved');
 
-    // Core save path should NOT call legacy getMarkdown
-    expect(mocks.getMarkdown).not.toHaveBeenCalled();
+    // Core save path should call getMarkdown once (for markDocumentPersisted)
+    expect(mocks.getMarkdown).toHaveBeenCalledTimes(1);
+    // Core save path should call markDocumentPersisted to sync dirty state
+    expect(mocks.markDocumentPersisted).toHaveBeenCalledWith('# edited', 5);
     // Core save path should call saveCoreSession
     expect(mocks.saveCoreSession).toHaveBeenCalledOnce();
     expect(mocks.saveCoreSession).toHaveBeenCalledWith({ interactive: true });

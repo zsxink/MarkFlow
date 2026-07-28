@@ -444,4 +444,30 @@ describe('backpressure limits', () => {
       vi.useRealTimers();
     }
   });
+
+  // Bug 2 fix: backpressure check moved BEFORE batch state clear
+  it('preserves accumulated changes when syncState is backpressure (Bug 2)', () => {
+    vi.useFakeTimers();
+    try {
+      attachPatcher();
+      mocks.getSyncState.mockReturnValue('backpressure');
+
+      const callback = createPatcherCallback();
+      callback({ transactions: [createMockTransaction([{ from: 0, to: 1, inserted: 'a' }])] });
+
+      expect(getBatchChangeCount()).toBe(1);
+      expect(hasPendingBatch()).toBe(true);
+
+      // Advance timers to trigger flushBatch
+      vi.advanceTimersByTime(20);
+
+      // With the fix, batch state is preserved because backpressure is
+      // checked BEFORE clearing. Without the fix, it would be 0.
+      expect(getBatchChangeCount()).toBe(1);
+      // Timer consumed
+      expect(hasPendingBatch()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

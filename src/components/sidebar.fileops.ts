@@ -180,6 +180,9 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     try {
       const savedRevision = await saveCoreSession({ interactive });
       if (savedRevision >= 0) {
+        // Sync the legacy dirty-tracking state so the save is reflected
+        // in both Core session state and the editor's baseline.
+        markDocumentPersisted(getMarkdown(), savedRevision);
         if (interactive) {
           showToast('已保存');
         }

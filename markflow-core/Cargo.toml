@@ -6,3 +6,6 @@ description = "Lossless Markdown document kernel for MarkFlow"
 license = "MIT"
 
 [dependencies]
+
+[dev-dependencies]
+markdown = "1.0.0"

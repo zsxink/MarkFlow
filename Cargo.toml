@@ -1,0 +1,3 @@
+[workspace]
+members = ["markflow-core", "src-tauri"]
+resolver = "2"

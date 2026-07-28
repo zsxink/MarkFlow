@@ -95,15 +95,18 @@ impl From<markflow_core::CoreError> for RuntimeError {
             markflow_core::CoreError::InvalidRange => {
                 RuntimeError::new(RuntimeErrorCode::InvalidRange, "Invalid document range")
             }
-            markflow_core::CoreError::InvalidUtf16Boundary => {
-                RuntimeError::new(RuntimeErrorCode::InvalidUtf16Boundary, "Invalid UTF-16 boundary")
-            }
-            markflow_core::CoreError::TransactionConflict => {
-                RuntimeError::new(RuntimeErrorCode::TransactionConflict, "Transaction conflict")
-            }
-            markflow_core::CoreError::UnsupportedEncoding => {
-                RuntimeError::new(RuntimeErrorCode::UnsupportedEncoding, "Unsupported encoding")
-            }
+            markflow_core::CoreError::InvalidUtf16Boundary => RuntimeError::new(
+                RuntimeErrorCode::InvalidUtf16Boundary,
+                "Invalid UTF-16 boundary",
+            ),
+            markflow_core::CoreError::TransactionConflict => RuntimeError::new(
+                RuntimeErrorCode::TransactionConflict,
+                "Transaction conflict",
+            ),
+            markflow_core::CoreError::UnsupportedEncoding => RuntimeError::new(
+                RuntimeErrorCode::UnsupportedEncoding,
+                "Unsupported encoding",
+            ),
             markflow_core::CoreError::InvalidUtf8Boundary
             | markflow_core::CoreError::InvalidSourceOffset { .. }
             | markflow_core::CoreError::InvalidLogicalLineEnding
@@ -124,15 +127,27 @@ mod tests {
         let cases = [
             (RuntimeErrorCode::RevisionMismatch, "REVISION_MISMATCH"),
             (RuntimeErrorCode::InvalidRange, "INVALID_RANGE"),
-            (RuntimeErrorCode::InvalidUtf16Boundary, "INVALID_UTF16_BOUNDARY"),
-            (RuntimeErrorCode::TransactionConflict, "TRANSACTION_CONFLICT"),
-            (RuntimeErrorCode::UnsupportedEncoding, "UNSUPPORTED_ENCODING"),
+            (
+                RuntimeErrorCode::InvalidUtf16Boundary,
+                "INVALID_UTF16_BOUNDARY",
+            ),
+            (
+                RuntimeErrorCode::TransactionConflict,
+                "TRANSACTION_CONFLICT",
+            ),
+            (
+                RuntimeErrorCode::UnsupportedEncoding,
+                "UNSUPPORTED_ENCODING",
+            ),
             (RuntimeErrorCode::PendingQueueFull, "PENDING_QUEUE_FULL"),
             (RuntimeErrorCode::SaveFlushTimeout, "SAVE_FLUSH_TIMEOUT"),
             (RuntimeErrorCode::Conflict, "CONFLICT"),
             (RuntimeErrorCode::Cancelled, "CANCELLED"),
             (RuntimeErrorCode::SessionNotFound, "SESSION_NOT_FOUND"),
-            (RuntimeErrorCode::ProtocolVersionUnsupported, "PROTOCOL_VERSION_UNSUPPORTED"),
+            (
+                RuntimeErrorCode::ProtocolVersionUnsupported,
+                "PROTOCOL_VERSION_UNSUPPORTED",
+            ),
             (RuntimeErrorCode::Internal, "INTERNAL"),
         ];
         for (code, expected) in &cases {

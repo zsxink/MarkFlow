@@ -21,14 +21,15 @@
 | 打开 Markdown | TS + Tauri file command → M3: Runtime crate (read + FileIdentity) + Session Registry + Host trait | Runtime + Host | M3 (已验收) | UTF-8/BOM/EOL 正确，创建 session |
 | 新建文档 | UI 临时状态 | Runtime | M3/M4 | 未命名 session 可编辑、另存 |
 | 保存 | `getMarkdown()` + Tauri write → M3: Runtime session.submit_patch + save workflow (pending patch flush, atomic write) | Runtime + Host | M3/M8 (M3 测试与验证中 — 路径已分派、集成测试已覆盖) | pending patch flush，原子写入 |
-| 自动保存 | `main.ts` timer | App Service | M4/M6 | 不并发保存，不丢 revision |
-| 另存为 | UI + dialog | Runtime + Host | M4/M8 | 路径和资源引用更新一致 |
-| 未保存提示 | UI dirty state | Runtime state + UI | M4 | dirty 以 confirmed revision 为准 |
+| 自动保存 | `main.ts` timer | App Service | M4/M6 | 按 session 保存；不并发保存，不丢 revision |
+| 另存为 | UI + dialog | Runtime + Host | M4/M8 | 按 session 另存；路径和资源引用更新一致 |
+| 未保存提示 | UI dirty state | Runtime state + UI | M4 | dirty 以 session confirmed revision 为准 |
 | 外部修改检测 | watcher + mtime/size → M3: Runtime FileWatcher + SessionRegistry | Runtime + Host | M3/M8 (M3 测试与验证中) | clean reload、dirty conflict |
 | 外部删除 | watcher + UI | Runtime + Host | M4 | 明确保留/关闭/另存路径 |
 | 最近文件/目录 | Settings | App Service + Host | M4 | 兼容现有设置迁移 |
 | 单实例/CLI 打开 | Tauri lifecycle | Host Adapter | M8 | 不绕过 session lifecycle |
 | 同路径多窗口 | 独立窗口状态 | Runtime + Host | M3/M8 | 独立 session；后保存者触发冲突，不静默覆盖 |
+| 多文档 session 隔离 | 单 active path/session | App Service + Editor Adapter + Runtime | M4-M8 | UI/命令/任务/导出均显式绑定 sessionId |
 
 ## 3. 编辑与导航
 
@@ -41,7 +42,7 @@
 | 光标/选区 | PM/CM 各自模型 | Adapter + PositionMap | M3-M6 | 中英文、emoji、组合字符 |
 | 大纲 | ProseMirror/DOM 派生 | Core ParseIndex | M2-M4 | 点击定位到 revision range |
 | 字数/行数/行列 | 前端统计 | Core + Adapter | M3/M6 | 大文件不阻塞输入 |
-| 搜索/替换 | 编辑器能力 | Core Search + Adapter | M7 | 分页、定位、replace preview |
+| 搜索/替换 | 编辑器能力 | Core Search + Adapter | M7 | session-bound 分页、定位、replace preview |
 | 只读状态 | UI/编辑器开关 | Runtime capability | M3/M4 | 两种模式一致 |
 | Focus Mode | DOM/CSS | SolidJS UI | M4 | 行为与现有版本一致 |
 | 折行/行号/高亮 | 编辑器设置 | Adapter | M4/M5 | 大文件按预算降级 |
@@ -80,9 +81,9 @@
 
 | 能力 | 当前基线 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
-| 本地图片选择 | 已支持 | M4/M6 | Host dialog + Core insert plan |
-| 剪贴板图片 | 已支持 | M6/M7 | 命名模板、暂存、首次保存迁移 |
-| 拖拽图片 | 已支持 | M6/M7 | 多图顺序、失败隔离 |
+| 本地图片选择 | 已支持 | M4/M6 | window-scoped Host dialog + session-bound Core insert plan |
+| 剪贴板图片 | 已支持 | M6/M7 | session-bound 命名模板、暂存、首次保存迁移 |
+| 拖拽图片 | 已支持 | M6/M7 | session-bound 多图顺序、失败隔离 |
 | 网络图片 | 已支持 | M7 | SSRF 防护、类型/大小限制 |
 | 相对/绝对引用 | 已支持 | M7 | Windows/macOS/Linux 路径正确 |
 | 自定义/文档资源目录 | 已支持 | M7 | 三种存储策略兼容 |
@@ -107,9 +108,9 @@
 
 | 能力 | 当前实现 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
-| HTML | 编辑 DOM snapshot | M8 | Export IR golden test |
-| PDF 文件 | HTML + native WebView | M8 | Export snapshot 与编辑模式无关 |
-| Word/DOCX | HTML -> JS docx | M8 | 列表、表格、图片、代码块 smoke |
+| HTML | 编辑 DOM snapshot | M8 | session confirmed Export IR golden test |
+| PDF 文件 | HTML + native WebView | M8 | session Export snapshot 与编辑模式无关 |
+| Word/DOCX | HTML -> JS docx | M8 | session Export IR；列表、表格、图片、代码块 smoke |
 | 系统打印 | WebView print | M8 | Host Adapter 能力，跨平台回退 |
 | 导出主题/字体/媒体等待 | 前端 | M8 | 视觉回归和超时清理 |
 

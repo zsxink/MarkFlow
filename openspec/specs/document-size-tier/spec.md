@@ -1,7 +1,7 @@
 # document-size-tier Specification
 
 ## Purpose
-定义按文档大小分级、降级提示及可配置阈值的处理策略。
+定义按文档大小分级、降级提示、可配置阈值和 Core-backed Source Mode size class 投影策略，确保大文档打开、编辑、状态栏和 degradation bar 行为一致且不会触发不必要的 serializer 路径。
 
 ## Agent Context
 - **源码入口：** `src/lib/fileSizeTier.ts`、`src/components/sidebar.fileops.ts` 与 `src/components/statusbar.ts`。
@@ -13,6 +13,8 @@
 
 ### Requirement: 文档尺寸等级分类
 系统 MUST 在打开前根据文件大小和行数将文档分为大小级别。
+
+In Core-backed Source Mode, the size class is computed by Core and returned via `DocumentOpened.sizeClass` in the Bridge protocol. The same threshold rules apply, but the classification happens server-side.
 
 - Normal: file size < 1MB AND line count < 5000
 - Large: file size 1MB–10MB OR line count 5000–50000
@@ -41,6 +43,12 @@
 - **THEN** 用户可以点击状态栏中的覆盖按钮来切换模式
 - **THEN** 覆盖选项包括：强制所见即所得、强制源模式、重置为自动检测
 
+#### Scenario: Core-backed 打开返回 sizeClass
+- **WHEN** Core-backed Source Mode 打开文件
+- **THEN** `open_document` 返回的 `DocumentOpened` 包含 `sizeClass` 字段
+- **THEN** size class 值来自 Core 的大小判断
+- **THEN** UI 状态栏和 degradation bar 从该值驱动
+
 ### Requirement: 文件打开前预读取元数据
 系统 MUST 在将完整文件内容加载到编辑器之前读取文件元数据（大小、行数）。
 
@@ -64,8 +72,10 @@
 - **THEN** 新阈值适用于下一次文件打开操作
 - **THEN** 之前打开的文件不受影响
 
-### Requirement: UI降级
+### Requirement: UI 降级
 系统 MUST 为降级模式提供清晰的 UI 指示器。
+
+In Core-backed Source Mode, Large/Huge documents MUST NOT trigger the ProseMirror serializer for open or save. Source Mode remains editable via CodeMirror with Core patch path, preserving full editing capability without requiring WYSIWYG mode.
 
 `src/components/degradationBar.ts` MUST 通过 `showDegradationBar` 在编辑器区域顶部显示大文件或只读提示，并通过 `hideDegradationBar` 移除该提示。可编辑的大文件提示 MUST 提供切换到源码模式的操作；只读提示不得提供该操作。
 
@@ -85,3 +95,9 @@
 - **THEN** 降级栏显示只读原因且不显示“切换到源码模式”按钮
 - **WHEN** `showDegradationBar` 以可编辑大文件调用
 - **THEN** 降级栏显示“切换到源码模式”按钮，点击后切换编辑器模式
+
+#### Scenario: Core-backed Large 文档不开 ProseMirror
+- **WHEN** Core-backed Source Mode 打开一个 5MB 文档
+- **THEN** 不创建 ProseMirror 实例（或保持 deferred）
+- **THEN** 用户可以在 Core-backed CodeMirror 中编辑和保存
+- **THEN** 保存不使用 serializer，使用 Core SavePayload

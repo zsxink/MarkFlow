@@ -50,9 +50,11 @@ Export IR 关注语义，不绑定实时编辑 DOM：
 
 PDF 仍可通过 Host/WebView 打印能力完成，但输入应来自 Export IR，而不是当前编辑 DOM。
 
+Export workflow 必须显式指定 `sessionId + revision + exportRequestId`。如果用户在导出期间切换文档、关闭窗口或继续编辑，导出仍使用发起时的 confirmed snapshot；除非用户取消，否则不得改为导出当前 active editor。
+
 ### 3. Host Adapter 稳定
 
-Tauri command 统一收敛为 Core Bridge 和 Host Adapter 能力：
+Tauri command 统一收敛为 Core Bridge 和 Host Adapter Port。Host 是平台副作用执行者，不是业务状态 owner。
 
 ```text
 host/
@@ -62,17 +64,51 @@ host/
   windows
   notifications
   shell
+  export
+  network
+  render
 ```
 
 Core 不知道自己运行在 Tauri、Electron、Web 还是 CLI。
 
-Runtime 负责 session、save、task 和 export workflow；Host 只实现副作用。Bridge DTO 必须包含：
+Runtime 负责 session、save、asset、task 和 export workflow；Host 只实现副作用。所有 Host 调用必须携带上下文：
+
+```rust
+pub struct HostRequestContext {
+    pub protocol_version: u32,
+    pub request_id: RequestId,
+    pub client_id: ClientId,
+    pub window_label: Option<WindowLabel>,
+    pub session_id: Option<SessionId>,
+    pub document_id: Option<DocumentId>,
+    pub base_revision: Option<Revision>,
+    pub capability: HostCapability,
+}
+```
+
+Host Port 约束：
+
+- 文档相关副作用必须带 `session_id`；窗口、对话框和通知必须带 `window_label`。
+- Host 不读取 Editor Adapter、Solid store 或 ProseMirror DOM，不生成 Markdown，也不更新 Core revision。
+- 文件写入、资源迁移、导出、图表渲染、网络 fetch 都必须支持 request id、取消、超时和稳定错误码。
+- 同一路径多 session 的保存、资源、导出结果必须按 session 隔离，不能按 path 或当前 active window 回填。
+- Host capability negotiation 必须区分平台支持、权限缺失、用户拒绝、临时失败和不可恢复失败。
+
+Bridge DTO 必须包含：
 
 - protocol version。
 - stable error code。
 - request/transaction id。
+- client id、window label 和 session id。
 - capability negotiation。
 - serialization compatibility test。
+
+M8B 退出条件：
+
+- 所有现有 Tauri command 要么迁入 Host/Core Bridge，要么有明确 legacy allowlist 和删除计划。
+- Host mock 能覆盖文件系统、剪贴板、对话框、窗口、通知、网络、图表渲染和导出。
+- 非 Tauri harness 可用 mock Host 跑打开、保存、搜索、导出和资源事务测试。
+- 协议测试覆盖 missing capability、cancelled request、stale session、stale revision、window mismatch、same-path multi-session conflict。
 
 ### 4. CLI / 非 Tauri 入口
 
@@ -132,12 +168,13 @@ markflow-core export file.md --format html
 - session、同步、保存、资源和导出工作流由 Runtime 编排，文件、网络、剪贴板、对话框和平台导出副作用只经 Host Adapter。
 - Editor Adapter/SolidJS 只维护输入草稿、selection、viewport、widget 和界面状态，不持有第二份权威 Markdown。
 - Source Mode 和 WYSIWYG 下导出结果一致。
+- A 文档发起导出或资源事务后切换到 B，结果仍绑定 A 的 session，不会读取 B 的 DOM、path 或 selection。
 - 导出不要求切回 ProseMirror WYSIWYG。
 - 项目主路径中不存在从 ProseMirror serializer 保存 Markdown。
 - Host Adapter 边界清晰，未来 Electron/Web/CLI 不需要重写 Core。
 - Core 可通过非 Tauri 入口完成解析、搜索、检查和 HTML export 测试。
 - PDF/DOCX 适配器读取 Export IR snapshot，不读取当前编辑 DOM。
-- Bridge DTO 的前后兼容、错误码和 capability negotiation 测试通过。
+- Bridge DTO 的前后兼容、错误码、request id、window/session 绑定和 capability negotiation 测试通过。
 - Windows、macOS、Linux smoke 覆盖打开、编辑、保存、快捷键、输入法、表格、FrontMatter、导出。
 - 所见即所得编辑模式继续可用，并通过 Core-backed 路径保存。
 - 功能迁移矩阵 P0/P1 全绿，且旧 serializer 已经过观察期后移除。
@@ -146,8 +183,8 @@ markflow-core export file.md --format html
 
 - Core tests：Export IR snapshot、search、diagnostics。
 - Export tests：HTML golden output、PDF/DOCX smoke。
-- Host tests：file system、clipboard、dialogs、atomic write。
-- Protocol tests：version、error code、capability、旧客户端兼容行为。
+- Host tests：file system、clipboard、dialogs、windows、notifications、network/render、atomic write、asset rollback、export cancellation。
+- Protocol tests：version、error code、capability、request id、window/session mismatch、旧客户端兼容行为。
 - E2E：全主路径。
 - Cross-platform smoke：Windows/macOS/Linux。
 - Regression：导出、图片、图表、文件树、冲突处理、表格、FrontMatter。
@@ -161,3 +198,4 @@ markflow-core export file.md --format html
 | 移除旧 serializer 出现数据风险 | 只有 Core-backed WYSIWYG 和 Source 完成功能覆盖后再移除 |
 | 为 Rust 化重写成熟导出链路 | 统一 Export IR 输入，允许 PDF/DOCX 保留适合的平台适配器 |
 | 协议升级破坏 UI | versioned DTO、capabilities、兼容测试和稳定错误码 |
+| Host 结果回填到错误窗口或文档 | 所有 Host 请求和结果绑定 `requestId + windowLabel + sessionId + revision` |

@@ -36,17 +36,17 @@ impl MockHost {
 }
 
 impl Host for MockHost {
-    fn read_document_bytes(
-        &self,
-        _path: &Path,
-    ) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
-        Ok((b"integration test content".to_vec(), FileIdentity {
-            canonical_path: None,
-            platform_id: None,
-            mtime_ms: None,
-            size: 0,
-            fingerprint: ContentFingerprint::empty(),
-        }))
+    fn read_document_bytes(&self, _path: &Path) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
+        Ok((
+            b"integration test content".to_vec(),
+            FileIdentity {
+                canonical_path: None,
+                platform_id: None,
+                mtime_ms: None,
+                size: 0,
+                fingerprint: ContentFingerprint::empty(),
+            },
+        ))
     }
 
     fn stat_identity(&self, _path: &Path) -> Result<FileIdentity, RuntimeError> {
@@ -121,10 +121,7 @@ fn save_workflow_completes_successfully() {
         Some(1001),
         "Should return identity from write"
     );
-    assert_eq!(
-        result.file_identity.size, 25,
-        "Should return correct size"
-    );
+    assert_eq!(result.file_identity.size, 25, "Should return correct size");
 
     // Verify persisted state
     let handle = registry.get(session_id).unwrap();
@@ -213,7 +210,10 @@ fn clean_external_changed_detects_conflict() {
     let host = MockHost::new(Ok(external), Ok(persisted));
 
     let result = save_document(&registry, session_id, &host);
-    assert!(result.is_err(), "External modification should block save even when clean");
+    assert!(
+        result.is_err(),
+        "External modification should block save even when clean"
+    );
     let err = result.unwrap_err();
     assert_eq!(err.code, RuntimeErrorCode::Conflict);
     assert!(
@@ -256,7 +256,10 @@ fn dirty_conflict_prevents_auto_reload() {
     let host = MockHost::new(Ok(external), Ok(write_result));
 
     let result = save_document(&registry, session_id, &host);
-    assert!(result.is_err(), "Dirty + external modification should cause conflict");
+    assert!(
+        result.is_err(),
+        "Dirty + external modification should cause conflict"
+    );
     let err = result.unwrap_err();
     assert_eq!(err.code, RuntimeErrorCode::Conflict);
     assert!(
@@ -272,8 +275,7 @@ fn dirty_conflict_prevents_auto_reload() {
         "Save token should be cleared after conflict"
     );
     assert_eq!(
-        state.persisted_revision.0,
-        0,
+        state.persisted_revision.0, 0,
         "Persisted revision should remain at 0 after failed save"
     );
     assert_eq!(

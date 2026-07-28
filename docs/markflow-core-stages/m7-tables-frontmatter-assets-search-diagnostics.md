@@ -50,6 +50,12 @@ WYSIWYG 支持：
 所有表格操作通过 Core command：
 
 ```rust
+pub struct TableCommandRequest {
+    pub session_id: SessionId,
+    pub base_revision: Revision,
+    pub command: TableCommand,
+}
+
 pub enum TableCommand {
     UpdateCell { table: BlockId, row: u32, col: u32, value: String },
     InsertRow { table: BlockId, at: u32 },
@@ -60,7 +66,7 @@ pub enum TableCommand {
 }
 ```
 
-command 携带 base revision，返回 patch 和下一焦点 cell。Widget 中的输入只是 composition/draft 状态，不能直接成为文档真相；commit 后由 Core patch 更新 CodeMirror mirror。
+command 携带 session id 和 base revision，返回 patch 和下一焦点 cell。Widget 中的输入只是 composition/draft 状态，不能直接成为文档真相；commit 后由 Core patch 更新同一 session 的 CodeMirror mirror。表格 draft、焦点 cell、列宽 UI state 必须按 `sessionId + block_id` 隔离。
 
 首期只支持 GFM pipe table。parser 必须区分：
 
@@ -118,7 +124,7 @@ pub struct FrontMatterModel {
 - 损坏语法。
 - 无法保证局部 patch 的复杂 block scalar。
 
-结构化 UI 的每次提交调用 `FrontMatterCommand` 并携带 base revision。UI 可以持有单字段 draft，但关闭面板、保存或切换文档前必须提交或明确放弃，不能把整份 FrontMatter 副本作为隐藏真相。
+结构化 UI 的每次提交调用 `FrontMatterCommand` 并携带 `sessionId + baseRevision`。UI 可以持有单字段 draft，但 draft 必须按 session 隔离；关闭面板、保存或切换文档前必须提交或明确放弃，不能把整份 FrontMatter 副本作为隐藏真相。
 
 ### 3. Assets Core
 
@@ -133,10 +139,19 @@ Host 负责实际 IO 和权限。
 
 流程：
 
-1. Core 生成 `AssetPlan` 和 Markdown patch proposal。
-2. Host 安全写入或迁移资源。
-3. 所有必需资源成功后 Runtime 才提交文档 patch 和保存。
-4. 失败时回滚临时资源，Markdown 引用保持原状。
+1. UI/App Service 以 `sessionId + requestId` 发起资源操作。
+2. Core 基于该 session 的 `DocumentSource` 与设置生成 `AssetPlan` 和 Markdown patch proposal。
+3. Runtime 创建 `AssetTransaction { session_id, base_revision, request_id }`。
+4. Host 在事务目录或目标安全位置 prepare/write/move 资源。
+5. 所有必需资源成功后 Runtime 才提交文档 patch 和保存。
+6. 失败时 Runtime 调用 Host rollback，Markdown 引用保持原状。
+
+Host Asset Port 要求：
+
+- Host 不生成 Markdown 引用，不读取编辑器文本。
+- Host 返回文件 identity、权限错误、rollback 结果和可恢复状态。
+- 同一路径多 session 同时插入图片时，资源命名必须由 Runtime/Core 的 transaction context 决定，不能只依赖全局时间戳。
+- 另存为或未命名文档首次保存时，暂存资源必须绑定 session，不能被另一个文档认领。
 
 ### 4. Search
 
@@ -151,6 +166,8 @@ Core 提供搜索：
 
 超过 1MB 的文档必须分页搜索，不阻塞输入。
 
+Search 请求和结果必须携带 `sessionId + revision + queryId`。切换文档后，旧查询结果只能保留在原 session 的搜索面板状态中，不能定位到新的 active editor。
+
 ### 5. Diagnostics
 
 诊断来源：
@@ -162,7 +179,7 @@ Core 提供搜索：
 - 表格结构异常。
 - 图表渲染错误。
 
-诊断按 revision 绑定，可取消，可按 viewport 返回。
+诊断按 `sessionId + revision` 绑定，可取消，可按 viewport 返回。后台诊断任务必须在 session close、reload、revision 变化或窗口关闭时取消；返回结果必须校验 session 仍存在。
 
 ### 6. 图表内置 renderer
 
@@ -173,6 +190,8 @@ Mermaid / PlantUML 收敛为内部 renderer：
 - Host/UI 执行实际渲染。
 - 失败输出 diagnostic。
 - 源码始终可编辑。
+
+图表 render request 必须包含 `sessionId + revision + block range + requestId`。Host/UI 渲染结果只能回填到匹配 session 的 widget/diagnostic，不得按当前 active editor 盲目应用。
 
 ## 交付物
 
@@ -195,10 +214,12 @@ Mermaid / PlantUML 收敛为内部 renderer：
 - FrontMatter 可通过结构化 UI 编辑。
 - FrontMatter 保存后保留字段顺序、注释、空行和换行风格。
 - 表格和 FrontMatter command 收到 stale block/revision 时拒绝提交并刷新视图，不覆盖新文本。
+- 表格、FrontMatter、Search、Diagnostics、Diagram 的异步结果均按 session 隔离，不会串到另一个打开文档。
 - unsafe FrontMatter 自动回退源码，结构化 UI 不可提交。
 - 图片迁移后 Markdown 引用按设置生成相对或绝对路径。
 - 首次保存迁移图片失败时，不写坏 Markdown。
 - 图片文件成功但文档提交失败时有明确 rollback/recovery 记录。
+- A 文档资源事务未完成时切换到 B，不会把图片写入 B 的资源目录或 Markdown。
 - 搜索结果可以定位到 CodeMirror selection。
 - 超过 1MB 文档搜索分页返回，不阻塞输入。
 - Diagnostics 可按 viewport 获取。
@@ -212,7 +233,7 @@ Mermaid / PlantUML 收敛为内部 renderer：
 - Search tests：中文、英文、大小写、分页。
 - Search tests：stale revision、replace preview、replace all patch 冲突。
 - Diagnostics tests：坏链接、缺失图片、重复标题、FrontMatter、表格结构。
-- E2E：表格 WYSIWYG、FrontMatter 结构化编辑、图片保存、搜索定位、图表错误显示。
+- E2E：表格 WYSIWYG、FrontMatter 结构化编辑、图片保存、搜索定位、图表错误显示、A/B 文档切换下 draft 和异步任务隔离。
 
 ## 风险与缓解
 
@@ -223,3 +244,4 @@ Mermaid / PlantUML 收敛为内部 renderer：
 | YAML lossless crate 能力不足 | M0 spike 决定方案；安全子集以外强制源码回退 |
 | Asset 迁移涉及文件 IO 和权限 | Core 只生成 plan，Host 执行 IO |
 | Diagnostics 阻塞大文件 | 所有诊断任务 revision-bound、可取消、可分页 |
+| 多文档资源或异步结果串扰 | 所有 M7 transaction/task/result 绑定 `sessionId + revision + requestId` |

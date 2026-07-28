@@ -83,19 +83,22 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
             "TRANSACTION_CONFLICT" => Ok(Self::TransactionConflict),
             "INVALID_UTF16_BOUNDARY" => Ok(Self::InvalidUtf16Boundary),
             "internal" => Ok(Self::Internal),
-            _ => Err(serde::de::Error::unknown_variant(&s, &[
-                "lock-poisoned",
-                "watcher-start-failed",
-                "io",
-                "serialization",
-                "workspace-invalid",
-                "REVISION_MISMATCH",
-                "CONFLICT",
-                "SESSION_NOT_FOUND",
-                "TRANSACTION_CONFLICT",
-                "INVALID_UTF16_BOUNDARY",
-                "internal",
-            ])),
+            _ => Err(serde::de::Error::unknown_variant(
+                &s,
+                &[
+                    "lock-poisoned",
+                    "watcher-start-failed",
+                    "io",
+                    "serialization",
+                    "workspace-invalid",
+                    "REVISION_MISMATCH",
+                    "CONFLICT",
+                    "SESSION_NOT_FOUND",
+                    "TRANSACTION_CONFLICT",
+                    "INVALID_UTF16_BOUNDARY",
+                    "internal",
+                ],
+            )),
         }
     }
 }

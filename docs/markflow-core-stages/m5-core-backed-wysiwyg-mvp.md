@@ -32,13 +32,22 @@ Core 输出 viewport 范围内的渲染结构：
 
 ```rust
 pub struct RenderDocument {
+    pub session_id: SessionId,
+    pub document_id: DocumentId,
     pub revision: Revision,
     pub viewport: UiRange,
     pub blocks: Vec<RenderBlock>,
 }
 ```
 
-IPC 中 `viewport` 和 block range 使用 revision-bound UTF-16 range，不直接发送 Rust byte offset。
+IPC 中 `viewport` 和 block range 使用 session-bound、revision-bound UTF-16 range，不直接发送 Rust byte offset。
+
+Render 请求与响应必须遵守：
+
+- 请求携带 `sessionId + revision + viewport + requestId`。
+- Runtime/Core 只为该 session 的 confirmed snapshot 生成 Render IR。
+- Editor Adapter 应用 decorations/widgets 前校验当前 view 仍绑定同一 `sessionId` 且 revision 未过期。
+- 用户切换到另一个文档后，旧文档的 Render IR、图片预览、图表结果和 idle parse 结果必须丢弃或留在原 session projection，不能应用到新的 active session。
 
 首批 block：
 
@@ -96,6 +105,7 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 - unknown、stale 或解析失败范围始终显示源码。
 - widget 不得成为唯一可操作入口，必须有键盘路径。
 - widget event 不能绕过 Core command 直接修改文档。
+- widget draft state 必须按 `sessionId + block/range id` 隔离。
 - 图片/图表内容设置大小、超时和取消预算。
 - copy/paste、screen reader 文本和 selection 穿越 widget 有明确行为。
 
@@ -119,6 +129,7 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 - Unknown block 以源码形式显示，不阻止编辑。
 - widget 可用键盘进入/退出，复制文本不会静默丢失隐藏 marker。
 - stale Render IR 不会应用到新 revision。
+- A 文档的 Render IR 或 widget 异步结果不会应用到 B 文档。
 - raw HTML、恶意链接或图表输出不会在编辑 WebView 中执行脚本。
 - 当前 ProseMirror WYSIWYG 兼容路径仍可访问。
 
@@ -126,7 +137,7 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 
 - Core tests：Render IR source range。
 - Editor Adapter tests：decorations、marker reveal、mode switch。
-- E2E：Source/WYSIWYG 往返、图片预览、代码块、列表。
+- E2E：Source/WYSIWYG 往返、图片预览、代码块、列表、A/B 文档快速切换后 stale render 丢弃。
 - Large Document smoke：超过 1MB 文档打开、滚动、输入、保存。
 - IME smoke：composition 期间不丢字、不错位。
 - Accessibility smoke：键盘、焦点、selection、screen reader fallback。

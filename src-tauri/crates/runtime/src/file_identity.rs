@@ -69,20 +69,13 @@ impl FileIdentity {
     /// Create a FileIdentity from file metadata and content.
     pub fn from_metadata(path: &PathBuf, bytes: &[u8]) -> Self {
         let canonical_path = path.canonicalize().ok();
-        let platform_id = std::fs::metadata(path)
-            .ok()
-            .and_then(|m| {
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::MetadataExt;
-                    Some(m.ino().to_string())
-                }
-                #[cfg(not(unix))]
-                {
-                    let _ = m;
-                    None
-                }
-            });
+        #[cfg(unix)]
+        let platform_id = std::fs::metadata(path).ok().map(|m| {
+            use std::os::unix::fs::MetadataExt;
+            m.ino().to_string()
+        });
+        #[cfg(not(unix))]
+        let platform_id: Option<String> = None;
 
         let mtime_ms = std::fs::metadata(path)
             .ok()
@@ -150,7 +143,10 @@ mod tests {
             fp.hash_prefix.is_empty(),
             "empty fingerprint should have empty hash_prefix"
         );
-        assert_eq!(fp.sample_size, 0, "empty fingerprint should have sample_size 0");
+        assert_eq!(
+            fp.sample_size, 0,
+            "empty fingerprint should have sample_size 0"
+        );
     }
 
     #[test]
@@ -175,10 +171,7 @@ mod tests {
                 hash_prefix: "abcdef".into(),
             },
         };
-        assert!(
-            identity.matches(&identity),
-            "Identity should match itself"
-        );
+        assert!(identity.matches(&identity), "Identity should match itself");
         let clone = identity.clone();
         assert!(identity.matches(&clone), "Clone should match");
     }

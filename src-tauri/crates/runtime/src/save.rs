@@ -88,7 +88,10 @@ pub fn save_document(
         // Check for conflict with external modifications
         if let Some(ref path) = handle.source.path {
             if let Ok(current_identity) = host.stat_identity(path) {
-                let expected = state.persisted_identity.as_ref().unwrap_or(&state.opened_identity);
+                let expected = state
+                    .persisted_identity
+                    .as_ref()
+                    .unwrap_or(&state.opened_identity);
                 if !expected.matches(&current_identity) {
                     state.save_in_progress = None;
                     return Err(RuntimeError::conflict(
@@ -290,20 +293,22 @@ mod tests {
 
         assert_eq!(result.revision.0, 0, "Initial revision should be 0");
         assert_eq!(
-            result.file_identity.mtime_ms,
-            new_identity.mtime_ms,
+            result.file_identity.mtime_ms, new_identity.mtime_ms,
             "Should return identity from write"
         );
-        assert_eq!(
-            result.file_identity.size, 12,
-            "Should return correct size"
-        );
+        assert_eq!(result.file_identity.size, 12, "Should return correct size");
 
         // Verify persisted state was updated
         let handle = registry.get(session_id).unwrap();
         let state = handle.inner.lock().unwrap();
-        assert_eq!(state.persisted_revision.0, 0, "Persisted revision should be 0");
-        assert!(state.persisted_identity.is_some(), "Persisted identity should be set");
+        assert_eq!(
+            state.persisted_revision.0, 0,
+            "Persisted revision should be 0"
+        );
+        assert!(
+            state.persisted_identity.is_some(),
+            "Persisted identity should be set"
+        );
         assert!(
             state.save_in_progress.is_none(),
             "Save token should be cleared"
@@ -359,7 +364,10 @@ mod tests {
         );
 
         let result = save_document(&registry, session_id, &host);
-        assert!(result.is_err(), "External modification should cause conflict");
+        assert!(
+            result.is_err(),
+            "External modification should cause conflict"
+        );
         let err = result.unwrap_err();
         assert_eq!(
             err.code,

@@ -14,6 +14,45 @@ SolidJS 放在 M4 的原因：
 
 ## 技术方案
 
+### 0. Document / Session Workspace Model
+
+M4 必须先把前端状态模型从“单 active file path”升级为“window-scoped active session + session-indexed projections”。这是 M5-M8 继续接入 WYSIWYG、History、Assets、Search、Export 的前置条件。
+
+核心规则：
+
+- `sessionId` / `documentId` 是文档运行态主键；`path` 只是 `DocumentSource` 的属性，不能作为 UI、命令或异步任务的唯一身份。
+- 每个窗口只保存自己的 `activeSessionId`；同一路径多窗口必须对应独立 session。
+- revision、dirty、selection、viewport、pending queue、mode、size class、outline 和 diagnostics 都必须挂在 session projection 下。
+- `activeFilePath` 只能作为兼容 getter 或文件树高亮投影，从 active session 的 `source.path` 派生。
+- 所有 UI action、App Service、Editor Adapter、Host Bridge 调用都必须显式接收目标 `sessionId`，不能隐式读取全局 current session。
+- 所有异步返回必须携带 `sessionId + revision + requestId`，应用到 UI 前再次校验目标 session 仍然匹配。
+
+```typescript
+interface AppWorkspaceState {
+  windowLabel: string;
+  clientId: string;
+  activeSessionId: string | null;
+  sessionsById: Record<string, SessionProjection>;
+}
+
+interface SessionProjection {
+  sessionId: string;
+  documentId: string;
+  source: DocumentSourceProjection;
+  mode: 'source' | 'wysiwyg' | 'preview';
+  confirmedRevision: number;
+  persistedRevision: number;
+  pendingTransactionCount: number;
+  dirty: boolean;
+  sizeClass: 'normal' | 'large' | 'huge';
+  selection: SelectionState | null;
+  viewport: ViewportRange | null;
+  panels: PanelState;
+}
+```
+
+M4 不要求实现同窗口多标签页 UI，但状态模型不得封死该能力。即使产品短期仍是一个窗口一个活动文档，也必须让 Adapter / Service API 可以针对任意 session 执行 save、close、export、search 和 pending task cancellation。
+
 ### 1. SolidJS 应用外壳
 
 采用 strangler/vertical slice，不做一次性替换。建议顺序：
@@ -31,18 +70,14 @@ SolidJS 放在 M4 的原因：
 - 完成 unit + E2E 后再迁下一 slice。
 - 更新功能迁移矩阵证据。
 
-Solid store 只保存 UI 状态：
+Solid store 只保存 UI 状态和 session projection：
 
 ```typescript
 interface AppUiState {
+  windowLabel: string;
   activeSessionId: string | null;
-  confirmedRevision: number;
-  pendingTransactionCount: number;
-  mode: 'source' | 'wysiwyg' | 'preview';
-  selection: SelectionState;
-  viewport: ViewportRange;
+  sessionsById: Record<string, SessionProjection>;
   sidebar: SidebarState;
-  panels: PanelState;
 }
 ```
 
@@ -103,9 +138,30 @@ UI -> Editor Adapter / App Services -> Core Bridge -> Runtime -> Core / Host Bri
 
 为未来 Electron/Web/CLI 留边界。
 
+Host Bridge 请求必须携带上下文：
+
+```typescript
+interface HostRequestContext {
+  clientId: string;
+  windowLabel: string;
+  sessionId?: string;
+  documentId?: string;
+  requestId: string;
+  capability: HostCapability;
+}
+```
+
+要求：
+
+- 文件、对话框、剪贴板、窗口、通知、shell、export 等 Host 能力统一走 Host Bridge。
+- 与文档相关的 Host 请求必须带 `sessionId`；窗口相关请求必须带 `windowLabel`。
+- Host Bridge 不读取或修改 Markdown 文本真相，只返回平台副作用结果。
+- UI 组件不得直接调用 Tauri command，也不得根据 `activeFilePath` 自行决定保存、导出或资源目录。
+
 ## 交付物
 
 - SolidJS 应用外壳。
+- Document / Session Workspace store。
 - 独立 Editor Adapter。
 - Core Bridge / Host Bridge 基础封装。
 - 现有 UI 功能完整迁移清单。
@@ -118,17 +174,19 @@ UI -> Editor Adapter / App Services -> Core Bridge -> Runtime -> Core / Host Bri
 - Source Mode Core 路径在 SolidJS UI 下继续可用。
 - 当前 ProseMirror WYSIWYG 兼容路径仍可打开和编辑普通文档。
 - Solid store 不持有权威 Markdown 文本。
+- revision、selection、viewport、dirty 和 pending 状态均按 `sessionId` 隔离。
 - Editor Adapter 与 UI 组件解耦。
 - 前端平台调用集中经过 Host Bridge，不在 UI 组件中散落 Tauri command。
+- Host Bridge 请求带 `clientId/windowLabel/requestId`，文档副作用带 `sessionId`。
 - Windows、macOS、Linux 至少完成打开、编辑、保存、设置、文件树 smoke。
 - 功能迁移矩阵中所有 M4 项有测试或人工验收证据。
 - 任一 Solid slice 失败可单独回退，不要求切回整套旧 UI。
 
 ## 测试要求
 
-- Frontend unit tests：Solid store、toolbar action、sidebar state。
+- Frontend unit tests：Solid store、toolbar action、sidebar state、session projection。
 - Editor Adapter tests：CodeMirror lifecycle、selection mapping、core patch apply。
-- E2E：文件树、打开文件、Source Mode 编辑保存、WYSIWYG 兼容入口、设置持久化。
+- E2E：文件树、打开文件、Source Mode 编辑保存、切换 A/B 文档后异步结果不串扰、WYSIWYG 兼容入口、设置持久化。
 - Regression：主题、状态栏、大纲、冲突提示。
 
 ## 风险与缓解
@@ -139,3 +197,4 @@ UI -> Editor Adapter / App Services -> Core Bridge -> Runtime -> Core / Host Bri
 | 一次性切换导致长期不可发布 | vertical slice 小步迁移，每步保持可发布 |
 | 功能迁移漏项 | 建立现有功能清单逐项验收 |
 | Solid store 变成新文档真相 | 明确 store 只保存 session/revision/selection/viewport/panel |
+| 单 active session 假设延续到 M5-M8 | M4 先建立 session-indexed store 和显式 target session API |

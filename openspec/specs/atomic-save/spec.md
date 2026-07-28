@@ -1,7 +1,7 @@
 # atomic-save Specification
 
 ## Purpose
-定义原子写入基础设施，防止崩溃或断电导致文件损坏，并供文档和设置持久化使用。
+定义原子写入基础设施和 Runtime 保存编排边界，防止崩溃、断电、权限错误或 Host 写入失败导致文件损坏，并供文档、设置和 Core-backed Source Mode 持久化流程复用。
 
 ## Agent Context
 - **源码入口：** `src-tauri/src/commands/files.rs` 中的 `atomic_write` 与 `write_file`；`src-tauri/src/commands/settings.rs` 中的 `save_settings_inner`。
@@ -55,10 +55,33 @@ The system SHALL provide an `atomic_write` function that writes content to a fil
 ### Requirement: 文档保存使用原子写入
 The `write_file` Tauri command SHALL use `atomic_write` to save document content.
 
+Core-backed Source Mode save does NOT use `write_file` Tauri command. Instead, `save_document` uses Runtime's Host adapter which internally uses `atomic_write`. The `write_file` command remains for legacy WYSIWYG path and other callers.
+
 #### Scenario: 文档保存是原子的
 - **WHEN** 调用`write_file`命令保存Markdown文件
 - **THEN** 写入应在幕后使用 `atomic_write`
 - **THEN** 如果写入失败，原文件应保持完整
+
+#### Scenario: Source Mode save 不调用 write_file
+- **WHEN** Core-backed Source Mode 保存文档
+- **THEN** 走 `save_document` 流程
+- **THEN** 不调用 `write_file` Tauri command
+- **THEN** legacy WYSIWYG save 仍使用 `write_file`
+
+### Requirement: Runtime save workflow 编排
+
+系统 SHALL 在 Core-backed Source Mode 下提供 Runtime 编排的保存流程（flush → SavePayload → identity compare → atomic write → mark persisted），替换前端 `getMarkdown()` + `write_file` 的流程。
+
+#### Scenario: save_document 流程包含 atomic write
+- **WHEN** `save_document(session_id)` 被调用
+- **THEN** Runtime 请求 Host 执行 temp write + sync + atomic replace（通过 `atomic_write`）
+- **THEN** 写入成功后才更新 `persisted_revision`
+
+#### Scenario: save_document 失败不更新 persisted_revision
+- **WHEN** 写入临时文件失败
+- **THEN** Host 返回写入错误
+- **THEN** Runtime 不更新 `persisted_revision`
+- **THEN** 磁盘原始文件保持完整
 
 ### Requirement: 设置保存使用原子写入
 The `save_settings_inner` function SHALL use `atomic_write` to persist settings.

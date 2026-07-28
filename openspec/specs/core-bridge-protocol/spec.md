@@ -7,13 +7,19 @@
 
 ### Requirement: 统一的 ProtocolEnvelope
 
-所有 Bridge 命令 SHALL 使用统一的 `ProtocolEnvelope` 封装，包含 protocol_version、request_id、client_id、session_id 和 payload。
+所有 Bridge 命令 SHALL 使用统一的 `ProtocolEnvelope` 封装，包含 protocol_version、request_id、client_id、window_label、session_id 和 payload。文档相关命令必须带 session_id；窗口、对话框、通知和 close flow 相关命令必须带 window_label。
 
 #### Scenario: 请求包含版本号
 
 - **WHEN** 前端调用任何 Core Bridge 命令
 - **THEN** 请求包含 `protocol_version` 字段
 - **THEN** 版本不匹配时返回 `PROTOCOL_VERSION_UNSUPPORTED`
+
+#### Scenario: 窗口相关请求包含 window_label
+
+- **WHEN** 前端调用窗口、对话框、通知或关闭流程相关 Bridge 命令
+- **THEN** 请求包含发起窗口的 `window_label`
+- **THEN** Runtime/Host 只把结果投递回匹配窗口
 
 ### Requirement: open_document 命令
 

@@ -61,6 +61,8 @@
 - Core API 可被 Rust 单元测试、CLI、Tauri commands 复用。
 - Runtime 负责 Core 与 Host Port 的用例编排，不实现 Markdown 语法。
 - CodeMirror 可以持有乐观文本镜像，但保存只使用 Core confirmed snapshot。
+- 文档运行态以 `SessionId` / `DocumentId` 为主键；路径只是 `DocumentSource` 属性，不能作为 UI、命令、任务或 Host 回填的唯一身份。
+- 所有异步任务和 Host 副作用都绑定 `request_id + client_id/window_label + session_id + revision`，返回时不匹配则丢弃或记录为 stale。
 
 ## 3. Cargo 结构
 
@@ -367,7 +369,7 @@ pub struct RenderBlock {
 }
 ```
 
-Render IR 不包含 DOM，不包含 CSS class 细节，只表达语义和 revision-bound UI range。
+Render IR 不包含 DOM，不包含 CSS class 细节，只表达语义和 session-bound、revision-bound UI range。
 
 Render IR 的所有 range 都是当前 revision 的 UI/UTF-16 range。Core 内部 source byte range 不直接发送给 CodeMirror，避免非 ASCII 和 CRLF 下错位。
 
@@ -389,6 +391,8 @@ Core 负责从 confirmed revision 生成不可变 `ExportDocument`，但不强�
 - 图片、字体、图表解析由 Runtime/Host capability 提供，Core 只输出资源清单和语义。
 
 目标是统一导出语义和输入快照，不是为了“Rust 化”而重写成熟的平台输出链路。
+
+导出请求必须携带 `session_id + revision + export_request_id`。Runtime 在发起时 capture confirmed snapshot；Host 只处理 Export IR 和资源清单。导出期间切换文档或继续编辑不会改变本次导出的输入。
 
 ## 9. 内部 Provider 边界
 
@@ -495,6 +499,7 @@ pub struct ProtocolEnvelope<T> {
     pub protocol_version: u32,
     pub request_id: RequestId,
     pub client_id: ClientId,
+    pub window_label: Option<WindowLabel>,
     pub session_id: Option<SessionId>,
     pub payload: T,
 }
@@ -510,6 +515,8 @@ pub struct ProtocolEnvelope<T> {
 - 大结果、进度和后台任务更新使用 ordered channel；普通事件只传小型生命周期通知。
 - Bridge 暴露 capabilities，Web/CLI/桌面可以声明缺失的平台能力。
 - 同一路径的多窗口使用独立 session；`client_id` 隔离 pending transaction，FileIdentity 负责保存冲突。本轮不引入多镜像实时合并。
+- 所有文档命令必须显式携带 `session_id`。窗口、对话框、通知和 close flow 必须携带 `window_label`。
+- 所有后台结果必须携带原始 `request_id + session_id + revision`；前端 Adapter/App Service 应用前必须校验仍匹配目标 session。
 
 前端不再调用：
 
@@ -562,6 +569,55 @@ flush pending patches
 
 `FileIdentity` 至少包含平台可用的 canonical identity、size、mtime 和 content fingerprint。mtime/size 只能用于快速判断，不能作为唯一冲突依据。
 
+### 10.2 Host Port Contract
+
+Host Adapter 是可替换的平台端口，Tauri 只是第一个实现。Host 不拥有 Markdown 文档模型，不读取 UI store，不调用 ProseMirror/CodeMirror serializer。
+
+```rust
+pub struct HostRequestContext {
+    pub protocol_version: u32,
+    pub request_id: RequestId,
+    pub client_id: ClientId,
+    pub window_label: Option<WindowLabel>,
+    pub session_id: Option<SessionId>,
+    pub document_id: Option<DocumentId>,
+    pub base_revision: Option<Revision>,
+    pub capability: HostCapability,
+}
+
+pub enum HostCapability {
+    FileSystem,
+    Clipboard,
+    Dialogs,
+    Windows,
+    Notifications,
+    Shell,
+    NetworkFetch,
+    DiagramRender,
+    Export,
+}
+```
+
+Port 分组：
+
+- FileSystem：read bytes、stat identity、compare-and-atomic-write、watch、rename/delete、temporary file。
+- Clipboard：read/write text、read/write image、format negotiation。
+- Dialogs：open/save folder/file、confirm、permission prompt，必须 window-scoped。
+- Windows：create/focus/close、close permission、window label、platform lifecycle。
+- Notifications/Shell：toast/native notification、open path/url。
+- NetworkFetch：受限下载、redirect/DNS/IP/MIME/size gate。
+- DiagramRender：Mermaid/PlantUML 等受限渲染，返回 sanitized artifact 或 diagnostic。
+- Export：PDF/native print、DOCX adapter、HTML artifact write。
+
+Host contract 要求：
+
+- 文档副作用必须带 `session_id`；窗口副作用必须带 `window_label`。
+- 所有可长耗时操作必须支持 cancellation token、timeout、progress event 和 stable error code。
+- Host 结果必须回带 `request_id`，Runtime/App Service 按 `session_id + revision` 校验后才能提交状态。
+- Host capability negotiation 区分 unsupported、permission denied、user cancelled、temporary unavailable、internal failure。
+- 同一路径多 session 同时保存、导出或迁移资源时，Host 不按 path 合并请求；冲突由 Runtime/FileIdentity 决定。
+- Host mock 必须能覆盖每个 port，CI 不依赖公网、真实剪贴板或真实系统对话框。
+
 ## 11. 前端重构
 
 ### 11.1 Editor State
@@ -581,6 +637,19 @@ interface EditorViewState {
 ```
 
 `dirty = pendingTransactions.length > 0 || confirmedRevision != persistedRevision`。保存成功只能把实际写入的 revision 标记为 persisted；保存过程中又产生新输入时，文档继续保持 dirty。
+
+M4 后前端应升级为 workspace/session projection：
+
+```typescript
+interface AppWorkspaceState {
+  windowLabel: string;
+  clientId: string;
+  activeSessionId: string | null;
+  sessionsById: Record<string, EditorViewState>;
+}
+```
+
+`activeFilePath` 只能从 active session 的 `DocumentSource` 派生，用于兼容旧文件树高亮。selection、viewport、pending、mode、dirty、outline、diagnostics 和 widget draft 都必须按 `sessionId` 存储。
 
 ### 11.2 CodeMirror 角色
 

@@ -1,8 +1,12 @@
 use std::collections::{HashMap, VecDeque};
 use std::io::{self, Write};
+use std::sync::RwLock;
 
 use super::patch::PayloadFingerprint;
-use super::{LineIndex, OriginalSnapshot, PatchOutcome, PositionMap, TextBuffer, TextPatch};
+use super::{
+    LineIndex, OriginalSnapshot, ParseIndex, PatchOutcome, PositionMap, ScanOutcome, TextBuffer,
+    TextPatch,
+};
 
 pub const TRANSACTION_RETRY_WINDOW_CAPACITY: usize = 256;
 
@@ -105,7 +109,7 @@ struct AppliedTransaction {
     outcome: PatchOutcome,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 /// Owns one coherent text/revision/index snapshot.
 ///
 /// Session state is intentionally not writable outside Core:
@@ -135,8 +139,31 @@ pub struct DocumentSession {
     text: TextBuffer,
     line_index: LineIndex,
     position_map: PositionMap,
+    parse_index_cache: RwLock<Option<ScanOutcome>>,
     applied_transactions: HashMap<TransactionId, AppliedTransaction>,
     transaction_order: VecDeque<TransactionId>,
+}
+
+impl Clone for DocumentSession {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id,
+            document_id: self.document_id,
+            revision: self.revision,
+            original: self.original.clone(),
+            text: self.text.clone(),
+            line_index: self.line_index.clone(),
+            position_map: self.position_map.clone(),
+            parse_index_cache: RwLock::new(
+                self.parse_index_cache
+                    .read()
+                    .expect("parse index cache lock poisoned")
+                    .clone(),
+            ),
+            applied_transactions: self.applied_transactions.clone(),
+            transaction_order: self.transaction_order.clone(),
+        }
+    }
 }
 
 impl DocumentSession {
@@ -155,6 +182,7 @@ impl DocumentSession {
             text,
             line_index,
             position_map,
+            parse_index_cache: RwLock::new(None),
             applied_transactions: HashMap::new(),
             transaction_order: VecDeque::new(),
         })
@@ -182,6 +210,31 @@ impl DocumentSession {
 
     pub fn position_map(&self) -> &PositionMap {
         &self.position_map
+    }
+
+    pub fn parse_index(&self) -> ScanOutcome {
+        if let Some(cached) = self
+            .parse_index_cache
+            .read()
+            .expect("parse index cache lock poisoned")
+            .as_ref()
+        {
+            if cached.parse_index.revision == self.revision {
+                return cached.clone();
+            }
+        }
+
+        let outcome = ParseIndex::scan_with_document_bytes(
+            self.revision,
+            self.text.logical_text(),
+            self.original.dominant_line_ending,
+            self.original.byte_len,
+        );
+        *self
+            .parse_index_cache
+            .write()
+            .expect("parse index cache lock poisoned") = Some(outcome.clone());
+        outcome
     }
 
     pub fn utf16_for_byte(&self, offset: ByteOffset) -> CoreResult<Utf16Offset> {
@@ -246,6 +299,10 @@ impl DocumentSession {
         self.revision = next_revision;
         self.line_index = next_line_index;
         self.position_map = next_position_map;
+        *self
+            .parse_index_cache
+            .write()
+            .expect("parse index cache lock poisoned") = None;
         if self.transaction_order.len() == TRANSACTION_RETRY_WINDOW_CAPACITY {
             if let Some(evicted) = self.transaction_order.pop_front() {
                 self.applied_transactions.remove(&evicted);

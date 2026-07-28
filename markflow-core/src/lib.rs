@@ -7,9 +7,12 @@ pub mod document;
 pub mod testing;
 
 pub use document::{
-    BomKind, ByteOffset, ContentHash, CoreError, CoreResult, DocumentId, DocumentSession,
-    EncodingKind, LineCol, LineEndingKind, LineEndingMap, LineIndex, OriginalSnapshot,
-    PatchOutcome, PositionMap, Revision, SavePayload, Selection, SessionId, SourceByteOffset,
-    SourceOffsetError, SourceRange, TextBuffer, TextChange, TextPatch, TransactionId, Utf16Offset,
-    TRANSACTION_RETRY_WINDOW_CAPACITY,
+    AffectedRanges, BlockId, BlockKind, BlockNode, BomKind, BulletMarker, ByteOffset, ContentHash,
+    CoreError, CoreResult, DeferredWork, DocumentId, DocumentSession, DocumentSizeClass,
+    EncodingKind, FenceMarker, FenceStyle, LargeDocumentPolicy, LineCol, LineEndingKind,
+    LineEndingMap, LineIndex, LineRange, ListStyleSpan, OrderedDelimiter, OrderedMarker,
+    OriginalSnapshot, OutlineItem, ParseIndex, PatchOutcome, PipePadding, PositionMap,
+    QuoteStyleSpan, Revision, SavePayload, ScanOutcome, Selection, SessionId, SourceByteOffset,
+    SourceOffsetError, SourceRange, StyleMap, TableAlignment, TableStyleSpan, TextBuffer,
+    TextChange, TextPatch, TransactionId, Utf16Offset, TRANSACTION_RETRY_WINDOW_CAPACITY,
 };

@@ -164,5 +164,4 @@ mod tests {
         state.stop_all();
         state.stop_all();
     }
-
 }

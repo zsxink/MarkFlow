@@ -380,8 +380,7 @@ mod tests {
 
     #[test]
     fn to_source_bytes_with_crlf_dominant() {
-        let buffer =
-            TextBuffer::from_logical_text("hello\nworld", LineEndingKind::Crlf).unwrap();
+        let buffer = TextBuffer::from_logical_text("hello\nworld", LineEndingKind::Crlf).unwrap();
         assert_eq!(buffer.to_source_bytes(BomKind::None), b"hello\r\nworld");
     }
 }

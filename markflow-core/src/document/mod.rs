@@ -3,6 +3,7 @@ mod line_index;
 mod parse_index;
 mod patch;
 mod position_map;
+mod render_ir;
 mod session;
 mod snapshot;
 mod text_buffer;
@@ -18,6 +19,10 @@ pub use parse_index::{
 };
 pub use patch::{PatchOutcome, Selection, TextChange, TextPatch};
 pub use position_map::PositionMap;
+pub use render_ir::{
+    RenderBlock, RenderBlockKind, RenderDocument, RenderInline, RenderInlineKind, RenderRequest,
+    UiRange,
+};
 pub use session::{
     CoreError, CoreResult, DocumentSession, SavePayload, TRANSACTION_RETRY_WINDOW_CAPACITY,
 };

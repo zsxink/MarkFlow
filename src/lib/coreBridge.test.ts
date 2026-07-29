@@ -23,6 +23,7 @@ import {
   resyncDocument,
   flushDocument,
   getDocumentText,
+  getRenderBlocks,
   getOutline,
   getDocumentStats,
   reloadDocument,
@@ -154,6 +155,42 @@ describe('coreBridge', () => {
       const result = await getDocumentText(42);
       expect(result).toEqual({ text: '# Hello', revision: 5 });
       expect(mocks.invoke).toHaveBeenCalledWith('get_document_text', { session_id: 42 });
+    });
+  });
+
+  describe('getRenderBlocks', () => {
+    it('calls invoke with session, revision, viewport, and request id', async () => {
+      const renderResult = {
+        session_id: 42,
+        document_id: 9,
+        revision: 5,
+        request_id: 'render-1',
+        viewport: { start: 0, end: 20 },
+        large_document: false,
+        blocks: [
+          {
+            id: 'b1',
+            kind: 'heading',
+            level: 1,
+            source_range: { start: 0, end: 7 },
+            content_range: { start: 2, end: 7 },
+            line_range: { start: 0, end: 1 },
+            text: '# Title',
+            inlines: [],
+          },
+        ],
+      };
+      mocks.invoke.mockResolvedValue(renderResult);
+
+      const result = await getRenderBlocks(42, 5, { start: 0, end: 20 }, 'render-1');
+
+      expect(result).toEqual(renderResult);
+      expect(mocks.invoke).toHaveBeenCalledWith('get_render_blocks', {
+        session_id: 42,
+        revision: 5,
+        viewport: { start: 0, end: 20 },
+        request_id: 'render-1',
+      });
     });
   });
 

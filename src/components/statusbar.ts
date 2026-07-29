@@ -1,4 +1,4 @@
-import { getWordCount, getLineCount, getCursorPos } from '../lib/editor';
+import { getWordCount, getLineCount, getCursorPos, isCoreBackedWysiwygActive } from '../lib/editor';
 import { onCoreSessionChange, getCoreSessionState } from '../lib/coreSession';
 import { cycleTheme } from '../lib/theme';
 import { store } from '../lib/store';
@@ -67,7 +67,9 @@ function updateActiveEngineIndicator(state: ReturnType<typeof getCoreSessionStat
   const pendingIndicator = document.getElementById('pending-indicator');
   if (!modeIndicator) return;
 
-  if (state.isActive && state.syncState !== 'blocked') {
+  if (state.isActive && state.syncState !== 'blocked' && isCoreBackedWysiwygActive()) {
+    modeIndicator.textContent = 'Core WYSIWYG';
+  } else if (state.isActive && state.syncState !== 'blocked') {
     modeIndicator.textContent = 'Core Source';
   } else if (store.getState().mode === 'source') {
     modeIndicator.textContent = 'Source';

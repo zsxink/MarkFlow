@@ -369,7 +369,8 @@ fn build_inline(
     target: Option<String>,
 ) -> CoreResult<RenderInline> {
     let source_range = absolute_range(content_range, offsets.source_start, offsets.source_end);
-    let content_source_range = absolute_range(content_range, offsets.content_start, offsets.content_end);
+    let content_source_range =
+        absolute_range(content_range, offsets.content_start, offsets.content_end);
     let marker_ranges = marker_ranges_rel
         .into_iter()
         .map(|(start, end)| session.ui_range_for_source(absolute_range(content_range, start, end)))

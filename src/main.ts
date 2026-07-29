@@ -26,9 +26,15 @@ import './styles/components.css';
 import type { FileChangeEvent } from './types/events';
 import type { Settings } from './types/settings';
 import { DEFAULT_SETTINGS } from './types/settings';
+import { bootSolidShellIfEnabled } from './solid/bootstrap';
+import { workspaceStore } from './solid/workspace/sessionWorkspaceStore';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Settings = { ...DEFAULT_SETTINGS };
+let disposeSolidShell: (() => void) | null = null;
+const appClientId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+  ? crypto.randomUUID()
+  : `client_${Date.now()}`;
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (import.meta.env.MODE === 'e2e') {
@@ -36,6 +42,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   logInfo('app.lifecycle', 'Application boot started');
+  workspaceStore.setWindowContext(getCurrentWebviewWindow().label, appClientId);
+  disposeSolidShell = bootSolidShellIfEnabled();
   setToastReporter((msg) => showToast(msg));
 
   // Block contextmenu outside sidebar (sidebar handles its own)
@@ -141,6 +149,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Save window state on close for next window to inherit
   window.addEventListener('beforeunload', async () => {
+    disposeSolidShell?.();
+    disposeSolidShell = null;
     try {
       const win = getCurrentWebviewWindow();
       const pos = await win.outerPosition();

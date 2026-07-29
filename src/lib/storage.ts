@@ -16,7 +16,7 @@ export async function writeFile(path: string, content: string): Promise<void> {
 }
 
 export async function saveMermaidSvgExport(svg: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_mermaid_svg_export', { svg, defaultName });
+  return invoke<boolean>('save_export', { kind: 'svg', data: svg, fileName: `${defaultName}.svg`, extension: 'svg', filterName: null, extensions: null });
 }
 
 export async function readDirPage(
@@ -118,23 +118,23 @@ export async function copyImageToStorageFile(
 }
 
 export async function saveMermaidPngExport(data: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_mermaid_png_export', { data, defaultName });
+  return invoke<boolean>('save_export', { kind: 'png', data, fileName: `${defaultName}.png`, extension: 'png', filterName: null, extensions: null });
 }
 
 export async function savePlantUmlSvgExport(svg: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_plantuml_svg_export', { svg, defaultName });
+  return invoke<boolean>('save_export', { kind: 'svg', data: svg, fileName: `${defaultName}.svg`, extension: 'svg', filterName: null, extensions: null });
 }
 
 export async function savePlantUmlPngExport(data: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_plantuml_png_export', { data, defaultName });
+  return invoke<boolean>('save_export', { kind: 'png', data, fileName: `${defaultName}.png`, extension: 'png', filterName: null, extensions: null });
 }
 
 export async function saveImageExport(data: string, fileName: string, extension: string): Promise<boolean> {
-  return invoke<boolean>('save_image_export', { data, fileName, extension });
+  return invoke<boolean>('save_export', { kind: 'image', data, fileName, extension, filterName: null, extensions: null });
 }
 
 export async function saveDocumentExport(content: string, defaultName: string, filterName: string, extensions: string[]): Promise<boolean> {
-  return invoke<boolean>('save_document_export', { content, defaultName, filterName, extensions });
+  return invoke<boolean>('save_export', { kind: 'document', data: content, fileName: defaultName, extension: filterName, filterName, extensions });
 }
 
 export async function fetchRemoteImageAsBase64(url: string): Promise<RemoteImageData> {

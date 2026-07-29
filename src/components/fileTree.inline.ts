@@ -1,4 +1,5 @@
-import { getWorkspacePath, escapePathSelector, createTreeNode, insertSorted, suppressNextWatcherRefresh, suppressAllDescendants, applyFileTreeEvents } from './fileTree.core';
+import { getWorkspacePath, escapePathSelector, createTreeNode, suppressNextWatcherRefresh, suppressAllDescendants, applyFileTreeEvents } from './fileTree.core';
+import { insertSorted } from './fileTree.sort';
 import { readSingleDir, createFile, createDir, renamePath } from '../lib/storage';
 import { rewriteActiveDocumentPath } from './activeDocument';
 import { openFileInEditor } from './sidebar';

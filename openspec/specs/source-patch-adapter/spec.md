@@ -1,21 +1,13 @@
+> DEPRECATED: This spec has been merged into [source-mode-core](../source-mode-core/spec.md).
+
 # source-patch-adapter Specification
 
 ## Purpose
 定义 CodeMirror Source Mode 到 Core Bridge 的 patch extraction / legacy onUpdate compatibility 行为，包括 UTF-16 patch 生成、同一 batch 的 `ChangeSet.compose`、ack/resync 边界和 flush 调用入口。pending queue 上限、frame batching、composition batching 与 backpressure 的 owner 是 `source-sync-controller`。
-
 ## Requirements
-
 ### Requirement: 从 transaction 生成 Utf16TextPatchDto
 
 Adapter SHALL 从 CodeMirror 的 `Transaction.changes` 或 `Update.changes` 提取 change set。同一 batch 内的多个 transaction SHALL 使用 `ChangeSet.compose` 合成为单个 change set 后生成包含 UTF-16 range 的 `Utf16TextPatchDto`。不同 animation frame 或 batch 的 change 不得拼接；每个 batch SHALL 基于自己捕获时的 `confirmedRevision`。
-
-#### Scenario: 简单文本输入生成正确 patch
-
-- **WHEN** 用户在 CodeMirror 中输入一个字符
-- **THEN** Adapter 生成包含一个 change 的 patch
-- **THEN** `from`/`to` 为 UTF-16 坐标
-- **THEN** `insert` 为输入字符
-- **THEN** `baseRevision` 等于当前 confirmed revision
 
 #### Scenario: 同一 batch 合成而非按原始坐标拼接
 
@@ -80,3 +72,4 @@ Adapter SHALL 提供 `flushPendingPatches()` 方法，供保存和模式切换�
 - **WHEN** Core-backed 模式未启用
 - **THEN** `onUpdate` 回调如常工作
 - **THEN** 编辑器行为与 M2 之前完全一致
+

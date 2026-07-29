@@ -364,6 +364,7 @@ pub fn run() {
             files::save_plantuml_png_export,
             files::save_image_export,
             files::save_document_export,
+            files::save_export,
             files_pagination::read_dir,
             files::read_path_entry,
             files::create_file,

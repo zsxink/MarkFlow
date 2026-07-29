@@ -11,11 +11,14 @@ export {
   initTreeAria,
   insertEntryIntoTree,
   removeEntryFromTree,
-  renameEntryInTree,
   applyFileTreeEvents,
   cleanup,
   flushPendingMutations,
 } from './fileTree.core';
+
+export {
+  renameEntryInTree,
+} from './fileTree.sort';
 
 export {
   startInlineRename,

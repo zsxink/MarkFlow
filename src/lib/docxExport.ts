@@ -3,6 +3,10 @@ import { showToast } from '../components/toast';
 import { invoke } from '@tauri-apps/api/core';
 import { convertSvgToPngDataUrl } from './exportSnapshot';
 import { buildExportTheme, exportThemeToDocxStyles, type ExportTheme } from './exportTheme';
+import type { FileChild, ParagraphChild, TableCell, TableRow } from 'docx';
+
+/** Namespace type for the lazy-loaded docx module. */
+type DocxModule = typeof import('docx');
 
 function d(): Promise<typeof import('docx')> {
   return import('docx');
@@ -45,9 +49,9 @@ export async function createDocxFromHtml(
 
   // Build theme-based styles or use defaults
   const resolvedTheme = theme ?? buildExportTheme('light');
-  const docxStyles = exportThemeToDocxStyles(resolvedTheme) as any;
+  const docxStyles = exportThemeToDocxStyles(resolvedTheme) as Record<string, unknown>;
 
-  const children: any[] = [];
+  const children: FileChild[] = [];
   processNodeList(bodyEl.childNodes, children, docx, resolvedTheme);
 
   // Build the document using theme-based styles (no hardcoded values)
@@ -112,7 +116,7 @@ function hexColor(c: string): string {
   return c.replace(/^#/, '');
 }
 
-function processNodeList(nodes: NodeList, children: any[], docx: any, theme: ExportTheme): void {
+function processNodeList(nodes: NodeList, children: FileChild[], docx: DocxModule, theme: ExportTheme): void {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     if (node.nodeType === Node.ELEMENT_NODE) {
@@ -131,7 +135,7 @@ function processNodeList(nodes: NodeList, children: any[], docx: any, theme: Exp
   }
 }
 
-function processElement(el: HTMLElement, children: any[], docx: any, theme: ExportTheme): void {
+function processElement(el: HTMLElement, children: FileChild[], docx: DocxModule, theme: ExportTheme): void {
   const tag = el.tagName.toLowerCase();
   const codeFont = theme.fonts.code;
   const codeBgHex = hexColor(theme.colors.codeBg);
@@ -255,12 +259,12 @@ function processElement(el: HTMLElement, children: any[], docx: any, theme: Expo
 
     case 'table': {
       const rowEls = el.querySelectorAll(':scope > tr, :scope > tbody > tr, :scope > thead > tr');
-      const tableRows: any[] = [];
+      const tableRows: TableRow[] = [];
       let isHeader = true;
 
       rowEls.forEach(row => {
         const cells = row.querySelectorAll(':scope > td, :scope > th');
-        const tableCells: any[] = [];
+        const tableCells: TableCell[] = [];
 
         cells.forEach(cell => {
           const cellText = cell.textContent?.trim() || '';
@@ -331,7 +335,7 @@ function processElement(el: HTMLElement, children: any[], docx: any, theme: Expo
   }
 }
 
-function createImageParagraph(el: HTMLElement, children: any[], docx: any): void {
+function createImageParagraph(el: HTMLElement, children: FileChild[], docx: DocxModule): void {
   const src = el.getAttribute('src') || '';
   if (!src.startsWith('data:')) return;
 
@@ -356,8 +360,8 @@ function createImageParagraph(el: HTMLElement, children: any[], docx: any): void
             type: ext,
             floating: {
               horizontalPosition: {
-                align: docx.AlignmentType.CENTER,
-                relative: docx.RelativeHorizontalPosition.MARGIN,
+                align: docx.HorizontalPositionAlign.CENTER,
+                relative: docx.HorizontalPositionRelativeFrom.MARGIN,
               },
               verticalPosition: {
                 align: docx.VerticalPositionAlign.CENTER,
@@ -388,8 +392,8 @@ function createImageParagraph(el: HTMLElement, children: any[], docx: any): void
 
 // --- Inline text runs ---
 
-function buildTextRuns(parent: HTMLElement, docx: any, theme: ExportTheme): any[] {
-  const rawRuns: any[] = [];
+function buildTextRuns(parent: HTMLElement, docx: DocxModule, theme: ExportTheme): ParagraphChild[] {
+  const rawRuns: Record<string, unknown>[] = [];
   const codeFont = theme.fonts.code;
   const bodySize = pxToHalfPt(theme.body.fontSize);
   const codeSize = pxToHalfPt(theme.inlineCode.fontSize);
@@ -452,7 +456,7 @@ function buildTextRuns(parent: HTMLElement, docx: any, theme: ExportTheme): any[
   return rawRuns.map(r => new docx.TextRun(r));
 }
 
-function getAlignment(el: HTMLElement, docx: any): number | undefined {
+function getAlignment(el: HTMLElement, docx: DocxModule): (typeof docx.AlignmentType)[keyof typeof docx.AlignmentType] | undefined {
   const style = el.getAttribute('style') || '';
   const m = style.match(/text-align\s*:\s*(\w+)/);
   if (!m) return undefined;

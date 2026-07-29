@@ -1,3 +1,5 @@
+> DEPRECATED: This spec has been merged into [source-mode-core](../source-mode-core/spec.md).
+
 # source-sync-controller Specification
 
 ## Purpose

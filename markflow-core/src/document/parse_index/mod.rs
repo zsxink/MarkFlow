@@ -1,15 +1,16 @@
 mod heading;
 mod update;
 mod large_document_policy;
+mod line_scanner;
 mod list;
-mod scanner;
+mod block_parser;
 mod style_map;
 mod table;
 mod types;
 
 use crate::document::{LineEndingKind, Revision};
 
-use scanner::BlockScanner;
+use block_parser::BlockScanner;
 
 pub use large_document_policy::{DeferredWork, DocumentSizeClass, LargeDocumentPolicy};
 pub use style_map::{

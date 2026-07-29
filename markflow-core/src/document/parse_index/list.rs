@@ -1,4 +1,4 @@
-use super::scanner::is_space;
+use super::line_scanner::is_space;
 
 pub(crate) fn starts_task_checkbox(text: &str) -> bool {
     let bytes = text.as_bytes();

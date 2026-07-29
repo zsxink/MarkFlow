@@ -50,7 +50,7 @@ describe('storage IPC facade', () => {
 
     expect(invoke).toHaveBeenCalledWith('read_file_as_base64', { path: '/image.png' });
     expect(invoke).toHaveBeenCalledWith('write_file_from_base64', { path: '/image.png', data: 'data' });
-    expect(invoke).toHaveBeenCalledWith('save_document_export', { content: '<p>x</p>', defaultName: 'x.html', filterName: 'HTML', extensions: ['html'] });
+    expect(invoke).toHaveBeenCalledWith('save_export', { kind: 'document', data: '<p>x</p>', fileName: 'x.html', extension: 'HTML', filterName: 'HTML', extensions: ['html'] });
     expect(invoke).toHaveBeenCalledWith('add_recent_file', { path: '/a.md' });
     expect(invoke).toHaveBeenCalledWith('clear_recent_history');
   });

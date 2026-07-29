@@ -5,36 +5,23 @@
 ## Requirements
 ### Requirement: apply_text_patch versioned Envelope
 
-`apply_text_patch` SHALL 使用 `ProtocolEnvelope<Utf16TextPatchDto>` 封装，包含 `protocol_version`、`session_id` 和 `payload`。版本不匹配时必须返回 `PROTOCOL_VERSION_UNSUPPORTED`，session 缺失时必须返回稳定错误。
+`apply_text_patch` SHALL use `ProtocolEnvelope<Utf16TextPatchDto>` with `protocol_version`, `session_id`, and `payload`. Other Core Bridge commands remain on their current stable DTO arguments until a later ADR-backed protocol migration implements full-command envelopes and compatibility tests.
 
-#### Scenario: apply_text_patch 请求包含版本号
+#### Scenario: apply_text_patch request contains protocol version
 
-- **WHEN** 前端调用 `apply_text_patch`
-- **THEN** 请求包含 `protocol_version` 字段
-- **THEN** 版本不匹配时返回 `PROTOCOL_VERSION_UNSUPPORTED`
+- **WHEN** the frontend calls `apply_text_patch`
+- **THEN** the request contains `protocol_version`
+- **THEN** an unsupported version returns `PROTOCOL_VERSION_UNSUPPORTED`
 
 ### Requirement: 非 patch 命令保持稳定 DTO 兼容
 
-`open_document`、`save_document`、`resync_document`、`flush_document`、`get_document_text`、`get_outline`、`get_document_stats`、`reload_document`、`close_document` SHALL 保持当前稳定 DTO 兼容，直到后续阶段通过 ADR 和协议兼容测试迁移到统一 Envelope。文档相关命令必须显式携带 `session_id` 或返回 `sessionId`；不得通过 `activeFilePath` 或当前窗口隐式推断文档。
+`open_document`、`save_document`、`resync_document`、`flush_document`、`get_document_text`、`get_outline`、`get_document_stats`、`reload_document`、`close_document` SHALL keep their current stable DTO arguments until a later ADR-backed protocol migration. Document commands must carry or return explicit session identity and must not infer the target document from `activeFilePath`.
 
-#### Scenario: 当前非 patch 命令不要求 Envelope
+#### Scenario: save/resync/flush use current stable DTOs
 
-- **WHEN** 前端调用 `save_document(session_id)`、`resync_document(session_id, confirmed_revision)` 或 `flush_document(session_id)`
-- **THEN** 请求使用当前稳定 DTO 参数
-- **THEN** Runtime 按传入 session 定位文档，不读取全局 active file path
-
-#### Scenario: 响应包含 error_code
-
-- **WHEN** 任何 Bridge 命令返回错误
-- **THEN** 响应错误包含 `error_code`（字符串枚举值）
-- **THEN** `error_detail` 包含人类可读的描述
-- **THEN** 前端可通过 `error_code` 做精确的恢复决策
-
-#### Scenario: 窗口相关请求包含 window_label
-
-- **WHEN** 前端调用窗口、对话框、通知或关闭流程相关 Bridge 命令
-- **THEN** 请求包含发起窗口的 `window_label`
-- **THEN** Runtime/Host 只把结果投递回匹配窗口
+- **WHEN** the frontend calls `save_document(session_id)`、`resync_document(session_id, confirmed_revision)` or `flush_document(session_id)`
+- **THEN** the Runtime targets the provided session
+- **THEN** the command does not require `ProtocolEnvelope` in the current implementation
 
 ### Requirement: open_document 命令
 

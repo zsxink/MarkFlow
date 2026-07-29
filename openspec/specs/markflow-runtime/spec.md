@@ -148,3 +148,138 @@ SessionRegistry SHALL 使用 DashMap + per-session `Arc<Mutex<DocumentRuntimeSta
 - **WHEN** Session A 正持 per-session lock 执行操作
 - **THEN** Session B 的读写不受影响
 - **THEN** registry 查询（如 get）不阻塞
+
+## Document Service
+
+### Purpose
+定义 Runtime DocumentService 层的职责：从 core_bridge.rs 提取可独立测试的服务层，修复 save_in_progress 残留，实现真实 reload 路径。
+
+### Requirements
+
+#### Requirement: DocumentService 独立层
+
+Core Bridge 命令 SHALL 仅做反序列化、权限上下文和错误封装。业务规则（session 管理、保存编排、reload）进入 `DocumentService`。
+
+##### Scenario: 命令只做薄封装
+
+- **WHEN** 前端调用 `save_document` Tauri command
+- **THEN** command 仅验证参数和权限
+- **THEN** 委托 `DocumentService::save_document(session_id)` 执行
+- **THEN** command 封装结果为响应
+- **THEN** DocumentService 可被独立测试（不依赖 Tauri 运行时）
+
+#### Requirement: save_in_progress 使用 RAII
+
+保存操作 SHALL 使用 RAII token（`SaveLease`）标记进行中的保存。释放时自动清理 save_in_progress 状态，不论成功或失败。
+
+##### Scenario: 成功路径清理 token
+
+- **WHEN** `save_document` 成功
+- **THEN** `SaveLease` 在作用域结束时析构
+- **THEN** `save_in_progress` 自动恢复为 false
+
+##### Scenario: 失败路径清理 token
+
+- **WHEN** `save_document` 在 Core 阶段失败
+- **THEN** `SaveLease` 析构
+- **THEN** `save_in_progress` 恢复为 false
+
+##### Scenario: 写入阶段 Host 失败
+
+- **WHEN** `save_document` 的 atomic write 阶段失败
+- **THEN** `SaveLease` 析构
+- **THEN** `persisted_revision` 不更新
+
+#### Requirement: 真实 reload 路径
+
+`reload_document` SHALL 经 Host 真正从磁盘读取文件。读取 IO 在 session lock 外进行。
+
+##### Scenario: reload 从磁盘读取
+
+- **WHEN** `reload_document(session_id)` 调用
+- **THEN** Host 执行 `read_document_bytes(path)` 读取文件
+- **THEN** 验证 session 在 IO 完成后仍存在且 clean
+- **THEN** 用读取内容创建新的 Core state
+
+##### Scenario: dirty 状态阻止 reload
+
+- **WHEN** session 有未保存修改
+- **WHEN** `reload_document` 调用
+- **THEN** 返回 `TRANSACTION_CONFLICT` 错误
+- **THEN** 不替换 Core state
+
+#### Requirement: 返回真实 document id 和 outline
+
+`open_document` SHALL 返回唯一 document id（非固定值）和由 Core 计算的实际 outline 与统计信息。
+
+##### Scenario: open 返回非零 document id
+
+- **WHEN** `open_document(path)` 调用
+- **THEN** 返回的 `DocumentOpened` 包含非零的 `documentId`
+- **THEN** 不同文件返回不同 document id
+
+##### Scenario: outline 来自 Core parse
+
+- **WHEN** `open_document` 打开含标题的文档
+- **THEN** `DocumentOpened.outline` 包含由 Core parse_index 提取的标题节点
+
+## Save Integrity
+
+### Purpose
+定义保存完整性保障：RAII SaveLease、per-path save coordinator、全内容 fingerprint、同目录原子替换。
+
+### Requirements
+
+#### Requirement: per-path SaveCoordinator
+
+系统 SHALL 提供 `PathSaveCoordinator`，对同一 canonical path 的保存操作做串行化。完整的保存原子单元为：compare identity → temp write + fsync → rename → 发布新 identity。
+
+##### Scenario: 同路径并发保存串行化
+
+- **WHEN** 两个 session 同时保存同一路径
+- **THEN** `PathSaveCoordinator` 串行化两个保存操作
+- **THEN** 先到者执行完整的保存原子单元
+- **THEN** 后到者执行 identity 比对
+- **WHEN** 后到者的 identity 因先到者完成而失效
+- **THEN** 后到者返回 `CONFLICT` 错误
+
+#### Requirement: 全内容 fingerprint
+
+最终冲突判断 SHALL 使用全内容 SHA-256 fingerprint。size + mtime 作为快速预检（fast path），仅在预检不匹配时回退到全内容 checksum。
+
+##### Scenario: size+mtime 匹配跳过 checksum
+
+- **WHEN** 保存前 `host.stat_identity()` 返回的 size+mtime 与 `opened_identity` 完全匹配
+- **THEN** 跳过全内容 fingerprint 计算
+
+##### Scenario: size+mtime 不匹配触发 checksum
+
+- **WHEN** 保存前 size 或 mtime 不匹配
+- **THEN** Runtime 计算当前文件的 SHA-256 fingerprint
+- **WHEN** fingerprint 与 opened_identity 一致
+- **THEN** 允许保存
+- **WHEN** fingerprint 不一致
+- **THEN** 返回 `CONFLICT` 错误
+
+#### Requirement: 同目录原子替换
+
+保存的 atomic write SHALL 使用临时文件 + rename 模式，临时文件与目标保持同目录。
+
+##### Scenario: 临时文件在同目录
+
+- **WHEN** 执行 atomic write
+- **THEN** 临时文件创建在与目标文件相同的目录
+- **THEN** 写入内容后执行 fsync
+- **THEN** 通过 `std::fs::rename` 实现原子替换
+
+#### Requirement: Save As 通过 Runtime 权威路径
+
+Save As 操作 SHALL 创建新的 Core session 并通过 `save_document` 执行写入。
+
+##### Scenario: Save As 创建新 session
+
+- **WHEN** 用户在 Core Source 模式执行 Save As
+- **THEN** 系统创建一个指向新路径的 Core session
+- **THEN** 将当前 Core confirmed text 作为新 session 内容
+- **THEN** 在新 session 上调用 `save_document`
+- **THEN** 全程不调用 getMarkdown()/ProseMirror serializer

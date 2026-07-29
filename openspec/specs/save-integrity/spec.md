@@ -1,3 +1,5 @@
+> DEPRECATED: This spec has been merged into [markflow-runtime](../markflow-runtime/spec.md).
+
 # save-integrity Specification
 
 ## Purpose

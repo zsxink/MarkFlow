@@ -940,6 +940,65 @@ bash scripts/check-archive-synced.sh
 - Core/Runtime/Tauri/Frontend 自动化测试与 M3 E2E gate 通过。
 - 独立 agent 复核无阻塞问题。
 
+## M3 完成度复核查验清单
+
+以下清单基于 2026-07-29 M3 完成度复核结果，记录各项验收状态：
+
+### Rust Core 代码质量
+
+- [x] testing 模块 `#[cfg(feature = "testing")]` 门控
+- [x] 移除 blanket `#![allow(dead_code)]`，改用逐个标注
+- [x] 删除 `tests/lossless.rs` 中死代码 `block_kinds`
+- [x] OriginalSnapshot 字段私有化 + getter
+- [x] scanner/heading/list/table/incremental 内部辅助改为 `pub(crate)`
+- [x] text_buffer `validate_range` / `is_char_boundary` 改为 `pub(crate)`
+- [x] session.rs `expect()` 封装为 `read_cache()` / `write_cache()`
+- [x] scanner.rs `expect("checked by caller")` 添加 debug_assert 前置
+- [x] scanner.rs `unreachable!()` 替换为安全 fallback
+- [x] ID 类型提取到 `src/document/types.rs`
+- [x] `incremental.rs` 重命名为 `update.rs`
+- [x] `line_index.rs` 独立测试（至少 3 个新测试）
+- [x] `text_buffer.rs` 扩展测试（至少 4 个新测试）
+- [x] Benchmark 文件重命名为描述性名称
+- [x] `fixtures/m3/` 删除，`fixtures/size/` 建立
+- [x] `examples/lossless/` 和 `examples/m3/` 空目录删除
+- [x] CI 中添加 markflow-core 独立 `cargo test` 步骤
+- [x] CI 中添加 markflow-core `cargo clippy` 步骤
+- [ ] `scanner.rs` 拆分（P2，本次未处理）
+
+### Tauri Backend 代码质量
+
+- [x] 删除 `document_service.rs` 和 `lib.rs` 导出
+- [x] 删除 `ErrorDto`
+- [x] 删除 11 个死代码 `AppError` 构造器
+- [x] 删除 state.rs `consume_close_permission` / `cleanup_close_permission`
+- [x] `FRONTEND_TXN_MAP.lock().expect()` 改为 `error::lock_mutex()?`
+- [x] `snapshot.lock().unwrap()` 改为 `error::lock_mutex()`
+- [x] `normalize_lexical` 提取到 `paths.rs`
+- [x] MockHost 提取到 tests/common/
+- [x] `AppHost::compare_and_atomic_write` 添加单元测试
+- [ ] 5 个导出命令统一为 `save_export`（P2，本次未处理）
+
+### TypeScript 前端
+
+- [x] `contextMenu.ts` 错误使用 `reportUserActionError`
+- [x] `newFileDialog.ts` 添加 `logException`
+- [x] `codemirror-languages.ts` 添加 `logDebug`
+- [x] 删除 `hideContextMenu()` 死代码
+- [ ] `exportTheme.ts` 拆分（P2）
+- [ ] `fileTree.core.ts` 拆分（P2）
+- [ ] 测试文件移到 `__tests__/`（P2）
+- [ ] `docxExport.ts` any 类型替换（P2）
+
+### 文档审查
+
+- [x] `technical-plan.md` — 更新文件引用
+- [ ] `product-plan.md` — 待检查是否需要更新
+- [ ] `feature-migration-matrix.md` — 待精确化 M3 条目
+- [x] `m3-core-backed-source-mode.md` — 添加验收检查清单（本清单）
+- [ ] legacy specs（architecture.md, technical-design.md）— 待审查标记
+- [ ] spec 碎片化评估 — 待完成
+
 ## 风险与缓解
 
 | 风险 | 缓解 |

@@ -116,7 +116,7 @@ impl TextBuffer {
         out
     }
 
-    pub fn validate_range(&self, range: Range<usize>) -> CoreResult<()> {
+    pub(crate) fn validate_range(&self, range: Range<usize>) -> CoreResult<()> {
         if range.start > range.end || range.end > self.logical_text.len() {
             return Err(CoreError::InvalidRange);
         }
@@ -126,7 +126,7 @@ impl TextBuffer {
         Ok(())
     }
 
-    pub fn is_char_boundary(&self, offset: usize) -> bool {
+    pub(crate) fn is_char_boundary(&self, offset: usize) -> bool {
         self.logical_text.is_char_boundary(offset)
     }
 
@@ -242,6 +242,7 @@ fn count_newlines_before(text: &str, offset: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::document::{Revision, SourceRange};
 
     #[test]
     fn empty_logical_buffer_uses_dominant_fallback_without_neighbors() {
@@ -249,5 +250,138 @@ mod tests {
         buffer.replace(0..0, "left\nright").unwrap();
 
         assert_eq!(buffer.to_source_bytes(BomKind::None), b"left\r\nright");
+    }
+
+    #[test]
+    fn replace_in_middle_of_text() {
+        let mut buffer = TextBuffer::from_logical_text("hello world", LineEndingKind::Lf).unwrap();
+        buffer.replace(6..11, "there").unwrap();
+        assert_eq!(buffer.logical_text(), "hello there");
+    }
+
+    #[test]
+    fn replace_at_empty_range_prepends() {
+        let mut buffer = TextBuffer::from_logical_text("world", LineEndingKind::Lf).unwrap();
+        buffer.replace(0..0, "hello ").unwrap();
+        assert_eq!(buffer.logical_text(), "hello world");
+    }
+
+    #[test]
+    fn replace_full_text() {
+        let mut buffer = TextBuffer::from_logical_text("old", LineEndingKind::Lf).unwrap();
+        buffer.replace(0..3, "new").unwrap();
+        assert_eq!(buffer.logical_text(), "new");
+    }
+
+    #[test]
+    fn replace_empty_text() {
+        let mut buffer = TextBuffer::from_logical_text("", LineEndingKind::Lf).unwrap();
+        buffer.replace(0..0, "hello").unwrap();
+        assert_eq!(buffer.logical_text(), "hello");
+    }
+
+    #[test]
+    fn replace_appends_to_end() {
+        let mut buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        buffer.replace(5..5, " world").unwrap();
+        assert_eq!(buffer.logical_text(), "hello world");
+    }
+
+    #[test]
+    fn apply_changes_applies_in_order() {
+        let mut buffer = TextBuffer::from_logical_text("hello world", LineEndingKind::Lf).unwrap();
+        let changes = vec![
+            TextChange {
+                range: SourceRange::new(Revision(0), 0, 5),
+                replacement: "hi".to_string(),
+            },
+            TextChange {
+                range: SourceRange::new(Revision(0), 6, 11),
+                replacement: "there".to_string(),
+            },
+        ];
+        buffer.apply_changes(&changes).unwrap();
+        assert_eq!(buffer.logical_text(), "hi there");
+    }
+
+    #[test]
+    fn apply_changes_empty_patch_no_op() {
+        let mut buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        buffer.apply_changes(&[]).unwrap();
+        assert_eq!(buffer.logical_text(), "hello");
+    }
+
+    #[test]
+    fn validate_range_rejects_out_of_bounds() {
+        let buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        assert_eq!(buffer.validate_range(0..10), Err(CoreError::InvalidRange));
+    }
+
+    #[test]
+    fn validate_range_rejects_invalid_utf8_boundary() {
+        let buffer = TextBuffer::from_logical_text("héllo", LineEndingKind::Lf).unwrap();
+        // 'é' is 2 bytes (bytes 1-2); range 0..2 ends in the middle of 'é' (byte 2 is not a char boundary)
+        assert_eq!(
+            buffer.validate_range(0..2),
+            Err(CoreError::InvalidUtf8Boundary)
+        );
+    }
+
+    #[test]
+    fn validate_range_start_after_end_rejected() {
+        let buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        // Use variable to avoid clippy::reversed_empty_ranges on literal 5..0
+        let start = 5;
+        let end = 0;
+        assert_eq!(
+            buffer.validate_range(start..end),
+            Err(CoreError::InvalidRange)
+        );
+    }
+
+    #[test]
+    fn validate_range_start_after_end_with_correct_order() {
+        let buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        // start > end is invalid regardless of order direction
+        let start = 3;
+        let end = 2;
+        assert_eq!(
+            buffer.validate_range(start..end),
+            Err(CoreError::InvalidRange)
+        );
+    }
+
+    #[test]
+    fn validate_range_accepts_valid_range() {
+        let buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        assert!(buffer.validate_range(0..5).is_ok());
+    }
+
+    #[test]
+    fn chunks_returns_single_segment() {
+        let buffer = TextBuffer::from_logical_text("hello world", LineEndingKind::Lf).unwrap();
+        let mut chunks = buffer.chunks(0..5).unwrap();
+        assert_eq!(chunks.next(), Some("hello"));
+        assert_eq!(chunks.next(), None);
+    }
+
+    #[test]
+    fn chunks_accepts_valid_range() {
+        let buffer = TextBuffer::from_logical_text("abcdef", LineEndingKind::Lf).unwrap();
+        let result: Vec<&str> = buffer.chunks(1..4).unwrap().collect();
+        assert_eq!(result, vec!["bcd"]);
+    }
+
+    #[test]
+    fn chunks_rejects_invalid_range() {
+        let buffer = TextBuffer::from_logical_text("hello", LineEndingKind::Lf).unwrap();
+        assert!(buffer.chunks(0..10).is_err());
+    }
+
+    #[test]
+    fn to_source_bytes_with_crlf_dominant() {
+        let buffer =
+            TextBuffer::from_logical_text("hello\nworld", LineEndingKind::Crlf).unwrap();
+        assert_eq!(buffer.to_source_bytes(BomKind::None), b"hello\r\nworld");
     }
 }

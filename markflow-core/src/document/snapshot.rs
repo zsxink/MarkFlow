@@ -21,13 +21,13 @@ pub struct ContentHash(pub u64);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OriginalSnapshot {
-    pub bom: BomKind,
-    pub encoding: EncodingKind,
-    pub dominant_line_ending: LineEndingKind,
-    pub trailing_newlines: usize,
-    pub final_newline: bool,
-    pub byte_len: usize,
-    pub content_hash: ContentHash,
+    bom: BomKind,
+    encoding: EncodingKind,
+    dominant_line_ending: LineEndingKind,
+    trailing_newlines: usize,
+    final_newline: bool,
+    byte_len: usize,
+    content_hash: ContentHash,
 }
 
 impl OriginalSnapshot {
@@ -54,6 +54,34 @@ impl OriginalSnapshot {
             byte_len: bytes.len(),
             content_hash: ContentHash(fnv1a64(bytes)),
         })
+    }
+
+    pub fn bom(&self) -> BomKind {
+        self.bom
+    }
+
+    pub fn encoding(&self) -> EncodingKind {
+        self.encoding
+    }
+
+    pub fn dominant_line_ending(&self) -> LineEndingKind {
+        self.dominant_line_ending
+    }
+
+    pub fn trailing_newlines(&self) -> usize {
+        self.trailing_newlines
+    }
+
+    pub fn final_newline(&self) -> bool {
+        self.final_newline
+    }
+
+    pub fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+
+    pub fn content_hash(&self) -> ContentHash {
+        self.content_hash
     }
 }
 

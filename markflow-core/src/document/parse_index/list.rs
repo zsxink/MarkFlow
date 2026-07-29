@@ -1,6 +1,6 @@
 use super::scanner::is_space;
 
-pub fn starts_task_checkbox(text: &str) -> bool {
+pub(crate) fn starts_task_checkbox(text: &str) -> bool {
     let bytes = text.as_bytes();
     bytes.len() >= 3
         && bytes[0] == b'['
@@ -9,7 +9,7 @@ pub fn starts_task_checkbox(text: &str) -> bool {
         && bytes.get(3).is_none_or(|byte| is_space(*byte))
 }
 
-pub fn starts_like_list_marker(trimmed: &str) -> bool {
+pub(crate) fn starts_like_list_marker(trimmed: &str) -> bool {
     let bytes = trimmed.as_bytes();
     if bytes.len() >= 2 && matches!(bytes[0], b'-' | b'*' | b'+') && is_space(bytes[1]) {
         return true;

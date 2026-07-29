@@ -61,23 +61,6 @@ impl AppState {
         }
     }
 
-    /// Consume (and remove) the close permission for a specific window.
-    /// Returns `true` if the permission existed and was consumed.
-    #[allow(dead_code)]
-    pub fn consume_close_permission(&self, label: &str) -> bool {
-        lock_mutex(&self.close_permissions)
-            .map(|mut perms| perms.remove(label))
-            .unwrap_or(false)
-    }
-
-    /// Remove any stale close permission for a window that was destroyed.
-    #[allow(dead_code)]
-    pub fn cleanup_close_permission(&self, label: &str) {
-        if let Ok(mut perms) = lock_mutex(&self.close_permissions) {
-            perms.remove(label);
-        }
-    }
-
     pub fn set_workspace(
         &self,
         path: PathBuf,
@@ -182,38 +165,4 @@ mod tests {
         state.stop_all();
     }
 
-    // --- Per-window close permission tests ---
-
-    #[test]
-    fn grant_for_window_a_does_not_grant_for_window_b() {
-        let state = AppState::new().unwrap();
-        state.grant_close_permission("window-a");
-        // window-a has permission
-        assert!(state.consume_close_permission("window-a"));
-        // window-b must NOT have permission
-        assert!(!state.consume_close_permission("window-b"));
-    }
-
-    #[test]
-    fn consumed_permission_is_removed_and_cannot_be_consumed_again() {
-        let state = AppState::new().unwrap();
-        state.grant_close_permission("main-1");
-        assert!(state.consume_close_permission("main-1"));
-        // Second consume must return false (already consumed)
-        assert!(!state.consume_close_permission("main-1"));
-    }
-
-    #[test]
-    fn cleanup_removes_correct_label_without_affecting_others() {
-        let state = AppState::new().unwrap();
-        state.grant_close_permission("window-a");
-        state.grant_close_permission("window-b");
-
-        state.cleanup_close_permission("window-a");
-
-        // window-a cleaned up
-        assert!(!state.consume_close_permission("window-a"));
-        // window-b still present
-        assert!(state.consume_close_permission("window-b"));
-    }
 }

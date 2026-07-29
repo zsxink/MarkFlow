@@ -54,6 +54,24 @@ pub fn normalize_path(path: &Path) -> String {
     normalized.replace('\\', "/")
 }
 
+/// Resolve `.` and `..` components lexically without touching the filesystem.
+///
+/// This is equivalent to `std::fs::canonicalize` for purely lexical path
+/// normalization; it does not resolve symlinks or require the path to exist.
+pub fn normalize_lexical(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            _ => normalized.push(component.as_os_str()),
+        }
+    }
+    normalized
+}
+
 #[cfg(all(test, feature = "e2e"))]
 mod tests {
     use super::*;

@@ -157,16 +157,6 @@ impl AppError {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn lock_poisoned(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::LockPoisoned, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn watcher_start_failed(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::WatcherStartFailed, message)
-    }
-
     pub fn io(message: impl Into<String>) -> Self {
         Self::new(AppErrorCode::Io, message)
     }
@@ -179,49 +169,13 @@ impl AppError {
         Self::new(AppErrorCode::WorkspaceInvalid, message)
     }
 
-    #[allow(dead_code)]
-    pub fn internal(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::Internal, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn save_flush_timeout(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::SaveFlushTimeout, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn save_in_progress(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::SaveInProgress, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn reload_dirty(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::ReloadDirty, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn invalid_range(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::InvalidRange, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn unsupported_encoding(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::UnsupportedEncoding, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn pending_queue_full(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::PendingQueueFull, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn cancelled(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::Cancelled, message)
-    }
-
-    #[allow(dead_code)]
     pub fn protocol_version_unsupported(message: impl Into<String>) -> Self {
         Self::new(AppErrorCode::ProtocolVersionUnsupported, message)
+    }
+
+    /// Create an error for any other unexpected failure.
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::Internal, message)
     }
 }
 
@@ -272,9 +226,9 @@ mod tests {
 
     #[test]
     fn error_code_serializes_with_message() {
-        let e = AppError::watcher_start_failed("boom");
+        let e = AppError::internal("boom");
         let json = serde_json::to_string(&e).unwrap();
-        assert!(json.contains("watcher-start-failed"));
+        assert!(json.contains("internal"));
         assert!(json.contains("boom"));
         // Frontend still gets a readable message.
         assert_eq!(e.to_string(), "boom");

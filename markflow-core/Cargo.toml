@@ -5,6 +5,12 @@ edition = "2021"
 description = "Lossless Markdown document kernel for MarkFlow"
 license = "MIT"
 
+# The `testing` feature is not declared here — it exists only as a convention
+# passed through from the workspace crate. Allow the `unexpected_cfgs` lint so
+# markflow-core users don't need to suppress this themselves.
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ["cfg(feature, testing)"] }
+
 [dependencies]
 
 [dev-dependencies]

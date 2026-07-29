@@ -7,7 +7,7 @@ use markflow_core::{BomKind, CoreError, DocumentId, DocumentSession, LineEndingK
 fn snapshot_records_bom_and_trailing_newlines() {
     let bom = fixture("utf8-bom.md");
     let session = open(&bom);
-    assert_eq!(session.original().bom, BomKind::Utf8);
+    assert_eq!(session.original().bom(), BomKind::Utf8);
     assert!(session
         .save_payload()
         .as_bytes()
@@ -15,8 +15,8 @@ fn snapshot_records_bom_and_trailing_newlines() {
 
     let trailing = fixture("trailing-newlines.md");
     let session = open(&trailing);
-    assert_eq!(session.original().trailing_newlines, 3);
-    assert!(session.original().final_newline);
+    assert_eq!(session.original().trailing_newlines(), 3);
+    assert!(session.original().final_newline());
     assert_eq!(session.save_payload().as_bytes(), trailing);
 }
 
@@ -40,7 +40,7 @@ fn crlf_and_mixed_eol_are_preserved() {
     let session = open(&mixed);
     assert_eq!(session.save_payload().as_bytes(), mixed);
     assert_eq!(
-        session.original().dominant_line_ending,
+        session.original().dominant_line_ending(),
         LineEndingKind::Mixed
     );
 }

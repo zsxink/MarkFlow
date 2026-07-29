@@ -1,14 +1,14 @@
 use super::style_map::{PipePadding, TableAlignment};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TableScan {
-    pub alignments: Vec<TableAlignment>,
-    pub has_leading_pipe: bool,
-    pub has_trailing_pipe: bool,
-    pub delimiter_padding: Vec<PipePadding>,
+pub(crate) struct TableScan {
+    pub(crate) alignments: Vec<TableAlignment>,
+    pub(crate) has_leading_pipe: bool,
+    pub(crate) has_trailing_pipe: bool,
+    pub(crate) delimiter_padding: Vec<PipePadding>,
 }
 
-pub fn parse_table_delimiter(line: &str) -> Option<TableScan> {
+pub(crate) fn parse_table_delimiter(line: &str) -> Option<TableScan> {
     let trimmed = line.trim();
     if !trimmed.contains('-') {
         return None;
@@ -59,7 +59,7 @@ pub fn parse_table_delimiter(line: &str) -> Option<TableScan> {
     })
 }
 
-pub fn split_table_cells(trimmed: &str) -> Vec<&str> {
+pub(crate) fn split_table_cells(trimmed: &str) -> Vec<&str> {
     let without_leading = trimmed.strip_prefix('|').unwrap_or(trimmed);
     let without_outer = without_leading.strip_suffix('|').unwrap_or(without_leading);
     without_outer.split('|').collect()

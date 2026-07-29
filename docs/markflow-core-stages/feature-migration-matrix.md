@@ -4,7 +4,15 @@
 > 更新日期：2026-07-29
 > 用途：定义”现有功能完整迁移”的范围。每项必须有 owner、目标阶段、自动化测试或人工验收记录。
 > 所属方案：MarkFlow Core 重构
-> M3 状态：Core-backed Source Mode save 路径已接入并验收（`core-source` 调 `saveCoreSession()`，`legacy-wysiwyg` 走旧路径）。Source Mode 保存不调用 `getMarkdown()` / `write_file` 等 legacy API。3 个 1MiB/10MiB/50MiB fixture 文件已就位。Core 会话管理、patch 同步、resync 流程、status bar 指示器、debug 日志均已实现。Tauri command 集成测试、适配器单元测试、冲突检测测试已覆盖。M3.1 已补齐 DocumentService、SaveLease、PathSaveCoordinator、真实 reload、versioned envelope 与 dirty/lifecycle guard。
+> M3 验收记录：
+> - Core-backed Source Mode save 路径已接入并验收（`core-source` 调 `saveCoreSession()`，`legacy-wysiwyg` 走旧路径）
+> - Source Mode 保存不调用 `getMarkdown()` / `write_file` 等 legacy API，内容只来自 Core confirmed snapshot
+> - 已通过：markflow-core cargo test (12 passed)、src-tauri cargo test (123 passed)、npm test (401 passed)、npm run build (tsc 无错误)
+> - 已通过：cargo clippy --all-targets -- -D warnings（markflow-core + src-tauri 均无警告）
+> - Core 代码质量：testing 模块条件编译、移除 blanket allow(dead_code)、OriginalSnapshot 字段封装、expect/unreachable 替换、ID 类型提取、增量测试覆盖、benchmark 重命名、fixtures 目录统一
+> - Tauri Backend：document_service.rs 删除、Mutex 安全修复、normalize_lexical 提取、死代码构造器删除、resync 逻辑修复、AppHost 测试
+> - 未处理(P2)：scanner.rs 拆分、5 个导出命令统一、TypeScript 大文件拆分、docxExport.ts 类型安全
+> - 文档：technical-plan.md 引用更新、m3-core-backed-source-mode.md 验收清单添加
 
 ## 1. 使用规则
 

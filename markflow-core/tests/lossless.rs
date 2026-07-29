@@ -3,22 +3,8 @@ use std::path::Path;
 
 mod common;
 
-use common::open;
-use markflow_core::{BlockKind, DocumentSession};
-
-const FIXTURE_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/lossless");
-
-#[allow(dead_code)]
-fn block_kinds(session: &DocumentSession) -> Vec<BlockKind> {
-    session
-        .parse_index()
-        .parse_index
-        .blocks
-        .iter()
-        .filter(|block| block.kind != BlockKind::Document)
-        .map(|block| block.kind.clone())
-        .collect()
-}
+use common::{open, FIXTURE_ROOT};
+use markflow_core::BlockKind;
 
 fn markdown_options() -> markdown::ParseOptions {
     let mut constructs = markdown::Constructs::gfm();

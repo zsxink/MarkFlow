@@ -2,9 +2,7 @@
 
 ## Purpose
 定义前端与 Runtime/Core 之间的 Bridge protocol、命令集合、稳定 DTO 和错误码映射，确保 Core-backed Source Mode 的同步、保存和恢复路径可测试可演进。
-
 ## Requirements
-
 ### Requirement: apply_text_patch versioned Envelope
 
 `apply_text_patch` SHALL 使用 `ProtocolEnvelope<Utf16TextPatchDto>` 封装，包含 `protocol_version`、`session_id` 和 `payload`。版本不匹配时必须返回 `PROTOCOL_VERSION_UNSUPPORTED`，session 缺失时必须返回稳定错误。
@@ -147,3 +145,13 @@ Bridge SHALL 将所有 Core/Runtime 错误映射为稳定的错误码，错误�
 
 - **WHEN** 任何错误发生
 - **THEN** 返回的错误码来自以下完整集合：`REVISION_MISMATCH`, `INVALID_RANGE`, `INVALID_UTF16_BOUNDARY`, `TRANSACTION_CONFLICT`, `UNSUPPORTED_ENCODING`, `PENDING_QUEUE_FULL`, `SAVE_FLUSH_TIMEOUT`, `CONFLICT`, `CANCELLED`, `SESSION_NOT_FOUND`, `PROTOCOL_VERSION_UNSUPPORTED`, `SAVE_IN_PROGRESS`, `RELOAD_DIRTY`
+
+### Requirement: resync_document validates confirmed_revision
+
+The `resync_document` RPC SHALL use the `confirmed_revision` parameter sent by the frontend to verify staleness. If the confirmed revision is outdated relative to the session's current revision, the backend SHALL reject the resync.
+
+#### Scenario: stale resync rejected
+
+- **WHEN** the frontend sends a resync with a `confirmed_revision` lower than the current session revision
+- **THEN** the backend SHALL reject the request and signal the frontend to re-sync from the current state
+

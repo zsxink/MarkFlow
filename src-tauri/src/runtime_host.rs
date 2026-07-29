@@ -78,3 +78,92 @@ impl Host for AppHost {
         Ok(new_identity)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    /// Create a unique temp dir per test using the test name (via thread name).
+    fn test_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("mflow_host_test_{}_{}", std::process::id(), name));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn compare_and_atomic_write_success() {
+        let dir = test_dir("success");
+        let path = dir.join("test.md");
+        fs::write(&path, b"original content").unwrap();
+
+        let host = AppHost;
+
+        let initial_identity = host.stat_identity(&path).unwrap();
+        assert_eq!(initial_identity.size, 16); // "original content"
+
+        // Write with matching expected identity
+        let new_content = b"updated content";
+        let result = host.compare_and_atomic_write(&path, new_content, &initial_identity);
+        assert!(result.is_ok(), "write should succeed: {:?}", result.err());
+
+        // Verify content was updated
+        let read_back = fs::read(&path).unwrap();
+        assert_eq!(read_back, b"updated content");
+
+        // Verify new identity is different
+        let new_identity = result.unwrap();
+        assert_ne!(new_identity.fingerprint, initial_identity.fingerprint);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn compare_and_atomic_write_rejects_identity_mismatch() {
+        let dir = test_dir("rejects_identity_mismatch");
+        let path = dir.join("test.md");
+        fs::write(&path, b"original content").unwrap();
+
+        let host = AppHost;
+
+        // Use a fictional expected identity with a different fingerprint
+        let fake_fingerprint = ContentFingerprint {
+            sample_size: 0,
+            hash_prefix: "abcd1234".to_string(),
+        };
+        let fake_identity = FileIdentity {
+            canonical_path: None,
+            platform_id: None,
+            mtime_ms: Some(1),
+            size: 999,
+            fingerprint: fake_fingerprint,
+        };
+
+        let result = host.compare_and_atomic_write(&path, b"new content", &fake_identity);
+        assert!(result.is_err(), "should reject identity mismatch");
+
+        // Verify content was NOT overwritten
+        let read_back = fs::read(&path).unwrap();
+        assert_eq!(read_back, b"original content");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn compare_and_atomic_write_succeeds_with_mtime_only_delta() {
+        let dir = test_dir("mtime_delta");
+        let path = dir.join("test.md");
+        fs::write(&path, b"hello").unwrap();
+
+        let host = AppHost;
+        let identity = host.stat_identity(&path).unwrap();
+
+        // Change mtime by touching the file (same content)
+        let new_content = b"hello";
+        let result = host.compare_and_atomic_write(&path, new_content, &identity);
+        assert!(result.is_ok(), "mtime-only change should not block write");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+}

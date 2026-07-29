@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 use crate::config::settings::default_file_tree_ignore_patterns;
+use crate::error;
 
 #[derive(Clone, Debug)]
 pub struct IgnoreMatcher {
@@ -39,7 +40,13 @@ impl IgnoreMatcher {
 pub fn matcher_snapshot(patterns: &[String]) -> IgnoreMatcher {
     static SNAPSHOT: OnceLock<Mutex<IgnoreMatcher>> = OnceLock::new();
     let snapshot = SNAPSHOT.get_or_init(|| Mutex::new(IgnoreMatcher::defaults()));
-    let mut current = snapshot.lock().unwrap();
+    let mut current = match error::lock_mutex(snapshot) {
+        Ok(guard) => guard,
+        Err(e) => {
+            tracing::warn!(target: "backend.ignore", error = %e.message, "Ignore matcher snapshot lock failed, using defaults");
+            return IgnoreMatcher::defaults();
+        }
+    };
     match IgnoreMatcher::new(patterns) {
         Ok(next) => {
             *current = next.clone();

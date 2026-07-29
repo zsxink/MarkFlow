@@ -4,6 +4,8 @@
 //! file IO adapters belong here.
 
 pub mod document;
+#[cfg(feature = "testing")]
+#[cfg(feature = "testing")]
 pub mod testing;
 
 pub use document::{

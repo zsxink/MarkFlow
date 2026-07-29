@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   logException: vi.fn(),
   logInfo: vi.fn(),
   showToast: vi.fn(),
-  flushPendingPatches: vi.fn(),
+  getCachedSettings: vi.fn(),
 }));
 
 vi.mock('./coreBridge', () => ({
@@ -48,8 +48,8 @@ vi.mock('../components/toast', () => ({
   showToast: mocks.showToast,
 }));
 
-vi.mock('./editor.sourcePatcher', () => ({
-  flushPendingPatches: mocks.flushPendingPatches,
+vi.mock('./storage', () => ({
+  getCachedSettings: mocks.getCachedSettings,
 }));
 
 import {
@@ -171,12 +171,11 @@ describe('coreSession', () => {
   });
 
   describe('saveCoreSession', () => {
-    it('calls flushPendingPatches, then flushDocument then saveDocument and updates persistedRevision', async () => {
+    it('calls flushDocument then saveDocument and updates persistedRevision', async () => {
       mocks.openDocument.mockResolvedValue(sampleDto);
       await openCoreSession('/tmp/test.md');
       vi.clearAllMocks();
       mocks.closeDocument.mockResolvedValue(undefined);
-      mocks.flushPendingPatches.mockResolvedValue(undefined);
       mocks.flushDocument.mockResolvedValue({ revision: 5 });
       mocks.saveDocument.mockResolvedValue({
         revision: 10,
@@ -186,10 +185,7 @@ describe('coreSession', () => {
       const result = await saveCoreSession();
 
       expect(result).toBe(10);
-      expect(mocks.flushPendingPatches).toHaveBeenCalledTimes(1);
-      // flushPendingPatches must complete before flushDocument
-      expect(mocks.flushPendingPatches.mock.invocationCallOrder[0])
-        .toBeLessThan(mocks.flushDocument.mock.invocationCallOrder[0]);
+      // SourceSyncController.flush() runs first (idle → returns immediately)
       expect(mocks.flushDocument).toHaveBeenCalledWith(42);
       expect(mocks.saveDocument).toHaveBeenCalledWith(42);
 
@@ -344,8 +340,19 @@ describe('coreSession', () => {
   });
 
   describe('isCoreBackedSourceModeEnabled', () => {
-    it('returns true', () => {
+    it('returns true when setting is not explicitly false', () => {
+      mocks.getCachedSettings.mockReturnValue({ coreBackedSourceMode: undefined });
       expect(isCoreBackedSourceModeEnabled()).toBe(true);
+    });
+
+    it('returns true when setting is true', () => {
+      mocks.getCachedSettings.mockReturnValue({ coreBackedSourceMode: true });
+      expect(isCoreBackedSourceModeEnabled()).toBe(true);
+    });
+
+    it('returns false when setting is false', () => {
+      mocks.getCachedSettings.mockReturnValue({ coreBackedSourceMode: false });
+      expect(isCoreBackedSourceModeEnabled()).toBe(false);
     });
   });
 

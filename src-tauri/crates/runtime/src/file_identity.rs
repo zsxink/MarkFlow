@@ -1,11 +1,15 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
-/// Content fingerprint for quick identity comparison.
-/// Uses the first N bytes or a fast hash prefix — not a full file hash.
+/// Content fingerprint for identity comparison.
+///
+/// Two modes:
+/// - `compute()`: Fast xxhash of the first 4096 bytes (for pre-check).
+/// - `from_bytes()`: Full-content SHA-256 (cryptographic, definitive).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentFingerprint {
-    /// Size of the sampled prefix (bytes).
+    /// Size of the sampled prefix (bytes) — 0 for full-content hash.
     pub sample_size: u64,
     /// xxhash or sha256 prefix of the content sample.
     pub hash_prefix: String,
@@ -13,7 +17,7 @@ pub struct ContentFingerprint {
 
 impl ContentFingerprint {
     /// Compute a fingerprint from content bytes.
-    /// Uses a simple hash of the first 4096 bytes.
+    /// Uses a simple hash of the first 4096 bytes (fast but probabilistic).
     pub fn compute(bytes: &[u8]) -> Self {
         let sample_size = bytes.len().min(4096) as u64;
         let sample = &bytes[..bytes.len().min(4096)];
@@ -25,12 +29,32 @@ impl ContentFingerprint {
         }
     }
 
+    /// Compute a full-content SHA-256 fingerprint.
+    ///
+    /// This is the definitive comparison method. Use `compute()` for
+    /// a fast pre-check, then confirm with `from_bytes()`.
+    /// Sample size is set to 0 to distinguish from prefix-based fingerprints.
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let result = hasher.finalize();
+        Self {
+            sample_size: 0,
+            hash_prefix: format!("{:064x}", result),
+        }
+    }
+
     /// Empty fingerprint for untitled/new documents.
     pub fn empty() -> Self {
         Self {
             sample_size: 0,
             hash_prefix: String::new(),
         }
+    }
+
+    /// Check if this fingerprint was computed from the full content (SHA-256).
+    pub fn is_full_content(&self) -> bool {
+        self.sample_size == 0 && !self.hash_prefix.is_empty()
     }
 }
 
@@ -67,6 +91,10 @@ impl FileIdentity {
     }
 
     /// Create a FileIdentity from file metadata and content.
+    ///
+    /// Uses full-content SHA-256 fingerprint for definitive identity.
+    /// The fingerprint serves as the final authority in conflict detection,
+    /// while mtime+size provides a fast pre-check.
     pub fn from_metadata(path: &PathBuf, bytes: &[u8]) -> Self {
         let canonical_path = path.canonicalize().ok();
         #[cfg(unix)]
@@ -84,7 +112,8 @@ impl FileIdentity {
             .map(|d| d.as_millis() as u64);
 
         let size = bytes.len() as u64;
-        let fingerprint = ContentFingerprint::compute(bytes);
+        // Full-content SHA-256 fingerprint (definitive comparison)
+        let fingerprint = ContentFingerprint::from_bytes(bytes);
 
         Self {
             canonical_path,

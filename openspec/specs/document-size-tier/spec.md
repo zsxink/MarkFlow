@@ -14,7 +14,7 @@
 ### Requirement: 文档尺寸等级分类
 系统 MUST 在打开前根据文件大小和行数将文档分为大小级别。
 
-In Core-backed Source Mode, the size class is computed by Core and returned via `DocumentOpened.sizeClass` in the Bridge protocol. The same threshold rules apply, but the classification happens server-side.
+In Core-backed Source Mode, the size class is computed by Core and returned via `DocumentOpened.sizeClass` in the Bridge protocol. The size class SHALL be based on actual source bytes (not logical text length), using the same threshold rules as the legacy path. The classification happens server-side.
 
 - Normal: file size < 1MB AND line count < 5000
 - Large: file size 1MB–10MB OR line count 5000–50000
@@ -43,10 +43,11 @@ In Core-backed Source Mode, the size class is computed by Core and returned via 
 - **THEN** 用户可以点击状态栏中的覆盖按钮来切换模式
 - **THEN** 覆盖选项包括：强制所见即所得、强制源模式、重置为自动检测
 
-#### Scenario: Core-backed 打开返回 sizeClass
+#### Scenario: Core-backed 打开返回基于实际字节的 sizeClass
 - **WHEN** Core-backed Source Mode 打开文件
 - **THEN** `open_document` 返回的 `DocumentOpened` 包含 `sizeClass` 字段
-- **THEN** size class 值来自 Core 的大小判断
+- **THEN** size class 基于 Core 保存的实际源字节数分类（而非逻辑文本长度）
+- **THEN** size class 值与 legacy 路径一致（仅字节来源不同）
 - **THEN** UI 状态栏和 degradation bar 从该值驱动
 
 ### Requirement: 文件打开前预读取元数据

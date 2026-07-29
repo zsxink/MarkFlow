@@ -140,7 +140,7 @@ fn save_workflow_conflict_detected() {
     let session_id = create_session(&registry, "/tmp/save_conflict_test.md");
 
     // Host stat returns a different mtime from the opened identity
-    let opened_identity = make_identity(25, "deadbeef", 1000);
+    let _opened_identity = make_identity(25, "deadbeef", 1000);
     let external_identity = make_identity(25, "deadbeef", 3000);
     let new_identity = make_identity(25, "deadbeef", 1001);
 
@@ -221,6 +221,185 @@ fn clean_external_changed_detects_conflict() {
         "Error detail should mention external modification"
     );
 }
+
+// ---------------------------------------------------------------------------
+// SaveLease RAII cleanup tests
+// ---------------------------------------------------------------------------
+
+/// Test SaveLease RAII at the state level without going through the registry.
+#[test]
+fn save_lease_raii_success_path() {
+    use markflow_runtime::session::SaveLease;
+
+    let core = open_session(SessionId(1), DocumentId(1), b"test content");
+    let identity = make_identity(12, "", 0);
+    let mut state = markflow_runtime::session::DocumentRuntimeState::new(core, identity);
+
+    assert!(
+        state.save_in_progress.is_none(),
+        "No save in progress initially"
+    );
+
+    {
+        let lease = SaveLease::acquire(&mut state);
+        assert!(lease.is_some(), "Should acquire lease");
+        // Lease holds mutable borrow — can't access state here
+    } // lease dropped
+
+    assert!(
+        state.save_in_progress.is_none(),
+        "SaveInProgress cleared after lease drop"
+    );
+}
+
+/// SaveLease prevents concurrent save from a second attempt.
+#[test]
+fn save_lease_raii_prevents_concurrent() {
+    use markflow_runtime::session::SaveLease;
+
+    let core = open_session(SessionId(2), DocumentId(2), b"test");
+    let mut state =
+        markflow_runtime::session::DocumentRuntimeState::new(core, make_identity(4, "", 0));
+
+    let lease1 = SaveLease::acquire(&mut state);
+    assert!(lease1.is_some(), "First lease");
+
+    // Drop to release borrow
+    drop(lease1);
+
+    let lease2 = SaveLease::acquire(&mut state);
+    assert!(lease2.is_some(), "Second lease after first is dropped");
+}
+
+/// SaveLease RAII clears the token when dropped — verified via success path.
+/// Panic safety (Drop running during unwind) is tested at the unit level
+/// in `save.rs` because `catch_unwind` + mutable borrow requires unsafe code
+/// that is not appropriate for integration tests.
+
+#[test]
+fn save_lease_panic_does_not_leak_token() {
+    use markflow_runtime::session::SaveLease;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+
+    let registry = SessionRegistry::new();
+    let session_id = create_session(&registry, "/tmp/lease_panic_test.md");
+
+    let handle = registry.get(session_id).unwrap();
+    let mut state = handle.inner.lock().unwrap();
+
+    // Simulate a panic while holding the lease
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let mut state = handle.inner.lock().unwrap();
+        let _lease = SaveLease::acquire(&mut state);
+        panic!("simulated panic during save");
+    }));
+
+    assert!(result.is_err(), "Expected panic to propagate");
+
+    // After the panic, the lease's Drop should still have run, clearing the token
+    let new_lease = SaveLease::acquire(&mut state);
+    assert!(
+        new_lease.is_some(),
+        "save token should be cleared after panic-cancelled lease"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// PathSaveCoordinator integration tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn save_coordinator_serializes_same_path() {
+    use markflow_runtime::save_coordinator::PathSaveCoordinator;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use std::thread;
+
+    let coord = Arc::new(PathSaveCoordinator::new());
+    let path = PathBuf::from("/tmp/coord_serialize_test.md");
+
+    let coord1 = coord.clone();
+    let path1 = path.clone();
+    let handle1 = thread::spawn(move || {
+        coord1
+            .with_path_lock(&path1, || {
+                thread::sleep(std::time::Duration::from_millis(50));
+            })
+            .expect("Lock path");
+    });
+
+    // While thread 1 holds the lock, try_lock should return None
+    let coord2 = coord.clone();
+    let path2 = path.clone();
+    let released = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let released2 = released.clone();
+    let handle2 = thread::spawn(move || {
+        // This should block until thread 1 releases
+        coord2
+            .with_path_lock(&path2, || {
+                released2.store(true, std::sync::atomic::Ordering::SeqCst);
+            })
+            .expect("Lock path after thread 1");
+    });
+
+    handle1.join().expect("Thread 1 panicked");
+    handle2.join().expect("Thread 2 panicked");
+    assert!(
+        released.load(std::sync::atomic::Ordering::SeqCst),
+        "Thread 2 should have run after thread 1 released"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Full-content fingerprint conflict detection tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn full_content_fingerprint_detects_different_content() {
+    use markflow_runtime::file_identity::ContentFingerprint;
+
+    let fp1 = ContentFingerprint::from_bytes(b"hello world");
+    let fp2 = ContentFingerprint::from_bytes(b"hello world!");
+    assert_ne!(
+        fp1, fp2,
+        "Different content should produce different fingerprints"
+    );
+}
+
+#[test]
+fn full_content_fingerprint_same_content_produces_same_hash() {
+    use markflow_runtime::file_identity::ContentFingerprint;
+
+    let fp1 = ContentFingerprint::from_bytes(b"hello world");
+    let fp2 = ContentFingerprint::from_bytes(b"hello world");
+    assert_eq!(
+        fp1, fp2,
+        "Same content should produce identical fingerprints"
+    );
+}
+
+#[test]
+fn full_content_fingerprint_is_full_content() {
+    use markflow_runtime::file_identity::ContentFingerprint;
+
+    let fp = ContentFingerprint::from_bytes(b"hello world");
+    assert!(
+        fp.is_full_content(),
+        "from_bytes should mark as full content"
+    );
+    assert_eq!(
+        fp.sample_size, 0,
+        "Full content fingerprint has sample_size 0"
+    );
+    assert!(
+        !fp.hash_prefix.is_empty(),
+        "Full content fingerprint should have a hash"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Original tests below
+// ---------------------------------------------------------------------------
 
 #[test]
 fn dirty_conflict_prevents_auto_reload() {

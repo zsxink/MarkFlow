@@ -7,8 +7,7 @@
 use crate::error::{AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
-    Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId,
-    Utf16Offset,
+    Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId, Utf16Offset,
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
 use markflow_runtime::host::Host;
@@ -21,7 +20,26 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
-use tauri::State;
+use tokio::task::spawn_blocking;
+
+// ---------------------------------------------------------------------------
+// Protocol version
+// ---------------------------------------------------------------------------
+
+/// Current protocol version supported by this backend.
+const PROTOCOL_VERSION: u32 = 1;
+
+/// Validate that the frontend's protocol version matches ours.
+/// Returns `PROTOCOL_VERSION_UNSUPPORTED` if mismatched.
+fn validate_protocol_version(version: u32) -> Result<(), AppError> {
+    if version != PROTOCOL_VERSION {
+        return Err(AppError::protocol_version_unsupported(format!(
+            "Expected protocol version {}, got {}",
+            PROTOCOL_VERSION, version
+        )));
+    }
+    Ok(())
+}
 
 // ---------------------------------------------------------------------------
 // Frontend transaction ID -> core TransactionId mapping
@@ -189,13 +207,13 @@ fn map_error(e: RuntimeError) -> AppError {
         RuntimeErrorCode::SessionNotFound => AppErrorCode::SessionNotFound,
         RuntimeErrorCode::TransactionConflict => AppErrorCode::TransactionConflict,
         RuntimeErrorCode::InvalidUtf16Boundary => AppErrorCode::InvalidUtf16Boundary,
-        RuntimeErrorCode::SaveFlushTimeout
-        | RuntimeErrorCode::InvalidRange
-        | RuntimeErrorCode::UnsupportedEncoding
-        | RuntimeErrorCode::PendingQueueFull
-        | RuntimeErrorCode::Cancelled
-        | RuntimeErrorCode::ProtocolVersionUnsupported
-        | RuntimeErrorCode::Internal => AppErrorCode::Internal,
+        RuntimeErrorCode::SaveFlushTimeout => AppErrorCode::SaveFlushTimeout,
+        RuntimeErrorCode::InvalidRange => AppErrorCode::InvalidRange,
+        RuntimeErrorCode::UnsupportedEncoding => AppErrorCode::UnsupportedEncoding,
+        RuntimeErrorCode::PendingQueueFull => AppErrorCode::PendingQueueFull,
+        RuntimeErrorCode::Cancelled => AppErrorCode::Cancelled,
+        RuntimeErrorCode::ProtocolVersionUnsupported => AppErrorCode::ProtocolVersionUnsupported,
+        RuntimeErrorCode::Internal => AppErrorCode::Internal,
     };
     AppError::new(code, format!("{}: {}", e.code.as_str(), e.detail))
 }
@@ -205,20 +223,24 @@ fn map_error(e: RuntimeError) -> AppError {
 // ---------------------------------------------------------------------------
 
 /// Open a document and return the session state.
+///
+/// Uses spawn_blocking for file I/O to avoid blocking the Tauri async runtime.
 #[tauri::command]
-pub fn open_document(
-    path: String,
-    _state: State<crate::state::AppState>,
-) -> Result<DocumentOpenedDto, AppError> {
+pub async fn open_document(path: String) -> Result<DocumentOpenedDto, AppError> {
     let registry = &*SESSION_REGISTRY;
 
-    let source = DocumentSource::new_file(PathBuf::from(&path));
+    // U6.4: Read bytes via spawn_blocking (file I/O outside async context)
+    let path_buf = PathBuf::from(&path);
+    let source = DocumentSource::new_file(path_buf.clone());
 
-    // Read bytes and identity from the host, then open the session
-    let host = AppHost;
-    let (bytes, identity) = host
-        .read_document_bytes(&PathBuf::from(&path))
-        .map_err(map_error)?;
+    let io_result = spawn_blocking(move || {
+        let host = AppHost;
+        host.read_document_bytes(&path_buf)
+            .map_err(|e| AppError::internal(format!("File read error: {}", e.detail)))
+    })
+    .await
+    .map_err(|e| AppError::internal(format!("Task join error: {}", e)))?;
+    let (bytes, identity) = io_result?;
 
     let session_id = registry
         .create(
@@ -236,13 +258,14 @@ pub fn open_document(
         .map_err(map_error)?;
 
     // Read back session info
-    let (text, revision, line_count, byte_count) =
+    let (text, revision, line_count, byte_count, document_id) =
         with_session_state(registry, session_id, |state| {
             let text = state.core.text().logical_text().to_string();
             let revision = state.core.revision();
             let line_count = state.core.line_count();
             let byte_count = state.core.text().logical_text().len();
-            Ok((text, revision, line_count, byte_count))
+            let document_id = state.core.document_id.0;
+            Ok((text, revision, line_count, byte_count, document_id))
         })
         .map_err(map_error)?;
 
@@ -258,7 +281,7 @@ pub fn open_document(
     let dto = DocumentOpenedDto {
         protocol_version: 1,
         session_id: session_id.0,
-        document_id: 0,
+        document_id,
         revision: revision.0,
         persisted_revision: revision.0,
         text,
@@ -270,7 +293,7 @@ pub fn open_document(
             size: identity.size,
             fingerprint_hash: identity.fingerprint.hash_prefix,
         },
-        outline: vec![],
+        outline: vec![], // TODO: populate from core parse_index
         stats: DocumentStatsDto {
             line_count,
             byte_count,
@@ -295,6 +318,9 @@ pub fn open_document(
 pub fn apply_text_patch(
     envelope: ProtocolEnvelope<Utf16TextPatchDto>,
 ) -> Result<ApplyPatchAckDto, AppError> {
+    // Validate protocol version
+    validate_protocol_version(envelope.protocol_version)?;
+
     let session_id = envelope
         .session_id
         .ok_or_else(|| AppError::internal("Missing session_id"))?;
@@ -357,7 +383,7 @@ pub fn apply_text_patch(
             Some(sel) => {
                 let anchor_byte = state
                     .core
-                    .byte_for_utf16(Utf16Offset(sel.anchor))
+                    .byte_for_utf16(Utf16Offset(sel.anchor)) // UTF-16 -> byte offset
                     .map_err(|_| {
                         RuntimeError::new(
                             RuntimeErrorCode::InvalidUtf16Boundary,
@@ -367,8 +393,8 @@ pub fn apply_text_patch(
                             ),
                         )
                     })?;
-                let head_byte = state.core.byte_for_utf16(Utf16Offset(sel.head)).map_err(
-                    |_| {
+                let head_byte = state.core.byte_for_utf16(Utf16Offset(sel.head)) // UTF-16 -> byte offset
+                    .map_err(|_| {
                         RuntimeError::new(
                             RuntimeErrorCode::InvalidUtf16Boundary,
                             format!(
@@ -376,8 +402,7 @@ pub fn apply_text_patch(
                                 sel.head
                             ),
                         )
-                    },
-                )?;
+                    })?;
                 Some(Selection {
                     anchor: anchor_byte,
                     head: head_byte,
@@ -422,14 +447,22 @@ pub fn apply_text_patch(
 }
 
 /// Save a document through the Runtime save workflow.
+///
+/// Uses spawn_blocking for file I/O (Host::compare_and_atomic_write).
 #[tauri::command]
-pub fn save_document_command(session_id: u64) -> Result<SaveResultDto, AppError> {
+pub async fn save_document_command(session_id: u64) -> Result<SaveResultDto, AppError> {
     let registry = &*SESSION_REGISTRY;
-
     let sid = SessionId(session_id);
-    let host = AppHost;
 
-    let result = save_document(registry, sid, &host).map_err(map_error)?;
+    // U6.4: Move the save (with file I/O) to a blocking thread
+    let result = spawn_blocking(
+        move || -> Result<markflow_runtime::save::SaveResult, AppError> {
+            let host = AppHost;
+            save_document(registry, sid, &host).map_err(map_error)
+        },
+    )
+    .await
+    .map_err(|e| AppError::internal(format!("Task join error: {}", e)))??;
 
     Ok(SaveResultDto {
         revision: result.revision.0,
@@ -540,29 +573,73 @@ pub fn get_document_stats(session_id: u64) -> Result<DocumentStatsDto, AppError>
 }
 
 /// Reload a document from disk.
+///
+/// Uses spawn_blocking for file I/O. Performs a proper reload:
+/// 1. Get file path (outside session lock)
+/// 2. Read via Host (outside session lock)
+/// 3. Re-acquire lock, verify session is clean
+/// 4. Create new Core state from loaded bytes, atomically replace
 #[tauri::command]
-pub fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppError> {
-    let registry = &*SESSION_REGISTRY;
-
+pub async fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppError> {
     let sid = SessionId(session_id);
 
-    let (text, revision, identity) = with_session_state(registry, sid, |state| {
-        let text = state.core.text().logical_text().to_string();
-        let revision = state.core.revision();
+    // U6.4: Move the reload (with file I/O) to a blocking thread
+    let result = spawn_blocking(move || -> Result<ReloadResultDto, AppError> {
+        let registry = &*SESSION_REGISTRY;
+        let host = AppHost;
+
+        // 1. Get the file path (outside session lock)
+        let handle = registry
+            .get(sid)
+            .ok_or_else(RuntimeError::session_not_found)
+            .map_err(map_error)?;
+        let path = handle
+            .source
+            .path
+            .clone()
+            .ok_or_else(|| RuntimeError::internal("No path for reload"))
+            .map_err(map_error)?;
+
+        // 2. Read via host outside session lock
+        let (bytes, _identity) = host.read_document_bytes(&path).map_err(map_error)?;
+
+        // 3. Re-acquire lock, verify clean, replace Core state
+        let (text, revision) = with_session_state(registry, sid, |state| {
+            if state.is_dirty() {
+                return Err(RuntimeError::new(
+                    RuntimeErrorCode::TransactionConflict,
+                    "Cannot reload: session has unpersisted changes",
+                ));
+            }
+
+            let core_session =
+                markflow_core::DocumentSession::open_bytes(sid, state.core.document_id, &bytes)
+                    .map_err(RuntimeError::from)?;
+
+            state.core = core_session;
+
+            let text = state.core.text().logical_text().to_string();
+            let revision = state.core.revision();
+            Ok((text, revision))
+        })
+        .map_err(map_error)?;
+
         let identity = FileIdentityDto {
             canonical_path: None,
             size: text.len() as u64,
             fingerprint_hash: String::new(),
         };
-        Ok((text, revision, identity))
-    })
-    .map_err(map_error)?;
 
-    Ok(ReloadResultDto {
-        revision: revision.0,
-        text,
-        file_identity: identity,
+        Ok(ReloadResultDto {
+            revision: revision.0,
+            text,
+            file_identity: identity,
+        })
     })
+    .await
+    .map_err(|e| AppError::internal(format!("Task join error: {}", e)))??;
+
+    Ok(result)
 }
 
 /// Close a document session.
@@ -592,9 +669,7 @@ mod tests {
     /// Construct all known RuntimeErrorCodes, pass each through
     /// map_error, and verify:
     ///
-    ///   * Specific error codes map to matching AppErrorCode variants
-    ///     (RevisionMismatch -> RevisionMismatch, etc.).
-    ///   * Others map to Internal.
+    ///   * Every RuntimeErrorCode maps 1:1 to a matching AppErrorCode variant.
     ///   * The stable code string (e.g. "REVISION_MISMATCH") appears in
     ///     the message so the frontend fallback heuristic still works.
     ///   * The original detail string is preserved in the message.
@@ -606,7 +681,6 @@ mod tests {
             &str, // expected code string in message
             &str, // detail
         )> = vec![
-            // These five map to specific AppErrorCode variants
             (
                 RuntimeErrorCode::RevisionMismatch,
                 AppErrorCode::RevisionMismatch,
@@ -637,42 +711,47 @@ mod tests {
                 "SESSION_NOT_FOUND",
                 "session id 42 not found",
             ),
-            // These all map to Internal
+            (
+                RuntimeErrorCode::SaveFlushTimeout,
+                AppErrorCode::SaveFlushTimeout,
+                "SAVE_FLUSH_TIMEOUT",
+                "timed out after 5 s",
+            ),
             (
                 RuntimeErrorCode::InvalidRange,
-                AppErrorCode::Internal,
+                AppErrorCode::InvalidRange,
                 "INVALID_RANGE",
                 "offset out of bounds",
             ),
             (
                 RuntimeErrorCode::UnsupportedEncoding,
-                AppErrorCode::Internal,
+                AppErrorCode::UnsupportedEncoding,
                 "UNSUPPORTED_ENCODING",
                 "utf-32 is not supported",
             ),
             (
                 RuntimeErrorCode::PendingQueueFull,
-                AppErrorCode::Internal,
+                AppErrorCode::PendingQueueFull,
                 "PENDING_QUEUE_FULL",
                 "max 100 items",
             ),
             (
-                RuntimeErrorCode::SaveFlushTimeout,
-                AppErrorCode::Internal,
-                "SAVE_FLUSH_TIMEOUT",
-                "timed out after 5 s",
-            ),
-            (
                 RuntimeErrorCode::Cancelled,
-                AppErrorCode::Internal,
+                AppErrorCode::Cancelled,
                 "CANCELLED",
                 "operation cancelled by user",
             ),
             (
                 RuntimeErrorCode::ProtocolVersionUnsupported,
-                AppErrorCode::Internal,
+                AppErrorCode::ProtocolVersionUnsupported,
                 "PROTOCOL_VERSION_UNSUPPORTED",
                 "version 2 is unsupported",
+            ),
+            (
+                RuntimeErrorCode::Internal,
+                AppErrorCode::Internal,
+                "INTERNAL",
+                "unexpected failure",
             ),
         ];
 

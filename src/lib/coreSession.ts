@@ -24,7 +24,10 @@ import {
 } from './coreBridge';
 import { logDebug, logException, logInfo } from './logger';
 import { showToast } from '../components/toast';
-import { flushPendingPatches } from './editor.sourcePatcher';
+import { getCachedSettings } from './storage';
+
+// Import type only to avoid circular dependency with SourceSyncController.ts
+import type { SourceSyncController } from './SourceSyncController';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -104,8 +107,44 @@ const INITIAL_STATE: CoreSessionState = {
 let currentSession: CoreSessionState = { ...INITIAL_STATE };
 let onStateChange: ((state: CoreSessionState) => void) | null = null;
 
-/** Guard flag preventing concurrent closeCoreSession calls. */
-let closeInProgress = false;
+/** Monotonic generation counter, incremented per open/close cycle. */
+let generation = 0;
+
+function nextGeneration(): number {
+  return ++generation;
+}
+
+/** Promise-based guard for idempotent closeCoreSession(). */
+let closePromise: Promise<void> | null = null;
+
+/**
+ * SourceSyncController reference, set externally by editor.ts during source
+ * mode initialization. This avoids a circular dependency: SourceSyncController
+ * imports from coreSession (for getCoreSessionState, etc.), so coreSession
+ * cannot import from SourceSyncController at the module level.
+ *
+ * Instead, editor.ts creates the controller and registers it here.
+ */
+let _sourceSyncController: SourceSyncController | null = null;
+
+/**
+ * Register the SourceSyncController instance. Called by editor.ts during
+ * source mode initialization (switchToSource).
+ */
+export function setSourceSyncController(c: SourceSyncController): void {
+  _sourceSyncController = c;
+}
+
+/**
+ * Get the SourceSyncController instance. Throws if not initialized.
+ * Called by editor.ts (attach/detach) and saveCoreSession (flush barrier).
+ */
+export function getSourceSyncController(): SourceSyncController {
+  if (!_sourceSyncController) {
+    throw new Error('SourceSyncController not initialized — call setSourceSyncController first');
+  }
+  return _sourceSyncController;
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -205,8 +244,19 @@ export async function openCoreSession(
     await closeCoreSession();
   }
 
+  const gen = nextGeneration();
+
   try {
     const opened = await openDocument(path);
+
+    // Discard stale responses if another open/close cycle occurred
+    if (gen !== generation) {
+      logDebug('core.session', 'Discarding stale openCoreSession response', {
+        gen,
+        currentGen: generation,
+      });
+      return null;
+    }
 
     updateState({
       sessionId: opened.session_id,
@@ -231,6 +281,13 @@ export async function openCoreSession(
 
     return opened;
   } catch (err) {
+    if (gen !== generation) {
+      logDebug('core.session', 'Discarding stale openCoreSession error', {
+        gen,
+        currentGen: generation,
+      });
+      return null;
+    }
     const bridgeErr = err instanceof BridgeError ? err : new BridgeError('UNKNOWN', String(err));
     const [toastMsg, _level, detail] = mapBridgeError(bridgeErr);
     logException('core.session', 'Failed to open core session', err, { path, detail });
@@ -240,26 +297,31 @@ export async function openCoreSession(
 }
 
 /**
- * Close the current Core-backed session.
+ * Close the current Core-backed session. Idempotent — concurrent callers
+ * receive the same promise.
  */
 export async function closeCoreSession(): Promise<void> {
   if (!currentSession.isActive) return;
-  if (closeInProgress) {
-    logDebug('core.session', 'Close already in progress — skipping re-entrant call');
-    return;
+  if (closePromise) {
+    return closePromise;
   }
 
-  closeInProgress = true;
   const sessionId = currentSession.sessionId;
-  try {
-    await closeDocument(sessionId);
-    logInfo('core.session', 'Core session closed', { sessionId });
-  } catch (err) {
-    logException('core.session', 'Error closing core session (non-fatal)', err, { sessionId });
-  } finally {
-    closeInProgress = false;
-    updateState({ ...INITIAL_STATE });
-  }
+  const gen = nextGeneration();
+
+  closePromise = (async () => {
+    try {
+      await closeDocument(sessionId);
+      logInfo('core.session', 'Core session closed', { sessionId, gen });
+    } catch (err) {
+      logException('core.session', 'Error closing core session (non-fatal)', err, { sessionId, gen });
+    } finally {
+      closePromise = null;
+      updateState({ ...INITIAL_STATE });
+    }
+  })();
+
+  return closePromise;
 }
 
 /**
@@ -272,8 +334,18 @@ export async function flushCoreSession(): Promise<number> {
     return 0;
   }
 
+  const gen = generation;
+
   try {
     const result = await flushDocument(currentSession.sessionId);
+    if (gen !== generation) {
+      logDebug('core.session', 'Discarding stale flush response', {
+        sessionId: currentSession.sessionId,
+        gen,
+        currentGen: generation,
+      });
+      return 0;
+    }
     logDebug('core.session', 'Session flushed', {
       sessionId: currentSession.sessionId,
       revision: result.revision,
@@ -294,12 +366,20 @@ export async function flushCoreSession(): Promise<number> {
 export async function resyncCoreSession(confirmedRevision?: number): Promise<string | null> {
   if (!currentSession.isActive) return null;
 
+  const gen = generation;
   const rev = confirmedRevision ?? currentSession.confirmedRevision;
   const prevState = currentSession.syncState;
   updateState({ syncState: 'resyncing' });
 
   try {
     const result = await resyncDocument(currentSession.sessionId, rev);
+    if (gen !== generation) {
+      logDebug('core.session', 'Discarding stale resync response', {
+        gen,
+        currentGen: generation,
+      });
+      return null;
+    }
     updateState({
       confirmedRevision: result.revision,
       pendingCount: 0,
@@ -313,6 +393,13 @@ export async function resyncCoreSession(confirmedRevision?: number): Promise<str
     });
     return result.text;
   } catch (err) {
+    if (gen !== generation) {
+      logDebug('core.session', 'Discarding stale resync error', {
+        gen,
+        currentGen: generation,
+      });
+      return null;
+    }
     const bridgeErr = err instanceof BridgeError ? err : new BridgeError('UNKNOWN', String(err));
     logException('core.session', 'Resync failed', err, {
       sessionId: currentSession.sessionId,
@@ -337,16 +424,22 @@ export async function saveCoreSession(options?: {
     return -1;
   }
 
+  const gen = generation;
   const { interactive = true } = options ?? {};
 
   try {
     // B3: Wait for all pending patches to be acked before flushing to Core
-    await flushPendingPatches();
+    if (_sourceSyncController) {
+      await _sourceSyncController.flush();
+    }
+    if (gen !== generation) return -1;
 
     // Flush first to ensure all patches are applied to Core's backend state
     await flushDocument(currentSession.sessionId);
+    if (gen !== generation) return -1;
 
     const result = await saveDocument(currentSession.sessionId);
+    if (gen !== generation) return -1;
 
     updateState({
       persistedRevision: result.revision,
@@ -361,6 +454,7 @@ export async function saveCoreSession(options?: {
 
     return result.revision;
   } catch (err) {
+    if (gen !== generation) return -1;
     const bridgeErr = err instanceof BridgeError ? err : new BridgeError('UNKNOWN', String(err));
     logException('core.session', 'Save failed', err, {
       sessionId: currentSession.sessionId,
@@ -458,9 +552,8 @@ export function isCoreSessionDirty(): boolean {
 /**
  * Check whether Core-backed Source Mode is enabled.
  * Reads from the cached settings (loaded by storage.ts).
+ * Defaults to true when not explicitly set to false.
  */
 export function isCoreBackedSourceModeEnabled(): boolean {
-  // For now, always enabled when the Core backend is available.
-  // In the future, this can be gated by a settings flag or feature toggle.
-  return true;
+  return getCachedSettings().coreBackedSourceMode !== false;
 }

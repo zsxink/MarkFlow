@@ -46,6 +46,34 @@ impl SaveToken {
     }
 }
 
+/// RAII guard that marks a save as in-progress and automatically clears
+/// it when dropped (including on panic/early return).
+pub struct SaveLease<'a> {
+    state: &'a mut DocumentRuntimeState,
+    token: SaveToken,
+}
+
+impl<'a> SaveLease<'a> {
+    /// Create a new save lease. Sets `save_in_progress` on the given state.
+    /// Returns None if a save is already in progress.
+    pub fn acquire(state: &'a mut DocumentRuntimeState) -> Option<Self> {
+        if state.save_in_progress.is_some() {
+            return None;
+        }
+        let token = allocate_save_token();
+        state.save_in_progress = Some(token);
+        Some(Self { state, token })
+    }
+}
+
+impl Drop for SaveLease<'_> {
+    fn drop(&mut self) {
+        if self.state.save_in_progress == Some(self.token) {
+            self.state.save_in_progress = None;
+        }
+    }
+}
+
 /// Unique transaction id for patch tracking (from frontend).
 pub type TransactionId = String;
 

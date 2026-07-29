@@ -15,8 +15,7 @@ use std::sync::LazyLock;
 ///
 /// SessionRegistry is internally thread-safe (DashMap + AtomicU64), so no
 /// outer Mutex is needed.
-pub static SESSION_REGISTRY: LazyLock<SessionRegistry> =
-    LazyLock::new(SessionRegistry::new);
+pub static SESSION_REGISTRY: LazyLock<SessionRegistry> = LazyLock::new(SessionRegistry::new);
 
 /// The concrete Host implementation used by Tauri commands.
 pub struct AppHost;
@@ -57,10 +56,10 @@ impl Host for AppHost {
         // Check current identity against expected
         let current = self.stat_identity(path)?;
         if !expected.matches(&current) {
-            // Fingerprint check for final verification
+            // Fingerprint check for final verification (full-content SHA-256)
             let current_content = std::fs::read(path)
                 .map_err(|e| RuntimeError::internal(format!("Failed to read for verify: {}", e)))?;
-            let current_fingerprint = ContentFingerprint::compute(&current_content);
+            let current_fingerprint = ContentFingerprint::from_bytes(&current_content);
             if current_fingerprint != expected.fingerprint {
                 return Err(RuntimeError::conflict(
                     "File identity mismatch: external modification detected",

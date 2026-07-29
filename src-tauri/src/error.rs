@@ -39,6 +39,22 @@ pub enum AppErrorCode {
     TransactionConflict,
     /// Invalid UTF-16 boundary.
     InvalidUtf16Boundary,
+    /// Save flush timed out.
+    SaveFlushTimeout,
+    /// A save operation is already in progress.
+    SaveInProgress,
+    /// Reloading a dirty document.
+    ReloadDirty,
+    /// Invalid range in document.
+    InvalidRange,
+    /// Unsupported text encoding.
+    UnsupportedEncoding,
+    /// Pending operation queue is full.
+    PendingQueueFull,
+    /// Operation was cancelled.
+    Cancelled,
+    /// Protocol version is unsupported.
+    ProtocolVersionUnsupported,
     /// Any other unexpected backend failure.
     Internal,
 }
@@ -59,6 +75,14 @@ impl serde::Serialize for AppErrorCode {
             Self::SessionNotFound => "SESSION_NOT_FOUND",
             Self::TransactionConflict => "TRANSACTION_CONFLICT",
             Self::InvalidUtf16Boundary => "INVALID_UTF16_BOUNDARY",
+            Self::SaveFlushTimeout => "SAVE_FLUSH_TIMEOUT",
+            Self::SaveInProgress => "SAVE_IN_PROGRESS",
+            Self::ReloadDirty => "RELOAD_DIRTY",
+            Self::InvalidRange => "INVALID_RANGE",
+            Self::UnsupportedEncoding => "UNSUPPORTED_ENCODING",
+            Self::PendingQueueFull => "PENDING_QUEUE_FULL",
+            Self::Cancelled => "CANCELLED",
+            Self::ProtocolVersionUnsupported => "PROTOCOL_VERSION_UNSUPPORTED",
             Self::Internal => "internal",
         };
         serializer.serialize_str(s)
@@ -82,6 +106,14 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
             "SESSION_NOT_FOUND" => Ok(Self::SessionNotFound),
             "TRANSACTION_CONFLICT" => Ok(Self::TransactionConflict),
             "INVALID_UTF16_BOUNDARY" => Ok(Self::InvalidUtf16Boundary),
+            "SAVE_FLUSH_TIMEOUT" => Ok(Self::SaveFlushTimeout),
+            "SAVE_IN_PROGRESS" => Ok(Self::SaveInProgress),
+            "RELOAD_DIRTY" => Ok(Self::ReloadDirty),
+            "INVALID_RANGE" => Ok(Self::InvalidRange),
+            "UNSUPPORTED_ENCODING" => Ok(Self::UnsupportedEncoding),
+            "PENDING_QUEUE_FULL" => Ok(Self::PendingQueueFull),
+            "CANCELLED" => Ok(Self::Cancelled),
+            "PROTOCOL_VERSION_UNSUPPORTED" => Ok(Self::ProtocolVersionUnsupported),
             "internal" => Ok(Self::Internal),
             _ => Err(serde::de::Error::unknown_variant(
                 &s,
@@ -96,6 +128,14 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
                     "SESSION_NOT_FOUND",
                     "TRANSACTION_CONFLICT",
                     "INVALID_UTF16_BOUNDARY",
+                    "SAVE_FLUSH_TIMEOUT",
+                    "SAVE_IN_PROGRESS",
+                    "RELOAD_DIRTY",
+                    "INVALID_RANGE",
+                    "UNSUPPORTED_ENCODING",
+                    "PENDING_QUEUE_FULL",
+                    "CANCELLED",
+                    "PROTOCOL_VERSION_UNSUPPORTED",
                     "internal",
                 ],
             )),
@@ -142,6 +182,46 @@ impl AppError {
     #[allow(dead_code)]
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(AppErrorCode::Internal, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn save_flush_timeout(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::SaveFlushTimeout, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn save_in_progress(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::SaveInProgress, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn reload_dirty(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::ReloadDirty, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn invalid_range(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::InvalidRange, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn unsupported_encoding(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::UnsupportedEncoding, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn pending_queue_full(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::PendingQueueFull, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn cancelled(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::Cancelled, message)
+    }
+
+    #[allow(dead_code)]
+    pub fn protocol_version_unsupported(message: impl Into<String>) -> Self {
+        Self::new(AppErrorCode::ProtocolVersionUnsupported, message)
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::error::RuntimeError;
 use crate::file_identity::FileIdentity;
+use crate::save_coordinator::PathSaveCoordinator;
 use crate::session::{ClientId, DocumentRuntimeState, DocumentSourceKey, SessionHandle, SessionId};
 use crate::source::DocumentSource;
 
@@ -25,6 +26,8 @@ pub struct SessionRegistry {
     sessions: DashMap<SessionId, Arc<SessionHandle>>,
     path_index: DashMap<DocumentSourceKey, Vec<SessionId>>,
     next_document_id: AtomicU64,
+    /// Per-path save coordinator for serializing save operations.
+    save_coordinator: PathSaveCoordinator,
 }
 
 impl SessionRegistry {
@@ -33,7 +36,13 @@ impl SessionRegistry {
             sessions: DashMap::new(),
             path_index: DashMap::new(),
             next_document_id: AtomicU64::new(1),
+            save_coordinator: PathSaveCoordinator::new(),
         }
+    }
+
+    /// Get a reference to the path save coordinator.
+    pub fn save_coordinator(&self) -> &PathSaveCoordinator {
+        &self.save_coordinator
     }
 
     /// Allocate a unique document ID.

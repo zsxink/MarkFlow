@@ -1,4 +1,4 @@
-use super::scanner::is_space;
+use super::line_scanner::is_space;
 
 pub(crate) fn heading_title(raw: &str) -> String {
     let bytes = raw.as_bytes();

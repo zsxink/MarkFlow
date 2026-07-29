@@ -12,6 +12,15 @@ use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use tracing::info;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExportKind {
+    Svg,
+    Png,
+    Image,
+    Document,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
     pub name: String,
@@ -289,6 +298,7 @@ fn select_export_path(
         .map_err(|_| "Invalid save path".into())
 }
 
+/// Legacy export — prefer `save_export` for new code.
 #[tauri::command]
 pub async fn save_mermaid_svg_export(
     svg: String,
@@ -306,6 +316,7 @@ pub async fn save_mermaid_svg_export(
     Ok(true)
 }
 
+/// Legacy export — prefer `save_export` for new code.
 #[tauri::command]
 pub async fn save_mermaid_png_export(
     data: String,
@@ -330,6 +341,7 @@ pub async fn save_mermaid_png_export(
     Ok(true)
 }
 
+/// Legacy export — prefer `save_export` for new code.
 #[tauri::command]
 pub async fn save_plantuml_svg_export(
     svg: String,
@@ -347,6 +359,7 @@ pub async fn save_plantuml_svg_export(
     Ok(true)
 }
 
+/// Legacy export — prefer `save_export` for new code.
 #[tauri::command]
 pub async fn save_plantuml_png_export(
     data: String,
@@ -371,6 +384,7 @@ pub async fn save_plantuml_png_export(
     Ok(true)
 }
 
+/// Legacy export — prefer `save_export` for new code.
 #[tauri::command]
 pub async fn save_image_export(
     data: String,
@@ -401,6 +415,7 @@ pub async fn save_image_export(
     Ok(true)
 }
 
+/// Legacy export — prefer `save_export` for new code.
 #[tauri::command]
 pub async fn save_document_export(
     content: String,
@@ -418,6 +433,64 @@ pub async fn save_document_export(
     fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))?;
     info!(target: "backend.files", path = %normalize_path(&path), "Exported document");
     Ok(true)
+}
+
+#[tauri::command]
+pub async fn save_export(
+    kind: ExportKind,
+    data: String,
+    file_name: String,
+    extension: String,  // only used for Image kind
+    filter_name: Option<String>,  // only used for Document kind
+    extensions: Option<Vec<String>>,  // only used for Document kind
+    app: AppHandle,
+) -> Result<bool, String> {
+    match kind {
+        ExportKind::Svg => {
+            let path = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])?;
+            let Some(path) = path else { return Ok(false); };
+            fs::write(&path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
+            info!(target: "backend.files", path = %normalize_path(&path), "Exported SVG");
+            Ok(true)
+        }
+        ExportKind::Png => {
+            let bytes = base64_decode(&data)?;
+            if bytes.len() as u64 > MAX_IMAGE_SIZE {
+                return Err("文件过大，最大支持 20MB".into());
+            }
+            let path = select_export_path(&app, "图片另存为 PNG", &file_name, "PNG", &["png"])?;
+            let Some(path) = path else { return Ok(false); };
+            fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+            info!(target: "backend.files", path = %normalize_path(&path), "Exported PNG");
+            Ok(true)
+        }
+        ExportKind::Image => {
+            let bytes = base64_decode(&data)?;
+            if bytes.len() as u64 > MAX_IMAGE_SIZE {
+                return Err("文件过大，最大支持 20MB".into());
+            }
+            let normalized_extension = extension.trim().trim_start_matches('.').to_lowercase();
+            let ext = if normalized_extension.is_empty() {
+                "png"
+            } else {
+                normalized_extension.as_str()
+            };
+            let path = select_export_path(&app, "图片另存为", &file_name, "图片", &[ext])?;
+            let Some(path) = path else { return Ok(false); };
+            fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+            info!(target: "backend.files", path = %normalize_path(&path), extension = %ext, "Exported image");
+            Ok(true)
+        }
+        ExportKind::Document => {
+            let ext_refs: Vec<&str> = extensions.as_deref().unwrap_or(&[]).iter().map(|s| s.as_str()).collect();
+            let filter_name = filter_name.as_deref().unwrap_or("导出文档");
+            let path = select_export_path(&app, "导出文档", &file_name, filter_name, &ext_refs)?;
+            let Some(path) = path else { return Ok(false); };
+            fs::write(&path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
+            info!(target: "backend.files", path = %normalize_path(&path), "Exported document");
+            Ok(true)
+        }
+    }
 }
 
 fn validate_parent_in_workspace(path: &Path, state: &State<AppState>) -> Result<(), String> {
@@ -693,6 +766,12 @@ pub fn write_file_from_base64(
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
     }
     fs::write(path, bytes).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+fn base64_decode(data: &str) -> Result<Vec<u8>, String> {
+    base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|e| format!("Invalid base64 data: {}", e))
 }
 
 // ---------------------------------------------------------------------------

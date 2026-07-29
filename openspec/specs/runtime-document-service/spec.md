@@ -1,3 +1,5 @@
+> DEPRECATED: This spec has been merged into [markflow-runtime](../markflow-runtime/spec.md).
+
 # runtime-document-service Specification
 
 ## Purpose

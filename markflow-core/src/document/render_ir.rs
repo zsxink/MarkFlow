@@ -112,12 +112,12 @@ impl DocumentSession {
             .filter(|block| source_ranges_intersect(block.range, viewport_source))
             .map(|block| {
                 let kind = RenderBlockKind::from_parse_kind(&block.kind);
-                let inlines = if matches!(kind, RenderBlockKind::CodeFence | RenderBlockKind::Unknown)
-                {
-                    Vec::new()
-                } else {
-                    parse_inline_spans(self, block.content_range, text)?
-                };
+                let inlines =
+                    if matches!(kind, RenderBlockKind::CodeFence | RenderBlockKind::Unknown) {
+                        Vec::new()
+                    } else {
+                        parse_inline_spans(self, block.content_range, text)?
+                    };
                 Ok(RenderBlock {
                     id: format!("b{}", block.id.0),
                     kind,
@@ -238,7 +238,10 @@ fn parse_delimited_spans(
             close_rel + marker.len(),
             inner_start,
             close_rel,
-            vec![(open_rel, inner_start), (close_rel, close_rel + marker.len())],
+            vec![
+                (open_rel, inner_start),
+                (close_rel, close_rel + marker.len()),
+            ],
             None,
         )?;
         cursor = close_rel + marker.len();
@@ -306,7 +309,9 @@ fn parse_image_and_link_spans(
             continue;
         }
         let target_start = open_paren + 1;
-        let Some(close_paren) = content[target_start..].find(')').map(|idx| target_start + idx)
+        let Some(close_paren) = content[target_start..]
+            .find(')')
+            .map(|idx| target_start + idx)
         else {
             break;
         };

@@ -69,13 +69,10 @@ fn render_ir_maps_utf16_offsets_for_unicode_content() {
 
 #[test]
 fn render_ir_extracts_inline_spans_and_marker_ranges() {
-    let document = render_all(b"**bold** *em* `code` [site](https://example.com) ![alt](img.png)\n");
+    let document =
+        render_all(b"**bold** *em* `code` [site](https://example.com) ![alt](img.png)\n");
     let block = &document.blocks[0];
-    let kinds: Vec<_> = block
-        .inlines
-        .iter()
-        .map(|span| span.kind.clone())
-        .collect();
+    let kinds: Vec<_> = block.inlines.iter().map(|span| span.kind.clone()).collect();
 
     assert_eq!(
         kinds,
@@ -87,8 +84,14 @@ fn render_ir_extracts_inline_spans_and_marker_ranges() {
             RenderInlineKind::ImageReference,
         ]
     );
-    assert_eq!(block.inlines[0].marker_ranges, vec![UiRange::new(0, 2), UiRange::new(6, 8)]);
-    assert_eq!(block.inlines[3].target.as_deref(), Some("https://example.com"));
+    assert_eq!(
+        block.inlines[0].marker_ranges,
+        vec![UiRange::new(0, 2), UiRange::new(6, 8)]
+    );
+    assert_eq!(
+        block.inlines[3].target.as_deref(),
+        Some("https://example.com")
+    );
     assert_eq!(block.inlines[4].target.as_deref(), Some("img.png"));
 }
 
@@ -143,7 +146,10 @@ fn viewport_limits_returned_blocks_for_large_documents() {
 
     assert!(document.large_document);
     assert_eq!(document.blocks.len(), 1);
-    assert_eq!(document.blocks[0].kind, RenderBlockKind::Heading { level: 1 });
+    assert_eq!(
+        document.blocks[0].kind,
+        RenderBlockKind::Heading { level: 1 }
+    );
 }
 
 #[test]

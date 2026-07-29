@@ -81,7 +81,7 @@ markflow-core/
       line_index.rs
       parse_index/
         heading.rs
-        incremental.rs
+        update.rs
         large_document_policy.rs
         list.rs
         scanner.rs
@@ -101,7 +101,7 @@ src-tauri/
     runtime/
       Cargo.toml
       src/
-        document_service.rs
+        error.rs
         error.rs
         file_identity.rs
         host.rs

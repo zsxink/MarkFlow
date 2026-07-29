@@ -12,27 +12,27 @@ use super::types::{
 use crate::document::{ByteOffset, LineEndingKind, Revision, SourceRange};
 
 #[derive(Debug, Clone, Copy)]
-pub struct LineInfo<'a> {
-    pub start: usize,
-    pub end: usize,
-    pub text: &'a str,
+pub(crate) struct LineInfo<'a> {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) text: &'a str,
 }
 
 impl<'a> LineInfo<'a> {
-    pub fn trimmed(&self) -> &'a str {
+    pub(crate) fn trimmed(&self) -> &'a str {
         self.text.trim()
     }
 
-    pub fn trimmed_start(&self) -> &'a str {
+    pub(crate) fn trimmed_start(&self) -> &'a str {
         self.text.trim_start()
     }
 
-    pub fn is_blank(&self) -> bool {
+    pub(crate) fn is_blank(&self) -> bool {
         self.trimmed().is_empty()
     }
 }
 
-pub fn collect_lines(text: &str) -> Vec<LineInfo<'_>> {
+pub(crate) fn collect_lines(text: &str) -> Vec<LineInfo<'_>> {
     if text.is_empty() {
         return vec![LineInfo {
             start: 0,
@@ -63,23 +63,23 @@ pub fn collect_lines(text: &str) -> Vec<LineInfo<'_>> {
     lines
 }
 
-pub fn count_leading_spaces(text: &str) -> usize {
+pub(crate) fn count_leading_spaces(text: &str) -> usize {
     text.as_bytes()
         .iter()
         .take_while(|byte| **byte == b' ')
         .count()
 }
 
-pub fn is_space(byte: u8) -> bool {
+pub(crate) fn is_space(byte: u8) -> bool {
     byte == b' ' || byte == b'\t'
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ListMarker {
-    pub indent: usize,
-    pub bullet: Option<BulletMarker>,
-    pub ordered: Option<OrderedMarker>,
-    pub task: bool,
+pub(crate) struct ListMarker {
+    pub(crate) indent: usize,
+    pub(crate) bullet: Option<BulletMarker>,
+    pub(crate) ordered: Option<OrderedMarker>,
+    pub(crate) task: bool,
 }
 
 pub struct BlockScanner<'a> {
@@ -193,6 +193,7 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_frontmatter(&mut self, start: usize) -> usize {
+        debug_assert!(self.frontmatter_end(start).is_some(), "frontmatter end verified before scan");
         let end = self
             .frontmatter_end(start)
             .expect("frontmatter closing checked by caller");
@@ -230,6 +231,7 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_code_fence(&mut self, start: usize) -> usize {
+        debug_assert!(self.fence_start(start).is_some(), "fence start verified before scan");
         let fence = self.fence_start(start).expect("checked by caller");
         let mut end = start + 1;
         while end < self.lines.len() {
@@ -256,6 +258,7 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_table(&mut self, start: usize) -> usize {
+        debug_assert!(self.table_alignment_after(start).is_some(), "table alignment verified before scan");
         let table = self
             .table_alignment_after(start)
             .expect("checked by caller");
@@ -305,6 +308,7 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_list(&mut self, start: usize) -> usize {
+        debug_assert!(self.list_start(start).is_some(), "list start verified before scan");
         let marker = self.list_start(start).expect("checked by caller");
         let mut end = start + 1;
         while end < self.lines.len() {
@@ -615,7 +619,7 @@ impl<'a> BlockScanner<'a> {
                 b'-' => BulletMarker::Dash,
                 b'*' => BulletMarker::Asterisk,
                 b'+' => BulletMarker::Plus,
-                _ => unreachable!(),
+                _ => return None,
             };
             let after_marker = rest[2..].trim_start();
             return Some(ListMarker {

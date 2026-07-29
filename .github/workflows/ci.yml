@@ -75,6 +75,10 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
+      - name: Run Core tests
+        working-directory: markflow-core
+        run: cargo test
+
       - name: Check Rust formatting (workspace)
         working-directory: src-tauri
         run: cargo fmt --all -- --check
@@ -82,3 +86,7 @@ jobs:
       - name: Run Rust Clippy (workspace)
         working-directory: src-tauri
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Core Clippy
+        working-directory: markflow-core
+        run: cargo clippy --all-targets -- -D warnings

@@ -1,4 +1,3 @@
-pub mod document_service;
 pub mod error;
 pub mod file_identity;
 pub mod host;

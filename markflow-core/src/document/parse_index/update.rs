@@ -2,8 +2,8 @@ use super::list::starts_like_list_marker;
 use super::types::{AffectedRanges, BlockKind, ParseIndex};
 use crate::document::{ByteOffset, SourceRange, TextPatch};
 
-pub const SYNC_REPARSE_CONTEXT_BYTES: usize = 16 * 1024;
-pub const SYNC_REPARSE_BUDGET_BYTES: usize = 256 * 1024;
+pub(crate) const SYNC_REPARSE_CONTEXT_BYTES: usize = 16 * 1024;
+pub(crate) const SYNC_REPARSE_BUDGET_BYTES: usize = 256 * 1024;
 
 impl ParseIndex {
     pub fn update_after_patch(&mut self, patch: &TextPatch) -> AffectedRanges {

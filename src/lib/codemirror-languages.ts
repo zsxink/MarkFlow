@@ -3,6 +3,7 @@
  * Languages are only loaded on first use, keeping the main bundle small.
  */
 import type { LanguageSupport } from '@codemirror/language';
+import { logDebug } from './logger';
 
 const LOADERS: Record<string, () => Promise<LanguageSupport>> = {
   javascript: () => import('@codemirror/lang-javascript').then(m => m.javascript()),
@@ -36,7 +37,10 @@ export async function getLanguageExtension(name: string): Promise<LanguageSuppor
         loaded.set(name, ext);
         return ext;
       })
-      .catch(() => null) // fallback to plain text
+      .catch((e) => {
+        logDebug('codemirror-languages', 'Failed to load language', { name, error: String(e) });
+        return null;
+      }) // fallback to plain text
       .finally(() => loading.delete(name));
     loading.set(name, pending);
   }

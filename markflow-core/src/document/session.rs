@@ -3,58 +3,16 @@ use std::io::{self, Write};
 use std::sync::RwLock;
 
 use super::patch::PayloadFingerprint;
+use super::types::{
+    ByteOffset, DocumentId, Revision, SessionId, SourceByteOffset, SourceOffsetError,
+    TransactionId, Utf16Offset,
+};
 use super::{
     LineIndex, OriginalSnapshot, ParseIndex, PatchOutcome, PositionMap, ScanOutcome, TextBuffer,
     TextPatch,
 };
 
 pub const TRANSACTION_RETRY_WINDOW_CAPACITY: usize = 256;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SessionId(pub u64);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct DocumentId(pub u64);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Revision(pub u64);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TransactionId(pub u64);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ByteOffset(pub usize);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Utf16Offset(pub usize);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SourceByteOffset(pub usize);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SourceOffsetError {
-    InsideBom,
-    InsideCrlf,
-    OutOfBounds,
-    InvalidUtf8Boundary,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SourceRange {
-    pub revision: Revision,
-    pub start: ByteOffset,
-    pub end: ByteOffset,
-}
-
-impl SourceRange {
-    pub fn new(revision: Revision, start: usize, end: usize) -> Self {
-        Self {
-            revision,
-            start: ByteOffset(start),
-            end: ByteOffset(end),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CoreError {
@@ -155,10 +113,7 @@ impl Clone for DocumentSession {
             line_index: self.line_index.clone(),
             position_map: self.position_map.clone(),
             parse_index_cache: RwLock::new(
-                self.parse_index_cache
-                    .read()
-                    .expect("parse index cache lock poisoned")
-                    .clone(),
+                self.read_cache().clone(),
             ),
             applied_transactions: self.applied_transactions.clone(),
             transaction_order: self.transaction_order.clone(),
@@ -169,10 +124,10 @@ impl Clone for DocumentSession {
 impl DocumentSession {
     pub fn open_bytes(id: SessionId, document_id: DocumentId, bytes: &[u8]) -> CoreResult<Self> {
         let original = OriginalSnapshot::from_bytes(bytes)?;
-        let text = TextBuffer::from_source_bytes(bytes, original.bom)?;
+        let text = TextBuffer::from_source_bytes(bytes, original.bom())?;
         let revision = Revision(0);
         let line_index = LineIndex::new(text.logical_text());
-        let position_map = PositionMap::new(revision, &text, original.bom);
+        let position_map = PositionMap::new(revision, &text, original.bom());
 
         Ok(Self {
             id,
@@ -213,12 +168,7 @@ impl DocumentSession {
     }
 
     pub fn parse_index(&self) -> ScanOutcome {
-        if let Some(cached) = self
-            .parse_index_cache
-            .read()
-            .expect("parse index cache lock poisoned")
-            .as_ref()
-        {
+        if let Some(cached) = self.read_cache().as_ref() {
             if cached.parse_index.revision == self.revision {
                 return cached.clone();
             }
@@ -227,13 +177,10 @@ impl DocumentSession {
         let outcome = ParseIndex::scan_with_document_bytes(
             self.revision,
             self.text.logical_text(),
-            self.original.dominant_line_ending,
-            self.original.byte_len,
+            self.original.dominant_line_ending(),
+            self.original.byte_len(),
         );
-        *self
-            .parse_index_cache
-            .write()
-            .expect("parse index cache lock poisoned") = Some(outcome.clone());
+        *self.write_cache() = Some(outcome.clone());
         outcome
     }
 
@@ -262,7 +209,7 @@ impl DocumentSession {
     }
 
     pub fn save_payload(&self) -> SavePayload {
-        SavePayload::new(self.text.to_source_bytes(self.original.bom))
+        SavePayload::new(self.text.to_source_bytes(self.original.bom()))
     }
 
     pub fn write_save_payload<W: Write>(&self, writer: &mut W) -> CoreResult<()> {
@@ -289,7 +236,7 @@ impl DocumentSession {
 
         let next_revision = Revision(self.revision.0 + 1);
         let next_line_index = LineIndex::new(next_text.logical_text());
-        let next_position_map = PositionMap::new(next_revision, &next_text, self.original.bom);
+        let next_position_map = PositionMap::new(next_revision, &next_text, self.original.bom());
         let outcome = PatchOutcome {
             revision: next_revision,
             selection_after: patch.selection_for_commit(next_revision, &next_text)?,
@@ -299,10 +246,7 @@ impl DocumentSession {
         self.revision = next_revision;
         self.line_index = next_line_index;
         self.position_map = next_position_map;
-        *self
-            .parse_index_cache
-            .write()
-            .expect("parse index cache lock poisoned") = None;
+        *self.write_cache() = None;
         if self.transaction_order.len() == TRANSACTION_RETRY_WINDOW_CAPACITY {
             if let Some(evicted) = self.transaction_order.pop_front() {
                 self.applied_transactions.remove(&evicted);
@@ -318,5 +262,17 @@ impl DocumentSession {
         );
 
         Ok(outcome)
+    }
+
+    fn read_cache(&self) -> std::sync::RwLockReadGuard<'_, Option<ScanOutcome>> {
+        self.parse_index_cache
+            .read()
+            .expect("parse index cache lock poisoned")
+    }
+
+    fn write_cache(&self) -> std::sync::RwLockWriteGuard<'_, Option<ScanOutcome>> {
+        self.parse_index_cache
+            .write()
+            .expect("parse index cache lock poisoned")
     }
 }

@@ -1,88 +1,18 @@
 use markflow_core::{
-    DocumentId, DocumentSession, Revision, SessionId, SourceRange, TextChange, TextPatch,
-    TransactionId,
+    DocumentId, Revision, SessionId, SourceRange, TextChange, TextPatch, TransactionId,
 };
-use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
-use markflow_runtime::file_identity::{ContentFingerprint, FileIdentity};
-use markflow_runtime::host::Host;
+use markflow_runtime::error::RuntimeErrorCode;
 use markflow_runtime::registry::SessionRegistry;
 use markflow_runtime::save::save_document;
 use markflow_runtime::session::{ClientId, SaveToken};
 use markflow_runtime::source::DocumentSource;
-use std::path::Path;
 use std::path::PathBuf;
 
-/// Helper: create a DocumentSession from bytes.
-fn open_session(sid: SessionId, did: DocumentId, bytes: &[u8]) -> DocumentSession {
-    DocumentSession::open_bytes(sid, did, bytes).expect("Failed to open session")
-}
+mod common;
 
-/// MockHost with configurable results for integration tests.
-struct MockHost {
-    stat_result: std::sync::Mutex<Result<FileIdentity, RuntimeError>>,
-    write_result: std::sync::Mutex<Result<FileIdentity, RuntimeError>>,
-}
+use common::{make_identity, open_bytes, MockHost};
 
-impl MockHost {
-    fn new(
-        stat: Result<FileIdentity, RuntimeError>,
-        write: Result<FileIdentity, RuntimeError>,
-    ) -> Self {
-        Self {
-            stat_result: std::sync::Mutex::new(stat),
-            write_result: std::sync::Mutex::new(write),
-        }
-    }
-}
-
-impl Host for MockHost {
-    fn read_document_bytes(&self, _path: &Path) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
-        Ok((
-            b"integration test content".to_vec(),
-            FileIdentity {
-                canonical_path: None,
-                platform_id: None,
-                mtime_ms: None,
-                size: 0,
-                fingerprint: ContentFingerprint::empty(),
-            },
-        ))
-    }
-
-    fn stat_identity(&self, _path: &Path) -> Result<FileIdentity, RuntimeError> {
-        self.stat_result
-            .lock()
-            .map_err(|e| RuntimeError::internal(format!("MockHost lock poisoned: {}", e)))?
-            .clone()
-    }
-
-    fn compare_and_atomic_write(
-        &self,
-        _path: &Path,
-        _content: &[u8],
-        _expected: &FileIdentity,
-    ) -> Result<FileIdentity, RuntimeError> {
-        self.write_result
-            .lock()
-            .map_err(|e| RuntimeError::internal(format!("MockHost lock poisoned: {}", e)))?
-            .clone()
-    }
-}
-
-fn make_identity(size: u64, hash: &str, mtime: u64) -> FileIdentity {
-    FileIdentity {
-        canonical_path: None,
-        platform_id: None,
-        mtime_ms: Some(mtime),
-        size,
-        fingerprint: ContentFingerprint {
-            sample_size: size,
-            hash_prefix: hash.to_string(),
-        },
-    }
-}
-
-fn create_session(registry: &SessionRegistry, path: &str) -> SessionId {
+fn create_session(registry: &SessionRegistry, path: &str) -> markflow_runtime::session::SessionId {
     let source = DocumentSource::new_file(PathBuf::from(path));
     let identity = make_identity(25, "", 0);
     registry
@@ -91,7 +21,7 @@ fn create_session(registry: &SessionRegistry, path: &str) -> SessionId {
             "integration-window".into(),
             source,
             identity,
-            |sid, did| Ok(open_session(sid, did, b"integration test content")),
+            |sid, did| Ok(open_bytes(sid, did, b"integration test content")),
         )
         .expect("Create test session")
 }
@@ -231,7 +161,7 @@ fn clean_external_changed_detects_conflict() {
 fn save_lease_raii_success_path() {
     use markflow_runtime::session::SaveLease;
 
-    let core = open_session(SessionId(1), DocumentId(1), b"test content");
+    let core = open_bytes(SessionId(1), DocumentId(1), b"test content");
     let identity = make_identity(12, "", 0);
     let mut state = markflow_runtime::session::DocumentRuntimeState::new(core, identity);
 
@@ -257,7 +187,7 @@ fn save_lease_raii_success_path() {
 fn save_lease_raii_prevents_concurrent() {
     use markflow_runtime::session::SaveLease;
 
-    let core = open_session(SessionId(2), DocumentId(2), b"test");
+    let core = open_bytes(SessionId(2), DocumentId(2), b"test");
     let mut state =
         markflow_runtime::session::DocumentRuntimeState::new(core, make_identity(4, "", 0));
 

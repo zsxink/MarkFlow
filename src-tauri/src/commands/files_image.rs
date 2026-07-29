@@ -4,14 +4,14 @@ use crate::config::settings::Settings;
 use crate::http::{
     redact_url_for_log, validate_external_url, validate_image_magic, MAX_IMAGE_SIZE,
 };
-use crate::paths::{normalize_path, pending_images_dir};
+use crate::paths::{normalize_lexical, normalize_path, pending_images_dir};
 use crate::state::AppState;
 use base64::Engine;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, State};
@@ -67,20 +67,6 @@ struct PendingImageManifest {
     created_at_ms: u64,
     updated_at_ms: u64,
     entries: Vec<PendingImageEntry>,
-}
-
-fn normalize_lexical(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                normalized.pop();
-            }
-            _ => normalized.push(component.as_os_str()),
-        }
-    }
-    normalized
 }
 
 fn configured_storage_root(document_path: Option<&str>) -> Result<PathBuf, String> {

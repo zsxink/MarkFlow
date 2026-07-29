@@ -1,7 +1,7 @@
 use crate::commands::settings::load_settings_inner;
 use crate::fs::ignore::matcher_snapshot;
 use crate::http::MAX_IMAGE_SIZE;
-use crate::paths::normalize_path;
+use crate::paths::{normalize_lexical, normalize_path};
 use crate::state::AppState;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -436,20 +436,6 @@ fn validate_parent_in_workspace(path: &Path, state: &State<AppState>) -> Result<
         return Err("Symlink not allowed".into());
     }
     Ok(())
-}
-
-fn normalize_lexical(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                normalized.pop();
-            }
-            _ => normalized.push(component.as_os_str()),
-        }
-    }
-    normalized
 }
 
 /// Validate a path stays inside workspace without relying on string prefixes.

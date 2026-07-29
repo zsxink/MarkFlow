@@ -196,7 +196,7 @@ fn session_facade_keeps_all_position_maps_coherent_after_patch() {
     assert_eq!(session.position_map().revision(), session.revision());
     assert_eq!(session.line_count(), 4);
     assert_eq!(session.line_start(0), Some(ByteOffset(0)));
-    assert_eq!(session.original().bom, BomKind::Utf8);
+    assert_eq!(session.original().bom(), BomKind::Utf8);
 
     for offset in session
         .text()

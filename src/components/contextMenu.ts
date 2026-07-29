@@ -2,6 +2,7 @@ import { deletePath, copyFile, readSingleDir, addRecentFile } from '../lib/stora
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './fileTree';
 import { showToast } from './toast';
 import { reportUserActionError } from '../lib/error';
+import { logException } from '../lib/logger';
 import { clearActiveDocument, clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
@@ -53,10 +54,6 @@ function handleContextAction(action: string, path: string | null, type: TargetTy
     reportUserActionError(`context-menu.${action}`, e);
   });
 }
-
-export function hideContextMenu() {
-}
-
 
 function getTargetDir(path: string | null, type: TargetType): string {
   if (!path) {
@@ -176,13 +173,15 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
           try {
             await shellOpen(revealPath);
           } catch (e) {
-            showToast(`打开失败: ${e}`);
+            logException('contextMenu', '打开文件失败', e);
+            showToast('无法在此位置打开');
           }
         }
         break;
       }
     }
   } catch (e) {
-    showToast(`操作失败: ${e}`);
+    logException('contextMenu', '操作失败', e);
+    showToast('操作失败');
   }
 }

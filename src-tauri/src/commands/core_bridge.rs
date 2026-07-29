@@ -4,7 +4,7 @@
 //! markflow-runtime. Each command is a thin adapter: DTO unpack -> Runtime call ->
 //! DTO pack. No business logic lives here.
 
-use crate::error::{AppError, AppErrorCode};
+use crate::error::{lock_mutex, AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
     Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId, Utf16Offset,
@@ -55,14 +55,14 @@ static FRONTEND_TXN_MAP: std::sync::LazyLock<Mutex<HashMap<String, TransactionId
 
 /// Map a frontend string transaction ID to a core u64 TransactionId.
 /// Returns the same core ID for repeated calls with the same string.
-fn map_frontend_txn(frontend_id: &str) -> TransactionId {
-    let mut map = FRONTEND_TXN_MAP.lock().expect("Frontend txn map poisoned");
+fn map_frontend_txn(frontend_id: &str) -> Result<TransactionId, AppError> {
+    let mut map = lock_mutex(&FRONTEND_TXN_MAP)?;
     if let Some(id) = map.get(frontend_id) {
-        return *id;
+        return Ok(*id);
     }
     let new_id = TransactionId(NEXT_CORE_TXN_ID.fetch_add(1, Ordering::Relaxed));
     map.insert(frontend_id.to_string(), new_id);
-    new_id
+    Ok(new_id)
 }
 
 // ---------------------------------------------------------------------------
@@ -181,14 +181,6 @@ pub struct ReloadResultDto {
     pub revision: u64,
     pub text: String,
     pub file_identity: FileIdentityDto,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-// (ErrorDto is provided for future use by the Bridge protocol)
-#[allow(dead_code)]
-pub struct ErrorDto {
-    pub code: String,
-    pub message: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -374,7 +366,9 @@ pub fn apply_text_patch(
         }
 
         // Map frontend string transaction ID to core u64 TransactionId
-        let core_txn_id = map_frontend_txn(&patch.transaction_id);
+        let core_txn_id = map_frontend_txn(&patch.transaction_id).map_err(|e| {
+            RuntimeError::internal(format!("Failed to map frontend txn: {}", e.message))
+        })?;
 
         // Convert selection if present — the frontend sends UTF-16 offsets
         // (CodeMirror convention), but Core expects byte offsets. Use
@@ -478,19 +472,30 @@ pub async fn save_document_command(session_id: u64) -> Result<SaveResultDto, App
 }
 
 /// Resync a document — return the confirmed snapshot text.
+///
+/// The frontend provides `confirmed_revision` — the revision the frontend last
+/// acknowledged. If the current revision is older than this, the frontend has
+/// seen data the session doesn't reflect, indicating a stale session. We reject
+/// such resyncs so the caller can re-open.
 #[tauri::command]
 pub fn resync_document(
     session_id: u64,
-    _confirmed_revision: u64,
+    confirmed_revision: u64,
 ) -> Result<ResyncResultDto, AppError> {
     let registry = &*SESSION_REGISTRY;
 
     let sid = SessionId(session_id);
 
     let (text, revision) = with_session_state(registry, sid, |state| {
+        let current_revision = state.core.revision().0;
+        if current_revision < confirmed_revision {
+            return Err(RuntimeError::revision_mismatch(format!(
+                "Resync stale: confirmed revision {} is ahead of current {}",
+                confirmed_revision, current_revision,
+            )));
+        }
         let text = state.core.text().logical_text().to_string();
-        let revision = state.core.revision();
-        Ok((text, revision))
+        Ok((text, state.core.revision()))
     })
     .map_err(map_error)?;
 

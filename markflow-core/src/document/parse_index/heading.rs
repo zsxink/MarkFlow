@@ -1,6 +1,6 @@
 use super::scanner::is_space;
 
-pub fn heading_title(raw: &str) -> String {
+pub(crate) fn heading_title(raw: &str) -> String {
     let bytes = raw.as_bytes();
     let mut start = 0;
     while start < bytes.len() && is_space(bytes[start]) {

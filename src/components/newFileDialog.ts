@@ -1,6 +1,7 @@
 import { createFile, createDir, readSingleDir } from '../lib/storage';
 import { insertEntryIntoTree, suppressNextWatcherRefresh } from './fileTree';
 import { showToast } from './toast';
+import { logException } from '../lib/logger';
 import { openFileInEditor } from './sidebar';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { showModal } from './ui/modal';
@@ -65,6 +66,7 @@ async function handleCreateNoWorkspace(type: 'file' | 'folder') {
         await openFileInEditor(filePath);
         showToast('文件已创建');
       } catch (e) {
+        logException('newFileDialog', '创建文件失败 (no workspace)', e);
         showToast(`创建失败: ${e}`);
       }
     }
@@ -82,6 +84,7 @@ async function handleCreateNoWorkspace(type: 'file' | 'folder') {
           await createDir(fullPath);
           showToast('文件夹已创建');
         } catch (e) {
+          logException('newFileDialog', '创建文件夹失败 (no workspace)', e);
           showToast(`创建失败: ${e}`);
         }
       }
@@ -119,6 +122,7 @@ async function handleCreateInWorkspace(name: string, workspacePath: string | nul
       showToast('文件夹已创建');
     }
   } catch (e) {
+    logException('newFileDialog', '创建文件/文件夹失败 (workspace)', e);
     showToast(`创建失败: ${e}`);
   }
 }

@@ -13,6 +13,9 @@
 > - Tauri Backend：document_service.rs 删除、Mutex 安全修复、normalize_lexical 提取、死代码构造器删除、resync 逻辑修复、AppHost 测试
 > - 未处理(P2)：scanner.rs 拆分、5 个导出命令统一、TypeScript 大文件拆分、docxExport.ts 类型安全
 > - 文档：technical-plan.md 引用更新、m3-core-backed-source-mode.md 验收清单添加
+> M4 foundation 记录：
+> - Issue #219 建立默认关闭的 Solid shell 入口、session-indexed workspace projection、Editor Adapter 与 Host request context 基础边界
+> - 验证重点：Solid store 不保存权威 Markdown 文本；`activeFilePath` 仅由 active session 的 `source.path` 派生；异步结果应用前校验 `sessionId + revision + requestId`
 
 ## 1. 使用规则
 

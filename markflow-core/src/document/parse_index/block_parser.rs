@@ -1,5 +1,6 @@
 use super::heading::heading_title;
 use super::large_document_policy::LargeDocumentPolicy;
+use super::line_scanner::{collect_lines, count_leading_spaces, is_space, LineInfo, ListMarker};
 use super::list::starts_task_checkbox;
 use super::style_map::{
     BulletMarker, FenceMarker, FenceStyle, ListStyleSpan, OrderedDelimiter, OrderedMarker,
@@ -9,7 +10,6 @@ use super::table::{parse_table_delimiter, split_table_cells, TableScan};
 use super::types::{
     BlockId, BlockKind, BlockNode, LineRange, OutlineItem, ParseIndex, ScanOutcome,
 };
-use super::line_scanner::{LineInfo, ListMarker, collect_lines, count_leading_spaces, is_space};
 use crate::document::{ByteOffset, LineEndingKind, Revision, SourceRange};
 
 pub struct BlockScanner<'a> {
@@ -123,7 +123,10 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_frontmatter(&mut self, start: usize) -> usize {
-        debug_assert!(self.frontmatter_end(start).is_some(), "frontmatter end verified before scan");
+        debug_assert!(
+            self.frontmatter_end(start).is_some(),
+            "frontmatter end verified before scan"
+        );
         let end = self
             .frontmatter_end(start)
             .expect("frontmatter closing checked by caller");
@@ -161,7 +164,10 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_code_fence(&mut self, start: usize) -> usize {
-        debug_assert!(self.fence_start(start).is_some(), "fence start verified before scan");
+        debug_assert!(
+            self.fence_start(start).is_some(),
+            "fence start verified before scan"
+        );
         let fence = self.fence_start(start).expect("checked by caller");
         let mut end = start + 1;
         while end < self.lines.len() {
@@ -188,7 +194,10 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_table(&mut self, start: usize) -> usize {
-        debug_assert!(self.table_alignment_after(start).is_some(), "table alignment verified before scan");
+        debug_assert!(
+            self.table_alignment_after(start).is_some(),
+            "table alignment verified before scan"
+        );
         let table = self
             .table_alignment_after(start)
             .expect("checked by caller");
@@ -238,7 +247,10 @@ impl<'a> BlockScanner<'a> {
     }
 
     fn scan_list(&mut self, start: usize) -> usize {
-        debug_assert!(self.list_start(start).is_some(), "list start verified before scan");
+        debug_assert!(
+            self.list_start(start).is_some(),
+            "list start verified before scan"
+        );
         let marker = self.list_start(start).expect("checked by caller");
         let mut end = start + 1;
         while end < self.lines.len() {

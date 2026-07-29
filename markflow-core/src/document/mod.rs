@@ -18,7 +18,9 @@ pub use parse_index::{
 };
 pub use patch::{PatchOutcome, Selection, TextChange, TextPatch};
 pub use position_map::PositionMap;
-pub use session::{CoreError, CoreResult, DocumentSession, SavePayload, TRANSACTION_RETRY_WINDOW_CAPACITY};
+pub use session::{
+    CoreError, CoreResult, DocumentSession, SavePayload, TRANSACTION_RETRY_WINDOW_CAPACITY,
+};
 pub use snapshot::{BomKind, ContentHash, EncodingKind, OriginalSnapshot};
 pub use text_buffer::TextBuffer;
 pub use types::{

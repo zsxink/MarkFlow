@@ -31,8 +31,7 @@ fn logical_text_dominant_crlf_converts_output() {
 
 #[test]
 fn logical_text_preserves_unicode_content() {
-    let buffer =
-        TextBuffer::from_logical_text("héllo\nwörld", LineEndingKind::Lf).unwrap();
+    let buffer = TextBuffer::from_logical_text("héllo\nwörld", LineEndingKind::Lf).unwrap();
     assert_eq!(buffer.logical_text(), "héllo\nwörld");
 }
 

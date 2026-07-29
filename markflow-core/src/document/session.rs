@@ -112,9 +112,7 @@ impl Clone for DocumentSession {
             text: self.text.clone(),
             line_index: self.line_index.clone(),
             position_map: self.position_map.clone(),
-            parse_index_cache: RwLock::new(
-                self.read_cache().clone(),
-            ),
+            parse_index_cache: RwLock::new(self.read_cache().clone()),
             applied_transactions: self.applied_transactions.clone(),
             transaction_order: self.transaction_order.clone(),
         }

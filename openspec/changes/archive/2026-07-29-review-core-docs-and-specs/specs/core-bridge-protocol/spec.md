@@ -22,3 +22,12 @@
 - **THEN** the Runtime targets the provided session
 - **THEN** the command does not require `ProtocolEnvelope` in the current implementation
 
+## REMOVED Requirements
+
+### Requirement: 全命令 versioned Envelope
+
+The current implementation does not use `ProtocolEnvelope` for every Core Bridge command. The requirement is removed from the current spec and deferred until a later ADR-backed protocol migration.
+
+### Requirement: 统一的 ProtocolEnvelope
+
+The broad all-command `ProtocolEnvelope` requirement is removed from the current spec. M3.1 keeps only `apply_text_patch` on a versioned envelope while non-patch commands retain stable DTO compatibility.

@@ -440,15 +440,17 @@ pub async fn save_export(
     kind: ExportKind,
     data: String,
     file_name: String,
-    extension: String,  // only used for Image kind
-    filter_name: Option<String>,  // only used for Document kind
-    extensions: Option<Vec<String>>,  // only used for Document kind
+    extension: String,               // only used for Image kind
+    filter_name: Option<String>,     // only used for Document kind
+    extensions: Option<Vec<String>>, // only used for Document kind
     app: AppHandle,
 ) -> Result<bool, String> {
     match kind {
         ExportKind::Svg => {
             let path = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])?;
-            let Some(path) = path else { return Ok(false); };
+            let Some(path) = path else {
+                return Ok(false);
+            };
             fs::write(&path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
             info!(target: "backend.files", path = %normalize_path(&path), "Exported SVG");
             Ok(true)
@@ -459,7 +461,9 @@ pub async fn save_export(
                 return Err("文件过大，最大支持 20MB".into());
             }
             let path = select_export_path(&app, "图片另存为 PNG", &file_name, "PNG", &["png"])?;
-            let Some(path) = path else { return Ok(false); };
+            let Some(path) = path else {
+                return Ok(false);
+            };
             fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
             info!(target: "backend.files", path = %normalize_path(&path), "Exported PNG");
             Ok(true)
@@ -476,16 +480,25 @@ pub async fn save_export(
                 normalized_extension.as_str()
             };
             let path = select_export_path(&app, "图片另存为", &file_name, "图片", &[ext])?;
-            let Some(path) = path else { return Ok(false); };
+            let Some(path) = path else {
+                return Ok(false);
+            };
             fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
             info!(target: "backend.files", path = %normalize_path(&path), extension = %ext, "Exported image");
             Ok(true)
         }
         ExportKind::Document => {
-            let ext_refs: Vec<&str> = extensions.as_deref().unwrap_or(&[]).iter().map(|s| s.as_str()).collect();
+            let ext_refs: Vec<&str> = extensions
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
             let filter_name = filter_name.as_deref().unwrap_or("导出文档");
             let path = select_export_path(&app, "导出文档", &file_name, filter_name, &ext_refs)?;
-            let Some(path) = path else { return Ok(false); };
+            let Some(path) = path else {
+                return Ok(false);
+            };
             fs::write(&path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
             info!(target: "backend.files", path = %normalize_path(&path), "Exported document");
             Ok(true)

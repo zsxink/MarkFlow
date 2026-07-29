@@ -1,12 +1,12 @@
+mod block_parser;
 mod heading;
-mod update;
 mod large_document_policy;
 mod line_scanner;
 mod list;
-mod block_parser;
 mod style_map;
 mod table;
 mod types;
+mod update;
 
 use crate::document::{LineEndingKind, Revision};
 

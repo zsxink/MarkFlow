@@ -229,21 +229,22 @@ fn parse_delimited_spans(
             cursor = close_rel + marker.len();
             continue;
         }
-        push_inline(
+        spans.push(build_inline(
             session,
             content_range,
-            spans,
             kind.clone(),
-            open_rel,
-            close_rel + marker.len(),
-            inner_start,
-            close_rel,
+            SpanOffsets {
+                source_start: open_rel,
+                source_end: close_rel + marker.len(),
+                content_start: inner_start,
+                content_end: close_rel,
+            },
             vec![
                 (open_rel, inner_start),
                 (close_rel, close_rel + marker.len()),
             ],
             None,
-        )?;
+        )?);
         cursor = close_rel + marker.len();
     }
     Ok(())
@@ -267,18 +268,19 @@ fn parse_single_emphasis(
             cursor = close_rel + marker_len;
             continue;
         }
-        push_inline(
+        spans.push(build_inline(
             session,
             content_range,
-            spans,
             RenderInlineKind::Emphasis,
-            open_rel,
-            close_rel + marker_len,
-            inner_start,
-            close_rel,
+            SpanOffsets {
+                source_start: open_rel,
+                source_end: close_rel + marker_len,
+                content_start: inner_start,
+                content_end: close_rel,
+            },
             vec![(open_rel, inner_start), (close_rel, close_rel + marker_len)],
             None,
-        )?;
+        )?);
         cursor = close_rel + marker_len;
     }
     Ok(())
@@ -329,53 +331,57 @@ fn parse_image_and_link_spans(
                 (close_paren, close_paren + 1),
             ]
         };
-        push_inline(
+        spans.push(build_inline(
             session,
             content_range,
-            spans,
             if is_image {
                 RenderInlineKind::ImageReference
             } else {
                 RenderInlineKind::Link
             },
-            source_start,
-            close_paren + 1,
-            text_start,
-            close_bracket,
+            SpanOffsets {
+                source_start,
+                source_end: close_paren + 1,
+                content_start: text_start,
+                content_end: close_bracket,
+            },
             marker_ranges,
             Some(target),
-        )?;
+        )?);
         cursor = close_paren + 1;
     }
     Ok(())
 }
 
-fn push_inline(
+struct SpanOffsets {
+    source_start: usize,
+    source_end: usize,
+    content_start: usize,
+    content_end: usize,
+}
+
+fn build_inline(
     session: &DocumentSession,
     content_range: SourceRange,
-    spans: &mut Vec<RenderInline>,
     kind: RenderInlineKind,
-    source_start_rel: usize,
-    source_end_rel: usize,
-    content_start_rel: usize,
-    content_end_rel: usize,
+    offsets: SpanOffsets,
     marker_ranges_rel: Vec<(usize, usize)>,
     target: Option<String>,
-) -> CoreResult<()> {
-    let source_range = absolute_range(content_range, source_start_rel, source_end_rel);
-    let content_source_range = absolute_range(content_range, content_start_rel, content_end_rel);
+) -> CoreResult<RenderInline> {
+    let source_range = absolute_range(content_range, offsets.source_start, offsets.source_end);
+    let content_source_range = absolute_range(content_range, offsets.content_start, offsets.content_end);
     let marker_ranges = marker_ranges_rel
         .into_iter()
         .map(|(start, end)| session.ui_range_for_source(absolute_range(content_range, start, end)))
         .collect::<CoreResult<Vec<_>>>()?;
-    Ok(spans.push(RenderInline {
+    Ok(RenderInline {
         kind,
         source_range: session.ui_range_for_source(source_range)?,
         content_range: session.ui_range_for_source(content_source_range)?,
         marker_ranges,
         text: slice_source(session.text().logical_text(), content_source_range).to_string(),
         target,
-    }))
+    })
 }
 
 fn absolute_range(base: SourceRange, start: usize, end: usize) -> SourceRange {

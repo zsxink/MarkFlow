@@ -1,11 +1,13 @@
 # MarkFlow 技术设计文档
 
-> 版本：2.1.0 ｜ 状态：已发布 ｜ 更新日期：2026-07-19
+> 版本：2.1.1 ｜ 状态：Legacy/current-state ｜ 更新日期：2026-07-29
 > 技术栈：Rust + Tauri v2 + TypeScript
 >
 > 详细架构见 [architecture.md](architecture.md)
 
 > Legacy notice: 本文记录 Core 重构前的当前实现技术设计，仅用于定位旧模块和理解历史权衡。新重构方案以 `docs/markflow-core-stages/technical-plan.md`、`feature-migration-matrix.md` 和 M0 ADR 为准；涉及 Core-backed Source Mode、Core confirmed snapshot、Runtime/Host 保存编排、Export IR 或移除 ProseMirror serializer 主路径时，应优先阅读新的 Core 重构参考。
+
+> Current Core note: Core 重构后的当前入口包括 `markflow-core/src/document/**`、`src-tauri/crates/runtime/src/**`、`src-tauri/src/commands/core_bridge.rs`、`src-tauri/src/runtime_host.rs` 和 `src/lib/coreSession.ts` / `SourceSyncController.ts`。本文下方 HTML 注释中的早期 `src/commands/`、单体 `editor.ts` 和 ProseMirror serializer 链路仅作为历史结构参考。
 
 ---
 

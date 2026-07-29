@@ -1,7 +1,8 @@
 # ci-openspec-validation Specification
 
 ## Purpose
-TBD - created by archiving change fix-openspec-validate-deps. Update Purpose after archive.
+定义 CI 与本地环境执行 OpenSpec 校验的统一入口，确保 `@fission-ai/openspec` 作为 devDependency 可复现安装，并通过 npm script 阻断不合法 spec 合入。
+
 ## Requirements
 ### Requirement: CI 使用 npm script 执行 OpenSpec 校验
 
@@ -18,4 +19,3 @@ CI 流程 SHALL 通过 `npm run validate:openspec` 执行 OpenSpec 规范校验�
 #### Scenario: 校验失败阻断 CI
 - **WHEN** `npm run validate:openspec` 检测到规范错误
 - **THEN** CI 流程 SHALL 失败并阻止 PR 合入
-

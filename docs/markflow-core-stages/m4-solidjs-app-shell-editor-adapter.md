@@ -1,5 +1,8 @@
 # M4: SolidJS App Shell and Editor Adapter
 
+> 状态：规划中。M3/M3.1 Core-backed Source Mode 已完成；当前仓库尚未引入 `solid-js` 或 `vite-plugin-solid` 依赖。  
+> 最后复核：2026-07-29。
+
 ## 阶段目标
 
 以增量替换方式将应用外壳迁移到 SolidJS，并建立稳定的 Editor Adapter 边界。
@@ -13,6 +16,18 @@ SolidJS 放在 M4 的原因：
 本阶段不改变“所见即所得必须长期保留”的产品要求。当前 ProseMirror WYSIWYG 可继续作为兼容路径存在。
 
 ## 技术方案
+
+### 前置：当前实现基线与 Go / No-Go
+
+M4 是后续规划，不是当前实现事实。执行 M4 前必须先确认以下基线：
+
+- 当前前端仍是 TypeScript 模块化应用壳，核心路径分布在 `src/components/**`、`src/lib/editor*.ts`、`src/lib/coreSession.ts`、`src/lib/SourceSyncController.ts` 和 `src/store.ts`。
+- `package.json` 当前没有 `solid-js`、`solid-js/store` 或 `vite-plugin-solid` 依赖；依赖引入必须通过 M4 独立 proposal/ADR 记录，而不是夹带在无关功能 PR 中。
+- 首个 Solid slice 只能证明 App Service / Editor Adapter 边界可复用，不应同时重写保存、解析、WYSIWYG 或 Host Bridge。
+- 引入 Solid 前必须保留旧入口或 feature flag，使每个 vertical slice 可以独立回退。
+- M3/M3.1 的 Source Mode、archive sync gate、`npx openspec validate --all` 与 `scripts/check-archive-synced.sh` 必须保持通过。
+
+Solid 的 fine-grained reactivity 和 store 适合承载 UI projection、session projection 和面板状态；它不改变 Core/Runtime 是文档真相 owner 的原则。Solid store 不得保存完整 Markdown 文本、持久化状态机或可独立回放的事务队列。
 
 ### 0. Document / Session Workspace Model
 
@@ -82,6 +97,8 @@ interface AppUiState {
 ```
 
 禁止把完整 Markdown 文本作为长期权威状态存入 Solid store。
+
+Solid 组件订阅 Core Client、Editor Adapter 或 Host Bridge 事件时，必须在组件 lifecycle 中注册清理逻辑，避免 session close、mode switch 或 slice rollback 后仍有旧 listener 回填状态。异步 effect 结果进入 store 前必须再次校验 `sessionId + revision + requestId`。
 
 ### 2. Editor Adapter
 
@@ -198,3 +215,4 @@ interface HostRequestContext {
 | 功能迁移漏项 | 建立现有功能清单逐项验收 |
 | Solid store 变成新文档真相 | 明确 store 只保存 session/revision/selection/viewport/panel |
 | 单 active session 假设延续到 M5-M8 | M4 先建立 session-indexed store 和显式 target session API |
+| 依赖引入先于架构边界验证 | Solid 依赖 PR 必须附 ADR、vertical slice、回退开关和验证记录 |

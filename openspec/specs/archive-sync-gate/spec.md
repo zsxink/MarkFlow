@@ -26,6 +26,15 @@ The repository SHALL include a script `scripts/check-archive-synced.sh` that ver
 - **WHEN** running `bash scripts/check-archive-synced.sh` and an archive's date predates the cutoff (`ARCHIVE_SYNC_CUTOFF` or default `2026-07-21`)
 - **THEN** the script SHALL skip verification for that archive and print a count of skipped legacy archives
 
+#### Scenario: Later archive removes an earlier requirement
+- **WHEN** an archived delta spec on or after the cutoff contains a requirement under `## REMOVED Requirements`
+- **THEN** the script SHALL NOT require the removed requirement to remain in the main spec solely because an earlier archive added it
+- **THEN** the script SHALL continue checking the rest of the earlier archive's non-removed requirements
+
+#### Scenario: Modified requirement titles use explanatory suffixes
+- **WHEN** an archived delta spec uses a requirement title like `Requirement（修改 — reason）`
+- **THEN** the script SHALL treat the stable requirement name before the `（修改...）` suffix as synced if the main spec contains that stable title
+
 #### Scenario: No archive directory
 - **WHEN** running `bash scripts/check-archive-synced.sh` and `openspec/changes/archive/` does not exist
 - **THEN** the script SHALL exit with code 0 and print a skip message

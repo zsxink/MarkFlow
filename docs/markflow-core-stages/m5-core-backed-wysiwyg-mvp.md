@@ -1,5 +1,8 @@
 # M5: Core-backed WYSIWYG Editing MVP
 
+> 状态：后续规划。依赖 M4 的 session projection、Editor Adapter 和 Host Bridge 边界。  
+> 最后复核：2026-07-29。
+
 ## 阶段目标
 
 建立 Core-backed 所见即所得编辑模式，作为 MarkFlow 长期 WYSIWYG 的新主路径。
@@ -81,6 +84,14 @@ Editor Adapter 将 Render IR 转成：
 
 M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光标和选区体验，只能在专项光标、复制和无障碍测试通过后逐步启用。
 
+CodeMirror decoration/widget 约束：
+
+- Render IR 到 decoration/widget 是 viewport-scoped projection，不是文档真相。
+- 会影响垂直布局、隐藏换行或替换可编辑源码的 decoration 必须通过 dedicated selection/copy/IME/accessibility fixture 后才可启用。
+- widget lifecycle 必须支持 cleanup、cancellation 和 stale result drop；旧 revision widget 不得复用到新 revision。
+- 任何 widget command 都必须回到 Core command，不得直接修改 CodeMirror document 或 Solid store 中的文本副本。
+- 大文档只生成 viewport 及有限 overscan 的 decoration；禁止因为 WYSIWYG 预览而触发全文 widget 构建。
+
 ### 4. Marker Reveal
 
 规则：
@@ -92,7 +103,7 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 
 ### 5. Large Document 策略
 
-超过 1MB：
+超过 1 MiB (1024 * 1024 bytes)：
 
 - WYSIWYG 可用，但只渲染 viewport。
 - 图片、图表 widget 默认按需。
@@ -125,7 +136,7 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 - 标题、加粗、斜体、行内代码、链接、列表、引用、代码块可以直接编辑文本。
 - 图片能预览，并能定位回原始 Markdown range。
 - 代码 fence marker 和长度不会因切换改变。
-- 超过 1MB 文档的 WYSIWYG 不做全文 widget 渲染。
+- 超过 1 MiB (1024 * 1024 bytes) 文档的 WYSIWYG 不做全文 widget 渲染。
 - Unknown block 以源码形式显示，不阻止编辑。
 - widget 可用键盘进入/退出，复制文本不会静默丢失隐藏 marker。
 - stale Render IR 不会应用到新 revision。
@@ -138,7 +149,7 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 - Core tests：Render IR source range。
 - Editor Adapter tests：decorations、marker reveal、mode switch。
 - E2E：Source/WYSIWYG 往返、图片预览、代码块、列表、A/B 文档快速切换后 stale render 丢弃。
-- Large Document smoke：超过 1MB 文档打开、滚动、输入、保存。
+- Large Document smoke：超过 1 MiB (1024 * 1024 bytes) 文档打开、滚动、输入、保存。
 - IME smoke：composition 期间不丢字、不错位。
 - Accessibility smoke：键盘、焦点、selection、screen reader fallback。
 - Security regression：raw HTML、SVG event handler、javascript URL、超大 widget payload。
@@ -149,4 +160,4 @@ M5 优先弱化 marker，不强制折叠 marker。替换 decoration 会改变光
 | --- | --- |
 | 新 WYSIWYG 体验不如旧 WYSIWYG | M5 保留旧兼容路径，逐块补齐 |
 | Marker 隐藏导致光标错位 | M5 先弱化 marker，不做复杂折叠 |
-| 大文件 widget 卡顿 | 超过 1MB 只渲染 viewport，重型 widget 按需 |
+| 大文件 widget 卡顿 | 超过 1 MiB (1024 * 1024 bytes) 只渲染 viewport，重型 widget 按需 |

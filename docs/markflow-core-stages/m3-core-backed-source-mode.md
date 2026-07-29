@@ -1,5 +1,8 @@
 # M3: Core-backed Source Mode
 
+> 状态：M3/M3.1 已交付并归档
+> 更新日期：2026-07-29
+
 ## 阶段目标
 
 让 Source Mode 率先接入 Core session，并让保存内容只来自 Core confirmed snapshot，不再来自前端 Markdown serializer。
@@ -29,9 +32,9 @@
 - 不删除 `getMarkdown()`、`write_file` 等 legacy API；但 Source Mode 保存不得调用它们。
 - 不实现多窗口实时合并；同一路径多窗口以独立 session + 保存冲突处理。
 
-## 当前基线
+## 当前基线（设计时）
 
-截至 M3 设计时，当前产品路径如下：
+以下为 M3 设计时的历史基线，用于解释迁移原因；不是 post-M3 当前实现状态：
 
 - Source Mode：`src/lib/editor.source.ts` 创建 CodeMirror 6，`updateListener` 回调整篇 doc 字符串。
 - 模式切换：`src/lib/editor.ts` 的 `switchToSource()` 从 ProseMirror serializer 得到 Markdown；`switchToWysiwyg()` 将 Source 内容写回 ProseMirror。
@@ -40,6 +43,17 @@
 - Core 基础：`markflow-core` 已有 `DocumentSession`、`TextPatch`、`PositionMap`、`ParseIndex`、`save_payload()` 和 lossless/patch/position 测试。
 
 M3 的设计重点是把 `markflow-core` 从离线测试路径接到 Runtime/Tauri/CodeMirror，而不是在前端继续扩展 serializer 补丁。
+
+## Post-M3 当前实现状态
+
+截至 2026-07-29，M3 与 M3.1 已完成并归档，当前实现状态如下：
+
+- Source Mode 通过 `src/lib/coreSession.ts`、`src/lib/editor.sourcePatcher.ts`、`src/lib/SourceSyncController.ts` 接入 Core-backed open/edit/save 主路径。
+- 保存入口 `src/components/sidebar.fileops.ts` 已按 active Core session 分派：Core Source 调用 `saveCoreSession()`，legacy WYSIWYG 保留 `getMarkdown()` + legacy write 路径。
+- Runtime 位于 `src-tauri/crates/runtime/`，包含 `DocumentService`、`SessionRegistry`、`SaveLease`、`PathSaveCoordinator`、Host trait、真实 reload 与保存冲突编排。
+- Tauri adapter 位于 `src-tauri/src/commands/core_bridge.rs` 与 `src-tauri/src/runtime_host.rs`，负责 IPC envelope、Host side effect 和 Runtime 调用，不实现 Markdown 语法。
+- feature flag `isCoreBackedSourceModeEnabled()` 可回退 Source Mode legacy 路径，WYSIWYG 迁移仍属于 M5-M8。
+- M3 交付后的持续风险是 M4-M8 的 legacy WYSIWYG、编辑命令、资源、导出与 spec 碎片化整理，不应把 M3 误读为完整 Core editor 迁移完成。
 
 ## 架构设计
 

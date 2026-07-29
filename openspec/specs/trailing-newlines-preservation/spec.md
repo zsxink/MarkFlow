@@ -2,6 +2,8 @@
 
 在 ProseMirror Document 与磁盘文件之间，通过元数据层保留尾部换行符，保证打开文件不被误标记 dirty、保存往返无损。
 
+> Legacy notice: 本规范约束 Core 迁移前的 ProseMirror document + metadata 保存链路。Core-backed Source Mode 应以 source bytes / Core snapshot 保留尾部换行；后续替换 legacy WYSIWYG serializer 时，必须保留同等尾部换行保真约束。
+
 ## Requirements
 
 ### Requirement: Capture trailing newlines on file open

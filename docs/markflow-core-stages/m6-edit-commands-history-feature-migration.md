@@ -1,5 +1,8 @@
 # M6: Core Edit Commands, History and Existing Feature Migration
 
+> 状态：后续规划。依赖 M5 Core-backed WYSIWYG MVP，并延续 M3/M4 的 session-bound Bridge 约束。  
+> 最后复核：2026-07-29。
+
 ## 阶段目标
 
 将工具栏、快捷键、历史记录和现有编辑能力迁移到 Core/Editor Adapter，确保 Source Mode 与 WYSIWYG 行为一致。
@@ -45,6 +48,14 @@ pub struct CommandResult {
 ```
 
 所有命令必须显式指定目标 session。Toolbar、快捷键、上下文菜单、图片入口和链接编辑不得通过 `activeFilePath` 推断文档；它们必须从当前 focused editor view 或 App Workspace 的 `activeSessionId` 得到 `sessionId`，并在命令返回时校验 session 未切换。
+
+Bridge / Editor Adapter 边界：
+
+- 上述 `ByteOffset` 只允许作为 Core 内部 API 或 Core 测试 fixture 的表达；UI、Toolbar、快捷键和 IPC DTO 必须提交 revision-bound UTF-16 `Selection` / `Position`。
+- Runtime/Core 负责把 UTF-16 selection 转换成 source byte offset，并在转换失败、revision stale 或 selection 落在不可编辑 widget draft 时拒绝命令。
+- 前端不得缓存 byte offset 后跨 revision 复用；跨 revision 的命令必须重新基于当前 confirmed snapshot 映射。
+- 命令请求必须携带 `commandId` 或 `transactionId`。同一 id 的重试必须幂等返回同一结果，或在请求内容不一致时返回稳定冲突错误。
+- undo/redo、composition commit 和语义命令都必须记录 transaction id，方便协议测试确认没有重复提交或双 history 回放。
 
 ### 2. 上下文风格继承
 

@@ -16,9 +16,9 @@
 
 In Core-backed Source Mode, the size class is computed by Core and returned via `DocumentOpened.sizeClass` in the Bridge protocol. The size class SHALL be based on actual source bytes (not logical text length), using the same threshold rules as the legacy path. The classification happens server-side.
 
-- Normal: file size < 1MB AND line count < 5000
-- Large: file size 1MB–10MB OR line count 5000–50000
-- Huge: file size > 10MB OR line count > 50000
+- Normal: file size < 1 MiB (1024 * 1024 bytes) AND line count < 5000
+- Large: file size 1 MiB–10 MiB OR line count 5000–50000
+- Huge: file size > 10 MiB OR line count > 50000
 
 #### Scenario: 文档正常打开，无降级
 - **WHEN** 用户打开一个大小为500KB、2000行的文件
@@ -26,13 +26,13 @@ In Core-backed Source Mode, the size class is computed by Core and returned via 
 - **THEN** 所有编辑器功能均可无限制使用
 
 #### Scenario: 大文档显示建议
-- **WHEN** 用户打开一个大小为5MB、10000行的文件
+- **WHEN** 用户打开一个大小为 5 MiB、10000 行的文件
 - **THEN** 编辑器打开时会显示一条非阻塞通知，建议源模式
 - **THEN** 用户可以关闭通知并继续以所见即所得的方式进行编辑
 - **THEN** 自动序列化完整性检查被禁用
 
 #### Scenario: 巨量文件需要确认
-- **WHEN** 用户打开一个大小为50MB、200000行的文件
+- **WHEN** 用户打开一个大小为 50 MiB、200000 行的文件
 - **THEN** 显示确认对话框，其中包含文件大小、行数和两个选项：只读预览和强制打开
 - **THEN** 如果用户选择只读预览，内容将显示为纯文本，无法编辑
 - **THEN** 如果用户选择强制打开，编辑器将尝试在所有降级措施均处于活动状态的情况下打开
@@ -98,7 +98,7 @@ In Core-backed Source Mode, Large/Huge documents MUST NOT trigger the ProseMirro
 - **THEN** 降级栏显示“切换到源码模式”按钮，点击后切换编辑器模式
 
 #### Scenario: Core-backed Large 文档不开 ProseMirror
-- **WHEN** Core-backed Source Mode 打开一个 5MB 文档
+- **WHEN** Core-backed Source Mode 打开一个 5 MiB 文档
 - **THEN** 不创建 ProseMirror 实例（或保持 deferred）
 - **THEN** 用户可以在 Core-backed CodeMirror 中编辑和保存
 - **THEN** 保存不使用 serializer，使用 Core SavePayload

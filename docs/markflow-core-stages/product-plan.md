@@ -1,7 +1,7 @@
 # MarkFlow Core 重构产品方案
 
-> 状态：方案已校准，待 M0 技术基线冻结
-> 更新日期：2026-07-25
+> 状态：实施中 — M0-M3/M3.1 已完成，M4 规划中
+> 更新日期：2026-07-29
 > 主题：将 MarkFlow 从富文本树驱动的 Markdown 编辑器，重构为 Lossless Markdown Engine 驱动的本地优先写作工具。
 > 配套文档：`technical-plan.md`、`feature-migration-matrix.md`
 
@@ -18,6 +18,8 @@ MarkFlow 当前采用 Tiptap/ProseMirror 承担所见即所得编辑、文档结
 - 光标映射、输入法、快捷键行为受到 WebView、contenteditable 和 ProseMirror 事务模型共同影响。
 
 新的产品方向是：**Markdown 原文成为唯一真相，UI 成为原文的交互式投影。**
+
+截至 2026-07-29，M0-M3/M3.1 已完成 Core foundation、ParseIndex/StyleMap、Core-backed Source Mode、Runtime 保存完整性加固等阶段交付。当前产品事实是：Source Mode 已具备 Core-backed open/edit/save 主路径和 feature flag 回退；WYSIWYG 仍是 legacy ProseMirror 路径，M5-M8 再逐步迁移 Live Preview/WYSIWYG、编辑命令、资源、导出与完整迁移。
 
 ## 2. 产品目标
 

@@ -1,6 +1,6 @@
 # MarkFlow 技术架构
 
-> 版本：2.1.0 ｜ 状态：已发布 ｜ 更新日期：2026-07-19
+> 版本：2.1.1 ｜ 状态：Legacy/current-state ｜ 更新日期：2026-07-29
 >
 > 技术栈、项目结构与核心架构设计。
 >
@@ -110,6 +110,44 @@ markflow/
 ├── vite.config.ts
 └── README.md
 ```
+
+### Core 重构后的增量结构
+
+上述结构仍用于定位 legacy Tauri + ProseMirror 路径。Core 重构已新增并启用以下 workspace/adapter 文件：
+
+```text
+Cargo.toml                         # workspace: markflow-core, src-tauri, src-tauri/crates/runtime
+markflow-core/
+├── Cargo.toml
+└── src/
+    ├── lib.rs
+    ├── document/
+    │   ├── parse_index/
+    │   ├── patch.rs
+    │   ├── position_map.rs
+    │   ├── session.rs
+    │   └── snapshot.rs
+    └── testing/
+src-tauri/
+├── crates/runtime/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── document_service.rs
+│       ├── host.rs
+│       ├── registry.rs
+│       ├── save.rs
+│       ├── save_coordinator.rs
+│       └── session.rs
+└── src/
+    ├── commands/
+    │   ├── core_bridge.rs
+    │   ├── export.rs
+    │   └── files*.rs
+    ├── runtime_host.rs
+    └── state.rs
+```
+
+涉及 Core-backed Source Mode、Runtime 保存编排、ProtocolEnvelope、Export IR 或 Host adapter 时，以上结构和 `docs/markflow-core-stages/technical-plan.md` 优先于本文的 legacy 结构图。
 
 ---
 

@@ -7,7 +7,8 @@
 use crate::error::{lock_mutex, AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
-    Revision, Selection, SessionId, SourceRange, TextChange, TextPatch, TransactionId, Utf16Offset,
+    RenderBlockKind, RenderDocument, RenderInlineKind, RenderRequest, Revision, Selection,
+    SessionId, SourceRange, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
 use markflow_runtime::host::Host;
@@ -183,6 +184,51 @@ pub struct ReloadResultDto {
     pub file_identity: FileIdentityDto,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct UiRangeDto {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct LineRangeDto {
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct RenderDocumentDto {
+    pub session_id: u64,
+    pub document_id: u64,
+    pub revision: u64,
+    pub request_id: String,
+    pub viewport: UiRangeDto,
+    pub blocks: Vec<RenderBlockDto>,
+    pub large_document: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct RenderBlockDto {
+    pub id: String,
+    pub kind: String,
+    pub level: Option<u8>,
+    pub source_range: UiRangeDto,
+    pub content_range: UiRangeDto,
+    pub line_range: LineRangeDto,
+    pub text: String,
+    pub inlines: Vec<RenderInlineDto>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct RenderInlineDto {
+    pub kind: String,
+    pub source_range: UiRangeDto,
+    pub content_range: UiRangeDto,
+    pub marker_ranges: Vec<UiRangeDto>,
+    pub text: String,
+    pub target: Option<String>,
+}
+
 // ---------------------------------------------------------------------------
 // Error mapping
 // ---------------------------------------------------------------------------
@@ -208,6 +254,76 @@ fn map_error(e: RuntimeError) -> AppError {
         RuntimeErrorCode::Internal => AppErrorCode::Internal,
     };
     AppError::new(code, format!("{}: {}", e.code.as_str(), e.detail))
+}
+
+fn map_ui_range(range: UiRange) -> UiRangeDto {
+    UiRangeDto {
+        start: range.start.0,
+        end: range.end.0,
+    }
+}
+
+fn map_render_document(document: RenderDocument) -> RenderDocumentDto {
+    RenderDocumentDto {
+        session_id: document.session_id.0,
+        document_id: document.document_id.0,
+        revision: document.revision.0,
+        request_id: document.request_id,
+        viewport: map_ui_range(document.viewport),
+        large_document: document.large_document,
+        blocks: document
+            .blocks
+            .into_iter()
+            .map(|block| {
+                let (kind, level) = match block.kind {
+                    RenderBlockKind::Heading { level } => ("heading".to_string(), Some(level)),
+                    RenderBlockKind::Paragraph => ("paragraph".to_string(), None),
+                    RenderBlockKind::Blockquote => ("blockquote".to_string(), None),
+                    RenderBlockKind::BulletList => ("bullet_list".to_string(), None),
+                    RenderBlockKind::OrderedList => ("ordered_list".to_string(), None),
+                    RenderBlockKind::TaskList => ("task_list".to_string(), None),
+                    RenderBlockKind::CodeFence => ("code_fence".to_string(), None),
+                    RenderBlockKind::Image => ("image".to_string(), None),
+                    RenderBlockKind::Unknown => ("unknown".to_string(), None),
+                };
+                RenderBlockDto {
+                    id: block.id,
+                    kind,
+                    level,
+                    source_range: map_ui_range(block.source_range),
+                    content_range: map_ui_range(block.content_range),
+                    line_range: LineRangeDto {
+                        start: block.line_range.start,
+                        end: block.line_range.end,
+                    },
+                    text: block.text,
+                    inlines: block
+                        .inlines
+                        .into_iter()
+                        .map(|span| RenderInlineDto {
+                            kind: match span.kind {
+                                RenderInlineKind::Strong => "strong",
+                                RenderInlineKind::Emphasis => "emphasis",
+                                RenderInlineKind::InlineCode => "inline_code",
+                                RenderInlineKind::Link => "link",
+                                RenderInlineKind::ImageReference => "image_reference",
+                            }
+                            .to_string(),
+                            source_range: map_ui_range(span.source_range),
+                            content_range: map_ui_range(span.content_range),
+                            marker_ranges: span
+                                .marker_ranges
+                                .into_iter()
+                                .map(map_ui_range)
+                                .collect(),
+                            text: span.text,
+                            target: span.target,
+                        })
+                        .collect(),
+                }
+            })
+            .collect(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -542,6 +658,35 @@ pub fn get_document_text(session_id: u64) -> Result<DocumentTextResultDto, AppEr
     })
 }
 
+/// Get viewport-scoped Render IR for Core-backed WYSIWYG.
+#[tauri::command]
+pub fn get_render_blocks(
+    session_id: u64,
+    revision: u64,
+    viewport: UiRangeDto,
+    request_id: String,
+) -> Result<RenderDocumentDto, AppError> {
+    let registry = &*SESSION_REGISTRY;
+    let sid = SessionId(session_id);
+
+    let document = with_session_state(registry, sid, |state| {
+        state
+            .core
+            .render_blocks(RenderRequest {
+                revision: Revision(revision),
+                viewport: UiRange {
+                    start: Utf16Offset(viewport.start),
+                    end: Utf16Offset(viewport.end),
+                },
+                request_id,
+            })
+            .map_err(RuntimeError::from)
+    })
+    .map_err(map_error)?;
+
+    Ok(map_render_document(document))
+}
+
 /// Get document outline.
 #[tauri::command]
 pub fn get_outline(session_id: u64) -> Result<OutlineResultDto, AppError> {
@@ -669,7 +814,10 @@ pub fn close_document(session_id: u64) -> Result<(), AppError> {
 mod tests {
     use super::*;
     use crate::error::AppErrorCode;
+    use markflow_core::DocumentSession;
     use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
+    use markflow_runtime::{FileIdentity, SessionRegistry};
+    use std::path::PathBuf;
 
     /// Construct all known RuntimeErrorCodes, pass each through
     /// map_error, and verify:
@@ -783,5 +931,113 @@ mod tests {
                 code,
             );
         }
+    }
+
+    fn create_render_test_session(bytes: &'static [u8]) -> markflow_core::SessionId {
+        let registry: &SessionRegistry = &SESSION_REGISTRY;
+        registry
+            .create(
+                ClientId("test".into()),
+                "test-window".into(),
+                DocumentSource::new_file(PathBuf::from(format!(
+                    "/tmp/markflow-render-test-{}.md",
+                    bytes.len()
+                ))),
+                FileIdentity::empty(),
+                |sid, did| DocumentSession::open_bytes(sid, did, bytes).map_err(RuntimeError::from),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn map_render_document_returns_stable_dto_names() {
+        let session = DocumentSession::open_bytes(
+            markflow_core::SessionId(10),
+            markflow_core::DocumentId(20),
+            b"# Title\n\n**bold**\n",
+        )
+        .unwrap();
+        let document = session
+            .render_blocks(RenderRequest {
+                revision: Revision(0),
+                viewport: UiRange::new(0, session.text().logical_text().len()),
+                request_id: "dto".into(),
+            })
+            .unwrap();
+
+        let dto = map_render_document(document);
+
+        assert_eq!(dto.session_id, 10);
+        assert_eq!(dto.document_id, 20);
+        assert_eq!(dto.request_id, "dto");
+        assert_eq!(dto.blocks[0].kind, "heading");
+        assert_eq!(dto.blocks[0].level, Some(1));
+        assert_eq!(dto.blocks[1].inlines[0].kind, "strong");
+        assert_eq!(dto.blocks[1].inlines[0].marker_ranges.len(), 2);
+    }
+
+    #[test]
+    fn get_render_blocks_returns_matching_response() {
+        let session_id = create_render_test_session(b"# Title\n\n![alt](img.png)\n");
+        let result = get_render_blocks(
+            session_id.0,
+            0,
+            UiRangeDto { start: 0, end: 24 },
+            "req-1".into(),
+        )
+        .unwrap();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(result.session_id, session_id.0);
+        assert_eq!(result.revision, 0);
+        assert_eq!(result.request_id, "req-1");
+        assert_eq!(result.blocks[0].kind, "heading");
+        assert_eq!(result.blocks[1].kind, "image");
+        assert_eq!(result.blocks[1].inlines[0].kind, "image_reference");
+    }
+
+    #[test]
+    fn get_render_blocks_rejects_stale_revision() {
+        let session_id = create_render_test_session(b"abc\n");
+        with_session_state(&SESSION_REGISTRY, session_id, |state| {
+            state
+                .core
+                .apply_patch(TextPatch {
+                    transaction_id: TransactionId(9),
+                    base_revision: Revision(0),
+                    changes: vec![TextChange {
+                        range: SourceRange::new(Revision(0), 0, 0),
+                        replacement: "x".into(),
+                    }],
+                    selection_after: None,
+                })
+                .map_err(RuntimeError::from)?;
+            Ok(())
+        })
+        .unwrap();
+
+        let err = get_render_blocks(
+            session_id.0,
+            0,
+            UiRangeDto { start: 0, end: 1 },
+            "stale".into(),
+        )
+        .unwrap_err();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(err.code, AppErrorCode::RevisionMismatch);
+    }
+
+    #[test]
+    fn get_render_blocks_rejects_unknown_session() {
+        let err = get_render_blocks(
+            u64::MAX,
+            0,
+            UiRangeDto { start: 0, end: 1 },
+            "missing".into(),
+        )
+        .unwrap_err();
+
+        assert_eq!(err.code, AppErrorCode::SessionNotFound);
     }
 }

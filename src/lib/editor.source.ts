@@ -1,11 +1,15 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { Compartment } from '@codemirror/state';
+import { Compartment, type Extension } from '@codemirror/state';
 import { HighlightStyle, syntaxHighlighting, LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { getLanguageExtension } from './codemirror-languages';
 import { highlightLimitPlugin } from './codemirror-highlight-limit';
 import { getCachedSettings } from './storage';
+import {
+  createCoreWysiwygRenderExtension,
+  type CoreWysiwygRenderOptions,
+} from '../editor-adapter/codemirror/wysiwygRenderExtension';
 import type { Transaction } from '@codemirror/state';
 
 // Fallback: empty LanguageSupport (plain text) when a language fails to load
@@ -115,6 +119,7 @@ export function createSourceEditor(
   onUpdate: ((doc: string) => void) | null = null,
   readOnly: boolean = false,
   onTransaction: TransactionCallback | null = null,
+  extraExtensions: Extension[] = [],
 ): EditorView {
   destroySourceEditor();
 
@@ -146,6 +151,7 @@ export function createSourceEditor(
         }
       }),
       highlightLimitPlugin,
+      ...extraExtensions,
       readOnlyCompartment.of(EditorView.editable.of(!readOnly)),
     ];
 
@@ -159,6 +165,31 @@ export function createSourceEditor(
   currentView = view;
   currentView.dom.classList.toggle('no-code-highlight', getCachedSettings().codeHighlight === false);
   return view;
+}
+
+/**
+ * Create the M5 Core-backed WYSIWYG CodeMirror surface.
+ *
+ * This is an additive entry point: legacy ProseMirror WYSIWYG remains owned by
+ * `editor.ts`/`editor.init.ts`, while callers that opt into the Core path mount
+ * CodeMirror with the Render IR projection extension.
+ */
+export function createCoreWysiwygEditor(
+  container: HTMLElement,
+  content: string,
+  options: CoreWysiwygRenderOptions,
+  onUpdate: ((doc: string) => void) | null = null,
+  readOnly: boolean = false,
+  onTransaction: TransactionCallback | null = null,
+): EditorView {
+  return createSourceEditor(
+    container,
+    content,
+    onUpdate,
+    readOnly,
+    onTransaction,
+    [createCoreWysiwygRenderExtension(options)],
+  );
 }
 
 // ── Destroy ───────────────────────────────────────────────────────────

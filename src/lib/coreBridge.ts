@@ -101,6 +101,64 @@ export interface ReloadResultDto {
   file_identity: FileIdentityDto;
 }
 
+export interface UiRangeDto {
+  start: number;
+  end: number;
+}
+
+export interface LineRangeDto {
+  start: number;
+  end: number;
+}
+
+export type RenderBlockKindDto =
+  | 'heading'
+  | 'paragraph'
+  | 'blockquote'
+  | 'bullet_list'
+  | 'ordered_list'
+  | 'task_list'
+  | 'code_fence'
+  | 'image'
+  | 'unknown';
+
+export type RenderInlineKindDto =
+  | 'strong'
+  | 'emphasis'
+  | 'inline_code'
+  | 'link'
+  | 'image_reference';
+
+export interface RenderDocumentDto {
+  session_id: number;
+  document_id: number;
+  revision: number;
+  request_id: string;
+  viewport: UiRangeDto;
+  blocks: RenderBlockDto[];
+  large_document: boolean;
+}
+
+export interface RenderBlockDto {
+  id: string;
+  kind: RenderBlockKindDto;
+  level: number | null;
+  source_range: UiRangeDto;
+  content_range: UiRangeDto;
+  line_range: LineRangeDto;
+  text: string;
+  inlines: RenderInlineDto[];
+}
+
+export interface RenderInlineDto {
+  kind: RenderInlineKindDto;
+  source_range: UiRangeDto;
+  content_range: UiRangeDto;
+  marker_ranges: UiRangeDto[];
+  text: string;
+  target: string | null;
+}
+
 // ── Error Handling ──────────────────────────────────────────────────────────
 
 export class BridgeError extends Error {
@@ -274,6 +332,44 @@ export async function getDocumentText(
     return result;
   } catch (err) {
     logException('bridge', 'getDocumentText failed', err, { sessionId });
+    throw err;
+  }
+}
+
+/** Get viewport-scoped Render IR for Core-backed WYSIWYG. */
+export async function getRenderBlocks(
+  sessionId: number,
+  revision: number,
+  viewport: UiRangeDto,
+  requestId = generateRequestId(),
+  _options?: BridgeOptions,
+): Promise<RenderDocumentDto> {
+  logDebug('bridge', 'getRenderBlocks', {
+    sessionId,
+    revision,
+    viewport,
+    requestId,
+  });
+  try {
+    const result = await invokeBridge<RenderDocumentDto>('get_render_blocks', {
+      session_id: sessionId,
+      revision,
+      viewport,
+      request_id: requestId,
+    });
+    logDebug('bridge', 'getRenderBlocks completed', {
+      sessionId,
+      revision: result.revision,
+      requestId: result.request_id,
+      blockCount: result.blocks.length,
+    });
+    return result;
+  } catch (err) {
+    logException('bridge', 'getRenderBlocks failed', err, {
+      sessionId,
+      revision,
+      requestId,
+    });
     throw err;
   }
 }

@@ -20,3 +20,8 @@ export interface AdapterFlushResult extends AdapterRequestContext {
   revision: number;
 }
 
+export interface CoreWysiwygEditorBinding {
+  sessionId: string;
+  documentId: string;
+  revision: number;
+}

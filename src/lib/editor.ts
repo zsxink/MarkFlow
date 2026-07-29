@@ -28,6 +28,7 @@ import {
 import { store } from './store';
 import { scheduler } from './taskScheduler';
 import {
+  createCoreWysiwygEditor,
   createSourceEditor,
   destroySourceEditor,
   getSourceContent,
@@ -44,6 +45,10 @@ import {
 import { SourceSyncController } from './SourceSyncController';
 import { showDegradationBar, hideDegradationBar } from '../components/degradationBar';
 import { formatFileSize } from './fileSizeTier';
+
+type WysiwygEngine = 'legacy-prosemirror' | 'core-codemirror';
+
+let wysiwygEngine: WysiwygEngine = 'legacy-prosemirror';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -64,6 +69,14 @@ export {
 export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 export { initEditor } from './editor.init';
 
+export function getWysiwygEngine(): WysiwygEngine {
+  return wysiwygEngine;
+}
+
+export function isCoreBackedWysiwygActive(): boolean {
+  return getMode() === 'wysiwyg' && wysiwygEngine === 'core-codemirror';
+}
+
 // ── Trailing newline helpers ──────────────────────────────────────────
 
 /**
@@ -77,7 +90,7 @@ function stripTrailingNewlines(s: string): string {
 // ── Markdown serialization ────────────────────────────────────────────
 
 export function getMarkdown(): string {
-  if (getMode() === 'source') {
+  if (getMode() === 'source' || isCoreBackedWysiwygActive()) {
     const src = normalizeImageMarkdown(getSourceContent());
     // If the user typed trailing newlines in source mode, preserve them
     // directly.  Otherwise fall back to the metadata captured on open
@@ -159,6 +172,11 @@ export async function switchToSource() {
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   if (!wysiwygEditor || !wrapper) return;
 
+  if (isCoreBackedWysiwygActive()) {
+    await switchCoreWysiwygToSource(wysiwygEditor, wrapper);
+    return;
+  }
+
   // M3.1-3.6: WYSIWYG dirty gate — prompt save/discard/cancel before switching
   if (isDocumentDirty()) {
     const action = await promptWysiwygDirtyDialog();
@@ -208,6 +226,7 @@ export async function switchToSource() {
   if (!coreBacked) {
     wysiwygEditor.hidden = true;
     wrapper.hidden = false;
+    wysiwygEngine = 'legacy-prosemirror';
     setMode('source');
 
     const view = createSourceEditor(wrapper, content, (doc) => {
@@ -234,6 +253,7 @@ export async function switchToSource() {
   // Show loading state — wrapper visible, show loading indicator
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
+  wysiwygEngine = 'legacy-prosemirror';
   setMode('source');
   wrapper.dataset.coreLoading = 'true';
   // Insert a loading indicator if not already present
@@ -345,15 +365,24 @@ export async function switchToWysiwyg() {
   if (!wysiwygEditor || !wrapper) return;
 
   // B4: Wait for all pending patches to be acked before switching
-  const controller = getSourceSyncController();
-  try {
-    await controller.flush();
-  } catch (err) {
-    logDebug('editor.switch', 'Flush error during mode switch', { error: String(err) });
+  const sessionState = getCoreSessionState();
+  if (sessionState.isActive && isCoreBackedSourceModeEnabled()) {
+    await switchCoreSourceToWysiwyg(wysiwygEditor, wrapper);
+    return;
   }
 
-  // Detach the SourceSyncController before destroying the editor
-  controller.detach();
+  let controller: SourceSyncController | null = null;
+  if (sessionState.isActive) {
+    controller = getSourceSyncController();
+    try {
+      await controller.flush();
+    } catch (err) {
+      logDebug('editor.switch', 'Flush error during mode switch', { error: String(err) });
+    }
+
+    // Detach the SourceSyncController before destroying the editor
+    controller.detach();
+  }
 
   try {
     const ed = getEditor();
@@ -365,6 +394,7 @@ export async function switchToWysiwyg() {
     getDocumentState().programmaticUpdate = false;
     wysiwygEditor.hidden = false;
     wrapper.hidden = true;
+    wysiwygEngine = 'legacy-prosemirror';
 
     // Close the Core session when leaving source mode
     const sessionState = getCoreSessionState();
@@ -382,6 +412,117 @@ export async function switchToWysiwyg() {
     // Immediate refresh so outline/statusbar show WYSIWYG data right away
     store.emit({ type: 'editor:update' });
   }
+}
+
+async function switchCoreSourceToWysiwyg(
+  wysiwygEditor: HTMLElement,
+  wrapper: HTMLElement,
+): Promise<void> {
+  const controller = getSourceSyncController();
+  let revision = getCoreSessionState().confirmedRevision;
+  try {
+    revision = await controller.flush();
+  } catch (err) {
+    logDebug('editor.switch', 'Flush error during Core WYSIWYG switch', { error: String(err) });
+    showToast('同步未完成，暂不能切换到所见即所得');
+    return;
+  }
+
+  const markdown = getSourceContent();
+  controller.detach();
+  destroySourceEditor();
+
+  const nextState = getCoreSessionState();
+  const isReadOnly = store.getState().readOnly;
+  const view = createCoreWysiwygEditor(
+    wrapper,
+    markdown,
+    {
+      getContext: () => {
+        const state = getCoreSessionState();
+        return {
+          sessionId: state.sessionId,
+          documentId: state.documentId,
+          revision: state.confirmedRevision,
+          largeDocument: state.sizeClass === 'large' || state.sizeClass === 'huge',
+        };
+      },
+      onRevealSource: range => {
+        const sourceView = view;
+        sourceView.dispatch({
+          selection: { anchor: range.start, head: range.end },
+          scrollIntoView: true,
+        });
+        sourceView.focus();
+      },
+    },
+    doc => {
+      bumpRevision();
+      store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
+      scheduler.schedule('source-update', 50, () => {
+        store.emit({ type: 'editor:update' });
+      });
+    },
+    isReadOnly,
+    update => {
+      controller.processTransactions(update.transactions);
+    },
+  );
+
+  controller.attach(view, nextState.confirmedRevision || revision);
+  wysiwygEditor.hidden = true;
+  wrapper.hidden = false;
+  delete wrapper.dataset.coreLoading;
+  wrapper.dataset.coreWysiwyg = 'true';
+  wysiwygEngine = 'core-codemirror';
+  setMode('wysiwyg');
+  store.emit({ type: 'editor:update' });
+  view.focus();
+}
+
+async function switchCoreWysiwygToSource(
+  wysiwygEditor: HTMLElement,
+  wrapper: HTMLElement,
+): Promise<void> {
+  const controller = getSourceSyncController();
+  let revision = getCoreSessionState().confirmedRevision;
+  try {
+    revision = await controller.flush();
+  } catch (err) {
+    logDebug('editor.switch', 'Flush error during Core Source switch', { error: String(err) });
+    showToast('同步未完成，暂不能切换到源码模式');
+    return;
+  }
+
+  const markdown = getSourceContent();
+  controller.detach();
+  destroySourceEditor();
+
+  const isReadOnly = store.getState().readOnly;
+  const view = createSourceEditor(
+    wrapper,
+    markdown,
+    doc => {
+      bumpRevision();
+      store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
+      scheduler.schedule('source-update', 50, () => {
+        store.emit({ type: 'editor:update' });
+      });
+    },
+    isReadOnly,
+    update => {
+      controller.processTransactions(update.transactions);
+    },
+  );
+
+  controller.attach(view, revision);
+  wysiwygEditor.hidden = true;
+  wrapper.hidden = false;
+  delete wrapper.dataset.coreWysiwyg;
+  wysiwygEngine = 'legacy-prosemirror';
+  setMode('source');
+  store.emit({ type: 'editor:update' });
+  view.focus();
 }
 
 export { ensureContinuationParagraph } from './editor.continuation';

@@ -19,7 +19,7 @@ import {
   discardActiveImageDraft,
   preparePendingImagesForSave,
 } from '../lib/imageUtils';
-import { saveCoreSession, getCoreSessionState } from '../lib/coreSession';
+import { saveCoreSession, getCoreSessionState, openCoreSession, closeCoreSession } from '../lib/coreSession';
 
 // ── Serial save guard ────────────────────────────────────────────────
 
@@ -70,7 +70,6 @@ export async function saveActiveDocumentAsNewFile() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
-  const currentContent = getMarkdown();
   const targetPath = await save({
     title: '另存为',
     defaultPath: getConflictSavePath(filePath),
@@ -85,6 +84,46 @@ export async function saveActiveDocumentAsNewFile() {
 
   try {
     suppressNextWatcherRefresh(targetPath);
+
+    // M3.1-5.4: Migrate Save As to Runtime authority when Core session is active
+    const sessionState = getCoreSessionState();
+    if (sessionState.isActive) {
+      // 1. Save current session content first to ensure all patches are applied
+      const savedRevision = await saveCoreSession({ interactive: false });
+
+      if (savedRevision < 0) {
+        showToast('另存为失败：无法保存当前文档');
+        return false;
+      }
+
+      // 2. Close the current Core session (old path)
+      await closeCoreSession();
+
+      // 3. Open a new Core session for the target path
+      const opened = await openCoreSession(targetPath);
+
+      if (!opened) {
+        showToast('另存为失败：无法创建新 Core 会话');
+        return false;
+      }
+
+      // 4. Set new active path
+      setActiveFilePath(targetPath);
+
+      // 5. Record mtime + size from the newly created file
+      try {
+        const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
+        setLastReadStats(stats.mtime, stats.size);
+      } catch (e) { logDebug('fileops', 'Failed to get file stats after save-as (non-critical)', { path: targetPath, error: String(e) }); }
+
+      await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
+      refreshOutline();
+      showToast('已另存为新文件');
+      return true;
+    }
+
+    // Legacy path (no Core session) — use getMarkdown + writeFile
+    const currentContent = getMarkdown();
     await writeFile(targetPath, currentContent);
     setActiveFilePath(targetPath);
     // Record mtime + size for future external-modification checks

@@ -34,13 +34,32 @@ function toCode(err: unknown): string {
 }
 
 // Map backend error codes (see src-tauri/src/error.rs) to UI actions.
+// Bridge protocol codes (SCREAMING_SNAKE_CASE from `mapBridgeError`) are
+// also listed here as fallbacks for any code path that reaches classifyError
+// directly instead of going through coreSession.ts.
 const CODE_KIND: Record<string, ErrorKind> = {
+  // --- Rust AppErrorCode variants (kebab-case) ---
   'lock-poisoned': 'fatal',
   'watcher-start-failed': 'degrade',
   'workspace-invalid': 'retry',
   io: 'retry',
   serialization: 'retry',
   internal: 'fatal',
+  'save-flush-timeout': 'retry',
+  'save-in-progress': 'retry',
+  'reload-dirty': 'retry',
+  'invalid-range': 'retry',
+  'unsupported-encoding': 'degrade',
+  'pending-queue-full': 'retry',
+  cancelled: 'retry',
+  'protocol-version-unsupported': 'fatal',
+
+  // --- Bridge protocol codes (SCREAMING_SNAKE_CASE) ---
+  TRANSACTION_CONFLICT: 'retry',
+  REVISION_MISMATCH: 'retry',
+  SESSION_NOT_FOUND: 'fatal',
+  INVALID_UTF16_BOUNDARY: 'retry',
+  CONFLICT: 'conflict',
 };
 
 export function classifyError(err: unknown): ClassifiedError {

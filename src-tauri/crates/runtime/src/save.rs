@@ -172,7 +172,7 @@ mod tests {
     use crate::file_identity::{ContentFingerprint, FileIdentity};
     use crate::host::Host;
     use crate::registry::SessionRegistry;
-    use crate::session::{ClientId, DocumentRuntimeState, SessionId};
+    use crate::session::{ClientId, SessionId};
     use crate::source::DocumentSource;
     use markflow_core::{DocumentId, DocumentSession};
     use std::path::Path;

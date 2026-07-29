@@ -38,13 +38,10 @@ import {
   closeCoreSession,
   isCoreBackedSourceModeEnabled,
   getCoreSessionState,
+  setSourceSyncController,
+  getSourceSyncController,
 } from './coreSession';
-import {
-  attachPatcher,
-  detachPatcher,
-  createPatcherCallback,
-  flushPendingPatches,
-} from './editor.sourcePatcher';
+import { SourceSyncController } from './SourceSyncController';
 import { showDegradationBar, hideDegradationBar } from '../components/degradationBar';
 import { formatFileSize } from './fileSizeTier';
 
@@ -155,12 +152,31 @@ export function setMarkdown(content: string) {
 
 // ── Mode switching ────────────────────────────────────────────────────
 
-export function switchToSource() {
+export async function switchToSource() {
   const ed = getEditor();
   if (!ed) return;
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   if (!wysiwygEditor || !wrapper) return;
+
+  // M3.1-3.6: WYSIWYG dirty gate — prompt save/discard/cancel before switching
+  if (isDocumentDirty()) {
+    const action = await promptWysiwygDirtyDialog();
+    if (action === 'cancel') return; // stay in WYSIWYG
+    if (action === 'save') {
+      // Try to trigger a save using the store's lastPersistedMarkdown mechanism.
+      // The saveActiveDocument function handles both legacy and Core-backed saves.
+      const { saveActiveDocument } = await import('../components/sidebar');
+      const saved = await saveActiveDocument();
+      if (saved || !isDocumentDirty()) {
+        // Proceed with switch
+      } else {
+        // User cancelled save or save failed — stay in WYSIWYG
+        return;
+      }
+    }
+    // action === 'discard': proceed without saving
+  }
 
   const rawMarkdown = replaceAssetUrlsWithOriginal(ed.storage.markdown.getMarkdown());
   const normalized = normalizeImageMarkdown(rawMarkdown);
@@ -182,74 +198,145 @@ export function switchToSource() {
     content = normalized;
   }
 
-  wysiwygEditor.hidden = true;
-  wrapper.hidden = false;
-  setMode('source');
-
   // Clear stale scheduler task from any previous CM6 session
   scheduler.cancel('source-update');
 
   const isReadOnly = store.getState().readOnly;
   const coreBacked = isCoreBackedSourceModeEnabled();
 
-  // Check if we should use Core-backed source mode
-  if (coreBacked) {
-    const filePath = getActiveDocPath();
-    if (filePath) {
-      // Open a Core session in background (content will be set by Core)
-      openCoreSession(filePath).then((opened) => {
-        if (opened && coreBacked) {
-          logDebug('editor.switch', 'Core-backed source mode activated', {
-            sessionId: opened.session_id,
-            revision: opened.revision,
-          });
-          // B1: Initialize CodeMirror with Core's authoritative content
-          setSourceContent(opened.text);
+  // Legacy source mode path (no Core backing)
+  if (!coreBacked) {
+    wysiwygEditor.hidden = true;
+    wrapper.hidden = false;
+    setMode('source');
 
-          // Show degradation bar for large/huge docs in Core mode
-          if (opened.size_class === 'large' || opened.size_class === 'huge') {
-            showDegradationBar({
-              tier: opened.size_class,
-              size: formatFileSize(opened.stats.byte_count),
-              lines: opened.stats.line_count,
-              readOnly: opened.size_class === 'huge',
-            });
-          } else {
-            hideDegradationBar();
-          }
-        }
-      });
-    }
-
-    // Create CM6 with onTransaction callback for the patcher
-    const onTxn = createPatcherCallback();
     const view = createSourceEditor(wrapper, content, (doc) => {
       bumpRevision();
       store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
       scheduler.schedule('source-update', 50, () => {
         store.emit({ type: 'editor:update' });
       });
-    }, isReadOnly, onTxn);
+    }, isReadOnly);
 
-    // Attach the patcher to the view
-    attachPatcher();
-
-    // Focus CM6 editor so user can type immediately
     view.focus();
     return;
   }
 
-  // Legacy source mode path (no Core backing)
-  const view = createSourceEditor(wrapper, content, (doc) => {
-    bumpRevision();
-    store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
-    scheduler.schedule('source-update', 50, () => {
-      store.emit({ type: 'editor:update' });
-    });
-  }, isReadOnly);
+  // ── Core-backed source mode ───────────────────────────────────────────
+  // M3.1-3.4: Show loading indicator, wait for open_document before creating CM
 
-  // Focus CM6 editor so user can type immediately
-  view.focus();
+  const filePath = getActiveDocPath();
+  if (!filePath) {
+    showToast('无法切换源码模式：没有已打开的文件');
+    return;
+  }
+
+  // Show loading state — wrapper visible, show loading indicator
+  wysiwygEditor.hidden = true;
+  wrapper.hidden = false;
+  setMode('source');
+  wrapper.dataset.coreLoading = 'true';
+  // Insert a loading indicator if not already present
+  let loadingEl = wrapper.querySelector('.source-loading-indicator') as HTMLElement;
+  if (!loadingEl) {
+    loadingEl = document.createElement('div');
+    loadingEl.className = 'source-loading-indicator';
+    loadingEl.textContent = '正在打开文件…';
+    loadingEl.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px;';
+    wrapper.appendChild(loadingEl);
+  }
+  loadingEl.hidden = false;
+
+  try {
+    const opened = await openCoreSession(filePath);
+
+    if (!opened) {
+      // M3.1-3.5: open_document failed — show error, stay in WYSIWYG
+      showToast('打开源码模式失败，已退回 WYSIWYG 模式');
+      cleanupSourceSwitch(wysiwygEditor, wrapper, loadingEl);
+      return;
+    }
+
+    logDebug('editor.switch', 'Core-backed source mode activated', {
+      sessionId: opened.session_id,
+      revision: opened.revision,
+    });
+
+    // Hide loading indicator
+    loadingEl.hidden = true;
+    delete wrapper.dataset.coreLoading;
+
+    // M3.1-3.4: Create CM6 only after open_document succeeds
+    // M3.1-2.8: Create SourceSyncController and register in coreSession
+    const controller = new SourceSyncController();
+    setSourceSyncController(controller);
+    const view = createSourceEditor(wrapper, opened.text, (doc) => {
+      bumpRevision();
+      store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
+      scheduler.schedule('source-update', 50, () => {
+        store.emit({ type: 'editor:update' });
+      });
+    }, isReadOnly, (update) => {
+      controller.processTransactions(update.transactions);
+    });
+
+    // Attach the SourceSyncController to the view with initial revision
+    controller.attach(view, opened.revision);
+
+    // Show degradation bar for large/huge docs in Core mode
+    if (opened.size_class === 'large' || opened.size_class === 'huge') {
+      showDegradationBar({
+        tier: opened.size_class,
+        size: formatFileSize(opened.stats.byte_count),
+        lines: opened.stats.line_count,
+        readOnly: opened.size_class === 'huge',
+      });
+    } else {
+      hideDegradationBar();
+    }
+
+    view.focus();
+  } catch (err) {
+    logException('editor.switch', 'Unexpected error switching to source mode', err, { filePath });
+    showToast('切换到源码模式时发生错误');
+    cleanupSourceSwitch(wysiwygEditor, wrapper, loadingEl);
+  }
+}
+
+/**
+ * Prompt the user about unsaved WYSIWYG changes when switching to Source mode.
+ * Returns 'save', 'discard', or 'cancel'.
+ *
+ * Uses the browser's native confirm() as the dialog mechanism.
+ * In a future iteration this could use a custom modal dialog.
+ */
+async function promptWysiwygDirtyDialog(): Promise<'save' | 'discard' | 'cancel'> {
+  // Model: save/discard/cancel. Native confirm only has OK/Cancel,
+  // so we use a sequence: first ask save/discard, then confirm.
+  // Using simple confirm for now — future: custom modal.
+  const save = confirm('当前文档有未保存的修改。是否先保存再切换到源码模式？\n\n点击"确定"保存后切换\n点击"取消"选择放弃修改');
+  if (save) return 'save';
+  // User cancelled save — now ask about discarding
+  const discard = confirm('未保存的修改将丢失。是否仍然切换到源码模式？\n\n点击"确定"放弃修改并切换\n点击"取消"留在当前模式');
+  return discard ? 'discard' : 'cancel';
+}
+
+/**
+ * Clean up after a failed source mode switch.
+ * Hides the wrapper, shows WYSIWYG, removes loading indicator.
+ */
+function cleanupSourceSwitch(
+  wysiwygEditor: HTMLElement,
+  wrapper: HTMLElement,
+  loadingEl: HTMLElement | null,
+): void {
+  if (loadingEl) loadingEl.hidden = true;
+  delete wrapper.dataset.coreLoading;
+  wrapper.hidden = true;
+  wysiwygEditor.hidden = false;
+  setMode('wysiwyg');
+  getEditor()?.commands.focus();
+  destroySourceEditor();
 }
 
 export async function switchToWysiwyg() {
@@ -258,10 +345,15 @@ export async function switchToWysiwyg() {
   if (!wysiwygEditor || !wrapper) return;
 
   // B4: Wait for all pending patches to be acked before switching
-  await flushPendingPatches();
+  const controller = getSourceSyncController();
+  try {
+    await controller.flush();
+  } catch (err) {
+    logDebug('editor.switch', 'Flush error during mode switch', { error: String(err) });
+  }
 
-  // Detach the Core-backed patcher before destroying the editor
-  detachPatcher();
+  // Detach the SourceSyncController before destroying the editor
+  controller.detach();
 
   try {
     const ed = getEditor();

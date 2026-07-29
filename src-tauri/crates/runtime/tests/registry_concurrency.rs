@@ -1,5 +1,4 @@
 use markflow_core::{DocumentId, DocumentSession, SessionId};
-use markflow_runtime::error::RuntimeError;
 use markflow_runtime::file_identity::FileIdentity;
 use markflow_runtime::registry::SessionRegistry;
 use markflow_runtime::session::ClientId;
@@ -165,7 +164,7 @@ fn sessions_with_different_paths_are_independent() {
 
     registry.close(id_a).expect("Close A");
     assert!(registry.get(id_b).is_some());
-    assert!(!registry.get(id_a).is_some());
+    assert!(registry.get(id_a).is_none());
 }
 
 #[test]

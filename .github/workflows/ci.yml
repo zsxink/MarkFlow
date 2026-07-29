@@ -75,10 +75,10 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
-      - name: Check Rust formatting
+      - name: Check Rust formatting (workspace)
         working-directory: src-tauri
-        run: cargo fmt -- --check
+        run: cargo fmt --all -- --check
 
-      - name: Run Rust Clippy
+      - name: Run Rust Clippy (workspace)
         working-directory: src-tauri
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings

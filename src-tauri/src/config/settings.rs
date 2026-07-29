@@ -71,6 +71,8 @@ pub struct Settings {
     pub large_file_line_threshold: u32,
     #[serde(default = "default_huge_file_line_threshold")]
     pub huge_file_line_threshold: u32,
+    #[serde(default)]
+    pub core_backed_source_mode: Option<bool>,
     #[serde(default = "default_file_tree_ignore_patterns")]
     pub file_tree_ignore_patterns: Vec<String>,
     #[serde(default = "default_file_tree_page_size")]
@@ -182,6 +184,7 @@ impl Default for Settings {
             code_line_numbers: None,
             code_word_wrap: None,
             last_sidebar_tab: None,
+            core_backed_source_mode: None,
             large_file_threshold: default_large_file_threshold(),
             huge_file_threshold: default_huge_file_threshold(),
             large_file_line_threshold: default_large_file_line_threshold(),

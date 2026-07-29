@@ -1,13 +1,13 @@
 # source-patch-adapter Specification
 
 ## Purpose
-定义 CodeMirror Source Mode 到 Core Bridge 的 patch adapter 行为，包括 UTF-16 patch 生成、批处理、ack/resync、backpressure、flush 和 legacy onUpdate 兼容。
+定义 CodeMirror Source Mode 到 Core Bridge 的 patch extraction / legacy onUpdate compatibility 行为，包括 UTF-16 patch 生成、同一 batch 的 `ChangeSet.compose`、ack/resync 边界和 flush 调用入口。pending queue 上限、frame batching、composition batching 与 backpressure 的 owner 是 `source-sync-controller`。
 
 ## Requirements
 
 ### Requirement: 从 transaction 生成 Utf16TextPatchDto
 
-Adapter SHALL 从 CodeMirror 的 `Transaction.changes` 或 `Update.changes` 提取 change set。同一 batch 内的多个 transaction SHALL 使用 `ChangeSet.compose` 合成为单个 change set 后生成包含 UTF-16 range 的 `Utf16TextPatchDto`。
+Adapter SHALL 从 CodeMirror 的 `Transaction.changes` 或 `Update.changes` 提取 change set。同一 batch 内的多个 transaction SHALL 使用 `ChangeSet.compose` 合成为单个 change set 后生成包含 UTF-16 range 的 `Utf16TextPatchDto`。不同 animation frame 或 batch 的 change 不得拼接；每个 batch SHALL 基于自己捕获时的 `confirmedRevision`。
 
 #### Scenario: 简单文本输入生成正确 patch
 
@@ -17,22 +17,12 @@ Adapter SHALL 从 CodeMirror 的 `Transaction.changes` 或 `Update.changes` 提�
 - **THEN** `insert` 为输入字符
 - **THEN** `baseRevision` 等于当前 confirmed revision
 
-#### Scenario: 同一 batch 合成而非拼接
+#### Scenario: 同一 batch 合成而非按原始坐标拼接
 
-- **WHEN** 同一 animation frame 内有多个 transaction
+- **WHEN** 初始文本为 `XYZ`，同一 batch 内有 3 个 transaction（依次插入 `a` 到文首、插入 `b` 到 `X` 后、插入 `c` 到 `Y` 后）
 - **THEN** Adapter 使用 `ChangeSet.compose` 合成
-- **THEN** 生成的 change 反映从起始 text 到最终 text 的变换
-
-### Requirement: frame/composition batching
-
-Adapter SHALL 在同一 animation frame 或 IME composition 期间批量处理多个 transaction，合并为一个 patch。
-
-#### Scenario: IME composition 期间不拆分
-
-- **WHEN** IME composition 进行中
-- **THEN** Adapter 延迟发送 patch
-- **WHEN** composition end
-- **THEN** Adapter 尽快 flush 并发送合并后的 patch
+- **THEN** 生成的 change 反映从起始 text 到最终 text 的变换，最终效果等价于 CodeMirror 顺序应用三个 transaction 得到的 `aXbYcZ`
+- **THEN** Adapter 不得把后两个 transaction 当作起始文本坐标直接拼接，避免生成 `abcXYZ`、`aXYbZc` 等错误结果
 
 ### Requirement: ack/retry 状态机
 
@@ -60,17 +50,6 @@ Adapter SHALL 维护同步状态机，使用单 in-flight 模型处理 ack、ret
 - **THEN** 调用 `resync_document(session_id, lastConfirmedRevision, pendingTransactionIds)`
 - **THEN** 响应到达后删除已确认前缀，按原序重放未确认 transaction
 - **THEN** 状态不连续时进入 blocked
-
-### Requirement: pending queue 上限
-
-Adapter SHALL 对 pending transaction 设置数量和字节数上限，超限时进入 backpressure 状态。
-
-#### Scenario: pending queue full 进入 backpressure
-
-- **WHEN** pending transaction 数量或累计字节数达到上限
-- **THEN** Adapter 进入 `backpressure` 状态
-- **THEN** 暂停语义命令和保存
-- **THEN** 提示用户同步中
 
 ### Requirement: flushPendingPatches
 

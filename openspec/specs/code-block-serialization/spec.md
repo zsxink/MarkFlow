@@ -1,7 +1,10 @@
 # code-block-serialization Specification
 
 ## Purpose
-TBD - created by archiving change fix-code-block-trailing-newline. Update Purpose after archive.
+定义 legacy WYSIWYG 与 Source 模式往返时，围栏代码块尾随换行的序列化/反序列化保真规则，避免模式切换静默丢失代码块内容。
+
+> Legacy notice: 本规范约束当前 ProseMirror/Tiptap WYSIWYG serializer 路径的回归行为。Core-backed Source Mode 保存真相不得依赖该 serializer；M5-M8 迁移期间如替换 WYSIWYG 实现，必须保留等价的代码块尾随换行保真语义或以新 Core 规范替代。
+
 ## Requirements
 ### Requirement: 围栏代码块尾随换行序列化保真
 
@@ -30,4 +33,3 @@ TBD - created by archiving change fix-code-block-trailing-newline. Update Purpos
 #### Scenario: 多个尾随换行在往返中数量不变
 - **WHEN** 代码块包含 0、1、2 个尾随换行
 - **THEN** 经过 WYSIWYG → Source → WYSIWYG 往返后，尾随换行数量不变
-

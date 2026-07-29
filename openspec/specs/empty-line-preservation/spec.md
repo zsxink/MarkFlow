@@ -3,6 +3,8 @@
 ## Purpose
 定义源码模式下用户输入空行的保留规则，确保保存和模式切换不会因图片归一化逻辑而静默删除用户明确输入的空行。
 
+> Legacy notice: 本规范当前覆盖 `src/lib/editor.serializer.ts` 的 legacy ProseMirror serializer 修正路径。Core-backed Source Mode 保存不得通过该 serializer；M5-M8 迁移时应把“未触及空行不被规范化删除”的语义迁移到 Core/Adapter 或新的 WYSIWYG 投影层。
+
 ## Agent Context
 - **源码入口：** `src/lib/editor.serializer.ts`（`normalizeImageMarkdown`、`fixImageNewlines`）
 - **关联规范：** `enter-content-integrity`、`codemirror-source-editor`、`block-continuation-paragraph`

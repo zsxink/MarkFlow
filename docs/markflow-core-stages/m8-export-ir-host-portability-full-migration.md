@@ -1,5 +1,8 @@
 # M8: Export IR, Host Portability and Full Migration
 
+> 状态：后续规划。拆分 M8A-M8C，依赖功能迁移矩阵 P0/P1 全绿和至少一个稳定发布观察周期。  
+> 最后复核：2026-07-29。
+
 ## 阶段目标
 
 完成导出统一、Host Adapter 边界稳定和现有功能全量迁移，移除旧 ProseMirror serializer 保存真相链路。
@@ -94,6 +97,14 @@ Host Port 约束：
 - 同一路径多 session 的保存、资源、导出结果必须按 session 隔离，不能按 path 或当前 active window 回填。
 - Host capability negotiation 必须区分平台支持、权限缺失、用户拒绝、临时失败和不可恢复失败。
 
+Capability / Security matrix：
+
+- Host capability 必须映射到 Tauri v2 capability / permission 配置；窗口或 WebView 没有权限时必须拒绝调用并返回稳定错误码。
+- 每个 Host Port 要列出 `capability`、允许的 window/webview、参数范围、资源范围、超时、取消语义和错误码。
+- 文件系统、shell、network、render、export 能力默认最小权限；新增命令必须先更新 capability matrix 和协议测试，再暴露给 UI。
+- M8B 的非 Tauri harness 必须覆盖 missing capability、denied permission、window mismatch、stale session 和 cancellation。
+- Host Adapter 不得把权限失败降级为静默 fallback；UI 必须展示可恢复错误或明确禁止操作。
+
 Bridge DTO 必须包含：
 
 - protocol version。
@@ -150,6 +161,7 @@ markflow-core export file.md --format html
 - 新路径经过至少一个稳定发布观察周期。
 - 本地诊断中无 revision divergence、silent rewrite 或 fallback save。
 - macOS、Windows、Linux release gate 全部通过。
+- CI 中有 removal audit：`tiptap-markdown`、`getMarkdown()` save path、ProseMirror serializer save path 和 DOM-based export 只能出现在 legacy allowlist、测试 fixture 或迁移说明中；M8C 删除 PR 必须同步清空 allowlist。
 
 ## 交付物
 

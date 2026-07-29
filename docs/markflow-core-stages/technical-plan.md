@@ -1,7 +1,7 @@
 # MarkFlow Core 重构技术方案
 
-> 状态：方案已校准，待 M0 spike 冻结关键选型
-> 更新日期：2026-07-25
+> 状态：实施中 — M3/M3.1 已交付并归档，等待 M4 规划
+> 更新日期：2026-07-29
 > 目标：设计 `markflow-core`，将 Markdown 文档核心能力从前端编辑器收拢到 Rust。
 > 配套文档：`product-plan.md`、`feature-migration-matrix.md`
 
@@ -66,44 +66,61 @@
 
 ## 3. Cargo 结构
 
-建议引入 workspace：
+当前实现已采用顶层 Cargo workspace：
 
 ```text
+Cargo.toml
+  members = ["markflow-core", "src-tauri", "src-tauri/crates/runtime"]
+
 markflow-core/
   Cargo.toml
   src/
     lib.rs
     document/
-    parse/
-    style/
-    edit/
-    render/
-    diagnostics/
-    assets/
-    export/
-    providers/
+      line_ending_map.rs
+      line_index.rs
+      parse_index/
+        heading.rs
+        incremental.rs
+        large_document_policy.rs
+        list.rs
+        scanner.rs
+        style_map.rs
+        table.rs
+        types.rs
+      patch.rs
+      position_map.rs
+      session.rs
+      snapshot.rs
+      text_buffer.rs
     testing/
-markflow-runtime/
-  Cargo.toml
-  src/
-    session_registry.rs
-    document_service.rs
-    task_scheduler.rs
-    save_workflow.rs
-    asset_workflow.rs
-markflow-tauri/
-  Cargo.toml
-  src/
-    commands/
-    session_registry.rs
-    app_bridge.rs
+
 src-tauri/
   Cargo.toml
+  crates/
+    runtime/
+      Cargo.toml
+      src/
+        document_service.rs
+        error.rs
+        file_identity.rs
+        host.rs
+        registry.rs
+        save.rs
+        save_coordinator.rs
+        session.rs
+        source.rs
   src/
+    commands/
+      core_bridge.rs
+      export.rs
+      files*.rs
     lib.rs
+    runtime_host.rs
+    state.rs
 ```
 
-建议从 M1 直接建立 Cargo workspace 和顶层独立 `markflow-core` crate。若 M0/M1 workspace viability 证明独立 crate 会阻塞当前 Tauri 构建，可短期在 `src-tauri` 内孵化，但必须满足依赖检查：Core module 不得 import Tauri，且 M3 前完成独立 crate 拆分。
+M0/M1 的 workspace viability 决策已落地：`markflow-core` 是顶层独立 crate，`markflow-runtime` 作为 `src-tauri/crates/runtime` 下的独立 workspace member 存在，Tauri adapter 通过 `src-tauri/src/commands/core_bridge.rs`、`runtime_host.rs` 和 `state.rs` 调用 runtime。后续 M4-M8 可继续拆分 UI/App Service 层，但不得倒退为 Core 直接依赖 Tauri、DOM、CodeMirror 或 ProseMirror。
 
 ## 4. 核心数据模型
 

@@ -271,11 +271,8 @@ fn save_lease_raii_prevents_concurrent() {
     assert!(lease2.is_some(), "Second lease after first is dropped");
 }
 
-/// SaveLease RAII clears the token when dropped — verified via success path.
-/// Panic safety (Drop running during unwind) is tested at the unit level
-/// in `save.rs` because `catch_unwind` + mutable borrow requires unsafe code
-/// that is not appropriate for integration tests.
-
+/// SaveLease RAII clears the token when dropped — verified via success path
+/// and via panic-unwind safety below.
 #[test]
 fn save_lease_panic_does_not_leak_token() {
     use markflow_runtime::session::SaveLease;
@@ -285,9 +282,10 @@ fn save_lease_panic_does_not_leak_token() {
     let session_id = create_session(&registry, "/tmp/lease_panic_test.md");
 
     let handle = registry.get(session_id).unwrap();
-    let mut state = handle.inner.lock().unwrap();
 
-    // Simulate a panic while holding the lease
+    // Simulate a panic while holding the lease.  We must NOT hold the outer
+    // mutex guard across catch_unwind — std::sync::Mutex is not reentrant,
+    // and the closure needs to acquire the same lock.
     let result = catch_unwind(AssertUnwindSafe(|| {
         let mut state = handle.inner.lock().unwrap();
         let _lease = SaveLease::acquire(&mut state);
@@ -296,7 +294,10 @@ fn save_lease_panic_does_not_leak_token() {
 
     assert!(result.is_err(), "Expected panic to propagate");
 
-    // After the panic, the lease's Drop should still have run, clearing the token
+    // After the panic, the lease's Drop should still have run, clearing the
+    // token.  The mutex is poisoned because the thread panicked while holding
+    // the guard — recover via into_inner().
+    let mut state = handle.inner.lock().unwrap_or_else(|e| e.into_inner());
     let new_lease = SaveLease::acquire(&mut state);
     assert!(
         new_lease.is_some(),

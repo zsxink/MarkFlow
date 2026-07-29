@@ -4,6 +4,8 @@
 > 平台：桌面端（macOS / Windows / Linux）
 > 目标用户：写作者、开发者
 
+> Legacy notice: 本文是早期产品规格，仍描述 Tiptap/ProseMirror 作为 WYSIWYG 主引擎的 v1/v2 目标。Core 重构后的产品方向、阶段边界和迁移状态以 `docs/markflow-core-stages/product-plan.md`、`technical-plan.md` 和 `feature-migration-matrix.md` 为准。
+
 ---
 
 ## 1. 产品概述

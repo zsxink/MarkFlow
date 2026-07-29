@@ -3,6 +3,8 @@
 ## Purpose
 定义特殊块（图片、引用、代码块）后自动创建续写段落的统一规则，确保用户在任何特殊块位于文档末尾时可直接继续写作。
 
+> Legacy notice: 本规范约束当前 ProseMirror/Tiptap WYSIWYG 编辑态的续写段落行为。续写段落不得出现在 Markdown 保存输出中；后续 Core-backed WYSIWYG/Live Preview 迁移应保留“末尾特殊块后可继续输入”的用户体验，并以 Core/Adapter 边界重新承载该规则。
+
 ## Agent Context
 - **源码入口：** `src/lib/editor.ts`、`src/lib/editor.init.ts`、`src/lib/editor.extensions.ts`
 - **关联规范：** `empty-line-preservation`、`enter-content-integrity`、`source-toolbar-cm6`

@@ -5,20 +5,30 @@
 
 ## Requirements
 
-### Requirement: 统一的 ProtocolEnvelope
+### Requirement: apply_text_patch versioned Envelope
 
-所有 Bridge 命令 SHALL 使用统一的 `ProtocolEnvelope` 封装，包含 protocol_version、request_id、client_id、window_label、session_id 和 payload。文档相关命令必须带 session_id；窗口、对话框、通知和 close flow 相关命令必须带 window_label。返回的响应同样使用统一 Envelope，包含 `success`、`error_code`、`error_detail` 字段。
+`apply_text_patch` SHALL 使用 `ProtocolEnvelope<Utf16TextPatchDto>` 封装，包含 `protocol_version`、`session_id` 和 `payload`。版本不匹配时必须返回 `PROTOCOL_VERSION_UNSUPPORTED`，session 缺失时必须返回稳定错误。
 
-#### Scenario: 请求包含版本号
+#### Scenario: apply_text_patch 请求包含版本号
 
-- **WHEN** 前端调用任何 Core Bridge 命令
+- **WHEN** 前端调用 `apply_text_patch`
 - **THEN** 请求包含 `protocol_version` 字段
 - **THEN** 版本不匹配时返回 `PROTOCOL_VERSION_UNSUPPORTED`
+
+### Requirement: 非 patch 命令保持稳定 DTO 兼容
+
+`open_document`、`save_document`、`resync_document`、`flush_document`、`get_document_text`、`get_outline`、`get_document_stats`、`reload_document`、`close_document` SHALL 保持当前稳定 DTO 兼容，直到后续阶段通过 ADR 和协议兼容测试迁移到统一 Envelope。文档相关命令必须显式携带 `session_id` 或返回 `sessionId`；不得通过 `activeFilePath` 或当前窗口隐式推断文档。
+
+#### Scenario: 当前非 patch 命令不要求 Envelope
+
+- **WHEN** 前端调用 `save_document(session_id)`、`resync_document(session_id, confirmed_revision)` 或 `flush_document(session_id)`
+- **THEN** 请求使用当前稳定 DTO 参数
+- **THEN** Runtime 按传入 session 定位文档，不读取全局 active file path
 
 #### Scenario: 响应包含 error_code
 
 - **WHEN** 任何 Bridge 命令返回错误
-- **THEN** 响应 Envelope 包含 `error_code`（字符串枚举值）
+- **THEN** 响应错误包含 `error_code`（字符串枚举值）
 - **THEN** `error_detail` 包含人类可读的描述
 - **THEN** 前端可通过 `error_code` 做精确的恢复决策
 
@@ -108,13 +118,13 @@
 - **THEN** session 内容不受影响
 - **THEN** 调用方可重试
 
-### Requirement: 异步命令
+### Requirement: 异步命令 + spawn_blocking
 
 open/save/reload 命令 SHALL 使用 async Tauri command，阻塞 IO 放入 `spawn_blocking`。常规 patch 保留同步以降低延迟。
 
 #### Scenario: open 大文件不阻塞 UI
 
-- **WHEN** 打开 50MB 文件
+- **WHEN** 打开 50 MiB 文件
 - **THEN** 命令通过 async channel 执行
 - **THEN** 文件读取 IO 在 `spawn_blocking` 线程池中执行
 - **THEN** UI 线程不被阻塞

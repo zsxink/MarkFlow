@@ -3,6 +3,8 @@
 ## Purpose
 定义跨平台中西文字体栈、字体分发及字重覆盖要求。
 
+> Legacy notice: 本规范中的“ProseMirror 编辑器区域”表述指当前 legacy WYSIWYG 编辑区域。字体栈要求适用于用户正文阅读/编辑表面；后续 Core-backed WYSIWYG 或 Live Preview 替换 DOM 结构时，仍应沿用同等字体栈与离线字体分发约束。
+
 ## Agent Context
 - **源码入口：** `src/styles/app.css`、`src/styles/editor.css` 与 `src/styles/variables.css`。
 - **关联规范：** `bundle-budget`、`editor-bottom-spacer`。

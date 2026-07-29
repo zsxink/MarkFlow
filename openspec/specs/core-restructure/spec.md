@@ -1,7 +1,8 @@
 # core-restructure Specification
 
 ## Purpose
-TBD - created by archiving change restructure-core-code. Update Purpose after archive.
+定义 `markflow-core` M2.1 生产代码与集成测试的职责拆分要求，确保 ParseIndex/StyleMap 相关实现从里程碑型文件演进为可维护、可测试的模块分层，同时保持 public API 与行为兼容。
+
 ## Requirements
 ### Requirement: ParseIndex 按职责拆分
 
@@ -97,4 +98,3 @@ Core integration tests SHALL 按模块分层命名，删除旧的里程碑命名
 #### Scenario: npm test
 - **WHEN** 运行 `npm test`
 - **THEN** 所有测试通过
-

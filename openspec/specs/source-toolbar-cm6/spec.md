@@ -3,6 +3,8 @@
 ## Purpose
 定义源码模式下工具栏操作（图片、引用、代码块）使用 CodeMirror 6 API 执行 Markdown 插入的规则。
 
+> Legacy notice: 本规范描述 M3 前后 Source Mode 与 legacy WYSIWYG 共存期间的工具栏分派规则。Source Mode 操作不得再绕回隐藏的 ProseMirror 实例；WYSIWYG 侧的 Tiptap 命令属于 M5-M8 迁移前的兼容路径。
+
 ## Agent Context
 - **源码入口：** `src/components/toolbar.ts`、`src/lib/editor.source.ts`、`src/lib/editor.ts`
 - **关联规范：** `codemirror-source-editor`、`block-continuation-paragraph`

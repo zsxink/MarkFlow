@@ -1,5 +1,8 @@
 # M7: Tables, FrontMatter, Assets, Search and Diagnostics
 
+> 状态：后续规划。拆分 M7A-M7D，依赖 M5/M6 的 Editor Adapter、Core command 和 History 边界。  
+> 最后复核：2026-07-29。
+
 ## 阶段目标
 
 覆盖 MarkFlow 的专业 Markdown 能力：
@@ -21,6 +24,8 @@ M7 不做一次性大交付，拆成可独立发布的子里程碑：
 - M7D：Search、Diagnostics、Diagram renderer。
 
 后一个子里程碑不能成为前一个子里程碑验收的阻塞条件。
+
+每个子里程碑必须拥有独立 issue/OpenSpec change、feature flag 或回退开关、功能矩阵证据和 release note。M7A-M7D 的异步任务必须在 session close、reload、revision 变化或窗口关闭时取消；返回结果只允许落到匹配的 `sessionId + revision + requestId`。
 
 ## 技术方案
 
@@ -164,7 +169,7 @@ Core 提供搜索：
 - result range 映射到 CodeMirror selection。
 - replace single/all 先生成 previewable patch set，并检查 base revision。
 
-超过 1MB 的文档必须分页搜索，不阻塞输入。
+超过 1 MiB (1024 * 1024 bytes) 的文档必须分页搜索，不阻塞输入。
 
 Search 请求和结果必须携带 `sessionId + revision + queryId`。切换文档后，旧查询结果只能保留在原 session 的搜索面板状态中，不能定位到新的 active editor。
 
@@ -221,7 +226,7 @@ Mermaid / PlantUML 收敛为内部 renderer：
 - 图片文件成功但文档提交失败时有明确 rollback/recovery 记录。
 - A 文档资源事务未完成时切换到 B，不会把图片写入 B 的资源目录或 Markdown。
 - 搜索结果可以定位到 CodeMirror selection。
-- 超过 1MB 文档搜索分页返回，不阻塞输入。
+- 超过 1 MiB (1024 * 1024 bytes) 文档搜索分页返回，不阻塞输入。
 - Diagnostics 可按 viewport 获取。
 - 图表渲染失败不影响源码编辑和保存。
 

@@ -22,6 +22,12 @@ import {
   resyncDocument,
   saveDocument,
 } from './coreBridge';
+import {
+  type AssetTransactionPlan,
+  commitAssetTransaction,
+  prepareAssetTransaction,
+  rollbackAssetTransaction,
+} from './imageUtils';
 import { logDebug, logException, logInfo } from './logger';
 import { showToast } from '../components/toast';
 import { getCachedSettings } from './storage';
@@ -116,6 +122,7 @@ function nextGeneration(): number {
 
 /** Promise-based guard for idempotent closeCoreSession(). */
 let closePromise: Promise<void> | null = null;
+let assetSaveRequestCounter = 0;
 
 /**
  * SourceSyncController reference, set externally by editor.ts during source
@@ -426,24 +433,86 @@ export async function saveCoreSession(options?: {
 
   const gen = generation;
   const { interactive = true } = options ?? {};
+  let assetTransaction: AssetTransactionPlan | null = null;
+  let assetProposalApplied = false;
 
   try {
     // B3: Wait for all pending patches to be acked before flushing to Core
+    let flushedRevision = currentSession.confirmedRevision;
     if (_sourceSyncController) {
-      await _sourceSyncController.flush();
+      flushedRevision = await _sourceSyncController.flush();
     }
     if (gen !== generation) return -1;
 
+    if (_sourceSyncController && currentSession.filePath) {
+      const markdown = _sourceSyncController.getCurrentText();
+      if (markdown !== null) {
+        assetTransaction = await prepareAssetTransaction({
+          sessionId: currentSession.sessionId,
+          baseRevision: flushedRevision,
+          requestId: nextAssetSaveRequestId(),
+          markdown,
+          documentPath: currentSession.filePath,
+        });
+        if (gen !== generation) {
+          rollbackAssetTransaction(assetTransaction);
+          assetTransaction = null;
+          return -1;
+        }
+        if (assetTransaction.proposedMarkdown !== markdown) {
+          flushedRevision = await _sourceSyncController.replaceDocumentTextForAssetTransaction(
+            assetTransaction.proposedMarkdown,
+          );
+          assetProposalApplied = true;
+          if (gen !== generation) {
+            rollbackAssetTransaction(assetTransaction);
+            assetTransaction = null;
+            return -1;
+          }
+        }
+      }
+    }
+
     // Flush first to ensure all patches are applied to Core's backend state
     await flushDocument(currentSession.sessionId);
-    if (gen !== generation) return -1;
+    if (gen !== generation) {
+      if (assetTransaction) {
+        rollbackAssetTransaction(assetTransaction);
+        assetTransaction = null;
+      }
+      return -1;
+    }
 
     const result = await saveDocument(currentSession.sessionId);
-    if (gen !== generation) return -1;
+    if (gen !== generation) {
+      if (assetTransaction) {
+        rollbackAssetTransaction(assetTransaction);
+        assetTransaction = null;
+      }
+      return -1;
+    }
 
     updateState({
       persistedRevision: result.revision,
+      confirmedRevision: Math.max(currentSession.confirmedRevision, flushedRevision, result.revision),
     });
+
+    if (assetTransaction) {
+      const transaction = assetTransaction;
+      try {
+        await commitAssetTransaction(transaction, {
+          sessionId: currentSession.sessionId,
+          baseRevision: transaction.baseRevision,
+          requestId: transaction.requestId,
+        });
+        assetTransaction = null;
+      } catch (commitError) {
+        logException('core.session', 'Saved document but failed to commit asset transaction', commitError, {
+          sessionId: transaction.sessionId,
+          requestId: transaction.requestId,
+        });
+      }
+    }
 
     if (interactive) {
       logInfo('core.session', 'Core session saved', {
@@ -454,6 +523,31 @@ export async function saveCoreSession(options?: {
 
     return result.revision;
   } catch (err) {
+    if (assetTransaction) {
+      const transaction = assetTransaction;
+      if (assetProposalApplied && gen === generation && _sourceSyncController) {
+        try {
+          await _sourceSyncController.replaceDocumentTextForAssetTransaction(
+            transaction.originalMarkdown,
+            { rollbackLocalOnFailure: false },
+          );
+        } catch (restoreError) {
+          logException('core.session', 'Failed to restore asset proposal after save failure', restoreError, {
+            sessionId: transaction.sessionId,
+            requestId: transaction.requestId,
+          });
+        }
+      }
+      try {
+        rollbackAssetTransaction(transaction);
+        assetTransaction = null;
+      } catch (rollbackError) {
+        logException('core.session', 'Asset transaction rollback failed', rollbackError, {
+          sessionId: transaction.sessionId,
+          requestId: transaction.requestId,
+        });
+      }
+    }
     if (gen !== generation) return -1;
     const bridgeErr = err instanceof BridgeError ? err : new BridgeError('UNKNOWN', String(err));
     logException('core.session', 'Save failed', err, {
@@ -466,6 +560,11 @@ export async function saveCoreSession(options?: {
     }
     return -1;
   }
+}
+
+function nextAssetSaveRequestId(): string {
+  assetSaveRequestCounter += 1;
+  return `core_asset_save_${assetSaveRequestCounter}_${Date.now()}`;
 }
 
 /**

@@ -179,7 +179,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       } catch (e) { logDebug('fileops', 'Failed to get file stats after save new file (non-critical)', { path: targetPath, error: String(e) }); }
       markDocumentPersisted(prepared.markdown, revision);
       try {
-        await completePendingImagesSave(prepared.draftId);
+        await completePendingImagesSave(prepared.transaction);
       } catch (e) {
         logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
           path: targetPath,
@@ -277,7 +277,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     } catch (e) { logDebug('fileops', 'Failed to get file stats after write (non-critical)', { path: filePath, error: String(e) }); }
     markDocumentPersisted(prepared.markdown, revision);
     try {
-      await completePendingImagesSave(prepared.draftId);
+      await completePendingImagesSave(prepared.transaction);
     } catch (e) {
       logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
         path: filePath,

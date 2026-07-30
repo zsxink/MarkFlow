@@ -20,6 +20,11 @@
 > - Issue STA-7 / change `m6-phase3-core-command-bridge` 补齐 Bridge IPC、FormatCommandLayer、Toolbar/Keyboard 语义命令迁移规范。
 > - Core Source Mode 的 Bold/Italic/Strike/InlineCode/H1/H2/Quote/List/CodeFence/Link、Undo/Redo 进入 Core 主路径；返回 patch + selection_after + revision，正常路径不再整篇 resync。
 > - Deferred：Image/TaskList/CopyPaste/StyleMap inheritance 仍归后续 M6/M7；当前不标记为已验收。
+> M7C 记录：
+> - Issue #232 / change `m7c-assets-transaction` 增加 identity-bound asset transaction：`prepareAssetTransaction`、`commitAssetTransaction`、`rollbackAssetTransaction`。
+> - 图片暂存迁移在文档写入/Core 保存成功后才提交清理；失败时保留 recoverable draft 和 mappings。
+> - Core-backed Source Mode save 在保存前通过 SourceSyncController 同步资源引用 proposal，避免 Core 保存暂存路径。
+> - 验证记录见 `docs/markflow-core-stages/m7c-assets-transaction-evidence.md`。
 
 ## 1. 使用规则
 
@@ -97,11 +102,11 @@
 | 能力 | 当前基线 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
 | 本地图片选择 | 已支持 | M4/M6 | window-scoped Host dialog + session-bound Core insert plan |
-| 剪贴板图片 | 已支持 | M6/M7 | session-bound 命名模板、暂存、首次保存迁移 |
-| 拖拽图片 | 已支持 | M6/M7 | session-bound 多图顺序、失败隔离 |
+| 剪贴板图片 | M7C 事务化 prepare/commit/rollback；pending draft 保留 | M6/M7 | session-bound 命名模板、暂存、首次保存迁移 |
+| 拖拽图片 | M7C 复用统一图片事务保存边界 | M6/M7 | session-bound 多图顺序、失败隔离 |
 | 网络图片 | 已支持 | M7 | SSRF 防护、类型/大小限制 |
-| 相对/绝对引用 | 已支持 | M7 | Windows/macOS/Linux 路径正确 |
-| 自定义/文档资源目录 | 已支持 | M7 | 三种存储策略兼容 |
+| 相对/绝对引用 | M7C 已通过事务 proposal 验证 | M7 | Windows/macOS/Linux 路径正确 |
+| 自定义/文档资源目录 | M7C 已覆盖 custom/document-dir/document-named-dir | M7 | 三种存储策略兼容 |
 | 图片上下文菜单 | 已支持 | M4/M7 | 复制、另存、路径、所在目录 |
 | Mermaid/PlantUML 导出 | 已支持 | M7/M8 | SVG/PNG、复制和另存 |
 

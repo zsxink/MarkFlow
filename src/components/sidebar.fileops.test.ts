@@ -12,8 +12,25 @@ vi.mock('../lib/editor', () => ({ getMarkdown: mocks.getMarkdown, hasExternalMod
 vi.mock('../lib/editor.source', () => ({ setSourceReadOnly: vi.fn() })); vi.mock('./toast', () => ({ showToast: mocks.showToast })); vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() })); vi.mock('./outline', () => ({ refreshOutline: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() })); vi.mock('@tauri-apps/plugin-dialog', () => ({ save: mocks.save })); vi.mock('./ui/dialog', () => ({ showDialog: vi.fn() })); vi.mock('./activeDocument', () => ({ getActiveFilePath: mocks.getActiveFilePath, setActiveFilePath: mocks.setActiveFilePath })); vi.mock('./sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn() })); vi.mock('../lib/fileSizeTier', () => ({ determineTier: vi.fn(() => 'normal'), formatFileSize: vi.fn() })); vi.mock('./degradationBar', () => ({ showDegradationBar: vi.fn(), hideDegradationBar: vi.fn() })); vi.mock('../lib/store', () => ({ store: { setState: vi.fn() } })); vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 import { openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
 
+function prepared(markdown: string, draftId: string | null = null) {
+  return {
+    markdown,
+    draftId,
+    transaction: {
+      sessionId: 0,
+      baseRevision: 0,
+      requestId: `req-${draftId ?? 'none'}`,
+      documentPath: '/work/guide.md',
+      originalMarkdown: '# edited',
+      proposedMarkdown: markdown,
+      draftId,
+      mappings: [],
+    },
+  };
+}
+
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.getMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => ({ markdown, draftId: null })); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
+  vi.clearAllMocks(); mocks.getMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => prepared(markdown)); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
 });
 
 describe('active document file operations', () => {
@@ -33,12 +50,13 @@ describe('active document file operations', () => {
   });
   it('migrates pending images before the first Markdown write and cleans afterward', async () => {
     mocks.getActiveFilePath.mockReturnValue(null); mocks.save.mockResolvedValue('/work/guide.md');
-    mocks.preparePendingImagesForSave.mockResolvedValue({ markdown: '![](guide-images/img.png)', draftId: 'draft-1' });
+    const migration = prepared('![](guide-images/img.png)', 'draft-1');
+    mocks.preparePendingImagesForSave.mockResolvedValue(migration);
     await expect(saveActiveDocument()).resolves.toBe('saved');
     expect(mocks.preparePendingImagesForSave).toHaveBeenCalledWith('# edited', '/work/guide.md');
     expect(mocks.writeFile).toHaveBeenCalledWith('/work/guide.md', '![](guide-images/img.png)');
     expect(mocks.setMarkdown).toHaveBeenCalledWith('![](guide-images/img.png)');
-    expect(mocks.completePendingImagesSave).toHaveBeenCalledWith('draft-1');
+    expect(mocks.completePendingImagesSave).toHaveBeenCalledWith(migration.transaction);
     expect(mocks.writeFile.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.completePendingImagesSave.mock.invocationCallOrder[0]);
   });
@@ -52,7 +70,7 @@ describe('active document file operations', () => {
   });
   it('preserves migrated draft metadata when the Markdown write fails', async () => {
     mocks.getActiveFilePath.mockReturnValue(null); mocks.save.mockResolvedValue('/work/guide.md');
-    mocks.preparePendingImagesForSave.mockResolvedValue({ markdown: '![](guide-images/img.png)', draftId: 'draft-1' });
+    mocks.preparePendingImagesForSave.mockResolvedValue(prepared('![](guide-images/img.png)', 'draft-1'));
     mocks.writeFile.mockRejectedValue(new Error('write failed'));
     await expect(saveActiveDocument()).resolves.toBe('failed');
     expect(mocks.completePendingImagesSave).not.toHaveBeenCalled();

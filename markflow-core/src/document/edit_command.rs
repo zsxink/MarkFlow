@@ -572,8 +572,9 @@ fn insert_code_fence(
     };
 
     // Place cursor on the blank line inside the fence.
-    let lang_extra = if lang.is_empty() { 0 } else { lang.len() + 1 };
-    let cursor_pos = ByteOffset(position.0 + fence_len + lang_extra + 1);
+    // position.0 + fence_len + lang.len() + 1  gives the byte offset
+    // of the second `\n` (the blank line inside the fence).
+    let cursor_pos = ByteOffset(position.0 + fence_len + lang.len() + 1);
 
     Ok(TextPatch {
         transaction_id: tx,

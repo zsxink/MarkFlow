@@ -12,6 +12,7 @@ license = "MIT"
 unexpected_cfgs = { level = "allow", check-cfg = ["cfg(feature, testing)"] }
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 markdown = "1.0.0"

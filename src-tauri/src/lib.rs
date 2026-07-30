@@ -348,6 +348,7 @@ pub fn run() {
             commands::core_bridge::flush_document,
             commands::core_bridge::get_document_text,
             commands::core_bridge::get_render_blocks,
+            commands::core_bridge::get_export_document,
             commands::core_bridge::get_outline,
             commands::core_bridge::get_document_stats,
             commands::core_bridge::reload_document,

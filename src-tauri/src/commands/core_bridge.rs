@@ -7,9 +7,10 @@
 use crate::error::{lock_mutex, AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
-    EditCommand, EditOrigin, HistoryLabel, ListKind, RenderBlockKind, RenderDocument,
-    RenderInlineKind, RenderRequest, Revision, Selection, SessionId, SourceRange, TextChange,
-    TextPatch, TransactionId, UiRange, Utf16Offset,
+    EditCommand, EditOrigin, ExportDocument, ExportOptions, ExportRequest, HistoryLabel, ListKind,
+    RenderBlockKind, RenderDocument, RenderInlineKind, RenderRequest, Revision, Selection,
+    SessionId, SourceRange, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
+    EXPORT_IR_SCHEMA_VERSION,
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
 use markflow_runtime::host::Host;
@@ -308,6 +309,12 @@ pub struct RenderInlineDto {
     pub marker_ranges: Vec<UiRangeDto>,
     pub text: String,
     pub target: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct ExportOptionsDto {
+    pub max_schema_version: Option<u32>,
+    pub include_diagnostics: Option<bool>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1306,6 +1313,57 @@ pub fn get_render_blocks(
     Ok(map_render_document(document))
 }
 
+/// Build a versioned Export IR snapshot for a confirmed document revision.
+#[tauri::command]
+pub fn get_export_document(
+    session_id: u64,
+    revision: u64,
+    export_request_id: String,
+    options: Option<ExportOptionsDto>,
+) -> Result<ExportDocument, AppError> {
+    let options = options.unwrap_or(ExportOptionsDto {
+        max_schema_version: None,
+        include_diagnostics: None,
+    });
+    if options
+        .max_schema_version
+        .is_some_and(|version| version < EXPORT_IR_SCHEMA_VERSION)
+    {
+        return Err(AppError::new(
+            AppErrorCode::UnsupportedExportIrVersion,
+            format!(
+                "Export IR schema v{} is not supported by this caller",
+                EXPORT_IR_SCHEMA_VERSION
+            ),
+        ));
+    }
+
+    let registry = &*SESSION_REGISTRY;
+    let sid = SessionId(session_id);
+    let document = with_session_state(registry, sid, |state| {
+        state
+            .core
+            .build_export_document(ExportRequest {
+                session_id: sid,
+                revision: Revision(revision),
+                export_request_id,
+                options: ExportOptions {
+                    include_diagnostics: options.include_diagnostics.unwrap_or(true),
+                },
+            })
+            .map_err(RuntimeError::from)
+    })
+    .map_err(|e| match e.code {
+        RuntimeErrorCode::RevisionMismatch => AppError::new(
+            AppErrorCode::ExportStaleRevision,
+            format!("EXPORT_STALE_REVISION: {}", e.detail),
+        ),
+        _ => map_error(e),
+    })?;
+
+    Ok(document)
+}
+
 /// Get document outline.
 #[tauri::command]
 pub fn get_outline(session_id: u64) -> Result<OutlineResultDto, AppError> {
@@ -1857,5 +1915,96 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(err.code, AppErrorCode::SessionNotFound);
+    }
+
+    #[test]
+    fn get_export_document_returns_matching_export_ir() {
+        let session_id = create_render_test_session(
+            b"# Title\n\nparagraph\n\n![alt](img.png)\n\n```mermaid\ngraph TD; A-->B;\n```\n",
+        );
+        let result = get_export_document(
+            session_id.0,
+            0,
+            "export-1".into(),
+            Some(ExportOptionsDto {
+                max_schema_version: Some(EXPORT_IR_SCHEMA_VERSION),
+                include_diagnostics: Some(true),
+            }),
+        )
+        .unwrap();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(result.schema_version, EXPORT_IR_SCHEMA_VERSION);
+        assert_eq!(result.session_id, session_id.0);
+        assert_eq!(result.base_revision, 0);
+        assert_eq!(result.export_request_id, "export-1");
+        assert!(matches!(
+            result.blocks[0].kind,
+            markflow_core::ExportBlockKind::Heading { level: 1, .. }
+        ));
+        assert!(matches!(
+            result.blocks[2].kind,
+            markflow_core::ExportBlockKind::Image { .. }
+        ));
+        assert!(matches!(
+            result.blocks[3].kind,
+            markflow_core::ExportBlockKind::Diagram { .. }
+        ));
+        assert_eq!(result.assets.len(), 1);
+    }
+
+    #[test]
+    fn get_export_document_rejects_unsupported_schema_version() {
+        let session_id = create_render_test_session(b"# Title\n");
+        let err = get_export_document(
+            session_id.0,
+            0,
+            "export-old".into(),
+            Some(ExportOptionsDto {
+                max_schema_version: Some(0),
+                include_diagnostics: Some(true),
+            }),
+        )
+        .unwrap_err();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(err.code, AppErrorCode::UnsupportedExportIrVersion);
+        assert!(err.message.contains("Export IR schema v1"));
+    }
+
+    #[test]
+    fn get_export_document_maps_stale_revision_to_export_error_code() {
+        let session_id = create_render_test_session(b"abc\n");
+        with_session_state(&SESSION_REGISTRY, session_id, |state| {
+            state
+                .core
+                .apply_patch(TextPatch {
+                    transaction_id: TransactionId(99),
+                    base_revision: Revision(0),
+                    changes: vec![TextChange {
+                        range: SourceRange::new(Revision(0), 0, 0),
+                        replacement: "x".into(),
+                    }],
+                    selection_after: None,
+                })
+                .map_err(RuntimeError::from)?;
+            Ok(())
+        })
+        .unwrap();
+
+        let err = get_export_document(
+            session_id.0,
+            0,
+            "export-stale".into(),
+            Some(ExportOptionsDto {
+                max_schema_version: Some(EXPORT_IR_SCHEMA_VERSION),
+                include_diagnostics: Some(true),
+            }),
+        )
+        .unwrap_err();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(err.code, AppErrorCode::ExportStaleRevision);
+        assert!(err.message.contains("EXPORT_STALE_REVISION"));
     }
 }

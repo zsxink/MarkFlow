@@ -344,6 +344,18 @@ export async function flushCoreSession(): Promise<number> {
   const gen = generation;
 
   try {
+    let flushedRevision = currentSession.confirmedRevision;
+    if (_sourceSyncController) {
+      flushedRevision = await _sourceSyncController.flush();
+      if (gen !== generation) {
+        logDebug('core.session', 'Discarding stale source flush response', {
+          gen,
+          currentGen: generation,
+        });
+        return 0;
+      }
+    }
+
     const result = await flushDocument(currentSession.sessionId);
     if (gen !== generation) {
       logDebug('core.session', 'Discarding stale flush response', {
@@ -353,11 +365,13 @@ export async function flushCoreSession(): Promise<number> {
       });
       return 0;
     }
+    const revision = Math.max(result.revision, flushedRevision);
+    updateState({ confirmedRevision: Math.max(currentSession.confirmedRevision, revision) });
     logDebug('core.session', 'Session flushed', {
       sessionId: currentSession.sessionId,
-      revision: result.revision,
+      revision,
     });
-    return result.revision;
+    return revision;
   } catch (err) {
     logException('core.session', 'Flush failed', err, {
       sessionId: currentSession.sessionId,

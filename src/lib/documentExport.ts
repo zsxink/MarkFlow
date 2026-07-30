@@ -1,7 +1,10 @@
 import { showToast } from '../components/toast';
 import { saveDocumentExport } from './storage';
 import { getFileName } from './pathUtils';
-import { logException } from './logger';
+import { getExportDocument, generateRequestId } from './coreBridge';
+import { flushCoreSession, getCoreSessionState } from './coreSession';
+import { renderExportIrToHtmlContent } from './exportIrRenderer';
+import { logDebug, logException } from './logger';
 import { buildExportSnapshot, waitForFontsReady } from './exportSnapshot';
 import { triggerPdfExport, exportPdfToFile } from './pdfExport';
 import { createDocxFromHtml, saveDocxFile } from './docxExport';
@@ -82,7 +85,8 @@ export async function exportRenderedDocument(
     showToast('正在导出中，请稍候');
     return false;
   }
-  if (!renderedRoot) {
+  const initialSessionForContent = getCoreSessionState();
+  if (!initialSessionForContent.isActive && !renderedRoot) {
     showToast('没有可导出的文档内容');
     return false;
   }
@@ -92,13 +96,8 @@ export async function exportRenderedDocument(
 
   exportInProgress = true;
   try {
-    // Wait for fonts to be ready before snapshot (task 3.6)
     await waitForFontsReady();
-
-    const snapshot = await buildExportSnapshot(renderedRoot);
-    const div = document.createElement('div');
-    div.appendChild(snapshot.cloneNode(true));
-    const renderedHtml = div.innerHTML;
+    const renderedHtml = await buildConfirmedRevisionHtml(renderedRoot);
 
     if (format === 'print') {
       // "Print..." — use the system print dialog (existing flow, task 4.6)
@@ -134,6 +133,60 @@ export async function exportRenderedDocument(
   } finally {
     exportInProgress = false;
   }
+}
+
+async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Promise<string> {
+  const initialSession = getCoreSessionState();
+  if (initialSession.isActive && initialSession.sessionId > 0) {
+    const exportRequestId = generateRequestId();
+    const revision = await flushCoreSession();
+    const latestSession = getCoreSessionState();
+    if (!latestSession.isActive || latestSession.sessionId !== initialSession.sessionId) {
+      throw new Error('EXPORT_SESSION_CHANGED: export session changed during flush');
+    }
+    const exportDocument = await getExportDocument(
+      initialSession.sessionId,
+      revision,
+      exportRequestId,
+      { max_schema_version: 1, include_diagnostics: true },
+    );
+    if (
+      exportDocument.session_id !== initialSession.sessionId ||
+      exportDocument.base_revision !== revision ||
+      exportDocument.export_request_id !== exportRequestId
+    ) {
+      throw new Error('EXPORT_SESSION_MISMATCH: Export IR response does not match request');
+    }
+    logDebug('export', 'Using Core Export IR', {
+      sessionId: exportDocument.session_id,
+      revision: exportDocument.base_revision,
+      requestId: exportDocument.export_request_id,
+      blockCount: exportDocument.blocks.length,
+      diagnosticCount: exportDocument.diagnostics.length,
+    });
+    return wrapExportIrHtml(renderExportIrToHtmlContent(exportDocument), exportDocument);
+  }
+
+  if (!renderedRoot) {
+    throw new Error('EXPORT_NO_CONTENT: no rendered root or active Core session');
+  }
+
+  const snapshot = await buildExportSnapshot(renderedRoot);
+  const div = document.createElement('div');
+  div.appendChild(snapshot.cloneNode(true));
+  logDebug('export', 'Using legacy DOM export snapshot');
+  return div.innerHTML;
+}
+
+function wrapExportIrHtml(
+  renderedHtml: string,
+  exportDocument: { schema_version: number; session_id: number; base_revision: number },
+): string {
+  return [
+    `<div class="ProseMirror" data-export-ir-schema-version="${exportDocument.schema_version}" data-session-id="${exportDocument.session_id}" data-revision="${exportDocument.base_revision}">`,
+    renderedHtml,
+    '</div>',
+  ].join('\n');
 }
 
 

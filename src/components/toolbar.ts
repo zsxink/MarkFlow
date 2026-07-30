@@ -276,21 +276,7 @@ function setAriaPressed(id: string, pressed: boolean) {
 }
 
 async function exportCurrentDocument(format: ExportFormat) {
-  const mode = getMode();
-  let restoredMode = false;
-
-  if (mode === 'source') {
-    switchToWysiwyg();
-    restoredMode = true;
-  }
-
-  try {
-    await exportRenderedDocument(format, getEditor()?.view.dom ?? null, getActiveDocPath());
-  } finally {
-    if (restoredMode) {
-      switchToSource();
-    }
-  }
+  await exportRenderedDocument(format, getEditor()?.view.dom ?? null, getActiveDocPath());
 }
 
 /**

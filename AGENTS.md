@@ -69,10 +69,65 @@ closes #N
 
 CLI：`openspec new change <name>`、`openspec validate <change>`、`openspec archive <change>`
 
+### 标准执行顺序
+
+OpenSpec 管理的变更必须按下面顺序执行：
+
+1. 创建真实 GitHub Issue，记录 issue 号
+2. 从 `main` 创建分支：`type/issue-N-slug`
+3. 在分支上执行 `/opsx:propose <change-name>`
+4. 运行 `openspec validate <change-name>`，确认提案合法
+5. 在分支上执行 `/opsx:apply <change-name>`，按 `tasks.md` checklist 实施并更新 checkbox
+6. 执行本地 CI 等价验证（见下方「PR 前验证门禁」）
+7. 派独立 agent 复核，回读结论
+8. 若含 delta specs，先同步到 `openspec/specs/`，再 `/opsx:archive`
+9. 归档后运行 `npm run validate:openspec` 与 `bash scripts/check-archive-synced.sh`
+10. 提交、推送、创建 PR，等待 GitHub CI 全绿后再 squash merge
+
+归档结果必须随 feature 分支进入 PR。禁止在 PR 合并后再在 `main` 上补一个未审查的 archive/sync 提交。
+
+### PR 前验证门禁
+
+本地验证必须尽量等价 CI。不要用单 crate、单 manifest 或局部命令替代 workspace gate。
+
+通用 gate：
+
+```bash
+npm audit --omit=dev --audit-level=high
+npm test
+npx tsc --noEmit
+scripts/check-capabilities.sh
+npm run validate:openspec
+bash scripts/check-archive-synced.sh
+npm run build
+bash scripts/check-bundle-size.sh
+```
+
+Rust/Tauri 相关变更还必须运行：
+
+```bash
+(cd src-tauri && cargo test)
+(cd src-tauri && cargo fmt --all -- --check)
+(cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings)
+```
+
+Core 相关变更还必须运行：
+
+```bash
+(cd markflow-core && cargo test)
+(cd markflow-core && cargo clippy --all-targets -- -D warnings)
+```
+
+关键规则：
+
+- `cargo fmt --manifest-path ...` 不能替代 `cd src-tauri && cargo fmt --all -- --check`
+- 单 crate `cargo clippy` 不能替代 `cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings`
+- 若因 docs-only 变更跳过部分 gate，必须在 PR 描述中记录跳过原因
+
 ### 强制规则（不可省略）
 
 1. **归档前必须先同步 spec**：执行 `/opsx:archive`（或 `openspec archive`）时，若 change 含 delta spec（`openspec/changes/<name>/specs/**`），**先**将增量规范合并到 `openspec/specs/` 主规范（`openspec-sync-specs`），**再**移动 change 目录到 `archive/`。禁止「只搬目录、不同步主规范」。
-   - **归档后验证**：同步并归档后，运行 `npx openspec validate --all` 与 `bash scripts/check-archive-synced.sh`，确认主规范合法且 delta 已落地（CI 同款 gate）。
+   - **归档后验证**：同步并归档后，运行 `npm run validate:openspec` 与 `bash scripts/check-archive-synced.sh`，确认主规范合法且 delta 已落地（CI 同款 gate）。
 
 2. **合入 / 归档前必须派独立 agent 复核**：在 merge PR 或 archive 之前，**派出一个独立的 sub-agent** 做一轮不偏不倚的复核与验证（静态走查 + 跑测试 `npm test` / `npx tsc --noEmit`），再执行 merge/archive。主执行流容易漏掉复核，必须显式交给独立 agent 完成并回读结论。
 

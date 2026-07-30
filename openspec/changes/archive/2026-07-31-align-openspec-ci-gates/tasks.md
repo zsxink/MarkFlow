@@ -1,0 +1,5 @@
+- [x] 1. Update `AGENTS.md` OpenSpec workflow section with the normalized issue/branch/propose/apply/verify/archive/PR/merge order.
+- [x] 2. Update `AGENTS.md` with CI-equivalent pre-PR gate commands, including Rust workspace fmt/clippy and Core clippy.
+- [x] 3. Update `openspec/specs/development-flow.md` to resolve archive ordering: sync/archive on feature branch before PR for OpenSpec-managed changes.
+- [x] 4. Update `openspec/specs/development-flow.md` PR checklist and quick reference with CI-equivalent local verification commands.
+- [x] 5. Validate the OpenSpec change and all specs.

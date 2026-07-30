@@ -3,9 +3,10 @@ import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInline
 import { showToast } from './toast';
 import { reportUserActionError } from '../lib/error';
 import { logException } from '../lib/logger';
+import { createClipboardHostRequestContext } from '../host-bridge/context';
+import { openShellTarget } from '../host-bridge/shell';
 import { clearActiveDocument, clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
-import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { showContextMenuStatic } from './ui/contextMenu';
@@ -125,6 +126,7 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
               relPath = relPath.substring(1);
             }
           }
+          createClipboardHostRequestContext('file-relative-path-copy');
           await navigator.clipboard.writeText(relPath);
           showToast('已复制相对路径');
         }
@@ -132,6 +134,7 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
       }
       case 'copy-absolute': {
         if (!path) return;
+        createClipboardHostRequestContext('file-absolute-path-copy');
         await navigator.clipboard.writeText(path);
         showToast('已复制绝对路径');
         break;
@@ -139,6 +142,7 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
       case 'copy-workspace': {
         const workspace = getWorkspacePath();
         if (workspace) {
+          createClipboardHostRequestContext('workspace-path-copy');
           await navigator.clipboard.writeText(workspace);
           showToast('已复制工作区路径');
         }
@@ -171,7 +175,10 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         const revealPath = path || getWorkspacePath();
         if (revealPath) {
           try {
-            await shellOpen(revealPath);
+            await openShellTarget({
+              target: revealPath,
+              requestId: 'context-menu-reveal',
+            });
           } catch (e) {
             logException('contextMenu', '打开文件失败', e);
             showToast('无法在此位置打开');

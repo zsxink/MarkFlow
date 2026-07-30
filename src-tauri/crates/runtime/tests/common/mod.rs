@@ -5,6 +5,7 @@ use markflow_core::{DocumentId, DocumentSession, SessionId};
 use markflow_runtime::error::RuntimeError;
 use markflow_runtime::file_identity::{ContentFingerprint, FileIdentity};
 use markflow_runtime::host::Host;
+use markflow_runtime::host_contract::HostRequestContext;
 use std::path::Path;
 
 /// Helper: create a DocumentSession from bytes.
@@ -69,7 +70,11 @@ impl MockHost {
 }
 
 impl Host for MockHost {
-    fn read_document_bytes(&self, _path: &Path) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
+    fn read_document_bytes(
+        &self,
+        _context: &HostRequestContext,
+        _path: &Path,
+    ) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
         let guard = self
             .read_result
             .lock()
@@ -77,7 +82,11 @@ impl Host for MockHost {
         (*guard).clone()
     }
 
-    fn stat_identity(&self, _path: &Path) -> Result<FileIdentity, RuntimeError> {
+    fn stat_identity(
+        &self,
+        _context: &HostRequestContext,
+        _path: &Path,
+    ) -> Result<FileIdentity, RuntimeError> {
         let guard = self
             .stat_result
             .lock()
@@ -87,6 +96,7 @@ impl Host for MockHost {
 
     fn compare_and_atomic_write(
         &self,
+        _context: &HostRequestContext,
         _path: &Path,
         _content: &[u8],
         _expected: &FileIdentity,

@@ -1,5 +1,6 @@
 use crate::commands::settings::load_settings_inner;
-use serde::Serialize;
+use markflow_runtime::host_contract::{HostCapability, HostRequestContext, HOST_PROTOCOL_VERSION};
+use serde::{Deserialize, Serialize};
 #[cfg(any(target_os = "macos", test))]
 use std::{
     fs,
@@ -45,10 +46,56 @@ pub struct PdfExportResult {
     bytes_written: u64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportHostContextDto {
+    pub protocol_version: u32,
+    pub request_id: String,
+    #[serde(default = "default_host_client_id")]
+    pub client_id: String,
+    #[serde(default)]
+    pub window_label: Option<String>,
+    pub session_id: u64,
+    #[serde(default)]
+    pub document_id: Option<u64>,
+    pub base_revision: u64,
+}
+
+fn default_host_client_id() -> String {
+    "default".into()
+}
+
+fn validate_export_host_context(
+    input: Option<ExportHostContextDto>,
+) -> Result<Option<HostRequestContext>, String> {
+    let Some(input) = input else {
+        return Ok(None);
+    };
+    let context = HostRequestContext {
+        protocol_version: input.protocol_version,
+        request_id: input.request_id,
+        client_id: input.client_id,
+        window_label: input.window_label.or_else(|| Some("main".into())),
+        session_id: Some(input.session_id),
+        document_id: input.document_id,
+        base_revision: Some(input.base_revision),
+        capability: HostCapability::Export,
+    };
+    context
+        .validate_required_scope()
+        .map_err(|code| code.to_string())?;
+    Ok(Some(context))
+}
+
 /// Print a webview on macOS using WebviewWindow::print().
 /// Creates a temporary window with the export HTML, prints it, then closes.
 #[tauri::command]
-pub async fn print_webview(html_content: String, app: AppHandle) -> Result<bool, String> {
+pub async fn print_webview(
+    html_content: String,
+    host_context: Option<ExportHostContextDto>,
+    app: AppHandle,
+) -> Result<bool, String> {
+    let _context = validate_export_host_context(host_context)?;
     // Create a unique label
     let label = format!(
         "print-{}",
@@ -109,8 +156,10 @@ pub async fn print_webview(html_content: String, app: AppHandle) -> Result<bool,
 pub async fn create_pdf(
     html_content: String,
     output_path: String,
+    host_context: Option<ExportHostContextDto>,
     app: AppHandle,
 ) -> Result<PdfExportResult, String> {
+    let _context = validate_export_host_context(host_context)?;
     let output_path = PathBuf::from(output_path);
     let parent = output_path
         .parent()
@@ -161,8 +210,10 @@ pub async fn create_pdf(
 pub async fn create_pdf(
     _html_content: String,
     _output_path: String,
+    host_context: Option<ExportHostContextDto>,
     _app: AppHandle,
 ) -> Result<PdfExportResult, String> {
+    let _context = validate_export_host_context(host_context)?;
     Err("PDF_UNSUPPORTED: direct PDF export is not implemented on this platform".to_string())
 }
 
@@ -624,9 +675,16 @@ pub async fn save_binary_export(
     default_name: String,
     filter_name: String,
     extensions: Vec<String>,
+    host_context: Option<ExportHostContextDto>,
     app: AppHandle,
 ) -> Result<bool, String> {
     use tauri_plugin_dialog::DialogExt;
+
+    let context = export_dialog_host_context("binary-export-save-dialog");
+    context
+        .validate_required_scope()
+        .map_err(|code| code.as_str().to_string())?;
+    let export_context = validate_export_host_context(host_context)?;
 
     let file = app
         .dialog()
@@ -644,9 +702,31 @@ pub async fn save_binary_export(
                 .into_path()
                 .map_err(|_| "Invalid save path".to_string())?;
             std::fs::write(&path_buf, &data).map_err(|e| format!("Failed to write file: {}", e))?;
+            if let Some(context) = export_context {
+                tracing::info!(
+                    target: "backend.export",
+                    request_id = %context.request_id,
+                    session_id = context.session_id.unwrap_or_default(),
+                    revision = context.base_revision.unwrap_or_default(),
+                    "Saved binary export through Host export context"
+                );
+            }
             Ok(true)
         }
         None => Ok(false), // User cancelled
+    }
+}
+
+fn export_dialog_host_context(request_id: &str) -> HostRequestContext {
+    HostRequestContext {
+        protocol_version: HOST_PROTOCOL_VERSION,
+        request_id: request_id.into(),
+        client_id: "default".into(),
+        window_label: Some("main".into()),
+        session_id: None,
+        document_id: None,
+        base_revision: None,
+        capability: HostCapability::Dialogs,
     }
 }
 
@@ -664,6 +744,52 @@ mod tests {
                 .as_nanos()
         );
         std::env::temp_dir().join(unique)
+    }
+
+    #[test]
+    fn export_dialog_host_context_is_window_scoped() {
+        let context = export_dialog_host_context("test-export-dialog");
+        assert_eq!(context.capability, HostCapability::Dialogs);
+        assert!(context.window_label.is_some());
+        assert_eq!(context.validate_required_scope(), Ok(()));
+    }
+
+    #[test]
+    fn export_output_host_context_is_session_window_and_revision_scoped() {
+        let context = validate_export_host_context(Some(ExportHostContextDto {
+            protocol_version: HOST_PROTOCOL_VERSION,
+            request_id: "export-1".into(),
+            client_id: "client-a".into(),
+            window_label: Some("main".into()),
+            session_id: 42,
+            document_id: Some(11),
+            base_revision: 7,
+        }))
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(context.capability, HostCapability::Export);
+        assert_eq!(context.request_id, "export-1");
+        assert_eq!(context.session_id, Some(42));
+        assert_eq!(context.document_id, Some(11));
+        assert_eq!(context.base_revision, Some(7));
+        assert_eq!(context.window_label.as_deref(), Some("main"));
+    }
+
+    #[test]
+    fn export_output_host_context_rejects_unsupported_protocol() {
+        let error = validate_export_host_context(Some(ExportHostContextDto {
+            protocol_version: HOST_PROTOCOL_VERSION + 1,
+            request_id: "export-1".into(),
+            client_id: "client-a".into(),
+            window_label: Some("main".into()),
+            session_id: 42,
+            document_id: Some(11),
+            base_revision: 7,
+        }))
+        .unwrap_err();
+
+        assert_eq!(error, "HOST_PROTOCOL_VERSION_UNSUPPORTED");
     }
 
     #[test]

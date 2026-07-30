@@ -7,6 +7,7 @@ use crate::commands::files;
 use markflow_runtime::error::RuntimeError;
 use markflow_runtime::file_identity::{ContentFingerprint, FileIdentity};
 use markflow_runtime::host::Host;
+use markflow_runtime::host_contract::HostRequestContext;
 use markflow_runtime::registry::SessionRegistry;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -21,7 +22,11 @@ pub static SESSION_REGISTRY: LazyLock<SessionRegistry> = LazyLock::new(SessionRe
 pub struct AppHost;
 
 impl Host for AppHost {
-    fn read_document_bytes(&self, path: &Path) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
+    fn read_document_bytes(
+        &self,
+        _context: &HostRequestContext,
+        path: &Path,
+    ) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
         let bytes = std::fs::read(path)
             .map_err(|e| RuntimeError::internal(format!("Failed to read file: {}", e)))?;
 
@@ -30,7 +35,11 @@ impl Host for AppHost {
         Ok((bytes, identity))
     }
 
-    fn stat_identity(&self, path: &Path) -> Result<FileIdentity, RuntimeError> {
+    fn stat_identity(
+        &self,
+        _context: &HostRequestContext,
+        path: &Path,
+    ) -> Result<FileIdentity, RuntimeError> {
         let metadata = std::fs::metadata(path)
             .map_err(|e| RuntimeError::internal(format!("Failed to stat file: {}", e)))?;
 
@@ -49,12 +58,13 @@ impl Host for AppHost {
 
     fn compare_and_atomic_write(
         &self,
+        context: &HostRequestContext,
         path: &Path,
         content: &[u8],
         expected: &FileIdentity,
     ) -> Result<FileIdentity, RuntimeError> {
         // Check current identity against expected
-        let current = self.stat_identity(path)?;
+        let current = self.stat_identity(context, path)?;
         if !expected.matches(&current) {
             // Fingerprint check for final verification (full-content SHA-256)
             let current_content = std::fs::read(path)
@@ -82,6 +92,7 @@ impl Host for AppHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use markflow_runtime::host_contract::{HostCapability, HOST_PROTOCOL_VERSION};
     use std::fs;
 
     /// Create a unique temp dir per test using the test name (via thread name).
@@ -93,6 +104,19 @@ mod tests {
         dir
     }
 
+    fn context() -> HostRequestContext {
+        HostRequestContext {
+            protocol_version: HOST_PROTOCOL_VERSION,
+            request_id: "test-file-op".into(),
+            client_id: "test-client".into(),
+            window_label: Some("main".into()),
+            session_id: Some(1),
+            document_id: Some(1),
+            base_revision: Some(0),
+            capability: HostCapability::FileSystem,
+        }
+    }
+
     #[test]
     fn compare_and_atomic_write_success() {
         let dir = test_dir("success");
@@ -100,13 +124,14 @@ mod tests {
         fs::write(&path, b"original content").unwrap();
 
         let host = AppHost;
+        let context = context();
 
-        let initial_identity = host.stat_identity(&path).unwrap();
+        let initial_identity = host.stat_identity(&context, &path).unwrap();
         assert_eq!(initial_identity.size, 16); // "original content"
 
         // Write with matching expected identity
         let new_content = b"updated content";
-        let result = host.compare_and_atomic_write(&path, new_content, &initial_identity);
+        let result = host.compare_and_atomic_write(&context, &path, new_content, &initial_identity);
         assert!(result.is_ok(), "write should succeed: {:?}", result.err());
 
         // Verify content was updated
@@ -141,7 +166,8 @@ mod tests {
             fingerprint: fake_fingerprint,
         };
 
-        let result = host.compare_and_atomic_write(&path, b"new content", &fake_identity);
+        let result =
+            host.compare_and_atomic_write(&context(), &path, b"new content", &fake_identity);
         assert!(result.is_err(), "should reject identity mismatch");
 
         // Verify content was NOT overwritten
@@ -158,11 +184,12 @@ mod tests {
         fs::write(&path, b"hello").unwrap();
 
         let host = AppHost;
-        let identity = host.stat_identity(&path).unwrap();
+        let context = context();
+        let identity = host.stat_identity(&context, &path).unwrap();
 
         // Change mtime by touching the file (same content)
         let new_content = b"hello";
-        let result = host.compare_and_atomic_write(&path, new_content, &identity);
+        let result = host.compare_and_atomic_write(&context, &path, new_content, &identity);
         assert!(result.is_ok(), "mtime-only change should not block write");
 
         let _ = fs::remove_dir_all(&dir);

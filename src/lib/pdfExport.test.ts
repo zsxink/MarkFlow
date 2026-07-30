@@ -79,6 +79,7 @@ describe('PDF export - file generation', () => {
     expect(invokeMock).toHaveBeenCalledWith('create_pdf', {
       htmlContent: '<html>test</html>',
       outputPath: '/tmp/report.pdf',
+      hostContext: null,
     });
     expect(showToastMock).toHaveBeenCalledWith('已导出 PDF 文件');
   });

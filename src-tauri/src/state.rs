@@ -4,6 +4,9 @@ use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
+use markflow_runtime::host_contract::{
+    HostCapability, HostErrorCode, HostRequestContext, HOST_PROTOCOL_VERSION,
+};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -22,6 +25,10 @@ pub struct AppState {
     /// A label is present only between `confirm_window_close` and the
     /// subsequent `CloseRequested` event that consumes it.
     pub close_permissions: Arc<Mutex<HashSet<String>>>,
+    /// Request-bound Host window lifecycle tasks keyed by window label and
+    /// request id. Window close/destroy cancels the bound tasks so late results
+    /// can be dropped instead of routed to a different window.
+    pub window_tasks: Arc<Mutex<WindowTaskRegistry>>,
     pub image_download_semaphore: Semaphore,
     /// Shared HTTP client with configured timeouts and connection pooling.
     pub http_client: reqwest::Client,
@@ -48,6 +55,7 @@ impl AppState {
             cli_file: Mutex::new(None),
             initial_file_handled: AtomicBool::new(false),
             close_permissions: Arc::new(Mutex::new(HashSet::new())),
+            window_tasks: Arc::new(Mutex::new(WindowTaskRegistry::new())),
             image_download_semaphore: Semaphore::new(4),
             http_client,
             http_semaphore: Semaphore::new(3),
@@ -59,6 +67,54 @@ impl AppState {
         if let Ok(mut perms) = lock_mutex(&self.close_permissions) {
             perms.insert(label.to_string());
         }
+    }
+
+    pub fn create_window_host_context(
+        &self,
+        request_id: impl Into<String>,
+        client_id: impl Into<String>,
+        window_label: impl Into<String>,
+    ) -> Result<HostRequestContext, HostErrorCode> {
+        let context = HostRequestContext {
+            protocol_version: HOST_PROTOCOL_VERSION,
+            request_id: request_id.into(),
+            client_id: client_id.into(),
+            window_label: Some(window_label.into()),
+            session_id: None,
+            document_id: None,
+            base_revision: None,
+            capability: HostCapability::Windows,
+        };
+        context.validate_required_scope()?;
+        Ok(context)
+    }
+
+    pub fn register_window_task(&self, context: HostRequestContext) -> Result<(), HostErrorCode> {
+        context.validate_required_scope()?;
+        if context.capability != HostCapability::Windows {
+            return Err(HostErrorCode::HostMissingCapability);
+        }
+        let window_label = context
+            .window_label
+            .as_ref()
+            .ok_or(HostErrorCode::HostWindowMismatch)?
+            .clone();
+        if let Ok(mut registry) = lock_mutex(&self.window_tasks) {
+            registry.register(WindowTask {
+                request_id: context.request_id,
+                client_id: context.client_id,
+                window_label,
+                session_id: context.session_id,
+                base_revision: context.base_revision,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn cancel_window_tasks(&self, window_label: &str) -> Vec<String> {
+        lock_mutex(&self.window_tasks)
+            .map(|mut registry| registry.cancel_window(window_label))
+            .unwrap_or_default()
     }
 
     pub fn set_workspace(
@@ -134,6 +190,68 @@ impl AppState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WindowTask {
+    pub request_id: String,
+    pub client_id: String,
+    pub window_label: String,
+    pub session_id: Option<u64>,
+    pub base_revision: Option<u64>,
+}
+
+#[derive(Debug, Default)]
+pub struct WindowTaskRegistry {
+    active: HashMap<String, WindowTask>,
+    cancelled: HashSet<String>,
+}
+
+impl WindowTaskRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register(&mut self, task: WindowTask) {
+        self.cancelled.remove(&task.request_id);
+        self.active.insert(task.request_id.clone(), task);
+    }
+
+    pub fn cancel_window(&mut self, window_label: &str) -> Vec<String> {
+        let request_ids: Vec<String> = self
+            .active
+            .iter()
+            .filter_map(|(request_id, task)| {
+                (task.window_label == window_label).then_some(request_id.clone())
+            })
+            .collect();
+        for request_id in &request_ids {
+            self.active.remove(request_id);
+            self.cancelled.insert(request_id.clone());
+        }
+        request_ids
+    }
+
+    #[cfg(test)]
+    pub fn is_cancelled(&self, request_id: &str) -> bool {
+        self.cancelled.contains(request_id)
+    }
+
+    #[cfg(test)]
+    pub fn should_route(
+        &self,
+        window_label: &str,
+        request_id: &str,
+        session_id: Option<u64>,
+        base_revision: Option<u64>,
+    ) -> bool {
+        self.active.get(request_id).is_some_and(|task| {
+            task.window_label == window_label
+                && task.session_id == session_id
+                && task.base_revision == base_revision
+                && !self.is_cancelled(request_id)
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +281,62 @@ mod tests {
         let state = AppState::new().unwrap();
         state.stop_all();
         state.stop_all();
+    }
+
+    #[test]
+    fn window_host_context_requires_window_scope() {
+        let state = AppState::new().unwrap();
+        let context = state
+            .create_window_host_context("close-1", "client-a", "main")
+            .unwrap();
+
+        assert_eq!(context.capability, HostCapability::Windows);
+        assert_eq!(context.window_label.as_deref(), Some("main"));
+        assert_eq!(context.request_id, "close-1");
+        assert!(context.validate_required_scope().is_ok());
+    }
+
+    #[test]
+    fn window_task_registry_cancels_by_window_label() {
+        let mut registry = WindowTaskRegistry::new();
+        registry.register(WindowTask {
+            request_id: "req-main".into(),
+            client_id: "client-a".into(),
+            window_label: "main".into(),
+            session_id: Some(7),
+            base_revision: Some(3),
+        });
+        registry.register(WindowTask {
+            request_id: "req-other".into(),
+            client_id: "client-a".into(),
+            window_label: "secondary".into(),
+            session_id: Some(9),
+            base_revision: Some(1),
+        });
+
+        assert!(registry.should_route("main", "req-main", Some(7), Some(3)));
+        let cancelled = registry.cancel_window("main");
+        assert_eq!(cancelled.len(), 1);
+        assert!(cancelled.contains(&"req-main".to_string()));
+        assert!(!registry.should_route("main", "req-main", Some(7), Some(3)));
+        assert!(registry.is_cancelled("req-main"));
+        assert!(registry.should_route("secondary", "req-other", Some(9), Some(1)));
+    }
+
+    #[test]
+    fn window_result_routing_rejects_mismatched_identity() {
+        let mut registry = WindowTaskRegistry::new();
+        registry.register(WindowTask {
+            request_id: "req-1".into(),
+            client_id: "client-a".into(),
+            window_label: "main".into(),
+            session_id: Some(7),
+            base_revision: Some(3),
+        });
+
+        assert!(!registry.should_route("secondary", "req-1", Some(7), Some(3)));
+        assert!(!registry.should_route("main", "req-1", Some(8), Some(3)));
+        assert!(!registry.should_route("main", "req-1", Some(7), Some(4)));
+        assert!(!registry.should_route("main", "req-missing", Some(7), Some(3)));
     }
 }

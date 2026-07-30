@@ -33,6 +33,11 @@
 > - Issue #238 增加 Export IR schema v1、Core `build_export_document` API、Tauri `get_export_document` bridge 和 TypeScript Export IR HTML renderer。
 > - HTML/PDF/DOCX/print 的前端导出输入优先来自 Core confirmed revision 的 Export IR；无 Core session 时保留 legacy DOM snapshot fallback，旧 serializer 不在 M8A 删除。
 > - 验证记录见 `docs/markflow-core-stages/m8a-export-ir-evidence.md`。
+> M8B 记录：
+> - Issue #240 启动 Host/Bridge contract 稳定：Runtime 新增 Host protocol v1、Host capability/error registry 和 mock Host harness。
+> - 已完成 M8B-1 协议与测试基础、Host capability matrix / Tauri permission drift gate、Runtime file_system Host context、Tauri save dialog context、前端 clipboard context、Host windows lifecycle context、App Service toast routing、Host shell bridge、Host network image context、Core-backed Host render context、Host export output context、Bridge Host/export 错误映射与结果身份校验、non-Tauri Runtime harness。
+> - OS-level notifications 仍为 `not_configured`；legacy ProseMirror diagram DOM render 和 legacy DOM export fallback 仍待后续收敛。
+> - 验证记录见 `docs/markflow-core-stages/m8b-host-portability-evidence.md`。
 
 ## 1. 使用规则
 
@@ -46,11 +51,11 @@
 
 | 能力 | 当前实现 | 目标 owner | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- | --- |
-| 打开 Markdown | TS + Tauri file command → M3: Runtime crate (read + FileIdentity) + Session Registry + Host trait | Runtime + Host | M3 (已验收) | UTF-8/BOM/EOL 正确，创建 session |
+| 打开 Markdown | TS + Tauri file command → M3: Runtime crate (read + FileIdentity) + Session Registry + Host trait；M8B: Host file_system context 已接入，open 仍为 pre-session context | Runtime + Host | M3 (已验收)；M8B 收敛 | UTF-8/BOM/EOL 正确，创建 session |
 | 新建文档 | UI 临时状态 | Runtime | M3/M4 | 未命名 session 可编辑、另存 |
-| 保存 | `getMarkdown()` + Tauri write → M3/M3.1: Runtime session.submit_patch + save workflow (pending patch flush, SaveLease, per-path coordinator, atomic write) | Runtime + Host | M3 已验收；M8 移除 legacy serializer | pending patch flush，原子写入 |
+| 保存 | `getMarkdown()` + Tauri write → M3/M3.1: Runtime session.submit_patch + save workflow (pending patch flush, SaveLease, per-path coordinator, atomic write)；M8B: Runtime Host file_system trait 接收 HostRequestContext | Runtime + Host | M3 已验收；M8 移除 legacy serializer | pending patch flush，原子写入 |
 | 自动保存 | `main.ts` timer | App Service | M4/M6 | 按 session 保存；不并发保存，不丢 revision |
-| 另存为 | UI + dialog | Runtime + Host | M4/M8 | 按 session 另存；路径和资源引用更新一致 |
+| 另存为 | UI + dialog；M8B: Tauri save dialog 入口已接 Host dialogs context gate | Runtime + Host | M4/M8 | 按 session 另存；路径和资源引用更新一致 |
 | 未保存提示 | UI dirty state | Runtime state + UI | M4 | dirty 以 session confirmed revision 为准 |
 | 外部修改检测 | watcher + mtime/size → M3/M3.1: Runtime FileIdentity + true reload + conflict gate | Runtime + Host | M3 已验收；M8 完整 Host gate | clean reload、dirty conflict |
 | 外部删除 | watcher + UI | Runtime + Host | M4 | 明确保留/关闭/另存路径 |
@@ -110,7 +115,7 @@
 | 能力 | 当前基线 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
 | 本地图片选择 | 已支持 | M4/M6 | window-scoped Host dialog + session-bound Core insert plan |
-| 剪贴板图片 | M7C 事务化 prepare/commit/rollback；pending draft 保留 | M6/M7 | session-bound 命名模板、暂存、首次保存迁移 |
+| 剪贴板图片 | M7C 事务化 prepare/commit/rollback；pending draft 保留；M8B: clipboard Web API call sites 已构造 Host clipboard context，Tauri clipboard capability 仍 not_configured | M6/M7；M8B Host port 待迁移 | session-bound 命名模板、暂存、首次保存迁移 |
 | 拖拽图片 | M7C 复用统一图片事务保存边界 | M6/M7 | session-bound 多图顺序、失败隔离 |
 | 网络图片 | 已支持 | M7 | SSRF 防护、类型/大小限制 |
 | 相对/绝对引用 | M7C 已通过事务 proposal 验证 | M7 | Windows/macOS/Linux 路径正确 |
@@ -137,9 +142,9 @@
 | 能力 | 当前实现 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
 | HTML | M8A: Core Export IR v1 -> TypeScript HTML renderer；无 Core session 时 legacy DOM snapshot fallback | M8A Core 主路径 | session confirmed Export IR renderer test；Source Mode 不再为了导出切 WYSIWYG |
-| PDF 文件 | M8A: Core Export IR HTML -> native WebView PDF；平台输出仍走现有 Tauri PDF command | M8A 双轨；M8B Host port | session Export snapshot 与编辑模式无关；native PDF smoke 待 release gate |
+| PDF 文件 | M8A: Core Export IR HTML -> native WebView PDF；平台输出仍走现有 Tauri PDF command；M8B: Host export capability/error registry 已建立 | M8A 双轨；M8B Host port | session Export snapshot 与编辑模式无关；native PDF smoke 待 release gate |
 | Word/DOCX | M8A: Core Export IR HTML -> JS docx；docx adapter 暂保留 HTML 输入适配层 | M8A 双轨；M8B/M8C 收敛 | session Export IR；列表、表格、图片、代码块 renderer/unit smoke |
-| 系统打印 | M8A: Core Export IR HTML -> WebView print；Host Adapter 能力待 M8B | M8A 双轨；M8B Host port | Host Adapter 能力，跨平台回退 |
+| 系统打印 | M8A: Core Export IR HTML -> WebView print；M8B: Host export/window capability registry 已建立，Tauri port 待迁移 | M8A 双轨；M8B Host port | Host Adapter 能力，跨平台回退 |
 | 导出主题/字体/媒体等待 | 前端 | M8 | 视觉回归和超时清理 |
 
 ## 9. 质量与安全
@@ -151,7 +156,7 @@
 | 网络图片 SSRF 防护 | M7 | mock DNS，测试不依赖公网 |
 | 日志脱敏 | 全阶段 | 不记录正文、完整路径、凭据 |
 | 不受信任 Markdown/HTML/图表 | M5-M8 | raw HTML 不执行；SVG/HTML sanitize；解析和输出有资源上限 |
-| 任务取消 | M2-M8 | revision 变化后旧任务不能提交 |
+| 任务取消 | M2-M8；M8B mock Host harness 已覆盖 request cancellation 协议 | revision 变化后旧任务不能提交 |
 | 崩溃恢复 | M6/M8 | 至少恢复到最后成功保存 revision；未确认镜像不能冒充已保存状态 |
 | Accessibility | M4-M8 | 键盘、焦点、表格、widget 基础验收 |
 

@@ -1,0 +1,230 @@
+{
+  "matrix_version": 1,
+  "host_protocol_version": 1,
+  "capabilities": [
+    {
+      "name": "file_system",
+      "allowed_windows": ["main"],
+      "parameter_range": "session-bound document path, FileIdentity, atomic write payload, resource transaction paths",
+      "resource_range": "current session document source and validated asset transaction destinations",
+      "timeout_ms": 30000,
+      "cancellation": "request-bound; write cancellation is honored before final commit",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_STALE_SESSION",
+        "HOST_STALE_REVISION",
+        "HOST_WRITE_FAILED"
+      ],
+      "platform_support": {
+        "macos": "available",
+        "windows": "available",
+        "linux": "available"
+      },
+      "tauri_permission_mapping": {
+        "status": "internal_rust_command",
+        "permissions": []
+      }
+    },
+    {
+      "name": "clipboard",
+      "allowed_windows": ["main"],
+      "parameter_range": "plain text, Markdown text, image bytes or image file identity",
+      "resource_range": "current window/webview clipboard permission",
+      "timeout_ms": 5000,
+      "cancellation": "request-bound; cancelled before host write/read returns HOST_REQUEST_CANCELLED",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_WINDOW_MISMATCH",
+        "HOST_REQUEST_CANCELLED"
+      ],
+      "platform_support": {
+        "macos": "not_migrated",
+        "windows": "not_migrated",
+        "linux": "not_migrated"
+      },
+      "tauri_permission_mapping": {
+        "status": "not_configured",
+        "permissions": []
+      }
+    },
+    {
+      "name": "dialogs",
+      "allowed_windows": ["*"],
+      "parameter_range": "open/save/message/ask/confirm dialog options with filter and default path constraints",
+      "resource_range": "requesting window only",
+      "timeout_ms": null,
+      "cancellation": "window close or user cancel returns HOST_REQUEST_CANCELLED",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_WINDOW_MISMATCH",
+        "HOST_REQUEST_CANCELLED"
+      ],
+      "platform_support": {
+        "macos": "available",
+        "windows": "available",
+        "linux": "available"
+      },
+      "tauri_permission_mapping": {
+        "status": "tauri_capability",
+        "permissions": [
+          "dialog:allow-open",
+          "dialog:allow-save",
+          "dialog:allow-message",
+          "dialog:allow-ask",
+          "dialog:allow-confirm"
+        ]
+      }
+    },
+    {
+      "name": "windows",
+      "allowed_windows": ["*"],
+      "parameter_range": "window label, close lifecycle, focus/routing metadata",
+      "resource_range": "explicit window label only",
+      "timeout_ms": 5000,
+      "cancellation": "window close cancels bound jobs before result routing",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_WINDOW_MISMATCH",
+        "HOST_REQUEST_CANCELLED"
+      ],
+      "platform_support": {
+        "macos": "available",
+        "windows": "available",
+        "linux": "available"
+      },
+      "tauri_permission_mapping": {
+        "status": "tauri_capability",
+        "permissions": ["core:default"]
+      }
+    },
+    {
+      "name": "notifications",
+      "allowed_windows": ["main"],
+      "parameter_range": "user-visible message key, severity, request id, optional session identity",
+      "resource_range": "requesting window only",
+      "timeout_ms": 5000,
+      "cancellation": "request-bound; stale notification result is dropped",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_WINDOW_MISMATCH"
+      ],
+      "platform_support": {
+        "macos": "not_migrated",
+        "windows": "not_migrated",
+        "linux": "not_migrated"
+      },
+      "tauri_permission_mapping": {
+        "status": "not_configured",
+        "permissions": []
+      }
+    },
+    {
+      "name": "shell",
+      "allowed_windows": ["main"],
+      "parameter_range": "allowlisted file path or URL open request",
+      "resource_range": "minimal allowlisted paths/URLs only",
+      "timeout_ms": 5000,
+      "cancellation": "request-bound until handed to OS shell",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_WINDOW_MISMATCH",
+        "HOST_REQUEST_CANCELLED"
+      ],
+      "platform_support": {
+        "macos": "available",
+        "windows": "available",
+        "linux": "available"
+      },
+      "tauri_permission_mapping": {
+        "status": "tauri_capability",
+        "permissions": ["shell:default"]
+      }
+    },
+    {
+      "name": "network",
+      "allowed_windows": ["main"],
+      "parameter_range": "URL, redirect policy, MIME allowlist, size limit, timeout",
+      "resource_range": "SSRF-gated http/https remote resources",
+      "timeout_ms": 15000,
+      "cancellation": "request-bound; timeout returns HOST_TIMEOUT",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_STALE_SESSION",
+        "HOST_TIMEOUT",
+        "HOST_REQUEST_CANCELLED"
+      ],
+      "platform_support": {
+        "macos": "available",
+        "windows": "available",
+        "linux": "available"
+      },
+      "tauri_permission_mapping": {
+        "status": "tauri_capability",
+        "permissions": ["http:default", "http:allow-fetch"]
+      }
+    },
+    {
+      "name": "render",
+      "allowed_windows": ["main"],
+      "parameter_range": "diagram language, source range, render target, sandbox flag, timeout",
+      "resource_range": "session/revision-bound diagram render job",
+      "timeout_ms": 10000,
+      "cancellation": "session/window close or timeout returns HOST_REQUEST_CANCELLED or HOST_TIMEOUT",
+      "stable_error_codes": [
+        "HOST_MISSING_CAPABILITY",
+        "HOST_PERMISSION_DENIED",
+        "HOST_STALE_SESSION",
+        "HOST_STALE_REVISION",
+        "HOST_TIMEOUT",
+        "HOST_REQUEST_CANCELLED"
+      ],
+      "platform_support": {
+        "macos": "not_migrated",
+        "windows": "not_migrated",
+        "linux": "not_migrated"
+      },
+      "tauri_permission_mapping": {
+        "status": "tauri_capability",
+        "permissions": ["http:default", "http:allow-fetch"]
+      }
+    },
+    {
+      "name": "export",
+      "allowed_windows": ["main"],
+      "parameter_range": "Export IR-rendered HTML or format output request, default filename, output identity",
+      "resource_range": "session/revision-bound export job and selected output path",
+      "timeout_ms": 30000,
+      "cancellation": "window/session close or user cancel returns EXPORT_CANCELLED unless documented OS-level handoff applies",
+      "stable_error_codes": [
+        "EXPORT_CANCELLED",
+        "HOST_REQUEST_MISMATCH",
+        "HOST_CLIENT_MISMATCH",
+        "EXPORT_STALE_REVISION",
+        "EXPORT_UNSUPPORTED_FORMAT",
+        "EXPORT_IR_UNSUPPORTED_BLOCK",
+        "EXPORT_HOST_PERMISSION_DENIED",
+        "EXPORT_TIMEOUT",
+        "EXPORT_WRITE_FAILED"
+      ],
+      "platform_support": {
+        "macos": "partial",
+        "windows": "html_docx_only",
+        "linux": "html_docx_only"
+      },
+      "tauri_permission_mapping": {
+        "status": "tauri_capability",
+        "permissions": [
+          "core:webview:allow-print",
+          "dialog:allow-save"
+        ]
+      },
+      "os_background_exception": "Native print/PDF APIs may not support hard cancellation after OS handoff; stale UI result routing remains disabled."
+    }
+  ]
+}

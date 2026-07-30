@@ -8,6 +8,9 @@ use crate::paths::{normalize_lexical, normalize_path, pending_images_dir};
 use crate::state::AppState;
 use base64::Engine;
 use futures::StreamExt;
+#[cfg(test)]
+use markflow_runtime::host_contract::HOST_PROTOCOL_VERSION;
+use markflow_runtime::host_contract::{HostCapability, HostRequestContext};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -22,6 +25,44 @@ const PENDING_MANIFEST_VERSION: u32 = 1;
 const PENDING_MANIFEST_FILE: &str = "manifest.json";
 const PENDING_RETENTION: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 static DRAFT_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkHostContextDto {
+    pub protocol_version: u32,
+    pub request_id: String,
+    #[serde(default = "default_host_client_id")]
+    pub client_id: String,
+    #[serde(default)]
+    pub window_label: Option<String>,
+    pub session_id: u64,
+    #[serde(default)]
+    pub document_id: Option<u64>,
+    pub base_revision: u64,
+}
+
+fn default_host_client_id() -> String {
+    "default".into()
+}
+
+fn validate_network_host_context(
+    input: NetworkHostContextDto,
+) -> Result<HostRequestContext, String> {
+    let context = HostRequestContext {
+        protocol_version: input.protocol_version,
+        request_id: input.request_id,
+        client_id: input.client_id,
+        window_label: input.window_label.or_else(|| Some("main".into())),
+        session_id: Some(input.session_id),
+        document_id: input.document_id,
+        base_revision: Some(input.base_revision),
+        capability: HostCapability::Network,
+    };
+    context
+        .validate_required_scope()
+        .map_err(|code| code.to_string())?;
+    Ok(context)
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -788,9 +829,11 @@ pub async fn download_image_to_pending(
     draft_id: Option<String>,
     file_name: String,
     url: String,
+    host_context: NetworkHostContextDto,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<PendingImageWriteResult, String> {
+    let context = validate_network_host_context(host_context)?;
     let _permit = state
         .image_download_semaphore
         .acquire()
@@ -813,6 +856,9 @@ pub async fn download_image_to_pending(
     allow_asset_directory(&app, &draft_dir)?;
     info!(
         target: "backend.files",
+        request_id = %context.request_id,
+        session_id = context.session_id.unwrap_or_default(),
+        revision = context.base_revision.unwrap_or_default(),
         path = %result.path,
         url = %redact_url_for_log(&url),
         bytes = bytes.len(),
@@ -824,8 +870,10 @@ pub async fn download_image_to_pending(
 #[tauri::command]
 pub async fn fetch_remote_image_as_base64(
     url: String,
+    host_context: NetworkHostContextDto,
     state: State<'_, AppState>,
 ) -> Result<RemoteImageData, String> {
+    let _context = validate_network_host_context(host_context)?;
     let _permit = state
         .image_download_semaphore
         .acquire()
@@ -839,15 +887,18 @@ pub async fn fetch_remote_image_as_base64(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn download_image_to_storage(
     url: String,
     dest: String,
     storage_root: String,
     use_mime_extension: bool,
     document_path: Option<String>,
+    host_context: NetworkHostContextDto,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<DownloadedImage, String> {
+    let context = validate_network_host_context(host_context)?;
     let _permit = state
         .image_download_semaphore
         .acquire()
@@ -869,6 +920,9 @@ pub async fn download_image_to_storage(
     allow_asset_directory(&app, &root)?;
     info!(
         target: "backend.files",
+        request_id = %context.request_id,
+        session_id = context.session_id.unwrap_or_default(),
+        revision = context.base_revision.unwrap_or_default(),
         path = %normalize_path(&destination),
         url = %redact_url_for_log(&url),
         bytes = bytes.len(),
@@ -884,10 +938,12 @@ pub async fn download_image_to_storage(
 pub async fn download_image(
     url: String,
     dest: String,
+    host_context: NetworkHostContextDto,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     use crate::commands::files::validate_path_in_workspace;
 
+    let context = validate_network_host_context(host_context)?;
     let _permit = state
         .image_download_semaphore
         .acquire()
@@ -919,6 +975,9 @@ pub async fn download_image(
     }
     info!(
         target: "backend.files",
+        request_id = %context.request_id,
+        session_id = context.session_id.unwrap_or_default(),
+        revision = context.base_revision.unwrap_or_default(),
         path = %normalize_path(dest_path),
         url = %redact_url_for_log(&url),
         bytes = bytes.len(),
@@ -945,6 +1004,43 @@ mod tests {
         ));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn network_host_context_requires_session_and_revision() {
+        let context = validate_network_host_context(NetworkHostContextDto {
+            protocol_version: HOST_PROTOCOL_VERSION,
+            request_id: "net-1".into(),
+            client_id: "client-a".into(),
+            window_label: Some("main".into()),
+            session_id: 42,
+            document_id: Some(11),
+            base_revision: 7,
+        })
+        .unwrap();
+
+        assert_eq!(context.capability, HostCapability::Network);
+        assert_eq!(context.request_id, "net-1");
+        assert_eq!(context.session_id, Some(42));
+        assert_eq!(context.document_id, Some(11));
+        assert_eq!(context.base_revision, Some(7));
+        assert_eq!(context.window_label.as_deref(), Some("main"));
+    }
+
+    #[test]
+    fn network_host_context_rejects_unsupported_protocol() {
+        let error = validate_network_host_context(NetworkHostContextDto {
+            protocol_version: HOST_PROTOCOL_VERSION + 1,
+            request_id: "net-1".into(),
+            client_id: "client-a".into(),
+            window_label: Some("main".into()),
+            session_id: 42,
+            document_id: Some(11),
+            base_revision: 7,
+        })
+        .unwrap_err();
+
+        assert_eq!(error, "HOST_PROTOCOL_VERSION_UNSUPPORTED");
     }
 
     #[test]

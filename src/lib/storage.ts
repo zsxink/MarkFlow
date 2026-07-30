@@ -2,6 +2,11 @@ import type { DirectoryPage, FileEntry, FileMetadata, RemoteImageData } from '..
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  createExportHostRequestContext,
+  createNetworkHostRequestContext,
+  type HostRequestContext,
+} from '../host-bridge/context';
 
 export async function readFile(path: string): Promise<string> {
   return invoke<string>('read_file', { path });
@@ -15,8 +20,19 @@ export async function writeFile(path: string, content: string): Promise<void> {
   return invoke('write_file', { path, content });
 }
 
+export interface ExportHostIdentity {
+  sessionId: number;
+  documentId?: number;
+  baseRevision: number;
+  requestId?: string;
+}
+
+function exportHostContext(input: ExportHostIdentity | undefined): HostRequestContext | null {
+  return input ? createExportHostRequestContext(input) : null;
+}
+
 export async function saveMermaidSvgExport(svg: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_export', { kind: 'svg', data: svg, fileName: `${defaultName}.svg`, extension: 'svg', filterName: null, extensions: null });
+  return invoke<boolean>('save_export', { kind: 'svg', data: svg, fileName: `${defaultName}.svg`, extension: 'svg', filterName: null, extensions: null, hostContext: null });
 }
 
 export async function readDirPage(
@@ -118,35 +134,74 @@ export async function copyImageToStorageFile(
 }
 
 export async function saveMermaidPngExport(data: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_export', { kind: 'png', data, fileName: `${defaultName}.png`, extension: 'png', filterName: null, extensions: null });
+  return invoke<boolean>('save_export', { kind: 'png', data, fileName: `${defaultName}.png`, extension: 'png', filterName: null, extensions: null, hostContext: null });
 }
 
 export async function savePlantUmlSvgExport(svg: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_export', { kind: 'svg', data: svg, fileName: `${defaultName}.svg`, extension: 'svg', filterName: null, extensions: null });
+  return invoke<boolean>('save_export', { kind: 'svg', data: svg, fileName: `${defaultName}.svg`, extension: 'svg', filterName: null, extensions: null, hostContext: null });
 }
 
 export async function savePlantUmlPngExport(data: string, defaultName: string): Promise<boolean> {
-  return invoke<boolean>('save_export', { kind: 'png', data, fileName: `${defaultName}.png`, extension: 'png', filterName: null, extensions: null });
+  return invoke<boolean>('save_export', { kind: 'png', data, fileName: `${defaultName}.png`, extension: 'png', filterName: null, extensions: null, hostContext: null });
 }
 
 export async function saveImageExport(data: string, fileName: string, extension: string): Promise<boolean> {
-  return invoke<boolean>('save_export', { kind: 'image', data, fileName, extension, filterName: null, extensions: null });
+  return invoke<boolean>('save_export', { kind: 'image', data, fileName, extension, filterName: null, extensions: null, hostContext: null });
 }
 
-export async function saveDocumentExport(content: string, defaultName: string, filterName: string, extensions: string[]): Promise<boolean> {
-  return invoke<boolean>('save_export', { kind: 'document', data: content, fileName: defaultName, extension: filterName, filterName, extensions });
+export async function saveDocumentExport(
+  content: string,
+  defaultName: string,
+  filterName: string,
+  extensions: string[],
+  identity?: ExportHostIdentity,
+): Promise<boolean> {
+  return invoke<boolean>('save_export', {
+    kind: 'document',
+    data: content,
+    fileName: defaultName,
+    extension: filterName,
+    filterName,
+    extensions,
+    hostContext: exportHostContext(identity),
+  });
 }
 
-export async function fetchRemoteImageAsBase64(url: string): Promise<RemoteImageData> {
-  return invoke<RemoteImageData>('fetch_remote_image_as_base64', { url });
+export interface NetworkHostIdentity {
+  sessionId: number;
+  documentId?: number;
+  baseRevision: number;
+  requestId?: string;
+}
+
+function networkHostContext(input: NetworkHostIdentity): HostRequestContext {
+  return createNetworkHostRequestContext(input);
+}
+
+function requireNetworkHostIdentity(input: NetworkHostIdentity | undefined): NetworkHostIdentity {
+  if (!input) {
+    throw new Error('HOST_STALE_SESSION: network host identity is required');
+  }
+  return input;
+}
+
+export async function fetchRemoteImageAsBase64(url: string, identity: NetworkHostIdentity): Promise<RemoteImageData> {
+  return invoke<RemoteImageData>('fetch_remote_image_as_base64', {
+    url,
+    hostContext: networkHostContext(identity),
+  });
 }
 
 export async function fetchPageTitle(url: string): Promise<string> {
   return invoke<string>('fetch_page_title', { url });
 }
 
-export async function downloadImage(url: string, dest: string): Promise<string> {
-  return invoke<string>('download_image', { url, dest });
+export async function downloadImage(url: string, dest: string, identity: NetworkHostIdentity): Promise<string> {
+  return invoke<string>('download_image', {
+    url,
+    dest,
+    hostContext: networkHostContext(identity),
+  });
 }
 
 export async function downloadImageToStorage(
@@ -155,6 +210,7 @@ export async function downloadImageToStorage(
   storageRoot: string,
   useMimeExtension: boolean,
   documentPath: string | null,
+  identity: NetworkHostIdentity,
 ): Promise<{ path: string; mimeType: string }> {
   return invoke('download_image_to_storage', {
     url,
@@ -162,6 +218,7 @@ export async function downloadImageToStorage(
     storageRoot,
     useMimeExtension,
     documentPath,
+    hostContext: networkHostContext(identity),
   });
 }
 
@@ -201,8 +258,14 @@ export async function downloadImageToPending(
   fileName: string,
   url: string,
   draftId: string | null = null,
+  identity?: NetworkHostIdentity,
 ): Promise<PendingImage> {
-  return invoke('download_image_to_pending', { draftId, fileName, url });
+  return invoke('download_image_to_pending', {
+    draftId,
+    fileName,
+    url,
+    hostContext: networkHostContext(requireNetworkHostIdentity(identity)),
+  });
 }
 
 /** Copy all staged images to the storage target calculated by the backend. */

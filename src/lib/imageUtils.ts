@@ -48,6 +48,52 @@ let activeImageDraft: ActiveImageDraft = createEmptyDraft();
 let pendingWriteQueue: Promise<void> = Promise.resolve();
 let pendingSaveBarrier: Promise<void> | null = null;
 let releasePendingSaveBarrier: (() => void) | null = null;
+let assetRequestCounter = 0;
+
+export interface AssetTransactionIdentity {
+  sessionId: number;
+  baseRevision: number;
+  requestId: string;
+}
+
+export interface AssetTransactionRequest extends AssetTransactionIdentity {
+  markdown: string;
+  documentPath: string;
+  settings?: ImageSettings;
+}
+
+export interface AssetResourceMapping {
+  from: string;
+  to: string;
+  reference: string;
+}
+
+export interface AssetTransactionPlan extends AssetTransactionIdentity {
+  documentPath: string;
+  originalMarkdown: string;
+  proposedMarkdown: string;
+  draftId: string | null;
+  mappings: AssetResourceMapping[];
+}
+
+export interface AssetTransactionCurrentContext {
+  sessionId: number;
+  baseRevision: number;
+  requestId?: string;
+}
+
+export interface AssetTransactionRecovery {
+  status: 'committed' | 'rolled-back';
+  draftId: string | null;
+  mappings: AssetResourceMapping[];
+}
+
+export class AssetTransactionMismatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AssetTransactionMismatchError';
+  }
+}
 
 function createEmptyDraft(): ActiveImageDraft {
   return {
@@ -273,17 +319,17 @@ export async function handleNetworkImage(
 export interface PreparedImageMigration {
   markdown: string;
   draftId: string | null;
+  transaction: AssetTransactionPlan;
 }
 
 /**
- * Copy staged images and return Markdown with final references. This does not
- * clean the draft; the caller must do that only after the Markdown write wins.
+ * Prepare staged images and return a transaction with the final Markdown
+ * proposal. This does not clean the draft; the caller must commit the
+ * transaction only after the Markdown write wins.
  */
-export async function preparePendingImagesForSave(
-  markdown: string,
-  documentPath: string,
-  settings?: ImageSettings,
-): Promise<PreparedImageMigration> {
+export async function prepareAssetTransaction(
+  request: AssetTransactionRequest,
+): Promise<AssetTransactionPlan> {
   beginPendingImagesSave();
   // Capture the queue after locking. Writes scheduled before this save finish
   // normally; later writes capture the barrier and cannot reuse a draft that
@@ -296,41 +342,138 @@ export async function preparePendingImagesForSave(
   const capturedDraft = activeImageDraft;
   try {
     await writesBeforeSave;
-    if (!capturedDraft.draftId && capturedDraft.immediateAbsoluteReferences.size === 0) {
-      releasePendingImagesSave();
-      return { markdown, draftId: null };
-    }
-    const resolvedSettings = settings ?? await getImageSettings();
-    let updated = rewriteImmediateAbsoluteReferences(markdown, documentPath, resolvedSettings);
+    const resolvedSettings = request.settings ?? await getImageSettings();
+    let updated = rewriteImmediateAbsoluteReferences(
+      request.markdown,
+      request.documentPath,
+      resolvedSettings,
+      capturedDraft,
+    );
+    const mappings: AssetResourceMapping[] = [];
     const draftId = capturedDraft.draftId;
-    if (!draftId) return { markdown: updated, draftId: null };
+    if (!draftId) {
+      return {
+        sessionId: request.sessionId,
+        baseRevision: request.baseRevision,
+        requestId: request.requestId,
+        documentPath: request.documentPath,
+        originalMarkdown: request.markdown,
+        proposedMarkdown: updated,
+        draftId: null,
+        mappings,
+      };
+    }
 
-    const migration = await migratePendingImages(draftId, documentPath);
+    const migration = await migratePendingImages(draftId, request.documentPath);
     for (const mapping of migration.mappings) {
-      const finalReference = getReferencePath(mapping.to, documentPath, resolvedSettings.referenceStyle);
+      const finalReference = getReferencePath(
+        mapping.to,
+        request.documentPath,
+        resolvedSettings.referenceStyle,
+      );
       updated = replaceLiteral(updated, mapping.from, finalReference);
       updated = replaceLiteral(updated, mapping.from.replace(/\\/g, '/'), finalReference);
+      mappings.push({ ...mapping, reference: finalReference });
     }
-    return { markdown: updated, draftId };
+    return {
+      sessionId: request.sessionId,
+      baseRevision: request.baseRevision,
+      requestId: request.requestId,
+      documentPath: request.documentPath,
+      originalMarkdown: request.markdown,
+      proposedMarkdown: updated,
+      draftId,
+      mappings,
+    };
   } catch (error) {
     releasePendingImagesSave();
     throw error;
   }
 }
 
+/**
+ * Copy staged images and return Markdown with final references. This does not
+ * clean the draft; the caller must do that only after the Markdown write wins.
+ */
+export async function preparePendingImagesForSave(
+  markdown: string,
+  documentPath: string,
+  settings?: ImageSettings,
+): Promise<PreparedImageMigration> {
+  const transaction = await prepareAssetTransaction({
+    sessionId: 0,
+    baseRevision: 0,
+    requestId: nextAssetRequestId(),
+    markdown,
+    documentPath,
+    settings,
+  });
+  return {
+    markdown: transaction.proposedMarkdown,
+    draftId: transaction.draftId,
+    transaction,
+  };
+}
+
 /** Clean a migrated draft only after its Markdown file was written successfully. */
-export async function completePendingImagesSave(draftId: string | null): Promise<void> {
+export async function commitAssetTransaction(
+  transaction: AssetTransactionPlan,
+  current?: AssetTransactionCurrentContext,
+): Promise<AssetTransactionRecovery> {
   try {
-    if (draftId) await cleanupPendingImages(draftId);
-    if (!draftId || activeImageDraft.draftId === draftId) activeImageDraft = createEmptyDraft();
+    validateAssetTransaction(transaction, current);
+    if (transaction.draftId) await cleanupPendingImages(transaction.draftId);
+    if (!transaction.draftId || activeImageDraft.draftId === transaction.draftId) {
+      activeImageDraft = createEmptyDraft();
+    }
+    return {
+      status: 'committed',
+      draftId: transaction.draftId,
+      mappings: transaction.mappings,
+    };
+  } finally {
+    releasePendingImagesSave();
+  }
+}
+
+/** Clean a migrated draft only after its Markdown file was written successfully. */
+export async function completePendingImagesSave(
+  transactionOrDraftId: AssetTransactionPlan | string | null,
+): Promise<void> {
+  if (transactionOrDraftId && typeof transactionOrDraftId === 'object') {
+    await commitAssetTransaction(transactionOrDraftId);
+    return;
+  }
+  try {
+    if (transactionOrDraftId) await cleanupPendingImages(transactionOrDraftId);
+    if (!transactionOrDraftId || activeImageDraft.draftId === transactionOrDraftId) {
+      activeImageDraft = createEmptyDraft();
+    }
+  } finally {
+    releasePendingImagesSave();
+  }
+}
+
+/** Release a prepared transaction after the Markdown write failed; keep its draft. */
+export function rollbackAssetTransaction(
+  transaction?: AssetTransactionPlan | null,
+  current?: AssetTransactionCurrentContext,
+): AssetTransactionRecovery {
+  try {
+    if (transaction) validateAssetTransaction(transaction, current);
+    return {
+      status: 'rolled-back',
+      draftId: transaction?.draftId ?? null,
+      mappings: transaction?.mappings ?? [],
+    };
   } finally {
     releasePendingImagesSave();
   }
 }
 
 /** Release a prepared save after the Markdown write failed; keep its draft. */
-export function abortPendingImagesSave(): void {
-  releasePendingImagesSave();
+export function abortPendingImagesSave(transaction?: AssetTransactionPlan | null): void {
+  rollbackAssetTransaction(transaction);
 }
 
 /** Best-effort cleanup used when the active unsaved document is discarded.
@@ -420,13 +563,35 @@ function rewriteImmediateAbsoluteReferences(
   markdown: string,
   documentPath: string,
   settings: ImageSettings,
+  draft: ActiveImageDraft = activeImageDraft,
 ): string {
   let updated = markdown;
-  for (const absolutePath of activeImageDraft.immediateAbsoluteReferences) {
+  for (const absolutePath of draft.immediateAbsoluteReferences) {
     const reference = getReferencePath(absolutePath, documentPath, settings.referenceStyle);
     updated = replaceLiteral(updated, absolutePath, reference);
   }
   return updated;
+}
+
+function nextAssetRequestId(): string {
+  assetRequestCounter += 1;
+  return `asset_${assetRequestCounter}_${Date.now()}`;
+}
+
+function validateAssetTransaction(
+  transaction: AssetTransactionPlan,
+  current?: AssetTransactionCurrentContext,
+): void {
+  if (!current) return;
+  if (transaction.sessionId !== current.sessionId) {
+    throw new AssetTransactionMismatchError('资源事务会话已失效');
+  }
+  if (transaction.baseRevision !== current.baseRevision) {
+    throw new AssetTransactionMismatchError('资源事务版本已过期');
+  }
+  if (current.requestId !== undefined && transaction.requestId !== current.requestId) {
+    throw new AssetTransactionMismatchError('资源事务请求标识不匹配');
+  }
 }
 
 function getReferencePath(destPath: string, docPath: string | null, style: string): string {

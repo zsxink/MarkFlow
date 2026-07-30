@@ -256,6 +256,56 @@ describe('SourceSyncController (M3.1-1.2)', () => {
       expect(revision).toBeGreaterThanOrEqual(3);
     });
   });
+
+  describe('asset transaction replacement', () => {
+    it('restores the local editor text when asset replacement flush fails', async () => {
+      let text = '![img](/pending/draft/img.png)';
+      const mockView = {
+        state: {
+          get doc() {
+            return { toString: () => text };
+          },
+          selection: { main: { anchor: 0, head: 0 } },
+        },
+        dispatch: vi.fn((update: { changes: { from: number; to: number; insert: string } }) => {
+          text = `${text.slice(0, update.changes.from)}${update.changes.insert}${text.slice(update.changes.to)}`;
+        }),
+      } as any;
+      controller.attach(mockView, 0);
+      vi.spyOn(controller, 'flush').mockRejectedValue(new Error('flush failed'));
+
+      await expect(controller.replaceDocumentTextForAssetTransaction('![img](guide-images/img.png)'))
+        .rejects.toThrow('flush failed');
+
+      expect(text).toBe('![img](/pending/draft/img.png)');
+      expect(mockView.dispatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps requested restore text locally when restore flush fails', async () => {
+      let text = '![img](guide-images/img.png)';
+      const mockView = {
+        state: {
+          get doc() {
+            return { toString: () => text };
+          },
+          selection: { main: { anchor: 0, head: 0 } },
+        },
+        dispatch: vi.fn((update: { changes: { from: number; to: number; insert: string } }) => {
+          text = `${text.slice(0, update.changes.from)}${update.changes.insert}${text.slice(update.changes.to)}`;
+        }),
+      } as any;
+      controller.attach(mockView, 0);
+      vi.spyOn(controller, 'flush').mockRejectedValue(new Error('restore flush failed'));
+
+      await expect(controller.replaceDocumentTextForAssetTransaction(
+        '![img](/pending/draft/img.png)',
+        { rollbackLocalOnFailure: false },
+      )).rejects.toThrow('restore flush failed');
+
+      expect(text).toBe('![img](/pending/draft/img.png)');
+      expect(mockView.dispatch).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 /**

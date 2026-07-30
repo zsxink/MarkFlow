@@ -139,6 +139,9 @@ export class SourceSyncController {
   /** Sequential counter for transaction ID generation. */
   private txnCounter = 0;
 
+  /** Suppresses local view rollback transactions from entering the Core pipe. */
+  private suppressNextLocalAssetRollback = false;
+
   // ── Batch state (same-frame coalescing) ────────────────────────────────
 
   /** Timer handle for frame batching (null = no pending batch). */
@@ -207,6 +210,48 @@ export class SourceSyncController {
     return this.confirmedRevision;
   }
 
+  /** Get the current attached editor text. */
+  getCurrentText(): string | null {
+    return this.attachedView?.state.doc.toString() ?? null;
+  }
+
+  /**
+   * Replace the current editor text and flush it through the normal Core patch
+   * pipeline. Used by asset transactions that rewrite Markdown references.
+   */
+  async replaceDocumentTextForAssetTransaction(
+    text: string,
+    options: { rollbackLocalOnFailure?: boolean } = {},
+  ): Promise<number> {
+    if (!this.attachedView) {
+      throw new BridgeError('SESSION_NOT_FOUND', 'Source editor is not attached');
+    }
+    const { rollbackLocalOnFailure = true } = options;
+    const current = this.attachedView.state.doc.toString();
+    try {
+      if (current !== text) {
+        this.attachedView.dispatch({
+          changes: { from: 0, to: current.length, insert: text },
+        });
+      }
+      return await this.flush();
+    } catch (error) {
+      const latest = this.attachedView.state.doc.toString();
+      const rollbackText = rollbackLocalOnFailure ? current : text;
+      if (latest !== rollbackText) {
+        this.suppressNextLocalAssetRollback = true;
+        try {
+          this.attachedView.dispatch({
+            changes: { from: 0, to: latest.length, insert: rollbackText },
+          });
+        } finally {
+          this.suppressNextLocalAssetRollback = false;
+        }
+      }
+      throw error;
+    }
+  }
+
   /** Get the number of pending (queued + in-flight) patches. */
   getPendingCount(): number {
     return this.pendingQueue.length + (this.inFlight ? 1 : 0);
@@ -273,6 +318,7 @@ export class SourceSyncController {
    */
   processTransactions(transactions: readonly Transaction[]): void {
     if (!this.isActive) return;
+    if (this.suppressNextLocalAssetRollback) return;
     if (this.state === 'blocked' || this.state === 'resyncing') return;
 
     let hasChanges = false;

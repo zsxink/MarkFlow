@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AssetTransactionMismatchError,
   DEFAULT_IMAGE_SETTINGS,
+  commitAssetTransaction,
   completePendingImagesSave,
   copyImageToStorage,
   copyLocalFileToStorage,
@@ -14,8 +16,10 @@ import {
   handleNetworkImage,
   imagePathToSrc,
   isImageUrl,
+  prepareAssetTransaction,
   preparePendingImagesForSave,
   renderClipboardNameTemplate,
+  rollbackAssetTransaction,
   resetActiveImageDraftState,
 } from './imageUtils';
 
@@ -243,6 +247,46 @@ describe('source behavior and unsaved drafts', () => {
 });
 
 describe('first-save image transaction', () => {
+  it('prepares an explicit asset transaction with identity and final reference mappings', async () => {
+    vi.mocked(writePendingImage).mockResolvedValue({
+      draftId: 'draft-plan',
+      path: '/pending/draft-plan/img.png',
+    });
+    const pending = await copyImageToStorage('PNG', '', null, DEFAULT_IMAGE_SETTINGS, 'image/png');
+    vi.mocked(migratePendingImages).mockResolvedValue({
+      draftId: 'draft-plan',
+      mappings: [{ from: pending, to: '/docs/guide-images/img.png' }],
+    });
+
+    const transaction = await prepareAssetTransaction({
+      sessionId: 7,
+      baseRevision: 12,
+      requestId: 'asset-req-1',
+      markdown: `![image](${pending})`,
+      documentPath: '/docs/guide.md',
+      settings: { ...DEFAULT_IMAGE_SETTINGS, storageMode: 'document-named-dir' },
+    });
+
+    expect(transaction).toMatchObject({
+      sessionId: 7,
+      baseRevision: 12,
+      requestId: 'asset-req-1',
+      documentPath: '/docs/guide.md',
+      originalMarkdown: `![image](${pending})`,
+      proposedMarkdown: '![image](guide-images/img.png)',
+      draftId: 'draft-plan',
+      mappings: [{ from: pending, to: '/docs/guide-images/img.png', reference: 'guide-images/img.png' }],
+    });
+    expect(cleanupPendingImages).not.toHaveBeenCalled();
+
+    await commitAssetTransaction(transaction, {
+      sessionId: 7,
+      baseRevision: 12,
+      requestId: 'asset-req-1',
+    });
+    expect(cleanupPendingImages).toHaveBeenCalledWith('draft-plan');
+  });
+
   it('migrates, rewrites Markdown, then cleans only after the caller completes the save', async () => {
     vi.mocked(writePendingImage).mockResolvedValue({
       draftId: 'draft-1',
@@ -262,7 +306,7 @@ describe('first-save image transaction', () => {
     expect(prepared.markdown).toBe('![image](guide-images/img.png)');
     expect(cleanupPendingImages).not.toHaveBeenCalled();
 
-    await completePendingImagesSave(prepared.draftId);
+    await completePendingImagesSave(prepared.transaction);
     expect(cleanupPendingImages).toHaveBeenCalledWith('draft-1');
     expect(getActiveImageDraftId()).toBeNull();
   });
@@ -304,7 +348,7 @@ describe('first-save image transaction', () => {
       mappings: [{ from: oldReference, to: '/docs/images/old.png' }],
     });
     const prepared = await preparing;
-    await completePendingImagesSave(prepared.draftId);
+    await completePendingImagesSave(prepared.transaction);
 
     await expect(lateReference).resolves.toBe('/pending/draft-new/new.png');
     expect(writePendingImage).toHaveBeenNthCalledWith(2, 'img-20260722164030.png', 'NEW', null);
@@ -355,5 +399,60 @@ describe('first-save image transaction', () => {
 
     // discardActiveImageDraft should NOT have cleaned up during save
     expect(cleanupPendingImages).not.toHaveBeenCalled();
+  });
+
+  it('rolls back a prepared transaction without cleaning the recoverable draft', async () => {
+    vi.mocked(writePendingImage).mockResolvedValue({ draftId: 'draft-recover', path: '/pending/recover.png' });
+    await copyImageToStorage('PNG', '', null, DEFAULT_IMAGE_SETTINGS, 'image/png');
+    vi.mocked(migratePendingImages).mockResolvedValue({
+      draftId: 'draft-recover',
+      mappings: [{ from: '/pending/recover.png', to: '/docs/images/recover.png' }],
+    });
+
+    const transaction = await prepareAssetTransaction({
+      sessionId: 9,
+      baseRevision: 3,
+      requestId: 'asset-rollback',
+      markdown: '![](/pending/recover.png)',
+      documentPath: '/docs/guide.md',
+    });
+    const recovery = rollbackAssetTransaction(transaction, {
+      sessionId: 9,
+      baseRevision: 3,
+      requestId: 'asset-rollback',
+    });
+
+    expect(recovery).toEqual({
+      status: 'rolled-back',
+      draftId: 'draft-recover',
+      mappings: [{ from: '/pending/recover.png', to: '/docs/images/recover.png', reference: 'images/recover.png' }],
+    });
+    expect(cleanupPendingImages).not.toHaveBeenCalled();
+    expect(getActiveImageDraftId()).toBe('draft-recover');
+  });
+
+  it('rejects stale session, stale revision and mismatched request commits', async () => {
+    const transaction = await prepareAssetTransaction({
+      sessionId: 1,
+      baseRevision: 2,
+      requestId: 'asset-match',
+      markdown: '# note',
+      documentPath: '/docs/guide.md',
+    });
+
+    await expect(commitAssetTransaction(transaction, { sessionId: 2, baseRevision: 2, requestId: 'asset-match' }))
+      .rejects.toBeInstanceOf(AssetTransactionMismatchError);
+    expect(() => rollbackAssetTransaction(transaction, { sessionId: 1, baseRevision: 3, requestId: 'asset-match' }))
+      .toThrow(AssetTransactionMismatchError);
+
+    const second = await prepareAssetTransaction({
+      sessionId: 1,
+      baseRevision: 2,
+      requestId: 'asset-match',
+      markdown: '# note',
+      documentPath: '/docs/guide.md',
+    });
+    await expect(commitAssetTransaction(second, { sessionId: 1, baseRevision: 2, requestId: 'other' }))
+      .rejects.toBeInstanceOf(AssetTransactionMismatchError);
   });
 });

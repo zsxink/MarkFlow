@@ -28,6 +28,23 @@ vi.mock('./coreSession', () => ({ getCoreSessionState: mocks.getCoreSessionState
 
 import { saveActiveDocument } from '../components/sidebar.fileops';
 
+function prepared(markdown: string, draftId: string | null = null) {
+  return {
+    markdown,
+    draftId,
+    transaction: {
+      sessionId: 0,
+      baseRevision: 0,
+      requestId: `req-${draftId ?? 'none'}`,
+      documentPath: '/work/note.md',
+      originalMarkdown: '# edited',
+      proposedMarkdown: markdown,
+      draftId,
+      mappings: [],
+    },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getMarkdown.mockReturnValue('# edited');
@@ -39,7 +56,7 @@ beforeEach(() => {
   mocks.writeFile.mockResolvedValue(undefined);
   mocks.addRecentFile.mockResolvedValue(undefined);
   mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 });
-  mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => ({ markdown, draftId: null }));
+  mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => prepared(markdown));
   mocks.completePendingImagesSave.mockResolvedValue(undefined);
   mocks.saveCoreSession.mockResolvedValue(5);
 });

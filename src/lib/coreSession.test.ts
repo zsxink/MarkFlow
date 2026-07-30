@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   logInfo: vi.fn(),
   showToast: vi.fn(),
   getCachedSettings: vi.fn(),
+  prepareAssetTransaction: vi.fn(),
+  commitAssetTransaction: vi.fn(),
+  rollbackAssetTransaction: vi.fn(),
 }));
 
 vi.mock('./coreBridge', () => ({
@@ -52,10 +55,17 @@ vi.mock('./storage', () => ({
   getCachedSettings: mocks.getCachedSettings,
 }));
 
+vi.mock('./imageUtils', () => ({
+  prepareAssetTransaction: mocks.prepareAssetTransaction,
+  commitAssetTransaction: mocks.commitAssetTransaction,
+  rollbackAssetTransaction: mocks.rollbackAssetTransaction,
+}));
+
 import {
   openCoreSession,
   closeCoreSession,
   saveCoreSession,
+  setSourceSyncController,
   isCoreSessionDirty,
   markPatchPending,
   markPatchAcked,
@@ -79,11 +89,24 @@ beforeEach(() => {
     file_identity: { canonical_path: '', size: 0, fingerprint_hash: '' },
   });
   mocks.resyncDocument.mockResolvedValue({ revision: 0, text: '' });
+  mocks.prepareAssetTransaction.mockImplementation(async (request) => ({
+    sessionId: request.sessionId,
+    baseRevision: request.baseRevision,
+    requestId: request.requestId,
+    documentPath: request.documentPath,
+    originalMarkdown: request.markdown,
+    proposedMarkdown: request.markdown,
+    draftId: null,
+    mappings: [],
+  }));
+  mocks.commitAssetTransaction.mockResolvedValue({ status: 'committed', draftId: null, mappings: [] });
+  mocks.rollbackAssetTransaction.mockReturnValue({ status: 'rolled-back', draftId: null, mappings: [] });
 });
 
 afterEach(async () => {
   // Close any active session from the test to reset module-level state
   await closeCoreSession();
+  setSourceSyncController(null as never);
 });
 
 describe('coreSession', () => {
@@ -191,6 +214,135 @@ describe('coreSession', () => {
 
       const state = getCoreSessionState();
       expect(state.persistedRevision).toBe(10);
+    });
+
+    it('prepares an asset transaction and syncs proposed Markdown before Core save', async () => {
+      mocks.openDocument.mockResolvedValue(sampleDto);
+      await openCoreSession('/tmp/test.md');
+      vi.clearAllMocks();
+      mocks.closeDocument.mockResolvedValue(undefined);
+      mocks.flushDocument.mockResolvedValue({ revision: 8 });
+      mocks.saveDocument.mockResolvedValue({
+        revision: 9,
+        file_identity: { canonical_path: '/tmp/test.md', size: 120, fingerprint_hash: 'def' },
+      });
+
+      const sourceController = {
+        flush: vi.fn().mockResolvedValue(8),
+        getCurrentText: vi.fn().mockReturnValue('![](/pending/draft/img.png)'),
+        replaceDocumentTextForAssetTransaction: vi.fn().mockResolvedValue(9),
+      };
+      setSourceSyncController(sourceController as never);
+      mocks.prepareAssetTransaction.mockResolvedValue({
+        sessionId: 42,
+        baseRevision: 8,
+        requestId: 'core_asset_save_1_1785413404000',
+        documentPath: '/tmp/test.md',
+        originalMarkdown: '![](/pending/draft/img.png)',
+        proposedMarkdown: '![](test-images/img.png)',
+        draftId: 'draft-1',
+        mappings: [{ from: '/pending/draft/img.png', to: '/tmp/test-images/img.png', reference: 'test-images/img.png' }],
+      });
+
+      const result = await saveCoreSession();
+
+      expect(result).toBe(9);
+      expect(mocks.prepareAssetTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        sessionId: 42,
+        baseRevision: 8,
+        markdown: '![](/pending/draft/img.png)',
+        documentPath: '/tmp/test.md',
+      }));
+      expect(sourceController.replaceDocumentTextForAssetTransaction)
+        .toHaveBeenCalledWith('![](test-images/img.png)');
+      expect(mocks.saveDocument).toHaveBeenCalledWith(42);
+      expect(mocks.commitAssetTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ draftId: 'draft-1' }),
+        expect.objectContaining({ sessionId: 42, baseRevision: 8 }),
+      );
+    });
+
+    it('restores original Markdown and rolls back assets when Core save fails after proposal sync', async () => {
+      mocks.openDocument.mockResolvedValue(sampleDto);
+      await openCoreSession('/tmp/test.md');
+      vi.clearAllMocks();
+      mocks.closeDocument.mockResolvedValue(undefined);
+      mocks.flushDocument.mockResolvedValue({ revision: 8 });
+      mocks.saveDocument.mockRejectedValue({ code: 'CONFLICT', message: 'save conflict' });
+
+      const sourceController = {
+        flush: vi.fn().mockResolvedValue(8),
+        getCurrentText: vi.fn().mockReturnValue('![](/pending/draft/img.png)'),
+        replaceDocumentTextForAssetTransaction: vi.fn()
+          .mockResolvedValueOnce(9)
+          .mockResolvedValueOnce(10),
+      };
+      setSourceSyncController(sourceController as never);
+      mocks.prepareAssetTransaction.mockResolvedValue({
+        sessionId: 42,
+        baseRevision: 8,
+        requestId: 'core_asset_save_restore',
+        documentPath: '/tmp/test.md',
+        originalMarkdown: '![](/pending/draft/img.png)',
+        proposedMarkdown: '![](test-images/img.png)',
+        draftId: 'draft-restore',
+        mappings: [{ from: '/pending/draft/img.png', to: '/tmp/test-images/img.png', reference: 'test-images/img.png' }],
+      });
+
+      await expect(saveCoreSession()).resolves.toBe(-1);
+
+      expect(sourceController.replaceDocumentTextForAssetTransaction).toHaveBeenNthCalledWith(
+        1,
+        '![](test-images/img.png)',
+      );
+      expect(sourceController.replaceDocumentTextForAssetTransaction).toHaveBeenNthCalledWith(
+        2,
+        '![](/pending/draft/img.png)',
+        { rollbackLocalOnFailure: false },
+      );
+      expect(mocks.rollbackAssetTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ draftId: 'draft-restore' }),
+      );
+      expect(mocks.commitAssetTransaction).not.toHaveBeenCalled();
+    });
+
+    it('rolls back a prepared asset transaction when the session generation changes after flushDocument', async () => {
+      mocks.openDocument.mockResolvedValue(sampleDto);
+      await openCoreSession('/tmp/test.md');
+      vi.clearAllMocks();
+      mocks.closeDocument.mockResolvedValue(undefined);
+      mocks.flushDocument.mockImplementation(async () => {
+        await closeCoreSession();
+        return { revision: 8 };
+      });
+      mocks.saveDocument.mockResolvedValue({
+        revision: 9,
+        file_identity: { canonical_path: '/tmp/test.md', size: 120, fingerprint_hash: 'def' },
+      });
+
+      const sourceController = {
+        flush: vi.fn().mockResolvedValue(8),
+        getCurrentText: vi.fn().mockReturnValue('# no asset rewrite'),
+        replaceDocumentTextForAssetTransaction: vi.fn(),
+      };
+      setSourceSyncController(sourceController as never);
+      mocks.prepareAssetTransaction.mockResolvedValue({
+        sessionId: 42,
+        baseRevision: 8,
+        requestId: 'core_asset_save_generation',
+        documentPath: '/tmp/test.md',
+        originalMarkdown: '# no asset rewrite',
+        proposedMarkdown: '# no asset rewrite',
+        draftId: 'draft-generation',
+        mappings: [],
+      });
+
+      await expect(saveCoreSession()).resolves.toBe(-1);
+
+      expect(mocks.rollbackAssetTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ draftId: 'draft-generation' }),
+      );
+      expect(mocks.saveDocument).not.toHaveBeenCalled();
     });
 
     it('when inactive, returns -1', async () => {

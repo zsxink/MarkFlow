@@ -49,6 +49,10 @@ pub enum AppErrorCode {
     InvalidRange,
     /// Unsupported text encoding.
     UnsupportedEncoding,
+    /// Unsupported or unsafe FrontMatter for structured editing.
+    UnsupportedFrontMatter,
+    /// Request/session identity mismatch.
+    SessionMismatch,
     /// Pending operation queue is full.
     PendingQueueFull,
     /// Operation was cancelled.
@@ -80,6 +84,8 @@ impl serde::Serialize for AppErrorCode {
             Self::ReloadDirty => "RELOAD_DIRTY",
             Self::InvalidRange => "INVALID_RANGE",
             Self::UnsupportedEncoding => "UNSUPPORTED_ENCODING",
+            Self::UnsupportedFrontMatter => "UNSUPPORTED_FRONTMATTER",
+            Self::SessionMismatch => "SESSION_MISMATCH",
             Self::PendingQueueFull => "PENDING_QUEUE_FULL",
             Self::Cancelled => "CANCELLED",
             Self::ProtocolVersionUnsupported => "PROTOCOL_VERSION_UNSUPPORTED",
@@ -111,6 +117,8 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
             "RELOAD_DIRTY" => Ok(Self::ReloadDirty),
             "INVALID_RANGE" => Ok(Self::InvalidRange),
             "UNSUPPORTED_ENCODING" => Ok(Self::UnsupportedEncoding),
+            "UNSUPPORTED_FRONTMATTER" => Ok(Self::UnsupportedFrontMatter),
+            "SESSION_MISMATCH" => Ok(Self::SessionMismatch),
             "PENDING_QUEUE_FULL" => Ok(Self::PendingQueueFull),
             "CANCELLED" => Ok(Self::Cancelled),
             "PROTOCOL_VERSION_UNSUPPORTED" => Ok(Self::ProtocolVersionUnsupported),
@@ -133,6 +141,8 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
                     "RELOAD_DIRTY",
                     "INVALID_RANGE",
                     "UNSUPPORTED_ENCODING",
+                    "UNSUPPORTED_FRONTMATTER",
+                    "SESSION_MISMATCH",
                     "PENDING_QUEUE_FULL",
                     "CANCELLED",
                     "PROTOCOL_VERSION_UNSUPPORTED",

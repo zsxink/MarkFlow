@@ -8,6 +8,8 @@ pub enum RuntimeErrorCode {
     InvalidUtf16Boundary,
     TransactionConflict,
     UnsupportedEncoding,
+    UnsupportedFrontMatter,
+    SessionMismatch,
     PendingQueueFull,
     SaveFlushTimeout,
     Conflict,
@@ -26,6 +28,8 @@ impl RuntimeErrorCode {
             RuntimeErrorCode::InvalidUtf16Boundary => "INVALID_UTF16_BOUNDARY",
             RuntimeErrorCode::TransactionConflict => "TRANSACTION_CONFLICT",
             RuntimeErrorCode::UnsupportedEncoding => "UNSUPPORTED_ENCODING",
+            RuntimeErrorCode::UnsupportedFrontMatter => "UNSUPPORTED_FRONTMATTER",
+            RuntimeErrorCode::SessionMismatch => "SESSION_MISMATCH",
             RuntimeErrorCode::PendingQueueFull => "PENDING_QUEUE_FULL",
             RuntimeErrorCode::SaveFlushTimeout => "SAVE_FLUSH_TIMEOUT",
             RuntimeErrorCode::Conflict => "CONFLICT",
@@ -92,6 +96,9 @@ impl From<markflow_core::CoreError> for RuntimeError {
             markflow_core::CoreError::StaleRevision { .. } => {
                 RuntimeError::revision_mismatch("Stale revision")
             }
+            markflow_core::CoreError::SessionMismatch { .. } => {
+                RuntimeError::new(RuntimeErrorCode::SessionMismatch, "Session mismatch")
+            }
             markflow_core::CoreError::InvalidRange => {
                 RuntimeError::new(RuntimeErrorCode::InvalidRange, "Invalid document range")
             }
@@ -106,6 +113,10 @@ impl From<markflow_core::CoreError> for RuntimeError {
             markflow_core::CoreError::UnsupportedEncoding => RuntimeError::new(
                 RuntimeErrorCode::UnsupportedEncoding,
                 "Unsupported encoding",
+            ),
+            markflow_core::CoreError::UnsupportedFrontMatter => RuntimeError::new(
+                RuntimeErrorCode::UnsupportedFrontMatter,
+                "Unsupported FrontMatter",
             ),
             markflow_core::CoreError::InvalidUtf8Boundary
             | markflow_core::CoreError::InvalidSourceOffset { .. }
@@ -139,6 +150,11 @@ mod tests {
                 RuntimeErrorCode::UnsupportedEncoding,
                 "UNSUPPORTED_ENCODING",
             ),
+            (
+                RuntimeErrorCode::UnsupportedFrontMatter,
+                "UNSUPPORTED_FRONTMATTER",
+            ),
+            (RuntimeErrorCode::SessionMismatch, "SESSION_MISMATCH"),
             (RuntimeErrorCode::PendingQueueFull, "PENDING_QUEUE_FULL"),
             (RuntimeErrorCode::SaveFlushTimeout, "SAVE_FLUSH_TIMEOUT"),
             (RuntimeErrorCode::Conflict, "CONFLICT"),
@@ -184,6 +200,16 @@ mod tests {
 
         let e: RuntimeError = CoreError::UnsupportedEncoding.into();
         assert_eq!(e.code, RuntimeErrorCode::UnsupportedEncoding);
+
+        let e: RuntimeError = CoreError::UnsupportedFrontMatter.into();
+        assert_eq!(e.code, RuntimeErrorCode::UnsupportedFrontMatter);
+
+        let e: RuntimeError = CoreError::SessionMismatch {
+            expected: markflow_core::SessionId(1),
+            actual: markflow_core::SessionId(2),
+        }
+        .into();
+        assert_eq!(e.code, RuntimeErrorCode::SessionMismatch);
 
         // Mapped to Internal
         let e: RuntimeError = CoreError::InvalidUtf8Boundary.into();

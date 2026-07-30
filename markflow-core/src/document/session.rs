@@ -21,6 +21,10 @@ pub enum CoreError {
         expected: Revision,
         actual: Revision,
     },
+    SessionMismatch {
+        expected: SessionId,
+        actual: SessionId,
+    },
     TransactionConflict,
     InvalidRange,
     InvalidLogicalLineEnding,
@@ -31,6 +35,7 @@ pub enum CoreError {
         offset: SourceByteOffset,
         reason: SourceOffsetError,
     },
+    UnsupportedFrontMatter,
     Io(String),
 }
 

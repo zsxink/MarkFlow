@@ -865,6 +865,8 @@ fn map_error(e: RuntimeError) -> AppError {
         RuntimeErrorCode::SaveFlushTimeout => AppErrorCode::SaveFlushTimeout,
         RuntimeErrorCode::InvalidRange => AppErrorCode::InvalidRange,
         RuntimeErrorCode::UnsupportedEncoding => AppErrorCode::UnsupportedEncoding,
+        RuntimeErrorCode::UnsupportedFrontMatter => AppErrorCode::UnsupportedFrontMatter,
+        RuntimeErrorCode::SessionMismatch => AppErrorCode::SessionMismatch,
         RuntimeErrorCode::PendingQueueFull => AppErrorCode::PendingQueueFull,
         RuntimeErrorCode::Cancelled => AppErrorCode::Cancelled,
         RuntimeErrorCode::ProtocolVersionUnsupported => AppErrorCode::ProtocolVersionUnsupported,

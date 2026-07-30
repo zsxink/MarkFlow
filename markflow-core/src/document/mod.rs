@@ -1,3 +1,5 @@
+mod edit_command;
+mod history;
 mod line_ending_map;
 mod line_index;
 mod parse_index;
@@ -9,6 +11,8 @@ mod snapshot;
 mod text_buffer;
 mod types;
 
+pub use edit_command::{CommandResult, EditCommand, EditCommandRequest, EditOrigin, ListKind};
+pub use history::{HistoryEntry, HistoryLabel, HistoryStack};
 pub use line_ending_map::{LineEndingKind, LineEndingMap};
 pub use line_index::{LineCol, LineIndex};
 pub use parse_index::{

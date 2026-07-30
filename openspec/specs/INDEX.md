@@ -11,6 +11,7 @@
 | 所见即所得编辑、Markdown 完整性、模式切换或 URL | [enter-content-integrity](enter-content-integrity/spec.md)、[url-decoration](url-decoration/spec.md)、[editor-bottom-spacer](editor-bottom-spacer/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md) | `src/lib/editor.ts`、`editor.init.ts`、`editor.state.ts`、`urlDecorationPlugin.ts` | `npm test`、`npm run build` |
 | 源码编辑器、语言高亮或大文档降级 | [codemirror-source-editor](codemirror-source-editor/spec.md)、[lazy-code-languages](lazy-code-languages/spec.md)、[document-size-tier](document-size-tier/spec.md)、[expensive-task-scheduling](expensive-task-scheduling/spec.md) | `src/lib/editor.source.ts`、`codemirror-languages.ts`、`codemirror-highlight-limit.ts`、`fileSizeTier.ts`、`src/components/degradationBar.ts` | `npm test`、`npm run build` |
 | Core-backed Source Mode、Runtime 保存链路或 Bridge protocol | [core-backed-source-mode](core-backed-source-mode/spec.md)、[core-bridge-protocol](core-bridge-protocol/spec.md)、[source-patch-adapter](source-patch-adapter/spec.md)、[source-sync-controller](source-sync-controller/spec.md)、[source-lifecycle-guard](source-lifecycle-guard/spec.md)、[markflow-runtime](markflow-runtime/spec.md)、[runtime-document-service](runtime-document-service/spec.md)、[save-integrity](save-integrity/spec.md) | `markflow-core/src/document/**`、`src/lib/coreSession.ts`、`SourceSyncController.ts`、`src-tauri/src/commands/core_bridge.rs`、`src-tauri/crates/runtime/src/**` | `npm test`、`npx tsc --noEmit`、`cargo test --workspace` |
+| Core Search、Diagnostics 或 Diagram target | [core-search](core-search/spec.md)、[core-diagnostics](core-diagnostics/spec.md)、[core-diagram-render-targets](core-diagram-render-targets/spec.md)、[frontmatter-core](frontmatter-core/spec.md) | `markflow-core/src/document/search.rs`、`diagnostics.rs`、`diagrams.rs`、`frontmatter.rs` | `cargo test --manifest-path markflow-core/Cargo.toml`、`cargo clippy --manifest-path markflow-core/Cargo.toml --tests -- -D warnings` |
 | 菜单、对话框、状态栏或工具栏交互 | [dialog-system](dialog-system/spec.md)、[context-menu](context-menu/spec.md)、[statusbar](statusbar/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/ui/dialog.ts`、`ui/modal.ts`、`contextMenu.ts`、`toolbar.ts`、`statusbar.ts` | `npm test`、`npm run build` |
 | 导出 HTML、Word 或 PDF | [rendered-document-export](rendered-document-export/spec.md)、[export-workspace-bypass](export-workspace-bypass/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/toolbar.ts`、`src/lib/documentExport.ts`、`storage.ts` | `npm test`、`npm run build` |
 | 图片设置、存储规则、粘贴命名或首次保存 | [image-storage-engine](image-storage-engine/spec.md)、[image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[settings-code-highlight](settings-code-highlight/spec.md) | `src/lib/imageUtils.ts`、`pathUtils.ts`、`storage.ts`、`src-tauri/src/commands/files_image.rs` | `npm test`、`cargo test` |
@@ -44,10 +45,18 @@
 - [active-document-state](active-document-state/spec.md) — 活动文档路径与共享状态。
 - [autosave-dirty-guard](autosave-dirty-guard/spec.md) — 自动保存与 dirty 状态守卫。
 - [autosave-reliability](autosave-reliability/spec.md) — 自动保存失败与未保存状态。
+- [backend-dead-code](backend-dead-code/spec.md) — 后端死代码清理边界。
 - [block-continuation-paragraph](block-continuation-paragraph/spec.md) — legacy WYSIWYG 特殊块后的续写段落。
 - [code-block-serialization](code-block-serialization/spec.md) — legacy 围栏代码块尾随换行保真。
 - [codemirror-source-editor](codemirror-source-editor/spec.md) — CodeMirror 源码模式与同步。
+- [core-backed-wysiwyg](core-backed-wysiwyg/spec.md) — Core-backed WYSIWYG 迁移边界。
+- [core-code-quality](core-code-quality/spec.md) — Core 代码质量与测试基础设施。
+- [core-diagnostics](core-diagnostics/spec.md) — Core 诊断聚合与 Host 输入隔离。
+- [core-diagram-render-targets](core-diagram-render-targets/spec.md) — Core 图表渲染目标发现。
+- [core-search](core-search/spec.md) — Core 搜索、分页和替换预览。
+- [doc-spec-reconciliation](doc-spec-reconciliation/spec.md) — 文档与规范事实核对。
 - [document-size-tier](document-size-tier/spec.md) — 文档大小分级与降级。
+- [documentation-consistency](documentation-consistency/spec.md) — 文档一致性要求。
 - [editor-bottom-spacer](editor-bottom-spacer/spec.md) — 两种编辑模式的底部留白。
 - [empty-line-preservation](empty-line-preservation/spec.md) — 空行保真与图片归一化边界。
 - [enter-content-integrity](enter-content-integrity/spec.md) — Enter 与模式切换的内容完整性。
@@ -98,16 +107,19 @@
 - [e2e-test-coverage](e2e-test-coverage/spec.md) — 端到端自动化测试覆盖范围。
 - [crash-logging](crash-logging/spec.md) — 崩溃日志与敏感信息脱敏。
 - [archive-sync-gate](archive-sync-gate/spec.md) — 归档变更的 spec 同步完整性校验与 CI 验证门禁。
+- [ci-core-test](ci-core-test/spec.md) — CI Core 测试门禁。
 - [ci-openspec-validation](ci-openspec-validation/spec.md) — CI OpenSpec 校验入口。
 - [ci-type-check](ci-type-check/spec.md) — CI TypeScript 类型检查。
 - [core-restructure](core-restructure/spec.md) — markflow-core 模块分层重构。
 - [dep-audit-ci](dep-audit-ci/spec.md) — 依赖审计与 CI 质量要求。
 - [error-handling](error-handling/spec.md) — 锁恢复、错误分类与前端异常。
+- [frontend-error-handling](frontend-error-handling/spec.md) — 前端错误处理。
 - [issue-workflow](issue-workflow/spec.md) — Issue/分支工作流。
 - [markflow-core-foundation](markflow-core-foundation/spec.md) — markflow-core 基础能力。
 - [readme-sync](readme-sync/spec.md) — README 同步。
 - [regression-coverage](regression-coverage/spec.md) — 核心与高风险路径的回归覆盖。
 - [safe-http-fetch](safe-http-fetch/spec.md) — HTTP、DNS、重定向与图片安全限制。
+- [source-mode-core](source-mode-core/spec.md) — Source Mode Core 命令主路径。
 - [type-system](type-system/spec.md) — 共享类型的边界与使用。
 - [vitest-coverage-threshold](vitest-coverage-threshold/spec.md) — Vitest 覆盖率阈值。
 

@@ -21,7 +21,7 @@ M7 不做一次性大交付，拆成可独立发布的子里程碑：
 - M7A：GFM Table。
 - M7B：FrontMatter。
 - M7C：Assets transaction（证据：[m7c-assets-transaction-evidence.md](m7c-assets-transaction-evidence.md)）。
-- M7D：Search、Diagnostics、Diagram renderer。
+- M7D：Search、Diagnostics、Diagram renderer（证据：[m7d-search-diagnostics-diagram-evidence.md](m7d-search-diagnostics-diagram-evidence.md)）。
 
 后一个子里程碑不能成为前一个子里程碑验收的阻塞条件。
 

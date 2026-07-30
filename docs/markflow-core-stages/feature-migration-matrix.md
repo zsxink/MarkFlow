@@ -25,6 +25,10 @@
 > - 图片暂存迁移在文档写入/Core 保存成功后才提交清理；失败时保留 recoverable draft 和 mappings。
 > - Core-backed Source Mode save 在保存前通过 SourceSyncController 同步资源引用 proposal，避免 Core 保存暂存路径。
 > - 验证记录见 `docs/markflow-core-stages/m7c-assets-transaction-evidence.md`。
+> M7D 记录：
+> - Issue #234 增加 Core Search、Diagnostics 和 Diagram render target API，全部绑定 session/revision/request identity。
+> - Search 支持分页、定位 range 和 replace preview；Diagnostics 支持 viewport 过滤并聚合坏链接、缺失图片、重复标题、FrontMatter、表格和图表错误。
+> - 验证记录见 `docs/markflow-core-stages/m7d-search-diagnostics-diagram-evidence.md`。
 
 ## 1. 使用规则
 
@@ -62,7 +66,7 @@
 | 光标/选区 | PM/CM 各自模型 | Adapter + PositionMap | M3-M6 | 中英文、emoji、组合字符 |
 | 大纲 | ProseMirror/DOM 派生 | Core ParseIndex | M2-M4 | 点击定位到 revision range |
 | 字数/行数/行列 | 前端统计 | Core + Adapter | M3/M6 | 大文件不阻塞输入 |
-| 搜索/替换 | 编辑器能力 | Core Search + Adapter | M7 | session-bound 分页、定位、replace preview |
+| 搜索/替换 | 编辑器能力 → M7D: Core Search API (`DocumentSession::search` / `preview_search_replace`) | Core Search + Adapter | M7D Core 主路径 | session-bound 分页、定位、replace preview |
 | 只读状态 | UI/编辑器开关 | Runtime capability | M3/M4 | 两种模式一致 |
 | Focus Mode | DOM/CSS | SolidJS UI | M4 | 行为与现有版本一致 |
 | 折行/行号/高亮 | 编辑器设置 | Adapter | M4/M5 | 大文件按预算降级 |
@@ -93,8 +97,8 @@
 | FrontMatter 显示 | M2/M5 | 识别 delimiter 与原始 range |
 | FrontMatter 结构化编辑 | M7 | safe subset；复杂语法回退源码 |
 | HTML Comment | M2/M5 | 可显示/折叠，保存原文 |
-| Mermaid | M5-M7 | 源码可编辑、延迟渲染、错误隔离 |
-| PlantUML | M5-M7 | 网络权限、超时、错误隔离 |
+| Mermaid | M7D Core render target API | 源码可编辑、延迟渲染、错误隔离 |
+| PlantUML | M7D Core render target API | 网络权限、超时、错误隔离 |
 | 未知语法 | 全阶段 | 以源码显示，不阻止打开和保存 |
 
 ## 6. 图片与资源

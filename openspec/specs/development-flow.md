@@ -13,11 +13,13 @@ MarkFlow 的端到端开发流程：
 GitHub Issue (#N)
     → git branch (type/#N-slug)
     → SDD: /opsx:propose → /opsx:apply
+    → Local CI-equivalent verify
+    → Independent agent review
+    → SDD: sync specs → /opsx:archive
     → git commit + push
     → GitHub PR (closes #N)
-    → PR Review (self-review + CI)
+    → PR Review (self-review + CI green)
     → Squash merge to main
-    → SDD: /opsx:archive
     → Tag release (v* → CI build + release)
 ```
 
@@ -29,7 +31,7 @@ GitHub Issue (#N)
 | change 目录 | feature 分支 | `openspec/changes/<name>/` |
 | proposal/specs/design/tasks | PR 描述素材 | 审查者可读的上下文 |
 | delta specs → main specs | merge diff | squash merge 时同步 |
-| archive | 合入后归档 | 审计记录 |
+| archive | feature 分支内归档并进入 PR | 审计记录 |
 
 ---
 
@@ -104,8 +106,8 @@ Issue 描述应包含：
 3. Propose（生成 proposal/specs/design/tasks）
 4. Apply（sub agent 实施代码改动）
 5. Verify（sub agent 代码审查 + tsc + build + test）
-6. Archive（sync specs + 移入 archive）
-7. Push + PR + merge（squash merge 到 main）
+6. Archive（sync specs + 移入 archive，归档结果进入 PR）
+7. Push + PR + CI green + merge（squash merge 到 main）
 
 **故障处理：** verify 失败自动修复（最多 3 轮），3 轮后暂停等你决策。
 
@@ -148,9 +150,47 @@ Issue 描述应包含：
 - **提交消息**：遵循 `.claude/rules/git-commit.md` 规范
 - **测试优先**：修复 bug 应先写测试再修代码
 
-### 4.4 Archive
+### 4.4 Verify
 
-在 PR 合并到 main 后执行：
+在 `/opsx:apply` 完成后、archive 和 PR 前执行本地验证。验证以 `.github/workflows/ci.yml` 为准；不要用局部命令替代 CI workspace gate。
+
+通用 gate：
+
+```bash
+npm audit --omit=dev --audit-level=high
+npm test
+npx tsc --noEmit
+scripts/check-capabilities.sh
+npm run validate:openspec
+bash scripts/check-archive-synced.sh
+npm run build
+bash scripts/check-bundle-size.sh
+```
+
+Rust/Tauri 相关变更：
+
+```bash
+(cd src-tauri && cargo test)
+(cd src-tauri && cargo fmt --all -- --check)
+(cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings)
+```
+
+Core 相关变更：
+
+```bash
+(cd markflow-core && cargo test)
+(cd markflow-core && cargo clippy --all-targets -- -D warnings)
+```
+
+关键规则：
+
+- `cargo fmt --manifest-path ...` 不能替代 `cd src-tauri && cargo fmt --all -- --check`
+- 单 crate `cargo clippy` 不能替代 `cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings`
+- docs-only 变更可按风险跳过无关 gate，但 PR 描述必须记录跳过原因
+
+### 4.5 Archive
+
+OpenSpec 管理的变更在 feature 分支内、PR 创建前执行：
 
 ```bash
 /opsx:archive
@@ -160,6 +200,8 @@ Issue 描述应包含：
 
 > **强制**：archive 若含 delta spec，**先** `openspec-sync-specs` 合并到主规范，**再**移动目录。禁止「只搬目录不同步」。
 > **强制**：archive 前必须先派独立 agent 完成复核（见 §6.2）。
+> **强制**：归档结果必须随 feature 分支进入 PR。PR 合并后不再在 `main` 上补未审查的 archive/sync 提交。
+> **归档后验证**：运行 `npm run validate:openspec` 与 `bash scripts/check-archive-synced.sh`。
 
 ---
 
@@ -198,9 +240,15 @@ closes #N
 
 - [ ] Issue 编号已关联（PR 标题或 body 中）
 - [ ] 分支已推送到远程
-- [ ] 变更已自测（手动运行验证）
+- [ ] 变更已执行本地 CI 等价验证；如为 docs-only 且跳过部分 gate，已记录原因
 - [ ] 构建通过（`npm run build`）
 - [ ] 测试通过（`npm test`）
+- [ ] 类型检查通过（`npx tsc --noEmit`）
+- [ ] OpenSpec 校验通过（`npm run validate:openspec`）
+- [ ] Archive sync 校验通过（`bash scripts/check-archive-synced.sh`）
+- [ ] Rust/Tauri 相关变更已通过 `cd src-tauri && cargo fmt --all -- --check`
+- [ ] Rust/Tauri 相关变更已通过 `cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings`
+- [ ] Core 相关变更已通过 `cd markflow-core && cargo clippy --all-targets -- -D warnings`
 - [ ] 独立 agent 复核完成（见下方「强制复核」）
 - [ ] 提交消息遵循规范（squash 后）
 - [ ] 无死代码、无调试日志、无意外文件变更
@@ -280,11 +328,13 @@ GitHub Release 自动生成（`generate_release_notes: true`），手动补充�
 6. Squash merge → main
    - commit message: "fix: 行号显示不准确 (#XX)\n\ncloses #12"
 
-7. 归档：
+7. 归档（仍在 feature 分支上，PR 创建前）：
    $ /opsx:archive
    → openspec/changes/archive/2026-07-02-fix-line-number/
 
-8. 发布（可选）：
+8. 推送 + PR + CI green + squash merge
+
+9. 发布（可选）：
    $ git tag v0.0.5 && git push origin v0.0.5
 ```
 
@@ -313,19 +363,36 @@ git checkout -b type/#N-slug main
 # 3. SDD 实施
 /opsx:apply
 
-# 4. 提交
+# 4. 本地 CI 等价验证
+npm test
+npx tsc --noEmit
+npm run validate:openspec
+
+# Rust/Tauri 相关变更
+(cd src-tauri && cargo test)
+(cd src-tauri && cargo fmt --all -- --check)
+(cd src-tauri && cargo clippy --workspace --all-targets -- -D warnings)
+
+# Core 相关变更
+(cd markflow-core && cargo test)
+(cd markflow-core && cargo clippy --all-targets -- -D warnings)
+
+# 5. 独立 agent 复核
+
+# 6. 同步并归档（feature 分支内，PR 前）
+/opsx:archive
+npm run validate:openspec
+bash scripts/check-archive-synced.sh
+
+# 7. 提交
 git add -A
 git commit -m "type: 描述"
 git push -u origin type/#N-slug
 
-# 5. 创建 PR（GitHub 界面）
+# 8. 创建 PR（GitHub 界面）
 
-# 6. Squash merge（GitHub 界面）
+# 9. 等待 CI 全绿后 Squash merge（GitHub 界面）
 
-# 7. 切回 main 后归档
-git checkout main && git pull
-/opsx:archive
-
-# 8. 发布
+# 10. 发布
 git tag v0.0.x && git push origin v0.0.x
 ```

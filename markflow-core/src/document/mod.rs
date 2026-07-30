@@ -19,7 +19,8 @@ pub use parse_index::{
     AffectedRanges, BlockId, BlockKind, BlockNode, BulletMarker, DeferredWork, DocumentSizeClass,
     FenceMarker, FenceStyle, LargeDocumentPolicy, LineRange, ListStyleSpan, OrderedDelimiter,
     OrderedMarker, OutlineItem, ParseIndex, PipePadding, QuoteStyleSpan, ScanOutcome, StyleMap,
-    TableAlignment, TableStyleSpan,
+    TableAlignment, TableCell, TableColumn, TableModel, TableModelStyle, TableRow, TableRowRole,
+    TableStyleSpan,
 };
 pub use patch::{PatchOutcome, Selection, TextChange, TextPatch};
 pub use position_map::PositionMap;

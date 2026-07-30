@@ -217,6 +217,7 @@ impl<'a> BlockScanner<'a> {
             has_leading_pipe: table.has_leading_pipe,
             has_trailing_pipe: table.has_trailing_pipe,
             delimiter_padding: table.delimiter_padding,
+            delimiter_lengths: table.delimiter_lengths,
         });
         end
     }

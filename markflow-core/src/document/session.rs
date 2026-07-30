@@ -9,7 +9,7 @@ use super::types::{
 };
 use super::{
     EditOrigin, HistoryEntry, HistoryLabel, HistoryStack, LineIndex, OriginalSnapshot, ParseIndex,
-    PatchOutcome, PositionMap, ScanOutcome, TextBuffer, TextPatch,
+    PatchOutcome, PositionMap, ScanOutcome, TableModel, TextBuffer, TextPatch,
 };
 
 pub const TRANSACTION_RETRY_WINDOW_CAPACITY: usize = 256;
@@ -188,6 +188,44 @@ impl DocumentSession {
         );
         *self.write_cache() = Some(outcome.clone());
         outcome
+    }
+
+    pub fn table_model(
+        &self,
+        block_id: super::BlockId,
+        revision: Revision,
+    ) -> CoreResult<Option<TableModel>> {
+        if revision != self.revision() {
+            return Err(CoreError::StaleRevision {
+                expected: self.revision(),
+                actual: revision,
+            });
+        }
+
+        let outcome = self.parse_index();
+        let Some(block) = outcome
+            .parse_index
+            .blocks
+            .iter()
+            .find(|block| block.id == block_id)
+        else {
+            return Ok(None);
+        };
+        let Some(style) = outcome
+            .style_map
+            .table_spans
+            .iter()
+            .find(|style| style.block_id == block_id)
+        else {
+            return Ok(None);
+        };
+
+        Ok(super::parse_index::table_model_from_block(
+            self.revision(),
+            self.text.logical_text(),
+            block,
+            style,
+        ))
     }
 
     pub fn utf16_for_byte(&self, offset: ByteOffset) -> CoreResult<Utf16Offset> {

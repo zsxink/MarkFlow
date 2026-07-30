@@ -1,3 +1,5 @@
+mod diagnostics;
+mod diagrams;
 mod edit_command;
 mod frontmatter;
 mod history;
@@ -7,11 +9,20 @@ mod parse_index;
 mod patch;
 mod position_map;
 mod render_ir;
+mod search;
 mod session;
 mod snapshot;
 mod text_buffer;
 mod types;
 
+pub use diagnostics::{
+    Diagnostic, DiagnosticKind, DiagnosticSeverity, DiagnosticsReport, DiagnosticsRequest,
+    MissingAssetDiagnostic,
+};
+pub use diagrams::{
+    DiagramFallbackReason, DiagramLanguage, DiagramRenderError, DiagramRenderTarget,
+    DiagramTargets, DiagramTargetsRequest,
+};
 pub use edit_command::{CommandResult, EditCommand, EditCommandRequest, EditOrigin, ListKind};
 pub use frontmatter::{
     FrontMatterCommand, FrontMatterCommandRequest, FrontMatterCommandResult, FrontMatterField,
@@ -33,6 +44,10 @@ pub use position_map::PositionMap;
 pub use render_ir::{
     RenderBlock, RenderBlockKind, RenderDocument, RenderInline, RenderInlineKind, RenderRequest,
     UiRange,
+};
+pub use search::{
+    ReplacePreview, ReplacePreviewRequest, ReplaceScope, SearchMatch, SearchOptions, SearchPage,
+    SearchRequest, SearchResult, SEARCH_DEFAULT_PAGE_SIZE, SEARCH_MAX_PAGE_SIZE,
 };
 pub use session::{
     CoreError, CoreResult, DocumentSession, PlannedHistoryPatch, SavePayload,

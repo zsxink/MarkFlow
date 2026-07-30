@@ -15,5 +15,8 @@ xxhash-rust = { version = "0.8", features = ["xxh3"] }
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 
+[dev-dependencies]
+serde_json = "1"
+
 [features]
 default = ["serde"]

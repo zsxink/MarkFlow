@@ -1,5 +1,6 @@
 import { showToast } from '../components/toast';
-import { saveDocumentExport } from './storage';
+import { createToastRouteContext, showRoutedToast } from '../app-service/notifications';
+import { saveDocumentExport, type ExportHostIdentity } from './storage';
 import { getFileName } from './pathUtils';
 import { getExportDocument, generateRequestId } from './coreBridge';
 import { flushCoreSession, getCoreSessionState } from './coreSession';
@@ -9,6 +10,7 @@ import { buildExportSnapshot, waitForFontsReady } from './exportSnapshot';
 import { triggerPdfExport, exportPdfToFile } from './pdfExport';
 import { createDocxFromHtml, saveDocxFile } from './docxExport';
 import { buildExportTheme, exportThemeToCss, generateInlineFontCss, type ExportTheme } from './exportTheme';
+import { assertHostResultIdentity } from '../host-bridge/resultRouting';
 
 export type ExportFormat = 'html' | 'word' | 'pdf' | 'print';
 
@@ -93,15 +95,19 @@ export async function exportRenderedDocument(
 
   const title = getExportFileName(activePath, 'html').replace(/\.html$/, '');
   const theme = buildThemeFromEditor(renderedRoot);
+  const toastRoute = createToastRouteContext({
+    sessionId: initialSessionForContent.isActive ? initialSessionForContent.sessionId : undefined,
+  });
 
   exportInProgress = true;
   try {
     await waitForFontsReady();
-    const renderedHtml = await buildConfirmedRevisionHtml(renderedRoot);
+    const rendered = await buildConfirmedRevisionHtml(renderedRoot);
+    const renderedHtml = rendered.html;
 
     if (format === 'print') {
       // "Print..." — use the system print dialog (existing flow, task 4.6)
-      return await triggerPdfExport(await createHtmlExport(title, renderedHtml, theme));
+      return await triggerPdfExport(await createHtmlExport(title, renderedHtml, theme), rendered.identity);
     }
 
     if (format === 'pdf') {
@@ -109,33 +115,39 @@ export async function exportRenderedDocument(
       return await exportPdfToFile(
         await createHtmlExport(title, renderedHtml, theme, { print: true }),
         getExportFileName(activePath, 'pdf'),
+        rendered.identity,
       );
     }
 
     if (format === 'word') {
       const docxData = await createDocxFromHtml(renderedHtml, title, theme);
-      return await saveDocxFile(docxData, getExportFileName(activePath, 'word'));
+      return await saveDocxFile(docxData, getExportFileName(activePath, 'word'), rendered.identity);
     }
 
     const output = await createHtmlExport(title, renderedHtml, theme);
 
     const defaultName = getExportFileName(activePath, format);
 
-    const saved = await saveDocumentExport(output, defaultName, 'HTML 文档', ['html']);
+    const saved = await saveDocumentExport(output, defaultName, 'HTML 文档', ['html'], rendered.identity);
     if (!saved) return false;
 
-    showToast('已导出 HTML 文件');
+    showRoutedToast('已导出 HTML 文件', toastRoute);
     return true;
   } catch (error) {
     logException('export', 'Failed to export document', error);
-    showToast('导出失败，请重试');
+    showRoutedToast('导出失败，请重试', toastRoute);
     return false;
   } finally {
     exportInProgress = false;
   }
 }
 
-async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Promise<string> {
+interface RenderedExportHtml {
+  html: string;
+  identity?: ExportHostIdentity;
+}
+
+async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Promise<RenderedExportHtml> {
   const initialSession = getCoreSessionState();
   if (initialSession.isActive && initialSession.sessionId > 0) {
     const exportRequestId = generateRequestId();
@@ -150,13 +162,27 @@ async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Pro
       exportRequestId,
       { max_schema_version: 1, include_diagnostics: true },
     );
-    if (
-      exportDocument.session_id !== initialSession.sessionId ||
-      exportDocument.base_revision !== revision ||
-      exportDocument.export_request_id !== exportRequestId
-    ) {
-      throw new Error('EXPORT_SESSION_MISMATCH: Export IR response does not match request');
-    }
+    assertHostResultIdentity(
+      {
+        requestId: exportRequestId,
+        sessionId: initialSession.sessionId,
+        documentId: initialSession.documentId,
+        baseRevision: revision,
+      },
+      {
+        requestId: exportDocument.export_request_id,
+        sessionId: exportDocument.session_id,
+        documentId: exportDocument.document_id,
+        baseRevision: exportDocument.base_revision,
+      },
+    );
+    const currentSession = getCoreSessionState();
+    assertHostResultIdentity(
+      { sessionId: initialSession.sessionId },
+      {
+        sessionId: currentSession.isActive ? currentSession.sessionId : undefined,
+      },
+    );
     logDebug('export', 'Using Core Export IR', {
       sessionId: exportDocument.session_id,
       revision: exportDocument.base_revision,
@@ -164,7 +190,15 @@ async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Pro
       blockCount: exportDocument.blocks.length,
       diagnosticCount: exportDocument.diagnostics.length,
     });
-    return wrapExportIrHtml(renderExportIrToHtmlContent(exportDocument), exportDocument);
+    return {
+      html: wrapExportIrHtml(renderExportIrToHtmlContent(exportDocument), exportDocument),
+      identity: {
+        sessionId: exportDocument.session_id,
+        documentId: exportDocument.document_id,
+        baseRevision: exportDocument.base_revision,
+        requestId: exportDocument.export_request_id,
+      },
+    };
   }
 
   if (!renderedRoot) {
@@ -175,7 +209,7 @@ async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Pro
   const div = document.createElement('div');
   div.appendChild(snapshot.cloneNode(true));
   logDebug('export', 'Using legacy DOM export snapshot');
-  return div.innerHTML;
+  return { html: div.innerHTML };
 }
 
 function wrapExportIrHtml(

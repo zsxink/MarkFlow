@@ -25,6 +25,7 @@ import {
   writeImageToStorage,
   writePendingImage,
 } from './storage';
+import { getCoreSessionState } from './coreSession';
 
 export const DEFAULT_IMAGE_SETTINGS: ImageSettings = IMAGE_DEFAULTS;
 
@@ -49,6 +50,24 @@ let pendingWriteQueue: Promise<void> = Promise.resolve();
 let pendingSaveBarrier: Promise<void> | null = null;
 let releasePendingSaveBarrier: (() => void) | null = null;
 let assetRequestCounter = 0;
+
+function nextNetworkRequestId(): string {
+  assetRequestCounter += 1;
+  return `network_${Date.now()}_${assetRequestCounter}`;
+}
+
+function currentNetworkHostIdentity() {
+  const session = getCoreSessionState();
+  if (!session.isActive || session.sessionId <= 0) {
+    throw new Error('HOST_STALE_SESSION: network image fetch requires an active Core session');
+  }
+  return {
+    sessionId: session.sessionId,
+    documentId: session.documentId,
+    baseRevision: session.confirmedRevision,
+    requestId: nextNetworkRequestId(),
+  };
+}
 
 export interface AssetTransactionIdentity {
   sessionId: number;
@@ -298,7 +317,8 @@ export async function handleNetworkImage(
       sourceName,
       [...activeImageDraft.pendingReferences].map(getFileName),
     );
-    return stagePendingOperation(draftId => downloadImageToPending(name, normalizedUrl, draftId));
+    const identity = currentNetworkHostIdentity();
+    return stagePendingOperation(draftId => downloadImageToPending(name, normalizedUrl, draftId, identity));
   }
 
   const parsedUrl = new URL(normalizedUrl);
@@ -312,6 +332,7 @@ export async function handleNetworkImage(
     storageDir,
     useMimeExtension,
     docPath,
+    currentNetworkHostIdentity(),
   );
   return referenceStoredImage(downloaded.path, docPath, settings.referenceStyle);
 }

@@ -14,6 +14,7 @@ use markflow_core::{
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
 use markflow_runtime::host::Host;
+use markflow_runtime::host_contract::{HostCapability, HostRequestContext, HOST_PROTOCOL_VERSION};
 use markflow_runtime::registry::with_session_state;
 use markflow_runtime::save::save_document;
 use markflow_runtime::session::ClientId;
@@ -956,6 +957,19 @@ fn map_render_document(document: RenderDocument) -> RenderDocumentDto {
 // Commands
 // ---------------------------------------------------------------------------
 
+fn open_file_host_context() -> HostRequestContext {
+    HostRequestContext {
+        protocol_version: HOST_PROTOCOL_VERSION,
+        request_id: "open-pre-session".into(),
+        client_id: "default".into(),
+        window_label: Some("default".into()),
+        session_id: None,
+        document_id: None,
+        base_revision: None,
+        capability: HostCapability::FileSystem,
+    }
+}
+
 /// Open a document and return the session state.
 ///
 /// Uses spawn_blocking for file I/O to avoid blocking the Tauri async runtime.
@@ -969,7 +983,8 @@ pub async fn open_document(path: String) -> Result<DocumentOpenedDto, AppError> 
 
     let io_result = spawn_blocking(move || {
         let host = AppHost;
-        host.read_document_bytes(&path_buf)
+        let context = open_file_host_context();
+        host.read_document_bytes(&context, &path_buf)
             .map_err(|e| AppError::internal(format!("File read error: {}", e.detail)))
     })
     .await
@@ -1292,6 +1307,20 @@ pub fn get_render_blocks(
     viewport: UiRangeDto,
     request_id: String,
 ) -> Result<RenderDocumentDto, AppError> {
+    let context = HostRequestContext {
+        protocol_version: HOST_PROTOCOL_VERSION,
+        request_id: request_id.clone(),
+        client_id: "tauri".into(),
+        window_label: Some("main".into()),
+        session_id: Some(session_id),
+        document_id: None,
+        base_revision: Some(revision),
+        capability: HostCapability::Render,
+    };
+    context
+        .validate_required_scope()
+        .map_err(|code| AppError::internal(code.to_string()))?;
+
     let registry = &*SESSION_REGISTRY;
     let sid = SessionId(session_id);
 
@@ -1428,7 +1457,27 @@ pub async fn reload_document(session_id: u64) -> Result<ReloadResultDto, AppErro
             .map_err(map_error)?;
 
         // 2. Read via host outside session lock
-        let (bytes, _identity) = host.read_document_bytes(&path).map_err(map_error)?;
+        let read_context = {
+            let state = handle
+                .inner
+                .lock()
+                .map_err(|e| RuntimeError::internal(format!("Session lock poisoned: {}", e)))
+                .map_err(map_error)?;
+            HostRequestContext {
+                protocol_version: HOST_PROTOCOL_VERSION,
+                request_id: format!("reload-{}", sid.0),
+                client_id: handle.client_id.0.clone(),
+                window_label: Some(handle.window_label.clone()),
+                session_id: Some(sid.0),
+                document_id: Some(state.core.document_id.0),
+                base_revision: Some(state.core.revision().0),
+                capability: HostCapability::FileSystem,
+            }
+        };
+
+        let (bytes, _identity) = host
+            .read_document_bytes(&read_context, &path)
+            .map_err(map_error)?;
 
         // 3. Re-acquire lock, verify clean, replace Core state
         let (text, revision) = with_session_state(registry, sid, |state| {

@@ -1,8 +1,10 @@
-import { open } from '@tauri-apps/plugin-shell';
 import { getImageMimeType, getFileName, getParentDir, resolveImagePath } from '../lib/pathUtils';
 import { fetchRemoteImageAsBase64, readFileAsBase64, saveImageExport } from '../lib/storage';
 import { showToast } from './toast';
 import { reportUserActionError } from '../lib/error';
+import { createClipboardHostRequestContext } from '../host-bridge/context';
+import { openShellTarget } from '../host-bridge/shell';
+import { getCoreSessionState } from '../lib/coreSession';
 import { showContextMenuStatic } from './ui/contextMenu';
 import type { ContextMenuItem } from './ui/contextMenu';
 
@@ -143,7 +145,16 @@ async function fetchBlob(url: string) {
 }
 
 async function fetchRemoteImageBlob(url: string) {
-  const { data, mimeType } = await fetchRemoteImageAsBase64(url);
+  const session = getCoreSessionState();
+  if (!session.isActive || session.sessionId <= 0) {
+    throw new Error('HOST_STALE_SESSION: network image fetch requires an active Core session');
+  }
+  const { data, mimeType } = await fetchRemoteImageAsBase64(url, {
+    sessionId: session.sessionId,
+    documentId: session.documentId,
+    baseRevision: session.confirmedRevision,
+    requestId: 'image-context-fetch',
+  });
   return base64ToBlob(data, mimeType || getImageMimeType(url));
 }
 
@@ -169,6 +180,7 @@ async function resolveImageBlob(state: ImageContextMenuState) {
 }
 
 async function copyImage(state: ImageContextMenuState) {
+  createClipboardHostRequestContext('image-copy');
   const ClipboardItemCtor = window.ClipboardItem;
   if (!ClipboardItemCtor || !navigator.clipboard?.write) {
     throw new Error('当前环境不支持复制图片');
@@ -196,6 +208,7 @@ async function saveImage(state: ImageContextMenuState) {
 }
 
 async function copyPath(state: ImageContextMenuState) {
+  createClipboardHostRequestContext('image-path-copy');
   await navigator.clipboard.writeText(getLocalImagePath(state) || state.originalSrc || state.src);
   showToast('图片路径已复制');
 }
@@ -205,7 +218,10 @@ async function openContainingFolder(state: ImageContextMenuState) {
   if (!localPath) {
     throw new Error('当前图片没有本地路径');
   }
-  await open(getParentDir(localPath));
+  await openShellTarget({
+    target: getParentDir(localPath),
+    requestId: 'image-open-containing-folder',
+  });
   showToast('已打开图片所在位置');
 }
 

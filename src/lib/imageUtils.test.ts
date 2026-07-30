@@ -40,6 +40,15 @@ vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: vi.fn((path: string) => `converted://${path}`),
 }));
 
+vi.mock('./coreSession', () => ({
+  getCoreSessionState: vi.fn(() => ({
+    isActive: true,
+    sessionId: 42,
+    documentId: 11,
+    confirmedRevision: 7,
+  })),
+}));
+
 import {
   cleanupPendingImages,
   copyImageToPending,
@@ -228,6 +237,12 @@ describe('source behavior and unsaved drafts', () => {
       'photo.png',
       'https://example.com/photo.png?size=large',
       null,
+      {
+        sessionId: 42,
+        documentId: 11,
+        baseRevision: 7,
+        requestId: expect.stringMatching(/^network_\d+_\d+$/),
+      },
     );
   });
 

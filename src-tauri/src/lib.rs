@@ -125,11 +125,15 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         Err(e) => return Err(format!("Failed to create window: {}", e)),
     };
 
-    intercept_close_request(&window, app.state::<AppState>().close_permissions.clone());
+    let state = app.state::<AppState>();
+    intercept_close_request(
+        &window,
+        state.close_permissions.clone(),
+        state.window_tasks.clone(),
+    );
 
     // Store pending file path for the new window's frontend to pull
     {
-        let state = app.state::<AppState>();
         let mut pending = error::lock_mutex(&state.pending_file).map_err(|e| e.to_string())?;
         pending.insert(label.clone(), path.clone());
     }
@@ -184,6 +188,7 @@ fn save_last_window_state(x: f64, y: f64, width: f64, height: f64) -> Result<(),
 fn intercept_close_request(
     window: &tauri::WebviewWindow,
     close_permissions: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
+    window_tasks: std::sync::Arc<std::sync::Mutex<state::WindowTaskRegistry>>,
 ) {
     let w = window.clone();
     let label = window.label().to_string();
@@ -211,7 +216,15 @@ fn intercept_close_request(
                 if let Ok(mut perms) = error::lock_mutex(&close_permissions) {
                     perms.remove(&label);
                 }
-                tracing::debug!(target: "backend.close", label = %label, "Cleaned up close permission on window destroy");
+                let cancelled = error::lock_mutex(&window_tasks)
+                    .map(|mut tasks| tasks.cancel_window(&label))
+                    .unwrap_or_default();
+                tracing::debug!(
+                    target: "backend.close",
+                    label = %label,
+                    cancelled_tasks = cancelled.len(),
+                    "Cleaned up close permission and cancelled Host window tasks on window destroy"
+                );
             }
             _ => {}
         }
@@ -224,8 +237,20 @@ fn confirm_window_close(
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
     let label = window.label();
+    let close_context = state
+        .create_window_host_context("window-close", "tauri", label)
+        .map_err(|code| code.to_string())?;
+    state
+        .register_window_task(close_context)
+        .map_err(|code| code.to_string())?;
+    let cancelled = state.cancel_window_tasks(label);
     state.grant_close_permission(label);
-    tracing::debug!(target: "backend.close", label = %label, "Close permission granted");
+    tracing::debug!(
+        target: "backend.close",
+        label = %label,
+        cancelled_tasks = cancelled.len(),
+        "Close permission granted through Host windows lifecycle"
+    );
     let _ = window.close(); // triggers CloseRequested again, but permission is now granted → let it through
     Ok(())
 }
@@ -440,8 +465,9 @@ pub fn run() {
 
             // Intercept close requests on all windows — emit to frontend for dirty check
             let close_permissions = app.state::<AppState>().close_permissions.clone();
+            let window_tasks = app.state::<AppState>().window_tasks.clone();
             for (_, window) in app.webview_windows() {
-                intercept_close_request(&window, close_permissions.clone());
+                intercept_close_request(&window, close_permissions.clone(), window_tasks.clone());
             }
 
             // Window destruction cleanup is handled inside intercept_close_request

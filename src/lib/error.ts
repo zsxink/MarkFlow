@@ -60,6 +60,27 @@ const CODE_KIND: Record<string, ErrorKind> = {
   SESSION_NOT_FOUND: 'fatal',
   INVALID_UTF16_BOUNDARY: 'retry',
   CONFLICT: 'conflict',
+
+  // --- Host protocol/export codes ---
+  HOST_PROTOCOL_VERSION_UNSUPPORTED: 'fatal',
+  HOST_MISSING_CAPABILITY: 'degrade',
+  HOST_PERMISSION_DENIED: 'degrade',
+  HOST_REQUEST_MISMATCH: 'retry',
+  HOST_CLIENT_MISMATCH: 'retry',
+  HOST_WINDOW_MISMATCH: 'retry',
+  HOST_SESSION_MISMATCH: 'retry',
+  HOST_STALE_SESSION: 'fatal',
+  HOST_STALE_REVISION: 'retry',
+  HOST_REQUEST_CANCELLED: 'retry',
+  HOST_TIMEOUT: 'retry',
+  HOST_WRITE_FAILED: 'retry',
+  EXPORT_CANCELLED: 'retry',
+  EXPORT_STALE_REVISION: 'retry',
+  EXPORT_UNSUPPORTED_FORMAT: 'degrade',
+  EXPORT_IR_UNSUPPORTED_BLOCK: 'degrade',
+  EXPORT_HOST_PERMISSION_DENIED: 'degrade',
+  EXPORT_TIMEOUT: 'retry',
+  EXPORT_WRITE_FAILED: 'retry',
 };
 
 export function classifyError(err: unknown): ClassifiedError {
@@ -115,4 +136,3 @@ let showToastMessage: (msg: string) => void = (msg) => {
 export function setToastReporter(fn: (msg: string) => void): void {
   showToastMessage = fn;
 }
-

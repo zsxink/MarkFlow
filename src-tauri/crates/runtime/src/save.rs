@@ -1,8 +1,9 @@
 use crate::error::{RuntimeError, RuntimeErrorCode};
 use crate::file_identity::FileIdentity;
 use crate::host::Host;
+use crate::host_contract::{HostCapability, HostRequestContext, HOST_PROTOCOL_VERSION};
 use crate::registry::SessionRegistry;
-use crate::session::{allocate_save_token, SessionId};
+use crate::session::{allocate_request_id, allocate_save_token, SessionHandle, SessionId};
 
 /// Save a document: flush, capture payload, compare identity, atomic write,
 /// mark persisted.
@@ -20,6 +21,7 @@ pub fn save_document(
 ) -> Result<SaveResult, RuntimeError> {
     // 1. Acquire save token to prevent concurrent saves
     let token = allocate_save_token();
+    let request_id = allocate_request_id().to_string();
 
     // 2. Check for concurrent sessions on the same path before acquiring
     //    the main session lock (lock discipline: never hold one session
@@ -67,7 +69,7 @@ pub fn save_document(
     }
 
     // 3. Lock session, capture state, get SavePayload
-    let (target_revision, payload_bytes, expected_identity, path) = {
+    let (target_revision, payload_bytes, expected_identity, path, write_context) = {
         let handle = registry
             .get(session_id)
             .ok_or_else(RuntimeError::session_not_found)?;
@@ -87,7 +89,8 @@ pub fn save_document(
 
         // Check for conflict with external modifications
         if let Some(ref path) = handle.source.path {
-            if let Ok(current_identity) = host.stat_identity(path) {
+            let stat_context = filesystem_context(&handle, &state, &request_id);
+            if let Ok(current_identity) = host.stat_identity(&stat_context, path) {
                 let expected = state
                     .persisted_identity
                     .as_ref()
@@ -114,15 +117,23 @@ pub fn save_document(
             .unwrap_or_else(|| state.opened_identity.clone());
 
         let path = handle.source.path.clone();
+        let write_context = filesystem_context(&handle, &state, &request_id);
 
-        (target_revision, payload_bytes, expected_identity, path)
+        (
+            target_revision,
+            payload_bytes,
+            expected_identity,
+            path,
+            write_context,
+        )
     };
 
     // 3. Host: compare expected identity and atomic write
     // (outside session lock — no IO inside lock)
     let path = path.ok_or_else(|| RuntimeError::internal("Cannot save: document has no path"))?;
 
-    let new_identity = host.compare_and_atomic_write(&path, &payload_bytes, &expected_identity)?;
+    let new_identity =
+        host.compare_and_atomic_write(&write_context, &path, &payload_bytes, &expected_identity)?;
 
     // 4. Update persisted state
     {
@@ -156,6 +167,23 @@ pub fn save_document(
         revision: target_revision,
         file_identity: new_identity,
     })
+}
+
+fn filesystem_context(
+    handle: &SessionHandle,
+    state: &crate::session::DocumentRuntimeState,
+    request_id: &str,
+) -> HostRequestContext {
+    HostRequestContext {
+        protocol_version: HOST_PROTOCOL_VERSION,
+        request_id: request_id.to_string(),
+        client_id: handle.client_id.0.clone(),
+        window_label: Some(handle.window_label.clone()),
+        session_id: Some(handle.session_id.0),
+        document_id: Some(state.core.document_id.0),
+        base_revision: Some(state.core.revision().0),
+        capability: HostCapability::FileSystem,
+    }
 }
 
 /// Result of a successful save operation.
@@ -202,6 +230,7 @@ mod tests {
     impl Host for MockHost {
         fn read_document_bytes(
             &self,
+            _context: &HostRequestContext,
             _path: &Path,
         ) -> Result<(Vec<u8>, FileIdentity), RuntimeError> {
             let guard = self
@@ -211,7 +240,11 @@ mod tests {
             (*guard).clone()
         }
 
-        fn stat_identity(&self, _path: &Path) -> Result<FileIdentity, RuntimeError> {
+        fn stat_identity(
+            &self,
+            _context: &HostRequestContext,
+            _path: &Path,
+        ) -> Result<FileIdentity, RuntimeError> {
             let guard = self
                 .stat_result
                 .lock()
@@ -221,6 +254,7 @@ mod tests {
 
         fn compare_and_atomic_write(
             &self,
+            _context: &HostRequestContext,
             _path: &Path,
             _content: &[u8],
             _expected: &FileIdentity,

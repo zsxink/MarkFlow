@@ -1,6 +1,7 @@
 import { savePlantUmlPngExport, savePlantUmlSvgExport } from '../lib/storage';
 import { validatePngCanvasSize } from './plantumlContextMenu.helpers';
 import { showToast } from './toast';
+import { createClipboardHostRequestContext } from '../host-bridge/context';
 import { showContextMenuStatic } from './ui/contextMenu';
 import type { ContextMenuItem } from './ui/contextMenu';
 
@@ -117,6 +118,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 async function copySvg(svg: string) {
+  createClipboardHostRequestContext('plantuml-svg-copy');
   const ClipboardItemCtor = window.ClipboardItem;
   if (ClipboardItemCtor && navigator.clipboard?.write) {
     await navigator.clipboard.write([
@@ -137,6 +139,7 @@ async function copySvg(svg: string) {
 }
 
 async function copyPng(svg: string) {
+  createClipboardHostRequestContext('plantuml-png-copy');
   const ClipboardItemCtor = window.ClipboardItem;
   if (!ClipboardItemCtor || !navigator.clipboard?.write) {
     throw new Error('当前环境不支持复制 PNG');

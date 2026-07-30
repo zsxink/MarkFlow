@@ -1,6 +1,8 @@
 import { logException, logDebug, logInfo } from './logger';
-import { showToast } from '../components/toast';
+import { createToastRouteContext, showRoutedToast } from '../app-service/notifications';
 import { invoke } from '@tauri-apps/api/core';
+import { createExportHostRequestContext } from '../host-bridge/context';
+import type { ExportHostIdentity } from './storage';
 import { convertSvgToPngDataUrl } from './exportSnapshot';
 import { buildExportTheme, exportThemeToDocxStyles, type ExportTheme } from './exportTheme';
 import type { FileChild, ParagraphChild, TableCell, TableRow } from 'docx';
@@ -85,22 +87,28 @@ export async function createDocxFromHtml(
 /**
  * Save a DOCX binary via Tauri native save dialog.
  */
-export async function saveDocxFile(data: Uint8Array, defaultName: string): Promise<boolean> {
+export async function saveDocxFile(
+  data: Uint8Array,
+  defaultName: string,
+  identity?: ExportHostIdentity,
+): Promise<boolean> {
+  const toastRoute = createToastRouteContext();
   try {
     const saved = await invoke<boolean>('save_binary_export', {
       data: Array.from(data),
       defaultName,
       filterName: 'Word 文档',
       extensions: ['docx'],
+      hostContext: identity ? createExportHostRequestContext(identity) : null,
     });
     if (saved) {
-      showToast('已导出 Word 文档');
+      showRoutedToast('已导出 Word 文档', toastRoute);
       logInfo('export.docx', 'DOCX saved successfully', { fileName: defaultName });
     }
     return saved;
   } catch (error) {
     logException('export.docx', 'Failed to save DOCX file', error);
-    showToast('导出失败，请重试');
+    showRoutedToast('导出失败，请重试', toastRoute);
     return false;
   }
 }

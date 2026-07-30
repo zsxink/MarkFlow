@@ -2,6 +2,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { logInfo, logException } from './logger';
 import { showToast } from '../components/toast';
+import { createToastRouteContext, showRoutedToast } from '../app-service/notifications';
+import { createExportHostRequestContext } from '../host-bridge/context';
+import type { ExportHostIdentity } from './storage';
 
 export type PdfExportEvent =
   | 'export.pdf.start'
@@ -33,6 +36,7 @@ interface PdfExportResult {
 export async function exportPdfToFile(
   html: string,
   defaultName = 'document.pdf',
+  identity?: ExportHostIdentity,
 ): Promise<boolean> {
   if (pdfExportInProgress) {
     showToast('正在导出中，请稍候');
@@ -41,6 +45,7 @@ export async function exportPdfToFile(
 
   pdfExportInProgress = true;
   logInfo('export.pdf', 'start');
+  const toastRoute = createToastRouteContext();
 
   try {
     const outputPath = await save({
@@ -59,6 +64,7 @@ export async function exportPdfToFile(
     const result = await invoke<PdfExportResult>('create_pdf', {
       htmlContent: html,
       outputPath,
+      hostContext: identity ? createExportHostRequestContext(identity) : null,
     });
 
     if (!Number.isFinite(result.bytesWritten) || result.bytesWritten < 5) {
@@ -67,19 +73,19 @@ export async function exportPdfToFile(
 
     logInfo('export.pdf', 'written', { size: result.bytesWritten });
     logInfo('export.pdf', 'validated');
-    showToast('已导出 PDF 文件');
+    showRoutedToast('已导出 PDF 文件', toastRoute);
     return true;
   } catch (error) {
     const msg = getErrorMessage(error);
     if (msg.includes('PDF_TIMEOUT') || msg.toLowerCase().includes('timed out')) {
       logInfo('export.pdf', 'timeout');
-      showToast('PDF 导出超时，请重试');
+      showRoutedToast('PDF 导出超时，请重试', toastRoute);
     } else if (msg.includes('PDF_UNSUPPORTED')) {
       logException('export.pdf', 'error', error);
-      showToast('当前系统版本暂不支持直接导出 PDF');
+      showRoutedToast('当前系统版本暂不支持直接导出 PDF', toastRoute);
     } else {
       logException('export.pdf', 'error', error);
-      showToast('PDF 导出失败，请重试');
+      showRoutedToast('PDF 导出失败，请重试', toastRoute);
     }
     return false;
   } finally {
@@ -96,7 +102,7 @@ let printInProgress = false;
  * On macOS, uses Tauri WebviewWindow::print(); on other platforms falls back to window.print().
  * This is the "Print..." menu option (task 4.6).
  */
-export async function triggerPdfExport(html: string): Promise<boolean> {
+export async function triggerPdfExport(html: string, identity?: ExportHostIdentity): Promise<boolean> {
   if (printInProgress) {
     showToast('正在导出中，请稍候');
     return false;
@@ -110,7 +116,7 @@ export async function triggerPdfExport(html: string): Promise<boolean> {
     const isMac = navigator.userAgent.includes('Mac OS') || navigator.userAgent.includes('macOS');
 
     if (isMac) {
-      return await triggerNativePdfExport(html);
+      return await triggerNativePdfExport(html, identity);
     }
     return await triggerWindowPrint(html);
   } finally {
@@ -118,11 +124,15 @@ export async function triggerPdfExport(html: string): Promise<boolean> {
   }
 }
 
-async function triggerNativePdfExport(html: string): Promise<boolean> {
+async function triggerNativePdfExport(html: string, identity?: ExportHostIdentity): Promise<boolean> {
   // Use Tauri print command — creates a temporary print page and
   // calls WebviewWindow::print() on the Rust side
+  const toastRoute = createToastRouteContext();
   try {
-    const result = await invoke<boolean>('print_webview', { htmlContent: html });
+    const result = await invoke<boolean>('print_webview', {
+      htmlContent: html,
+      hostContext: identity ? createExportHostRequestContext(identity) : null,
+    });
     if (result) {
       logInfo('export.pdf', 'afterprint');
     } else {
@@ -131,7 +141,7 @@ async function triggerNativePdfExport(html: string): Promise<boolean> {
     return result;
   } catch (error) {
     logException('export.pdf', 'error', error);
-    showToast('无法打开 PDF 打印窗口');
+    showRoutedToast('无法打开 PDF 打印窗口', toastRoute);
     return false;
   }
 }
@@ -144,7 +154,7 @@ async function triggerWindowPrint(html: string): Promise<boolean> {
     const printWindow = window.open('', 'MarkFlow PDF Export', 'width=800,height=600');
     if (!printWindow) {
       logException('export.pdf', 'error', new Error('Failed to open print window'));
-      showToast('无法打开 PDF 打印窗口');
+      showRoutedToast('无法打开 PDF 打印窗口', createToastRouteContext());
       resolve(false);
       return;
     }

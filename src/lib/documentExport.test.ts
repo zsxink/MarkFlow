@@ -168,6 +168,7 @@ describe('rendered document export', () => {
       'a.html',
       'HTML 文档',
       ['html'],
+      undefined,
     );
     expect(showToastMock).toHaveBeenCalledWith('已导出 HTML 文件');
   });
@@ -218,12 +219,24 @@ describe('rendered document export', () => {
       'a.html',
       'HTML 文档',
       ['html'],
+      {
+        sessionId: 42,
+        documentId: 9,
+        baseRevision: 5,
+        requestId: expect.any(String),
+      },
     );
     expect(saveDocumentExportMock).toHaveBeenCalledWith(
       expect.stringContaining('<div class="ProseMirror" data-export-ir-schema-version="1" data-session-id="42" data-revision="5">'),
       'a.html',
       'HTML 文档',
       ['html'],
+      {
+        sessionId: 42,
+        documentId: 9,
+        baseRevision: 5,
+        requestId: expect.any(String),
+      },
     );
   });
 
@@ -268,13 +281,41 @@ describe('rendered document export', () => {
     }));
   });
 
+  it('rejects Export IR results whose identity does not match the initiating request', async () => {
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    saveDocumentExportMock.mockResolvedValue(true);
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 99,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [],
+      assets: [],
+      diagnostics: [],
+    }));
+
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
+
+    expect(result).toBe(false);
+    expect(saveDocumentExportMock).not.toHaveBeenCalled();
+    expect(showToastMock).toHaveBeenCalledWith('导出失败，请重试');
+  });
+
   it('writes Word document via DOCX export', async () => {
     const container = document.createElement('div');
     container.innerHTML = '<p>内容</p>';
     const result = await exportRenderedDocument('word', container, '/notes/a.md');
     expect(result).toBe(true);
     expect(createDocxFromHtmlMock).toHaveBeenCalled();
-    expect(saveDocxFileMock).toHaveBeenCalledWith(expect.any(Uint8Array), 'a.docx');
+    expect(saveDocxFileMock).toHaveBeenCalledWith(expect.any(Uint8Array), 'a.docx', undefined);
   });
 
   it('passes print HTML and the active document name to PDF export', async () => {
@@ -288,6 +329,7 @@ describe('rendered document export', () => {
     expect(triggerPdfExportMock).toHaveBeenCalledWith(
       expect.stringContaining('@media print {'),
       'a.pdf',
+      undefined,
     );
   });
 

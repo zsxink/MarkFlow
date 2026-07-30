@@ -4,6 +4,7 @@ use crate::http::MAX_IMAGE_SIZE;
 use crate::paths::{normalize_lexical, normalize_path};
 use crate::state::AppState;
 use base64::Engine;
+use markflow_runtime::host_contract::{HostCapability, HostRequestContext, HOST_PROTOCOL_VERSION};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
@@ -19,6 +20,47 @@ pub enum ExportKind {
     Png,
     Image,
     Document,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportHostContextDto {
+    pub protocol_version: u32,
+    pub request_id: String,
+    #[serde(default = "default_host_client_id")]
+    pub client_id: String,
+    #[serde(default)]
+    pub window_label: Option<String>,
+    pub session_id: u64,
+    #[serde(default)]
+    pub document_id: Option<u64>,
+    pub base_revision: u64,
+}
+
+fn default_host_client_id() -> String {
+    "default".into()
+}
+
+fn validate_export_host_context(
+    input: Option<ExportHostContextDto>,
+) -> Result<Option<HostRequestContext>, String> {
+    let Some(input) = input else {
+        return Ok(None);
+    };
+    let context = HostRequestContext {
+        protocol_version: input.protocol_version,
+        request_id: input.request_id,
+        client_id: input.client_id,
+        window_label: input.window_label.or_else(|| Some("main".into())),
+        session_id: Some(input.session_id),
+        document_id: input.document_id,
+        base_revision: Some(input.base_revision),
+        capability: HostCapability::Export,
+    };
+    context
+        .validate_required_scope()
+        .map_err(|code| code.to_string())?;
+    Ok(Some(context))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -282,6 +324,11 @@ fn select_export_path(
     filter_name: &str,
     extensions: &[&str],
 ) -> Result<Option<PathBuf>, String> {
+    let context = dialog_host_context("export-save-dialog");
+    context
+        .validate_required_scope()
+        .map_err(|code| code.as_str().to_string())?;
+
     let Some(path) = app
         .dialog()
         .file()
@@ -296,6 +343,19 @@ fn select_export_path(
     path.into_path()
         .map(Some)
         .map_err(|_| "Invalid save path".into())
+}
+
+fn dialog_host_context(request_id: &str) -> HostRequestContext {
+    HostRequestContext {
+        protocol_version: HOST_PROTOCOL_VERSION,
+        request_id: request_id.into(),
+        client_id: "default".into(),
+        window_label: Some("main".into()),
+        session_id: None,
+        document_id: None,
+        base_revision: None,
+        capability: HostCapability::Dialogs,
+    }
 }
 
 /// Legacy export — prefer `save_export` for new code.
@@ -436,6 +496,7 @@ pub async fn save_document_export(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_export(
     kind: ExportKind,
     data: String,
@@ -443,8 +504,10 @@ pub async fn save_export(
     extension: String,               // only used for Image kind
     filter_name: Option<String>,     // only used for Document kind
     extensions: Option<Vec<String>>, // only used for Document kind
+    host_context: Option<ExportHostContextDto>,
     app: AppHandle,
 ) -> Result<bool, String> {
+    let export_context = validate_export_host_context(host_context)?;
     match kind {
         ExportKind::Svg => {
             let path = select_export_path(&app, "图片另存为 SVG", &file_name, "SVG", &["svg"])?;
@@ -452,6 +515,7 @@ pub async fn save_export(
                 return Ok(false);
             };
             fs::write(&path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
+            log_export_host_context(export_context.as_ref(), "svg");
             info!(target: "backend.files", path = %normalize_path(&path), "Exported SVG");
             Ok(true)
         }
@@ -465,6 +529,7 @@ pub async fn save_export(
                 return Ok(false);
             };
             fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+            log_export_host_context(export_context.as_ref(), "png");
             info!(target: "backend.files", path = %normalize_path(&path), "Exported PNG");
             Ok(true)
         }
@@ -484,6 +549,7 @@ pub async fn save_export(
                 return Ok(false);
             };
             fs::write(&path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+            log_export_host_context(export_context.as_ref(), "image");
             info!(target: "backend.files", path = %normalize_path(&path), extension = %ext, "Exported image");
             Ok(true)
         }
@@ -500,9 +566,23 @@ pub async fn save_export(
                 return Ok(false);
             };
             fs::write(&path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
+            log_export_host_context(export_context.as_ref(), "document");
             info!(target: "backend.files", path = %normalize_path(&path), "Exported document");
             Ok(true)
         }
+    }
+}
+
+fn log_export_host_context(context: Option<&HostRequestContext>, kind: &str) {
+    if let Some(context) = context {
+        info!(
+            target: "backend.files",
+            request_id = %context.request_id,
+            session_id = context.session_id.unwrap_or_default(),
+            revision = context.base_revision.unwrap_or_default(),
+            kind = %kind,
+            "Saved export through Host export context"
+        );
     }
 }
 
@@ -947,6 +1027,53 @@ mod tests {
             normalize_lexical(path),
             PathBuf::from("/workspace/notes/draft.md")
         );
+    }
+
+    #[test]
+    fn dialog_host_context_is_window_scoped() {
+        let context = dialog_host_context("test-dialog");
+        assert_eq!(context.capability, HostCapability::Dialogs);
+        assert!(context.window_label.is_some());
+        assert_eq!(context.validate_required_scope(), Ok(()));
+    }
+
+    #[test]
+    fn export_host_context_requires_session_window_and_revision() {
+        let context = validate_export_host_context(Some(ExportHostContextDto {
+            protocol_version: HOST_PROTOCOL_VERSION,
+            request_id: "export-1".into(),
+            client_id: "client-a".into(),
+            window_label: Some("main".into()),
+            session_id: 42,
+            document_id: Some(11),
+            base_revision: 7,
+        }))
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(context.capability, HostCapability::Export);
+        assert_eq!(context.request_id, "export-1");
+        assert_eq!(context.session_id, Some(42));
+        assert_eq!(context.document_id, Some(11));
+        assert_eq!(context.base_revision, Some(7));
+        assert_eq!(context.window_label.as_deref(), Some("main"));
+        assert_eq!(context.validate_required_scope(), Ok(()));
+    }
+
+    #[test]
+    fn export_host_context_rejects_unsupported_protocol() {
+        let error = validate_export_host_context(Some(ExportHostContextDto {
+            protocol_version: HOST_PROTOCOL_VERSION + 1,
+            request_id: "export-1".into(),
+            client_id: "client-a".into(),
+            window_label: Some("main".into()),
+            session_id: 42,
+            document_id: Some(11),
+            base_revision: 7,
+        }))
+        .unwrap_err();
+
+        assert_eq!(error, "HOST_PROTOCOL_VERSION_UNSUPPORTED");
     }
 
     // --- write_file: workspace check removed ---

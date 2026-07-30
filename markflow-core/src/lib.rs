@@ -15,9 +15,9 @@ pub use document::{
     FenceStyle, HistoryEntry, HistoryLabel, HistoryStack, LargeDocumentPolicy, LineCol,
     LineEndingKind, LineEndingMap, LineIndex, LineRange, ListKind, ListStyleSpan, OrderedDelimiter,
     OrderedMarker, OriginalSnapshot, OutlineItem, ParseIndex, PatchOutcome, PipePadding,
-    PositionMap, QuoteStyleSpan, RenderBlock, RenderBlockKind, RenderDocument, RenderInline,
-    RenderInlineKind, RenderRequest, Revision, SavePayload, ScanOutcome, Selection, SessionId,
-    SourceByteOffset, SourceOffsetError, SourceRange, StyleMap, TableAlignment, TableStyleSpan,
-    TextBuffer, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
+    PlannedHistoryPatch, PositionMap, QuoteStyleSpan, RenderBlock, RenderBlockKind, RenderDocument,
+    RenderInline, RenderInlineKind, RenderRequest, Revision, SavePayload, ScanOutcome, Selection,
+    SessionId, SourceByteOffset, SourceOffsetError, SourceRange, StyleMap, TableAlignment,
+    TableStyleSpan, TextBuffer, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
     TRANSACTION_RETRY_WINDOW_CAPACITY,
 };

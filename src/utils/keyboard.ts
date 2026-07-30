@@ -1,29 +1,17 @@
 import { getEditor, switchToSource, switchToWysiwyg, getMode } from '../lib/editor';
-import { showToast } from '../components/toast';
 import { saveActiveDocument, openFileInEditor, confirmDocumentTransition } from '../components/sidebar';
 import { showNewFileDialog } from '../components/newFileDialog';
 import { getWorkspacePath } from '../components/fileTree';
 import { open } from '@tauri-apps/plugin-dialog';
 import { addRecentFile } from '../lib/storage';
 import { isCoreBackedSourceModeEnabled } from '../lib/coreSession';
-import { executeFormatCommand } from '../editor-adapter/formatCommandLayer';
-
-function sanitizeLinkHref(input: string): string | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('#') || trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('/')) {
-    return trimmed;
-  }
-  try {
-    const url = new URL(trimmed);
-    if (['http:', 'https:', 'mailto:'].includes(url.protocol)) {
-      return url.toString();
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
+import {
+  executeFormattingAction,
+  executeRedo,
+  executeUndo,
+} from '../editor-adapter/formatCommandLayer';
+import { showLinkDialog } from '../components/linkDialog';
+import { getSourceView } from '../lib/editor.source';
 
 export function initKeyboard() {
   document.addEventListener('keydown', async (e) => {
@@ -36,7 +24,7 @@ export function initKeyboard() {
       case 'b':
         e.preventDefault();
         if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
-          void executeFormatCommand({ type: 'toggle_strong', anchor: 0, head: 0 });
+          void executeFormattingAction({ type: 'toggle_strong' });
         } else {
           editor?.chain().focus().toggleBold().run();
         }
@@ -44,12 +32,13 @@ export function initKeyboard() {
       case 'i':
         e.preventDefault();
         if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
-          void executeFormatCommand({ type: 'toggle_emphasis', anchor: 0, head: 0 });
+          void executeFormattingAction({ type: 'toggle_emphasis' });
         } else {
           editor?.chain().focus().toggleItalic().run();
         }
         break;
       case 's':
+        if (e.shiftKey) break;
         e.preventDefault();
         await saveActiveDocument();
         break;
@@ -66,32 +55,32 @@ export function initKeyboard() {
         break;
       case 'k': {
         e.preventDefault();
-        // In Core-backed source mode, use EditCommand for link insertion
         if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
-          const url = prompt('输入链接 URL:');
-          const href = url ? sanitizeLinkHref(url) : null;
-          if (href) {
-            void executeFormatCommand({
-              type: 'insert_link',
-              anchor: 0,
-              head: 0,
-              href,
-              title: null,
-            });
-          } else if (url) {
-            showToast('不支持的链接协议');
-          }
+          showCoreLinkDialog();
         } else {
-          const url = prompt('输入链接 URL:');
-          const href = url ? sanitizeLinkHref(url) : null;
-          if (href && editor) {
-            editor.chain().focus().setLink({ href }).run();
-          } else if (url) {
-            showToast('不支持的链接协议');
-          }
+          showLinkDialog();
         }
         break;
       }
+      case 'z':
+        e.preventDefault();
+        if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+          if (e.shiftKey) void executeRedo();
+          else void executeUndo();
+        } else if (e.shiftKey) {
+          editor?.chain().focus().redo().run();
+        } else {
+          editor?.chain().focus().undo().run();
+        }
+        break;
+      case 'y':
+        e.preventDefault();
+        if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+          void executeRedo();
+        } else {
+          editor?.chain().focus().redo().run();
+        }
+        break;
       case '\\':
         e.preventDefault();
         document.getElementById('sidebar')?.classList.toggle('collapsed');
@@ -123,13 +112,32 @@ export function initKeyboard() {
         case 's':
           e.preventDefault();
           if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
-            void executeFormatCommand({ type: 'toggle_strikethrough', anchor: 0, head: 0 });
+            void executeFormattingAction({ type: 'toggle_strikethrough' });
           } else {
             editor?.chain().focus().toggleStrike().run();
           }
           break;
       }
     }
+  });
+}
+
+function showCoreLinkDialog(): void {
+  const view = getSourceView();
+  const selectedText = view
+    ? view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)
+    : '';
+
+  showLinkDialog({
+    selectedText,
+    onConfirm: ({ href, text }) => {
+      void executeFormattingAction({
+        type: 'insert_link',
+        href,
+        title: null,
+        text,
+      });
+    },
   });
 }
 

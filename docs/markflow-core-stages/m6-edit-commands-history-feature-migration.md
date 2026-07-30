@@ -1,7 +1,7 @@
 # M6: Core Edit Commands, History and Existing Feature Migration
 
-> 状态：后续规划。依赖 M5 Core-backed WYSIWYG MVP，并延续 M3/M4 的 session-bound Bridge 约束。  
-> 最后复核：2026-07-29。
+> 状态：Phase 1-2 已完成；Phase 3-5 迁移中；Phase 6 StyleMap 与完整矩阵验收后续推进。
+> 最后复核：2026-07-30。
 
 ## 阶段目标
 
@@ -130,6 +130,13 @@ Editor Adapter 负责：
 - selection_after 映射。
 - History 基础模型。
 - 现有编辑功能迁移清单和完成记录。
+
+## Phase 3-5 实施记录
+
+- Bridge IPC：`execute_edit_command`、`undo_document`、`redo_document` 返回 patch-first DTO（UTF-16 patch、affected_ranges、selection_after、revision），同一 `session_id + frontend_txn_id` 的相同重试返回缓存结果，不同 payload 返回 `TRANSACTION_CONFLICT`。
+- Editor Adapter：`FormatCommandLayer` 作为 Source Mode 语义命令 seam，命令/undo/redo 前 flush `SourceSyncController`，成功后应用返回 patch，正常路径不做整篇 resync。
+- Toolbar/Keyboard：Core-backed Source Mode 的 Bold/Italic/Strike/InlineCode/H1/H2/Quote/List/CodeFence/Link 和 Undo/Redo 走 Core 主路径；Link 保留 dialog display text，CodeFence 非空选区包裹选中文本，WYSIWYG legacy fallback 保留。
+- Deferred：StyleMap 上下文继承、TaskList、完整 Image 文件事务迁移、Copy/Paste、reference link 编辑与 IME smoke 不在本次 Phase 3-5 最低交付内，需后续 change 显式验收。
 
 ## 验收标准
 

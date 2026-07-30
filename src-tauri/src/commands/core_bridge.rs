@@ -18,7 +18,7 @@ use markflow_runtime::save::save_document;
 use markflow_runtime::session::ClientId;
 use markflow_runtime::source::DocumentSource;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -57,14 +57,94 @@ static FRONTEND_TXN_MAP: std::sync::LazyLock<Mutex<HashMap<String, TransactionId
 
 /// Map a frontend string transaction ID to a core u64 TransactionId.
 /// Returns the same core ID for repeated calls with the same string.
-fn map_frontend_txn(frontend_id: &str) -> Result<TransactionId, AppError> {
+fn map_frontend_txn(session_id: SessionId, frontend_id: &str) -> Result<TransactionId, AppError> {
+    let key = format!("{}:{}", session_id.0, frontend_id);
     let mut map = lock_mutex(&FRONTEND_TXN_MAP)?;
-    if let Some(id) = map.get(frontend_id) {
+    if let Some(id) = map.get(&key) {
         return Ok(*id);
     }
     let new_id = TransactionId(NEXT_CORE_TXN_ID.fetch_add(1, Ordering::Relaxed));
-    map.insert(frontend_id.to_string(), new_id);
+    map.insert(key, new_id);
     Ok(new_id)
+}
+
+const COMMAND_TXN_CACHE_CAPACITY: usize = 512;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct CommandTxnKey {
+    session_id: u64,
+    frontend_txn_id: String,
+}
+
+#[derive(Debug, Clone)]
+struct CachedCommandTxn {
+    fingerprint: String,
+    result: CommandResultDto,
+}
+
+#[derive(Debug, Default)]
+struct CommandTxnCache {
+    entries: HashMap<CommandTxnKey, CachedCommandTxn>,
+    order: VecDeque<CommandTxnKey>,
+}
+
+static COMMAND_TXN_CACHE: std::sync::LazyLock<Mutex<CommandTxnCache>> =
+    std::sync::LazyLock::new(|| Mutex::new(CommandTxnCache::default()));
+
+fn get_cached_command_result(
+    key: &CommandTxnKey,
+    fingerprint: &str,
+) -> Result<Option<CommandResultDto>, AppError> {
+    let cache = lock_mutex(&COMMAND_TXN_CACHE)?;
+    if let Some(cached) = cache.entries.get(key) {
+        if cached.fingerprint == fingerprint {
+            return Ok(Some(cached.result.clone()));
+        }
+        return Err(AppError::new(
+            AppErrorCode::TransactionConflict,
+            format!(
+                "Transaction {} for session {} was reused with a different payload",
+                key.frontend_txn_id, key.session_id
+            ),
+        ));
+    }
+    Ok(None)
+}
+
+fn cache_command_result(
+    key: CommandTxnKey,
+    fingerprint: String,
+    result: CommandResultDto,
+) -> Result<(), AppError> {
+    let mut cache = lock_mutex(&COMMAND_TXN_CACHE)?;
+    if !cache.entries.contains_key(&key) {
+        cache.order.push_back(key.clone());
+    }
+    cache.entries.insert(
+        key,
+        CachedCommandTxn {
+            fingerprint,
+            result,
+        },
+    );
+
+    while cache.order.len() > COMMAND_TXN_CACHE_CAPACITY {
+        if let Some(evicted) = cache.order.pop_front() {
+            cache.entries.remove(&evicted);
+        }
+    }
+    Ok(())
+}
+
+fn clear_command_cache_for_session(session_id: u64) -> Result<(), AppError> {
+    let mut cache = lock_mutex(&COMMAND_TXN_CACHE)?;
+    cache.entries.retain(|key, _| key.session_id != session_id);
+    cache.order.retain(|key| key.session_id != session_id);
+
+    let prefix = format!("{}:", session_id);
+    let mut txn_map = lock_mutex(&FRONTEND_TXN_MAP)?;
+    txn_map.retain(|key, _| !key.starts_with(&prefix));
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -123,14 +203,14 @@ pub struct DocumentCapabilitiesDto {
     pub core_save: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Utf16ChangeDto {
     pub from: usize,
     pub to: usize,
     pub insert: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Utf16TextPatchDto {
     pub transaction_id: String,
     pub base_revision: u64,
@@ -138,7 +218,7 @@ pub struct Utf16TextPatchDto {
     pub selection_after: Option<SelectionDto>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SelectionDto {
     pub anchor: usize,
     pub head: usize,
@@ -236,7 +316,7 @@ pub struct RenderInlineDto {
 
 /// Serialisable edit command variant that the frontend can send.
 /// Mirrors `markflow_core::EditCommand` but uses UTF-16 offsets.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EditCommandDto {
     ToggleStrong {
@@ -271,6 +351,8 @@ pub enum EditCommandDto {
     },
     InsertCodeFence {
         position: usize,
+        anchor: Option<usize>,
+        head: Option<usize>,
         language: Option<String>,
     },
     InsertLink {
@@ -278,6 +360,7 @@ pub enum EditCommandDto {
         head: usize,
         href: String,
         title: Option<String>,
+        text: Option<String>,
     },
     InsertImage {
         position: usize,
@@ -292,13 +375,108 @@ pub enum ListKindDto {
     Ordered,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct CommandPatchDto {
+    pub transaction_id: String,
+    pub base_revision: u64,
+    pub changes: Vec<Utf16ChangeDto>,
+    pub selection_after: Option<SelectionDto>,
+}
+
 /// Result of executing an edit command, mapped back to UTF-16 offsets.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CommandResultDto {
     pub session_id: u64,
     pub transaction_id: String,
     pub revision: u64,
+    pub patch: CommandPatchDto,
+    pub affected_ranges: Vec<UiRangeDto>,
     pub selection_after: Option<SelectionDto>,
+}
+
+fn map_text_patch_to_dto(
+    session: &markflow_core::DocumentSession,
+    patch: &TextPatch,
+    frontend_txn_id: &str,
+) -> Result<CommandPatchDto, RuntimeError> {
+    let mut changes = Vec::with_capacity(patch.changes.len());
+    for change in &patch.changes {
+        let from = session.utf16_for_byte(change.range.start).map_err(|_| {
+            RuntimeError::new(
+                RuntimeErrorCode::InvalidUtf16Boundary,
+                format!(
+                    "Failed to convert patch range start byte {}",
+                    change.range.start.0
+                ),
+            )
+        })?;
+        let to = session.utf16_for_byte(change.range.end).map_err(|_| {
+            RuntimeError::new(
+                RuntimeErrorCode::InvalidUtf16Boundary,
+                format!(
+                    "Failed to convert patch range end byte {}",
+                    change.range.end.0
+                ),
+            )
+        })?;
+        changes.push(Utf16ChangeDto {
+            from: from.0,
+            to: to.0,
+            insert: change.replacement.clone(),
+        });
+    }
+
+    Ok(CommandPatchDto {
+        transaction_id: frontend_txn_id.to_string(),
+        base_revision: patch.base_revision.0,
+        changes,
+        selection_after: None,
+    })
+}
+
+fn map_affected_ranges_to_dto(
+    session: &markflow_core::DocumentSession,
+    patch: &TextPatch,
+) -> Result<Vec<UiRangeDto>, RuntimeError> {
+    patch
+        .changes
+        .iter()
+        .map(|change| {
+            let start = session.utf16_for_byte(change.range.start).map_err(|_| {
+                RuntimeError::new(
+                    RuntimeErrorCode::InvalidUtf16Boundary,
+                    format!(
+                        "Failed to convert affected range start byte {}",
+                        change.range.start.0
+                    ),
+                )
+            })?;
+            let end = session.utf16_for_byte(change.range.end).map_err(|_| {
+                RuntimeError::new(
+                    RuntimeErrorCode::InvalidUtf16Boundary,
+                    format!(
+                        "Failed to convert affected range end byte {}",
+                        change.range.end.0
+                    ),
+                )
+            })?;
+            Ok(UiRangeDto {
+                start: start.0,
+                end: end.0,
+            })
+        })
+        .collect()
+}
+
+fn map_selection_to_dto(
+    session: &markflow_core::DocumentSession,
+    selection: Option<Selection>,
+) -> Option<SelectionDto> {
+    selection.and_then(|sel| {
+        let anchor = session.utf16_for_byte(sel.anchor).ok()?.0;
+        let head = session.utf16_for_byte(sel.head).ok()?.0;
+        Some(SelectionDto { anchor, head })
+    })
 }
 
 fn map_selection_to_core(
@@ -308,16 +486,19 @@ fn map_selection_to_core(
     revision: Revision,
 ) -> Result<Selection, AppError> {
     let byte_anchor = session.byte_for_utf16(Utf16Offset(anchor)).map_err(|_| {
-        AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
-            "Failed to convert selection anchor UTF-16 {} to byte",
-            anchor
-        ))
+        AppError::new(
+            AppErrorCode::InvalidUtf16Boundary,
+            format!(
+                "Failed to convert selection anchor UTF-16 {} to byte",
+                anchor
+            ),
+        )
     })?;
     let byte_head = session.byte_for_utf16(Utf16Offset(head)).map_err(|_| {
-        AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
-            "Failed to convert selection head UTF-16 {} to byte",
-            head
-        ))
+        AppError::new(
+            AppErrorCode::InvalidUtf16Boundary,
+            format!("Failed to convert selection head UTF-16 {} to byte", head),
+        )
     })?;
     Ok(Selection {
         anchor: byte_anchor,
@@ -332,37 +513,29 @@ fn build_edit_command(
     revision: Revision,
 ) -> Result<EditCommand, AppError> {
     Ok(match dto {
-        EditCommandDto::ToggleStrong { anchor, head } => {
-            EditCommand::ToggleStrong {
-                selection: map_selection_to_core(session, anchor, head, revision)?,
-            }
-        }
-        EditCommandDto::ToggleEmphasis { anchor, head } => {
-            EditCommand::ToggleEmphasis {
-                selection: map_selection_to_core(session, anchor, head, revision)?,
-            }
-        }
-        EditCommandDto::ToggleStrikethrough { anchor, head } => {
-            EditCommand::ToggleStrikethrough {
-                selection: map_selection_to_core(session, anchor, head, revision)?,
-            }
-        }
-        EditCommandDto::ToggleInlineCode { anchor, head } => {
-            EditCommand::ToggleInlineCode {
-                selection: map_selection_to_core(session, anchor, head, revision)?,
-            }
-        }
-        EditCommandDto::SetHeading { anchor, head, level } => {
-            EditCommand::SetHeading {
-                selection: map_selection_to_core(session, anchor, head, revision)?,
-                level,
-            }
-        }
-        EditCommandDto::ToggleBlockQuote { anchor, head } => {
-            EditCommand::ToggleBlockQuote {
-                selection: map_selection_to_core(session, anchor, head, revision)?,
-            }
-        }
+        EditCommandDto::ToggleStrong { anchor, head } => EditCommand::ToggleStrong {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+        },
+        EditCommandDto::ToggleEmphasis { anchor, head } => EditCommand::ToggleEmphasis {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+        },
+        EditCommandDto::ToggleStrikethrough { anchor, head } => EditCommand::ToggleStrikethrough {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+        },
+        EditCommandDto::ToggleInlineCode { anchor, head } => EditCommand::ToggleInlineCode {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+        },
+        EditCommandDto::SetHeading {
+            anchor,
+            head,
+            level,
+        } => EditCommand::SetHeading {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+            level,
+        },
+        EditCommandDto::ToggleBlockQuote { anchor, head } => EditCommand::ToggleBlockQuote {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+        },
         EditCommandDto::ToggleList { anchor, head, kind } => {
             let core_kind = match kind {
                 ListKindDto::Unordered => ListKind::Unordered,
@@ -373,15 +546,30 @@ fn build_edit_command(
                 kind: core_kind,
             }
         }
-        EditCommandDto::InsertCodeFence { position, language } => {
+        EditCommandDto::InsertCodeFence {
+            position,
+            anchor,
+            head,
+            language,
+        } => {
             let byte_pos = session.byte_for_utf16(Utf16Offset(position)).map_err(|_| {
-                AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
-                    "Failed to convert code fence position UTF-16 {} to byte",
-                    position
-                ))
+                AppError::new(
+                    AppErrorCode::InvalidUtf16Boundary,
+                    format!(
+                        "Failed to convert code fence position UTF-16 {} to byte",
+                        position
+                    ),
+                )
             })?;
+            let selection = match (anchor, head) {
+                (Some(anchor), Some(head)) => {
+                    Some(map_selection_to_core(session, anchor, head, revision)?)
+                }
+                _ => None,
+            };
             EditCommand::InsertCodeFence {
                 position: byte_pos,
+                selection,
                 language,
             }
         }
@@ -390,10 +578,12 @@ fn build_edit_command(
             head,
             href,
             title,
+            text,
         } => EditCommand::InsertLink {
             selection: map_selection_to_core(session, anchor, head, revision)?,
             href,
             title,
+            text,
         },
         EditCommandDto::InsertImage {
             position,
@@ -401,10 +591,13 @@ fn build_edit_command(
             alt,
         } => {
             let byte_pos = session.byte_for_utf16(Utf16Offset(position)).map_err(|_| {
-                AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
-                    "Failed to convert image position UTF-16 {} to byte",
-                    position
-                ))
+                AppError::new(
+                    AppErrorCode::InvalidUtf16Boundary,
+                    format!(
+                        "Failed to convert image position UTF-16 {} to byte",
+                        position
+                    ),
+                )
             })?;
             EditCommand::InsertImage {
                 position: byte_pos,
@@ -426,6 +619,19 @@ pub fn execute_edit_command(
     let registry = &*SESSION_REGISTRY;
     let sid = SessionId(session_id);
     let base_rev = Revision(base_revision);
+    let cache_key = CommandTxnKey {
+        session_id,
+        frontend_txn_id: frontend_txn_id.clone(),
+    };
+    let fingerprint = serde_json::json!({
+        "op": "execute_edit_command",
+        "base_revision": base_revision,
+        "command": &command,
+    })
+    .to_string();
+    if let Some(result) = get_cached_command_result(&cache_key, &fingerprint)? {
+        return Ok(result);
+    }
 
     let result = with_session_state(registry, sid, |state| {
         let current_revision = state.core.revision();
@@ -439,17 +645,19 @@ pub fn execute_edit_command(
         let core_cmd = build_edit_command(&state.core, command, current_revision)
             .map_err(|e| RuntimeError::internal(format!("Command build error: {}", e.message)))?;
 
-        let core_txn_id = map_frontend_txn(&frontend_txn_id)
+        let core_txn_id = map_frontend_txn(sid, &frontend_txn_id)
             .map_err(|e| RuntimeError::internal(format!("Failed to map txn: {}", e.message)))?;
 
         // Execute the command (read-only, returns TextPatch)
         let patch = core_cmd
             .execute_with_transaction(&state.core, core_txn_id)
             .map_err(|e| RuntimeError::internal(format!("Command execution error: {:?}", e)))?;
+        let patch_dto = map_text_patch_to_dto(&state.core, &patch, &frontend_txn_id)?;
+        let affected_ranges = map_affected_ranges_to_dto(&state.core, &patch)?;
 
         // Apply with history — store the inverse patch for undo.
         // selection_before is None here; frontend can supply it later.
-        let _outcome = state
+        let outcome = state
             .core
             .apply_patch_with_history(
                 patch.clone(),
@@ -462,13 +670,7 @@ pub fn execute_edit_command(
         let new_revision = state.core.revision();
 
         // Convert selection_after back to UTF-16
-        let selection_after = patch
-            .selection_after
-            .and_then(|sel| {
-                let anchor = state.core.utf16_for_byte(sel.anchor).ok()?.0;
-                let head = state.core.utf16_for_byte(sel.head).ok()?.0;
-                Some(SelectionDto { anchor, head })
-            });
+        let selection_after = map_selection_to_dto(&state.core, outcome.selection_after);
 
         tracing::debug!(
             target: "runtime.edit_command",
@@ -482,10 +684,14 @@ pub fn execute_edit_command(
             session_id,
             transaction_id: frontend_txn_id,
             revision: new_revision.0,
+            patch: patch_dto,
+            affected_ranges,
             selection_after,
         })
     })
     .map_err(map_error)?;
+
+    cache_command_result(cache_key, fingerprint, result.clone())?;
 
     Ok(result)
 }
@@ -499,43 +705,68 @@ pub fn undo_document(
 ) -> Result<CommandResultDto, AppError> {
     let registry = &*SESSION_REGISTRY;
     let sid = SessionId(session_id);
-    let core_txn_id = map_frontend_txn(&frontend_txn_id)
+    let steps = max_steps.unwrap_or(1);
+    if steps != 1 {
+        return Err(AppError::new(
+            AppErrorCode::InvalidRange,
+            "undo_document supports only max_steps=1; call it repeatedly for multi-step undo",
+        ));
+    }
+    let cache_key = CommandTxnKey {
+        session_id,
+        frontend_txn_id: frontend_txn_id.clone(),
+    };
+    let fingerprint = serde_json::json!({
+        "op": "undo_document",
+        "max_steps": steps,
+    })
+    .to_string();
+    if let Some(result) = get_cached_command_result(&cache_key, &fingerprint)? {
+        return Ok(result);
+    }
+    let core_txn_id = map_frontend_txn(sid, &frontend_txn_id)
         .map_err(|e| AppError::internal(format!("Failed to map txn: {}", e.message)))?;
 
     let result = with_session_state(registry, sid, |state| {
-        let steps = max_steps.unwrap_or(1);
         let mut final_revision = state.core.revision();
         let mut selection_after = None::<SelectionDto>;
+        let mut all_changes = Vec::<Utf16ChangeDto>::new();
+        let mut all_affected = Vec::<UiRangeDto>::new();
+        let patch_base_revision = final_revision.0;
 
-        for _ in 0..steps {
-            if !state.core.can_undo() {
-                break;
+        if state.core.can_undo() {
+            if let Some(planned) = state.core.plan_undo_patch(core_txn_id) {
+                let patch_dto =
+                    map_text_patch_to_dto(&state.core, &planned.patch, &frontend_txn_id)?;
+                let affected = map_affected_ranges_to_dto(&state.core, &planned.patch)?;
+                all_changes.extend(patch_dto.changes);
+                all_affected.extend(affected);
             }
-            let outcome = state
-                .core
-                .undo(core_txn_id)
-                .map_err(RuntimeError::from)?;
+            let outcome = state.core.undo(core_txn_id).map_err(RuntimeError::from)?;
 
             if let Some(outcome) = outcome {
                 final_revision = outcome.revision;
-                selection_after = outcome
-                    .selection_after
-                    .and_then(|sel| {
-                        let anchor = state.core.utf16_for_byte(sel.anchor).ok()?.0;
-                        let head = state.core.utf16_for_byte(sel.head).ok()?.0;
-                        Some(SelectionDto { anchor, head })
-                    });
+                selection_after = map_selection_to_dto(&state.core, outcome.selection_after);
             }
         }
 
         Ok(CommandResultDto {
             session_id,
-            transaction_id: frontend_txn_id,
+            transaction_id: frontend_txn_id.clone(),
             revision: final_revision.0,
+            patch: CommandPatchDto {
+                transaction_id: frontend_txn_id.clone(),
+                base_revision: patch_base_revision,
+                changes: all_changes,
+                selection_after: None,
+            },
+            affected_ranges: all_affected,
             selection_after,
         })
     })
     .map_err(map_error)?;
+
+    cache_command_result(cache_key, fingerprint, result.clone())?;
 
     Ok(result)
 }
@@ -549,43 +780,68 @@ pub fn redo_document(
 ) -> Result<CommandResultDto, AppError> {
     let registry = &*SESSION_REGISTRY;
     let sid = SessionId(session_id);
-    let core_txn_id = map_frontend_txn(&frontend_txn_id)
+    let steps = max_steps.unwrap_or(1);
+    if steps != 1 {
+        return Err(AppError::new(
+            AppErrorCode::InvalidRange,
+            "redo_document supports only max_steps=1; call it repeatedly for multi-step redo",
+        ));
+    }
+    let cache_key = CommandTxnKey {
+        session_id,
+        frontend_txn_id: frontend_txn_id.clone(),
+    };
+    let fingerprint = serde_json::json!({
+        "op": "redo_document",
+        "max_steps": steps,
+    })
+    .to_string();
+    if let Some(result) = get_cached_command_result(&cache_key, &fingerprint)? {
+        return Ok(result);
+    }
+    let core_txn_id = map_frontend_txn(sid, &frontend_txn_id)
         .map_err(|e| AppError::internal(format!("Failed to map txn: {}", e.message)))?;
 
     let result = with_session_state(registry, sid, |state| {
-        let steps = max_steps.unwrap_or(1);
         let mut final_revision = state.core.revision();
         let mut selection_after = None::<SelectionDto>;
+        let mut all_changes = Vec::<Utf16ChangeDto>::new();
+        let mut all_affected = Vec::<UiRangeDto>::new();
+        let patch_base_revision = final_revision.0;
 
-        for _ in 0..steps {
-            if !state.core.can_redo() {
-                break;
+        if state.core.can_redo() {
+            if let Some(planned) = state.core.plan_redo_patch(core_txn_id) {
+                let patch_dto =
+                    map_text_patch_to_dto(&state.core, &planned.patch, &frontend_txn_id)?;
+                let affected = map_affected_ranges_to_dto(&state.core, &planned.patch)?;
+                all_changes.extend(patch_dto.changes);
+                all_affected.extend(affected);
             }
-            let outcome = state
-                .core
-                .redo(core_txn_id)
-                .map_err(RuntimeError::from)?;
+            let outcome = state.core.redo(core_txn_id).map_err(RuntimeError::from)?;
 
             if let Some(outcome) = outcome {
                 final_revision = outcome.revision;
-                selection_after = outcome
-                    .selection_after
-                    .and_then(|sel| {
-                        let anchor = state.core.utf16_for_byte(sel.anchor).ok()?.0;
-                        let head = state.core.utf16_for_byte(sel.head).ok()?.0;
-                        Some(SelectionDto { anchor, head })
-                    });
+                selection_after = map_selection_to_dto(&state.core, outcome.selection_after);
             }
         }
 
         Ok(CommandResultDto {
             session_id,
-            transaction_id: frontend_txn_id,
+            transaction_id: frontend_txn_id.clone(),
             revision: final_revision.0,
+            patch: CommandPatchDto {
+                transaction_id: frontend_txn_id.clone(),
+                base_revision: patch_base_revision,
+                changes: all_changes,
+                selection_after: None,
+            },
+            affected_ranges: all_affected,
             selection_after,
         })
     })
     .map_err(map_error)?;
+
+    cache_command_result(cache_key, fingerprint, result.clone())?;
 
     Ok(result)
 }
@@ -843,7 +1099,7 @@ pub fn apply_text_patch(
         }
 
         // Map frontend string transaction ID to core u64 TransactionId
-        let core_txn_id = map_frontend_txn(&patch.transaction_id).map_err(|e| {
+        let core_txn_id = map_frontend_txn(session_id, &patch.transaction_id).map_err(|e| {
             RuntimeError::internal(format!("Failed to map frontend txn: {}", e.message))
         })?;
 
@@ -1161,6 +1417,7 @@ pub fn close_document(session_id: u64) -> Result<(), AppError> {
     let sid = SessionId(session_id);
 
     registry.close(sid).map_err(map_error)?;
+    clear_command_cache_for_session(session_id)?;
 
     tracing::debug!(target: "runtime.command", session_id = session_id, "Document session closed");
 
@@ -1308,6 +1565,204 @@ mod tests {
                 |sid, did| DocumentSession::open_bytes(sid, did, bytes).map_err(RuntimeError::from),
             )
             .unwrap()
+    }
+
+    fn create_command_test_session(bytes: &'static [u8]) -> markflow_core::SessionId {
+        create_render_test_session(bytes)
+    }
+
+    fn session_text(session_id: markflow_core::SessionId) -> String {
+        with_session_state(&SESSION_REGISTRY, session_id, |state| {
+            Ok(state.core.text().logical_text().to_string())
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn execute_edit_command_returns_utf16_patch_for_non_ascii_selection() {
+        let session_id = create_command_test_session("你好 world".as_bytes());
+        let result = execute_edit_command(
+            session_id.0,
+            EditCommandDto::ToggleStrong { anchor: 0, head: 2 },
+            0,
+            "cmd-non-ascii".into(),
+        )
+        .unwrap();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(result.session_id, session_id.0);
+        assert_eq!(result.revision, 1);
+        assert_eq!(result.patch.base_revision, 0);
+        assert_eq!(result.patch.changes.len(), 1);
+        assert_eq!(result.patch.changes[0].from, 0);
+        assert_eq!(result.patch.changes[0].to, 2);
+        assert_eq!(result.patch.changes[0].insert, "**你好**");
+        assert_eq!(
+            result.affected_ranges,
+            vec![UiRangeDto { start: 0, end: 2 }]
+        );
+        assert_eq!(
+            result.selection_after,
+            Some(SelectionDto { anchor: 0, head: 6 })
+        );
+    }
+
+    #[test]
+    fn execute_edit_command_rejects_revision_mismatch() {
+        let session_id = create_command_test_session(b"abc");
+        let err = execute_edit_command(
+            session_id.0,
+            EditCommandDto::ToggleStrong { anchor: 0, head: 1 },
+            9,
+            "cmd-stale".into(),
+        )
+        .unwrap_err();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(err.code, AppErrorCode::RevisionMismatch);
+    }
+
+    #[test]
+    fn execute_edit_command_rejects_unknown_session() {
+        let err = execute_edit_command(
+            u64::MAX,
+            EditCommandDto::ToggleStrong { anchor: 0, head: 1 },
+            0,
+            "cmd-missing".into(),
+        )
+        .unwrap_err();
+
+        assert_eq!(err.code, AppErrorCode::SessionNotFound);
+    }
+
+    #[test]
+    fn execute_edit_command_retries_are_idempotent() {
+        let session_id = create_command_test_session(b"abc");
+        let command = EditCommandDto::ToggleStrong { anchor: 0, head: 1 };
+        let first =
+            execute_edit_command(session_id.0, command.clone(), 0, "cmd-retry".into()).unwrap();
+        let second = execute_edit_command(session_id.0, command, 0, "cmd-retry".into()).unwrap();
+        let text = session_text(session_id);
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(second, first);
+        assert_eq!(text, "**a**bc");
+    }
+
+    #[test]
+    fn execute_edit_command_reused_transaction_with_different_payload_conflicts() {
+        let session_id = create_command_test_session(b"abc");
+        let _ = execute_edit_command(
+            session_id.0,
+            EditCommandDto::ToggleStrong { anchor: 0, head: 1 },
+            0,
+            "cmd-conflict".into(),
+        )
+        .unwrap();
+        let err = execute_edit_command(
+            session_id.0,
+            EditCommandDto::ToggleEmphasis { anchor: 0, head: 1 },
+            0,
+            "cmd-conflict".into(),
+        )
+        .unwrap_err();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(err.code, AppErrorCode::TransactionConflict);
+    }
+
+    #[test]
+    fn execute_edit_command_insert_link_uses_display_text_for_empty_selection() {
+        let session_id = create_command_test_session(b"prefix ");
+        let result = execute_edit_command(
+            session_id.0,
+            EditCommandDto::InsertLink {
+                anchor: 7,
+                head: 7,
+                href: "https://example.com/".into(),
+                title: None,
+                text: Some("Example".into()),
+            },
+            0,
+            "cmd-link-text".into(),
+        )
+        .unwrap();
+        let text = session_text(session_id);
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(text, "prefix [Example](https://example.com/)");
+        assert_eq!(
+            result.patch.changes[0].insert,
+            "[Example](https://example.com/)"
+        );
+    }
+
+    #[test]
+    fn execute_edit_command_insert_code_fence_wraps_selection() {
+        let session_id = create_command_test_session(b"before\ncode\nafter");
+        let result = execute_edit_command(
+            session_id.0,
+            EditCommandDto::InsertCodeFence {
+                position: 7,
+                anchor: Some(7),
+                head: Some(11),
+                language: None,
+            },
+            0,
+            "cmd-code-fence-selection".into(),
+        )
+        .unwrap();
+        let text = session_text(session_id);
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(text, "before\n```\ncode\n```\nafter");
+        assert_eq!(result.patch.changes[0].from, 7);
+        assert_eq!(result.patch.changes[0].to, 11);
+        assert_eq!(result.patch.changes[0].insert, "```\ncode\n```");
+    }
+
+    #[test]
+    fn undo_redo_reject_multi_step_patch_result() {
+        let session_id = create_command_test_session(b"abc");
+        let undo_err = undo_document(session_id.0, "undo-two".into(), Some(2)).unwrap_err();
+        let redo_err = redo_document(session_id.0, "redo-zero".into(), Some(0)).unwrap_err();
+        let _ = SESSION_REGISTRY.close(session_id);
+
+        assert_eq!(undo_err.code, AppErrorCode::InvalidRange);
+        assert_eq!(redo_err.code, AppErrorCode::InvalidRange);
+    }
+
+    #[test]
+    fn undo_redo_are_session_isolated_and_return_patches() {
+        let left = create_command_test_session(b"left");
+        let right = create_command_test_session(b"right");
+        let _ = execute_edit_command(
+            left.0,
+            EditCommandDto::ToggleStrong { anchor: 0, head: 4 },
+            0,
+            "left-bold".into(),
+        )
+        .unwrap();
+        let _ = execute_edit_command(
+            right.0,
+            EditCommandDto::ToggleEmphasis { anchor: 0, head: 5 },
+            0,
+            "right-italic".into(),
+        )
+        .unwrap();
+
+        let undo = undo_document(left.0, "left-undo".into(), None).unwrap();
+        let redo = redo_document(left.0, "left-redo".into(), None).unwrap();
+        let left_text = session_text(left);
+        let right_text = session_text(right);
+        let _ = SESSION_REGISTRY.close(left);
+        let _ = SESSION_REGISTRY.close(right);
+
+        assert_eq!(undo.patch.changes[0].from, 0);
+        assert_eq!(undo.patch.changes[0].insert, "left");
+        assert_eq!(redo.patch.changes[0].insert, "**left**");
+        assert_eq!(left_text, "**left**");
+        assert_eq!(right_text, "*right*");
     }
 
     #[test]

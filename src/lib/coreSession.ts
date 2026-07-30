@@ -512,6 +512,17 @@ export function markPatchAcked(revision: number, byteLength: number): void {
   });
 }
 
+export function markSessionRevisionConfirmed(revision: number): void {
+  if (!currentSession.isActive) return;
+
+  updateState({
+    confirmedRevision: revision,
+    pendingCount: 0,
+    pendingBytes: 0,
+    syncState: 'idle',
+  });
+}
+
 /**
  * Update sync state to blocked — called on unrecoverable error.
  */

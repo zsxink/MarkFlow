@@ -1,7 +1,7 @@
 # MarkFlow Core 功能迁移矩阵
 
-> 状态：M3/M3.1 已验收 — Core-backed Source Mode 与保存完整性加固已归档
-> 更新日期：2026-07-29
+> 状态：M3/M3.1 已验收；M6 Phase 3-5 Core command bridge 迁移中
+> 更新日期：2026-07-30
 > 用途：定义”现有功能完整迁移”的范围。每项必须有 owner、目标阶段、自动化测试或人工验收记录。
 > 所属方案：MarkFlow Core 重构
 > M3 验收记录：
@@ -16,6 +16,10 @@
 > M4 foundation 记录：
 > - Issue #219 建立默认关闭的 Solid shell 入口、session-indexed workspace projection、Editor Adapter 与 Host request context 基础边界
 > - 验证重点：Solid store 不保存权威 Markdown 文本；`activeFilePath` 仅由 active session 的 `source.path` 派生；异步结果应用前校验 `sessionId + revision + requestId`
+> M6 Phase 3-5 记录：
+> - Issue STA-7 / change `m6-phase3-core-command-bridge` 补齐 Bridge IPC、FormatCommandLayer、Toolbar/Keyboard 语义命令迁移规范。
+> - Core Source Mode 的 Bold/Italic/Strike/InlineCode/H1/H2/Quote/List/CodeFence/Link、Undo/Redo 进入 Core 主路径；返回 patch + selection_after + revision，正常路径不再整篇 resync。
+> - Deferred：Image/TaskList/CopyPaste/StyleMap inheritance 仍归后续 M6/M7；当前不标记为已验收。
 
 ## 1. 使用规则
 
@@ -49,7 +53,7 @@
 | Source Mode | CodeMirror → M3/M3.1: Runtime-backed source mode (patch-based sync via Session, strict flush/resync, feature flag 回退) | Editor Adapter + Core | M3 已验收 | 小 patch 同步，不传全文 |
 | WYSIWYG | ProseMirror | CodeMirror Live Preview | M5-M8 | 长期保留，保存不经 serializer |
 | 模式切换 | 整篇序列化 | Editor Adapter | M5 | byte-for-byte 不变 |
-| Undo/Redo | 编辑器 history | Core History | M6 | 单 owner，IME 分组正确 |
+| Undo/Redo | 编辑器 history → M6 Phase 3-5: Core-backed Source Mode 快捷键调用 Core undo/redo IPC，命令前 flush pending patch，返回 patch/selection/revision | Core History | M6 Core 主路径；IME 分组后续补齐 | 单 owner，IME 分组正确 |
 | 光标/选区 | PM/CM 各自模型 | Adapter + PositionMap | M3-M6 | 中英文、emoji、组合字符 |
 | 大纲 | ProseMirror/DOM 派生 | Core ParseIndex | M2-M4 | 点击定位到 revision range |
 | 字数/行数/行列 | 前端统计 | Core + Adapter | M3/M6 | 大文件不阻塞输入 |
@@ -61,18 +65,18 @@
 
 ## 4. 格式命令
 
-| 能力 | 目标阶段 | 保真要求 |
-| --- | --- | --- |
-| 加粗、斜体、删除线、行内代码 | M6 | 沿用可兼容 marker，局部 patch |
-| H1-H6 | M6 | 保留 ATX/Setext 未编辑区域 |
-| 引用 | M6 | 保留 quote prefix 和嵌套缩进 |
-| 无序列表 | M6 | 保留 `-`、`*`、`+` |
-| 有序列表 | M6 | 保留 `.` / `)`、起始编号策略 |
-| Task List | M6/M7 | 保留 marker、缩进和大小写 |
-| Code Fence | M6 | 保留反引号/波浪线和 fence 长度 |
-| 链接插入/编辑 | M6 | 保留 inline/reference/autolink 未编辑表达 |
-| 图片插入/编辑 | M6/M7 | 引用 patch 与文件事务一致 |
-| 复制/粘贴 | M6 | 明确 plain text、Markdown、图片优先级 |
+| 能力 | 目标阶段 | M6 Phase 3-5 状态 | 保真要求 / 验收证据 |
+| --- | --- | --- | --- |
+| 加粗、斜体、删除线、行内代码 | M6 | Core 主路径 | Source Mode toolbar/keyboard → FormatCommandLayer → Core `EditCommand`；返回局部 UTF-16 patch，沿用可兼容 marker |
+| H1-H6 | M6 | Core 主路径（H1/H2 已接 toolbar；Core 支持 H1-H6） | Source Mode toolbar H1/H2 → Core `SetHeading`；未编辑区域保留 ATX/Setext 表达 |
+| 引用 | M6 | Core 主路径 | Source Mode toolbar → Core `ToggleBlockQuote`；保留 quote prefix 和嵌套缩进 |
+| 无序列表 | M6 | Core 主路径 | Source Mode toolbar → Core `ToggleList(Unordered)`；后续 StyleMap 继承补齐 `-`、`*`、`+` 上下文选择 |
+| 有序列表 | M6 | Core 主路径 | Source Mode toolbar → Core `ToggleList(Ordered)`；后续 StyleMap 继承补齐 `.` / `)`、起始编号策略 |
+| Task List | M6/M7 | 未开始 | 保留 marker、缩进和大小写；后续 M6/M7 独立迁移 |
+| Code Fence | M6 | Core 主路径 | Source Mode toolbar → Core `InsertCodeFence`；空选区插入空 fence，非空选区包裹选中文本；后续 StyleMap 继承补齐反引号/波浪线和 fence 长度 |
+| 链接插入/编辑 | M6 | Core 主路径（插入）；编辑后续 | Toolbar/Ctrl+K 复用安全 link dialog，Source Core 下发 `InsertLink` 并保留 dialog display text；reference/autolink 未编辑表达后续验收 |
+| 图片插入/编辑 | M6/M7 | 双轨 / 后续迁移 | 当前仍由图片资源事务与 legacy source insertion 处理；Core `InsertImage` bridge 可用但文件事务、引用策略未完成，不标记已验收 |
+| 复制/粘贴 | M6 | 未开始 | 明确 plain text、Markdown、图片优先级；后续独立迁移 |
 
 ## 5. 专业 Markdown
 

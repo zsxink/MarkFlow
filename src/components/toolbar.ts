@@ -14,8 +14,10 @@ import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport
 import { showContextMenuStatic } from './ui/contextMenu';
 import { getSourceView } from '../lib/editor.source';
 import { isCoreBackedSourceModeEnabled } from '../lib/coreSession';
-import type { EditCommandDto } from '../lib/coreBridge';
-import { executeFormatCommand } from '../editor-adapter/formatCommandLayer';
+import {
+  type FormattingAction,
+  executeFormattingAction,
+} from '../editor-adapter/formatCommandLayer';
 
 export function initToolbar() {
   initAriaAttributes();
@@ -65,33 +67,33 @@ function bindToolbarEvents() {
     showNewFileDialog('file', getWorkspacePath());
   });
 
-  bind('btn-bold', () => executeCommandOrFallback(
-    { type: 'toggle_strong', anchor: 0, head: 0 },
+  bind('btn-bold', () => executeActionOrFallback(
+    { type: 'toggle_strong' },
     () => getEditor()?.chain().focus().toggleBold().run(),
   ));
-  bind('btn-italic', () => executeCommandOrFallback(
-    { type: 'toggle_emphasis', anchor: 0, head: 0 },
+  bind('btn-italic', () => executeActionOrFallback(
+    { type: 'toggle_emphasis' },
     () => getEditor()?.chain().focus().toggleItalic().run(),
   ));
-  bind('btn-strike', () => executeCommandOrFallback(
-    { type: 'toggle_strikethrough', anchor: 0, head: 0 },
+  bind('btn-strike', () => executeActionOrFallback(
+    { type: 'toggle_strikethrough' },
     () => getEditor()?.chain().focus().toggleStrike().run(),
   ));
-  bind('btn-code', () => executeCommandOrFallback(
-    { type: 'toggle_inline_code', anchor: 0, head: 0 },
+  bind('btn-code', () => executeActionOrFallback(
+    { type: 'toggle_inline_code' },
     () => getEditor()?.chain().focus().toggleCode().run(),
   ));
-  bind('btn-h1', () => executeCommandOrFallback(
-    { type: 'set_heading', anchor: 0, head: 0, level: 1 },
+  bind('btn-h1', () => executeActionOrFallback(
+    { type: 'set_heading', level: 1 },
     () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run(),
   ));
-  bind('btn-h2', () => executeCommandOrFallback(
-    { type: 'set_heading', anchor: 0, head: 0, level: 2 },
+  bind('btn-h2', () => executeActionOrFallback(
+    { type: 'set_heading', level: 2 },
     () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run(),
   ));
   bind('btn-quote', () => {
     if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
-      void executeFormatCommand({ type: 'toggle_block_quote', anchor: 0, head: 0 });
+      void executeFormattingAction({ type: 'toggle_block_quote' });
     } else if (getMode() === 'source') {
       // CM6: wrap selection/current line with > prefix
       const view = getSourceView();
@@ -120,19 +122,25 @@ function bindToolbarEvents() {
     }
   });
   bind('btn-link', () => {
-    showLinkDialog();
+    if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+      showCoreLinkDialog();
+    } else {
+      showLinkDialog();
+    }
   });
-  bind('btn-ul', () => executeCommandOrFallback(
-    { type: 'toggle_list', anchor: 0, head: 0, kind: 'Unordered' },
+  bind('btn-ul', () => executeActionOrFallback(
+    { type: 'toggle_list', kind: 'Unordered' },
     () => getEditor()?.chain().focus().toggleBulletList().run(),
   ));
-  bind('btn-ol', () => executeCommandOrFallback(
-    { type: 'toggle_list', anchor: 0, head: 0, kind: 'Ordered' },
+  bind('btn-ol', () => executeActionOrFallback(
+    { type: 'toggle_list', kind: 'Ordered' },
     () => getEditor()?.chain().focus().toggleOrderedList().run(),
   ));
   bind('btn-hr', () => getEditor()?.chain().focus().setHorizontalRule().run());
   bind('btn-codeblock', () => {
-    if (getMode() === 'source') {
+    if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+      void executeFormattingAction({ type: 'insert_code_fence', language: null });
+    } else if (getMode() === 'source') {
       // CM6: wrap selection with ``` fences
       const view = getSourceView();
       if (!view) return;
@@ -292,15 +300,34 @@ async function exportCurrentDocument(format: ExportFormat) {
  * `anchor` and `head` are initialised to 0 — the FormatCommandLayer reads the
  * actual selection from the CodeMirror view at call time.
  */
-function executeCommandOrFallback(
-  cmd: EditCommandDto,
+function executeActionOrFallback(
+  action: FormattingAction,
   fallback: () => void,
 ): void {
   if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
-    void executeFormatCommand(cmd);
+    void executeFormattingAction(action);
   } else {
     fallback();
   }
+}
+
+function showCoreLinkDialog(): void {
+  const view = getSourceView();
+  const selectedText = view
+    ? view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)
+    : '';
+
+  showLinkDialog({
+    selectedText,
+    onConfirm: ({ href, text }) => {
+      void executeFormattingAction({
+        type: 'insert_link',
+        href,
+        title: null,
+        text,
+      });
+    },
+  });
 }
 
 function bind(id: string, fn: () => void) {

@@ -27,6 +27,9 @@ import {
   getOutline,
   getDocumentStats,
   reloadDocument,
+  executeEditCommand,
+  undoDocument,
+  redoDocument,
   BridgeError,
   generateRequestId,
 } from './coreBridge';
@@ -224,6 +227,67 @@ describe('coreBridge', () => {
       const result = await reloadDocument(42);
       expect(result).toEqual(reloadResult);
       expect(mocks.invoke).toHaveBeenCalledWith('reload_document', { session_id: 42 });
+    });
+  });
+
+  describe('edit commands', () => {
+    it('passes execute_edit_command args and returns patch-first result', async () => {
+      const resultDto = {
+        session_id: 42,
+        transaction_id: 'fmt-1',
+        revision: 6,
+        patch: {
+          transaction_id: 'fmt-1',
+          base_revision: 5,
+          changes: [{ from: 0, to: 4, insert: '**bold**' }],
+          selection_after: null,
+        },
+        affected_ranges: [{ start: 0, end: 4 }],
+        selection_after: { anchor: 8, head: 8 },
+      };
+      mocks.invoke.mockResolvedValue(resultDto);
+
+      const command = { type: 'toggle_strong' as const, anchor: 0, head: 4 };
+      const result = await executeEditCommand(42, command, 5, 'fmt-1');
+
+      expect(result).toEqual(resultDto);
+      expect(mocks.invoke).toHaveBeenCalledWith('execute_edit_command', {
+        session_id: 42,
+        command,
+        base_revision: 5,
+        frontend_txn_id: 'fmt-1',
+      });
+    });
+
+    it('passes undo and redo document args', async () => {
+      const resultDto = {
+        session_id: 42,
+        transaction_id: 'undo-1',
+        revision: 7,
+        patch: {
+          transaction_id: 'undo-1',
+          base_revision: 6,
+          changes: [],
+          selection_after: null,
+        },
+        affected_ranges: [],
+        selection_after: null,
+      };
+      mocks.invoke.mockResolvedValue(resultDto);
+
+      await undoDocument(42, 'undo-1', 1);
+      expect(mocks.invoke).toHaveBeenCalledWith('undo_document', {
+        session_id: 42,
+        frontend_txn_id: 'undo-1',
+        max_steps: 1,
+      });
+
+      await redoDocument(42, 'redo-1', 2);
+      expect(mocks.invoke).toHaveBeenCalledWith('redo_document', {
+        session_id: 42,
+        frontend_txn_id: 'redo-1',
+        max_steps: 2,
+      });
     });
   });
 

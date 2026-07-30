@@ -198,15 +198,37 @@ export type EditCommandDto =
   | { type: 'set_heading'; anchor: number; head: number; level: HeadingLevel }
   | { type: 'toggle_block_quote'; anchor: number; head: number }
   | { type: 'toggle_list'; anchor: number; head: number; kind: ListKindDto }
-  | { type: 'insert_code_fence'; position: number; language?: string | null }
-  | { type: 'insert_link'; anchor: number; head: number; href: string; title?: string | null }
+  | {
+      type: 'insert_code_fence';
+      position: number;
+      anchor?: number | null;
+      head?: number | null;
+      language?: string | null;
+    }
+  | {
+      type: 'insert_link';
+      anchor: number;
+      head: number;
+      href: string;
+      title?: string | null;
+      text?: string | null;
+    }
   | { type: 'insert_image'; position: number; reference: string; alt?: string | null };
 
 /** Result of executing an edit command. */
+export interface CommandPatchDto {
+  transaction_id: string;
+  base_revision: number;
+  changes: Utf16ChangeDto[];
+  selection_after: SelectionDto | null;
+}
+
 export interface CommandResultDto {
   session_id: number;
   transaction_id: string;
   revision: number;
+  patch: CommandPatchDto;
+  affected_ranges: UiRangeDto[];
   selection_after: SelectionDto | null;
 }
 

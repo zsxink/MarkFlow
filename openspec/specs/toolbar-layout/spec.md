@@ -9,9 +9,7 @@
 - **关联规范：** `ui-aria-attributes`、`statusbar`。
 - **不变量：** 待实现。
 - **验证：** 待实现。
-
 ## Requirements
-
 ### Requirement: 工具栏按钮组容器布局
 
 工具栏中所有 `[role="group"]` 容器 SHALL 使用 flex 布局，确保按钮在分组后仍保持单行水平排列。
@@ -41,3 +39,21 @@
 - **WHEN** 工具栏渲染完成
 - **THEN** 工具栏容器 `.toolbar` 的高度 SHALL 等于预期工具栏高度（34px + padding）
 - **THEN** 工具栏内所有按钮和分隔符的 `offsetTop` SHALL 相同（即在同一水平行上）
+
+### Requirement: Core Source Mode toolbar formatting dispatch
+Toolbar formatting controls in Core-backed Source Mode SHALL dispatch semantic Core commands through FormatCommandLayer for bold, italic, strikethrough, inline code, headings, quote, lists, code fence, and link. Outside Core-backed Source Mode these controls SHALL preserve the existing WYSIWYG or legacy source fallback behavior.
+
+#### Scenario: toolbar bold dispatches Core command
+- **WHEN** the user clicks the Bold toolbar button in Core-backed Source Mode
+- **THEN** the button invokes FormatCommandLayer with the `ToggleStrong` semantic command
+- **THEN** it does not call the legacy Tiptap command path
+
+#### Scenario: toolbar code fence dispatches Core command
+- **WHEN** the user clicks the Code Fence toolbar button in Core-backed Source Mode
+- **THEN** the button invokes FormatCommandLayer with `InsertCodeFence`
+- **THEN** CodeMirror is updated from the returned Core patch
+
+#### Scenario: toolbar fallback remains available
+- **WHEN** the user clicks a formatting toolbar button outside Core-backed Source Mode
+- **THEN** the existing WYSIWYG or legacy source fallback behavior remains available
+

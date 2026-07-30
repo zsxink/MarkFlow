@@ -67,6 +67,7 @@ pub enum EditCommand {
     /// Insert a code fence at the given byte position.
     InsertCodeFence {
         position: ByteOffset,
+        selection: Option<Selection>,
         language: Option<String>,
     },
     /// Replace the selection with a Markdown link.
@@ -74,6 +75,7 @@ pub enum EditCommand {
         selection: Selection,
         href: String,
         title: Option<String>,
+        text: Option<String>,
     },
     /// Insert a Markdown image at the given byte position.
     InsertImage {
@@ -156,14 +158,32 @@ impl EditCommand {
             EditCommand::ToggleList { selection, kind } => {
                 toggle_list(session, selection, *kind, tx, rev)
             }
-            EditCommand::InsertCodeFence { position, language } => {
-                insert_code_fence(session, *position, language.as_deref(), tx, rev)
-            }
+            EditCommand::InsertCodeFence {
+                position,
+                selection,
+                language,
+            } => insert_code_fence(
+                session,
+                *position,
+                selection.as_ref(),
+                language.as_deref(),
+                tx,
+                rev,
+            ),
             EditCommand::InsertLink {
                 selection,
                 href,
                 title,
-            } => insert_link(session, selection, href, title.as_deref(), tx, rev),
+                text,
+            } => insert_link(
+                session,
+                selection,
+                href,
+                title.as_deref(),
+                text.as_deref(),
+                tx,
+                rev,
+            ),
             EditCommand::InsertImage {
                 position,
                 reference,
@@ -557,30 +577,40 @@ fn toggle_list(
 
 /// Insert a code fence at the given byte position.
 fn insert_code_fence(
-    _session: &DocumentSession,
+    session: &DocumentSession,
     position: ByteOffset,
+    selection: Option<&Selection>,
     language: Option<&str>,
     tx: TransactionId,
     rev: Revision,
 ) -> CoreResult<TextPatch> {
+    let (start, end) = selection.map(normalise).unwrap_or((position, position));
     let lang = language.unwrap_or("");
     let fence_len = FENCE.len();
-    let fence_text = if lang.is_empty() {
-        format!("{fence}\n\n{fence}", fence = FENCE)
+    let selected_text = if start == end {
+        String::new()
     } else {
-        format!("{fence}{lang}\n\n{fence}", fence = FENCE)
+        session
+            .text()
+            .logical_text()
+            .get(start.0..end.0)
+            .unwrap_or("")
+            .to_string()
+    };
+    let fence_text = match (lang.is_empty(), selected_text.is_empty()) {
+        (true, true) => format!("{fence}\n\n{fence}", fence = FENCE),
+        (false, true) => format!("{fence}{lang}\n\n{fence}", fence = FENCE),
+        (true, false) => format!("{fence}\n{selected_text}\n{fence}", fence = FENCE),
+        (false, false) => format!("{fence}{lang}\n{selected_text}\n{fence}", fence = FENCE),
     };
 
-    // Place cursor on the blank line inside the fence.
-    // position.0 + fence_len + lang.len() + 1  gives the byte offset
-    // of the second `\n` (the blank line inside the fence).
-    let cursor_pos = ByteOffset(position.0 + fence_len + lang.len() + 1);
+    let cursor_pos = ByteOffset(start.0 + fence_len + lang.len() + 1 + selected_text.len());
 
     Ok(TextPatch {
         transaction_id: tx,
         base_revision: rev,
         changes: vec![TextChange {
-            range: SourceRange::new(rev, position.0, position.0),
+            range: SourceRange::new(rev, start.0, end.0),
             replacement: fence_text,
         }],
         selection_after: Some(Selection {
@@ -597,20 +627,21 @@ fn insert_link(
     selection: &Selection,
     href: &str,
     title: Option<&str>,
+    display_text: Option<&str>,
     tx: TransactionId,
     rev: Revision,
 ) -> CoreResult<TextPatch> {
     let (start, end) = normalise(selection);
-    let text = if start == end {
-        String::new()
-    } else {
-        session
-            .text()
-            .logical_text()
-            .get(start.0..end.0)
-            .unwrap_or("")
-            .to_string()
-    };
+    let selected_text = session
+        .text()
+        .logical_text()
+        .get(start.0..end.0)
+        .unwrap_or("")
+        .to_string();
+    let text = display_text
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or(selected_text);
 
     let link_text = match title {
         Some(t) => format!("[{text}]({href} \"{t}\")"),
@@ -990,6 +1021,7 @@ mod tests {
             &mut s,
             EditCommand::InsertCodeFence {
                 position: ByteOffset(5),
+                selection: None,
                 language: None,
             },
         );
@@ -1003,10 +1035,28 @@ mod tests {
             &mut s,
             EditCommand::InsertCodeFence {
                 position: ByteOffset(0),
+                selection: None,
                 language: Some("rust".to_string()),
             },
         );
         assert_eq!(s.text().logical_text(), "```rust\n\n```Hello");
+    }
+
+    #[test]
+    fn test_insert_code_fence_wraps_selection() {
+        let mut s = session("before\ncode\ntext\nafter");
+        apply(
+            &mut s,
+            EditCommand::InsertCodeFence {
+                position: ByteOffset(7),
+                selection: Some(sel(7, 16)),
+                language: None,
+            },
+        );
+        assert_eq!(
+            s.text().logical_text(),
+            "before\n```\ncode\ntext\n```\nafter"
+        );
     }
 
     // ── InsertLink ────────────────────────────────────────────────
@@ -1020,6 +1070,7 @@ mod tests {
                 selection: sel(0, 5),
                 href: "https://example.com".to_string(),
                 title: None,
+                text: None,
             },
         );
         assert_eq!(
@@ -1037,11 +1088,30 @@ mod tests {
                 selection: sel(0, 7),
                 href: "https://example.com".to_string(),
                 title: Some("Example Site".to_string()),
+                text: None,
             },
         );
         assert_eq!(
             s.text().logical_text(),
             "[example](https://example.com \"Example Site\")"
+        );
+    }
+
+    #[test]
+    fn test_insert_link_uses_display_text_for_empty_selection() {
+        let mut s = session("prefix ");
+        apply(
+            &mut s,
+            EditCommand::InsertLink {
+                selection: sel(7, 7),
+                href: "https://example.com".to_string(),
+                title: None,
+                text: Some("Example".to_string()),
+            },
+        );
+        assert_eq!(
+            s.text().logical_text(),
+            "prefix [Example](https://example.com)"
         );
     }
 

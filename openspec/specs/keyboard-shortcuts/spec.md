@@ -8,9 +8,7 @@
 - **关联规范：** `sidebar`、`dialog-system`、`url-decoration`。
 - **不变量：** Ctrl/Cmd 均应可用；已处理命令必须阻止浏览器默认行为；输入控件与编辑器自身快捷键不得被全局处理器误吞。
 - **验证：** `npm test -- src/utils`；`npx openspec validate keyboard-shortcuts --strict`。
-
 ## Requirements
-
 ### Requirement: 全局快捷键初始化
 
 系统 MUST 通过 `src/utils/keyboard.ts` 的 `initKeyboard` 注册全局键盘事件，并同时支持 Ctrl 与 Cmd 修饰键。快捷键处理 MUST 阻止已处理命令的浏览器默认行为。
@@ -34,3 +32,22 @@
 #### Scenario: 不安全链接协议被拒绝
 - **WHEN** 用户按 Ctrl/Cmd+K 后输入不受支持的 URL 协议
 - **THEN** 系统显示错误提示且不创建链接
+
+### Requirement: Core Source Mode semantic shortcuts
+Keyboard shortcuts in Core-backed Source Mode SHALL dispatch semantic Core commands through FormatCommandLayer for bold, italic, strikethrough, link, undo, and redo. Handled shortcuts MUST prevent browser defaults.
+
+#### Scenario: bold shortcut dispatches Core command
+- **WHEN** the user presses Ctrl/Cmd+B in Core-backed Source Mode
+- **THEN** the shortcut invokes FormatCommandLayer with the `ToggleStrong` semantic command
+- **THEN** it does not call the legacy Tiptap command path
+
+#### Scenario: link shortcut uses safe dialog then Core command
+- **WHEN** the user presses Ctrl/Cmd+K in Core-backed Source Mode and submits a supported URL
+- **THEN** the shortcut validates the link through the shared link dialog behavior
+- **THEN** it invokes FormatCommandLayer with `InsertLink`
+
+#### Scenario: undo redo shortcuts use Core history
+- **WHEN** the user presses Ctrl/Cmd+Z or platform redo equivalent in Core-backed Source Mode
+- **THEN** the shortcut invokes FormatCommandLayer undo or redo
+- **THEN** it does not rely on browser or legacy editor history
+

@@ -181,6 +181,57 @@ export class BridgeError extends Error {
   }
 }
 
+// ── EditCommand DTOs ──────────────────────────────────────────────────────────
+
+/** Allowed heading levels for SetHeading. */
+export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+/** List kind for ToggleList. */
+export type ListKindDto = 'Unordered' | 'Ordered';
+
+/** Discriminated union mirroring EditCommandDto on the Rust side (`#[serde(tag = "type")]`). */
+export type EditCommandDto =
+  | { type: 'toggle_strong'; anchor: number; head: number }
+  | { type: 'toggle_emphasis'; anchor: number; head: number }
+  | { type: 'toggle_strikethrough'; anchor: number; head: number }
+  | { type: 'toggle_inline_code'; anchor: number; head: number }
+  | { type: 'set_heading'; anchor: number; head: number; level: HeadingLevel }
+  | { type: 'toggle_block_quote'; anchor: number; head: number }
+  | { type: 'toggle_list'; anchor: number; head: number; kind: ListKindDto }
+  | {
+      type: 'insert_code_fence';
+      position: number;
+      anchor?: number | null;
+      head?: number | null;
+      language?: string | null;
+    }
+  | {
+      type: 'insert_link';
+      anchor: number;
+      head: number;
+      href: string;
+      title?: string | null;
+      text?: string | null;
+    }
+  | { type: 'insert_image'; position: number; reference: string; alt?: string | null };
+
+/** Result of executing an edit command. */
+export interface CommandPatchDto {
+  transaction_id: string;
+  base_revision: number;
+  changes: Utf16ChangeDto[];
+  selection_after: SelectionDto | null;
+}
+
+export interface CommandResultDto {
+  session_id: number;
+  transaction_id: string;
+  revision: number;
+  patch: CommandPatchDto;
+  affected_ranges: UiRangeDto[];
+  selection_after: SelectionDto | null;
+}
+
 // ── Request ID Generator ────────────────────────────────────────────────────
 
 let requestIdCounter = 0;
@@ -440,6 +491,92 @@ export async function closeDocument(
     });
   } catch (err) {
     logException('bridge', 'closeDocument failed', err, { sessionId });
+    throw err;
+  }
+}
+
+// ── Edit Command Functions ────────────────────────────────────────────────
+
+/** Execute a semantic edit command on a Core document session. */
+export async function executeEditCommand(
+  sessionId: number,
+  command: EditCommandDto,
+  baseRevision: number,
+  frontendTxnId: string,
+  _options?: BridgeOptions,
+): Promise<CommandResultDto> {
+  logDebug('bridge', 'executeEditCommand', {
+    sessionId,
+    baseRevision,
+    commandType: command.type,
+  });
+  try {
+    const result = await invokeBridge<CommandResultDto>('execute_edit_command', {
+      session_id: sessionId,
+      command,
+      base_revision: baseRevision,
+      frontend_txn_id: frontendTxnId,
+    });
+    logDebug('bridge', 'executeEditCommand completed', {
+      sessionId,
+      revision: result.revision,
+    });
+    return result;
+  } catch (err) {
+    logException('bridge', 'executeEditCommand failed', err, {
+      sessionId,
+      commandType: command.type,
+    });
+    throw err;
+  }
+}
+
+/** Undo the last edit(s) in a document session. */
+export async function undoDocument(
+  sessionId: number,
+  frontendTxnId: string,
+  maxSteps?: number,
+  _options?: BridgeOptions,
+): Promise<CommandResultDto> {
+  logDebug('bridge', 'undoDocument', { sessionId, maxSteps });
+  try {
+    const result = await invokeBridge<CommandResultDto>('undo_document', {
+      session_id: sessionId,
+      frontend_txn_id: frontendTxnId,
+      max_steps: maxSteps,
+    });
+    logDebug('bridge', 'undoDocument completed', {
+      sessionId,
+      revision: result.revision,
+    });
+    return result;
+  } catch (err) {
+    logException('bridge', 'undoDocument failed', err, { sessionId });
+    throw err;
+  }
+}
+
+/** Redo the last undone edit(s) in a document session. */
+export async function redoDocument(
+  sessionId: number,
+  frontendTxnId: string,
+  maxSteps?: number,
+  _options?: BridgeOptions,
+): Promise<CommandResultDto> {
+  logDebug('bridge', 'redoDocument', { sessionId, maxSteps });
+  try {
+    const result = await invokeBridge<CommandResultDto>('redo_document', {
+      session_id: sessionId,
+      frontend_txn_id: frontendTxnId,
+      max_steps: maxSteps,
+    });
+    logDebug('bridge', 'redoDocument completed', {
+      sessionId,
+      revision: result.revision,
+    });
+    return result;
+  } catch (err) {
+    logException('bridge', 'redoDocument failed', err, { sessionId });
     throw err;
   }
 }

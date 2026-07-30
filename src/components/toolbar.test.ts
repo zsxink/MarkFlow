@@ -1,10 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { switchToSource, switchToWysiwyg, getMode, getEditor, showContextMenuStatic, exportRenderedDocument } = vi.hoisted(() => ({ switchToSource: vi.fn(), switchToWysiwyg: vi.fn(), getMode: vi.fn(), getEditor: vi.fn(), showContextMenuStatic: vi.fn(), exportRenderedDocument: vi.fn() }));
+const { switchToSource, switchToWysiwyg, getMode, getEditor, showContextMenuStatic, exportRenderedDocument, executeFormattingAction, isCoreBackedSourceModeEnabled, showLinkDialog, getSourceView } = vi.hoisted(() => ({
+  switchToSource: vi.fn(),
+  switchToWysiwyg: vi.fn(),
+  getMode: vi.fn(),
+  getEditor: vi.fn(),
+  showContextMenuStatic: vi.fn(),
+  exportRenderedDocument: vi.fn(),
+  executeFormattingAction: vi.fn(),
+  isCoreBackedSourceModeEnabled: vi.fn(() => false),
+  showLinkDialog: vi.fn(),
+  getSourceView: vi.fn(),
+}));
 vi.mock('../lib/editor', () => ({ switchToSource, switchToWysiwyg, getMode, getEditor }));
+vi.mock('../lib/coreSession', () => ({ isCoreBackedSourceModeEnabled }));
+vi.mock('../editor-adapter/formatCommandLayer', () => ({
+  executeFormattingAction,
+}));
 vi.mock('./fileTree', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), getWorkspacePath: vi.fn() }));
-vi.mock('./newFileDialog', () => ({ showNewFileDialog: vi.fn() })); vi.mock('./linkDialog', () => ({ showLinkDialog: vi.fn() })); vi.mock('./toast', () => ({ showToast: vi.fn() })); vi.mock('./ui/modal', () => ({ showModal: vi.fn() }));
-vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage: vi.fn(), getImageSettings: vi.fn(), imagePathToSrc: vi.fn((path: string) => path) })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath: vi.fn(), assetToOriginalMap: new Map() })); vi.mock('../lib/editor.source', () => ({ getSourceView: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
+vi.mock('./newFileDialog', () => ({ showNewFileDialog: vi.fn() })); vi.mock('./linkDialog', () => ({ showLinkDialog })); vi.mock('./toast', () => ({ showToast: vi.fn() })); vi.mock('./ui/modal', () => ({ showModal: vi.fn() }));
+vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage: vi.fn(), getImageSettings: vi.fn(), imagePathToSrc: vi.fn((path: string) => path) })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath: vi.fn(), assetToOriginalMap: new Map() })); vi.mock('../lib/editor.source', () => ({ getSourceView })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
 vi.mock('../lib/documentExport', () => ({ exportRenderedDocument })); vi.mock('./ui/contextMenu', () => ({ showContextMenuStatic })); vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
 import { initToolbar } from './toolbar';
 
@@ -17,6 +32,8 @@ function buildToolbarHTML() {
     <button class="toolbar-btn" id="btn-italic" data-tooltip="斜体"></button>
     <button class="toolbar-btn" id="btn-strike" data-tooltip="删除线"></button>
     <button class="toolbar-btn" id="btn-code" data-tooltip="行内代码"></button>
+    <button class="toolbar-btn" id="btn-link" data-tooltip="链接"></button>
+    <button class="toolbar-btn" id="btn-codeblock" data-tooltip="代码块"></button>
     <span class="toolbar-separator"></span>
     <button class="toolbar-btn active" id="btn-wysiwyg" aria-label="所见即所得"></button>
     <button class="toolbar-btn" id="btn-source" aria-label="源码模式"></button>
@@ -26,7 +43,18 @@ function buildToolbarHTML() {
   <span id="mode-indicator"></span>`;
 }
 
-beforeEach(() => { document.body.innerHTML = buildToolbarHTML(); vi.clearAllMocks(); });
+beforeEach(() => {
+  document.body.innerHTML = buildToolbarHTML();
+  vi.clearAllMocks();
+  isCoreBackedSourceModeEnabled.mockReturnValue(false);
+  getMode.mockReturnValue('wysiwyg');
+  getSourceView.mockReturnValue({
+    state: {
+      selection: { main: { from: 3, to: 3 } },
+      sliceDoc: vi.fn(() => ''),
+    },
+  });
+});
 describe('toolbar', () => {
   it('switches modes and updates active state and indicator', () => {
     initToolbar();
@@ -72,5 +100,63 @@ describe('toolbar', () => {
     expect(document.getElementById('btn-theme')).toBeNull();
     initToolbar();
     expect(document.getElementById('btn-theme')).toBeNull();
+  });
+  it('dispatches toolbar bold through Core command in Core-backed source mode', () => {
+    const toggleBold = vi.fn();
+    getMode.mockReturnValue('source');
+    isCoreBackedSourceModeEnabled.mockReturnValue(true);
+    getEditor.mockReturnValue({ chain: () => ({ focus: () => ({ toggleBold: () => ({ run: toggleBold }) }) }) });
+
+    initToolbar();
+    document.getElementById('btn-bold')!.click();
+
+    expect(executeFormattingAction).toHaveBeenCalledWith({ type: 'toggle_strong' });
+    expect(toggleBold).not.toHaveBeenCalled();
+  });
+  it('keeps WYSIWYG fallback for toolbar bold outside Core source mode', () => {
+    const run = vi.fn();
+    getMode.mockReturnValue('wysiwyg');
+    isCoreBackedSourceModeEnabled.mockReturnValue(true);
+    getEditor.mockReturnValue({ chain: () => ({ focus: () => ({ toggleBold: () => ({ run }) }) }) });
+
+    initToolbar();
+    document.getElementById('btn-bold')!.click();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(executeFormattingAction).not.toHaveBeenCalled();
+  });
+  it('dispatches code fence toolbar action through Core command in Core-backed source mode', () => {
+    getMode.mockReturnValue('source');
+    isCoreBackedSourceModeEnabled.mockReturnValue(true);
+
+    initToolbar();
+    document.getElementById('btn-codeblock')!.click();
+
+    expect(executeFormattingAction).toHaveBeenCalledWith({
+      type: 'insert_code_fence',
+      language: null,
+    });
+  });
+  it('passes link dialog display text to Core link command in Core-backed source mode', async () => {
+    getMode.mockReturnValue('source');
+    isCoreBackedSourceModeEnabled.mockReturnValue(true);
+
+    initToolbar();
+    document.getElementById('btn-link')!.click();
+
+    expect(showLinkDialog).toHaveBeenCalledWith(expect.objectContaining({
+      selectedText: '',
+      onConfirm: expect.any(Function),
+    }));
+
+    const [{ onConfirm }] = showLinkDialog.mock.calls[0];
+    await onConfirm({ href: 'https://example.com/', text: 'Example' });
+
+    expect(executeFormattingAction).toHaveBeenCalledWith({
+      type: 'insert_link',
+      href: 'https://example.com/',
+      title: null,
+      text: 'Example',
+    });
   });
 });

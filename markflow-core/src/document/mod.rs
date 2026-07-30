@@ -28,7 +28,8 @@ pub use render_ir::{
     UiRange,
 };
 pub use session::{
-    CoreError, CoreResult, DocumentSession, SavePayload, TRANSACTION_RETRY_WINDOW_CAPACITY,
+    CoreError, CoreResult, DocumentSession, PlannedHistoryPatch, SavePayload,
+    TRANSACTION_RETRY_WINDOW_CAPACITY,
 };
 pub use snapshot::{BomKind, ContentHash, EncodingKind, OriginalSnapshot};
 pub use text_buffer::TextBuffer;

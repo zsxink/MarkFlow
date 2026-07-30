@@ -67,6 +67,11 @@ struct AppliedTransaction {
     outcome: PatchOutcome,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannedHistoryPatch {
+    pub patch: TextPatch,
+}
+
 #[derive(Debug)]
 /// Owns one coherent text/revision/index snapshot.
 ///
@@ -271,10 +276,12 @@ impl DocumentSession {
             return Ok(Some(applied.outcome.clone()));
         }
 
-        let Some(entry) = self.history.peek_undo().cloned() else {
+        let Some(patch) = self
+            .plan_undo_patch(transaction_id)
+            .map(|planned| planned.patch)
+        else {
             return Ok(None);
         };
-        let patch = rebase_patch(entry.inverse_patch, self.revision, transaction_id);
         let outcome = self.apply_patch_internal(patch, None)?;
         self.history.mark_undone();
         Ok(Some(outcome))
@@ -285,13 +292,29 @@ impl DocumentSession {
             return Ok(Some(applied.outcome.clone()));
         }
 
-        let Some(entry) = self.history.peek_redo().cloned() else {
+        let Some(patch) = self
+            .plan_redo_patch(transaction_id)
+            .map(|planned| planned.patch)
+        else {
             return Ok(None);
         };
-        let patch = rebase_patch(entry.patch, self.revision, transaction_id);
         let outcome = self.apply_patch_internal(patch, None)?;
         self.history.mark_redone();
         Ok(Some(outcome))
+    }
+
+    pub fn plan_undo_patch(&self, transaction_id: TransactionId) -> Option<PlannedHistoryPatch> {
+        let entry = self.history.peek_undo()?.clone();
+        Some(PlannedHistoryPatch {
+            patch: rebase_patch(entry.inverse_patch, self.revision, transaction_id),
+        })
+    }
+
+    pub fn plan_redo_patch(&self, transaction_id: TransactionId) -> Option<PlannedHistoryPatch> {
+        let entry = self.history.peek_redo()?.clone();
+        Some(PlannedHistoryPatch {
+            patch: rebase_patch(entry.patch, self.revision, transaction_id),
+        })
     }
 
     fn apply_patch_internal(

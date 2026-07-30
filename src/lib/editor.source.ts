@@ -11,6 +11,7 @@ import {
   type CoreWysiwygRenderOptions,
 } from '../editor-adapter/codemirror/wysiwygRenderExtension';
 import type { Transaction } from '@codemirror/state';
+import type { SelectionDto, Utf16ChangeDto } from './coreBridge';
 
 // Fallback: empty LanguageSupport (plain text) when a language fails to load
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -224,4 +225,27 @@ export function setSourceContent(content: string): void {
   } finally {
     programmaticUpdate = false;
   }
+}
+
+export function applySourcePatch(
+  changes: readonly Utf16ChangeDto[],
+  selectionAfter?: SelectionDto | null,
+): void {
+  if (!currentView) return;
+  programmaticUpdate = true;
+  try {
+    currentView.dispatch({
+      changes: changes.map((change) => ({
+        from: change.from,
+        to: change.to,
+        insert: change.insert,
+      })),
+      selection: selectionAfter
+        ? { anchor: selectionAfter.anchor, head: selectionAfter.head }
+        : undefined,
+    });
+  } finally {
+    programmaticUpdate = false;
+  }
+  currentView.focus();
 }

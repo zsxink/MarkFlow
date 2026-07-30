@@ -13,6 +13,11 @@ import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
 import { showContextMenuStatic } from './ui/contextMenu';
 import { getSourceView } from '../lib/editor.source';
+import { isCoreBackedSourceModeEnabled } from '../lib/coreSession';
+import {
+  type FormattingAction,
+  executeFormattingAction,
+} from '../editor-adapter/formatCommandLayer';
 
 export function initToolbar() {
   initAriaAttributes();
@@ -62,14 +67,34 @@ function bindToolbarEvents() {
     showNewFileDialog('file', getWorkspacePath());
   });
 
-  bind('btn-bold', () => getEditor()?.chain().focus().toggleBold().run());
-  bind('btn-italic', () => getEditor()?.chain().focus().toggleItalic().run());
-  bind('btn-strike', () => getEditor()?.chain().focus().toggleStrike().run());
-  bind('btn-code', () => getEditor()?.chain().focus().toggleCode().run());
-  bind('btn-h1', () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run());
-  bind('btn-h2', () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run());
+  bind('btn-bold', () => executeActionOrFallback(
+    { type: 'toggle_strong' },
+    () => getEditor()?.chain().focus().toggleBold().run(),
+  ));
+  bind('btn-italic', () => executeActionOrFallback(
+    { type: 'toggle_emphasis' },
+    () => getEditor()?.chain().focus().toggleItalic().run(),
+  ));
+  bind('btn-strike', () => executeActionOrFallback(
+    { type: 'toggle_strikethrough' },
+    () => getEditor()?.chain().focus().toggleStrike().run(),
+  ));
+  bind('btn-code', () => executeActionOrFallback(
+    { type: 'toggle_inline_code' },
+    () => getEditor()?.chain().focus().toggleCode().run(),
+  ));
+  bind('btn-h1', () => executeActionOrFallback(
+    { type: 'set_heading', level: 1 },
+    () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run(),
+  ));
+  bind('btn-h2', () => executeActionOrFallback(
+    { type: 'set_heading', level: 2 },
+    () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run(),
+  ));
   bind('btn-quote', () => {
-    if (getMode() === 'source') {
+    if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+      void executeFormattingAction({ type: 'toggle_block_quote' });
+    } else if (getMode() === 'source') {
       // CM6: wrap selection/current line with > prefix
       const view = getSourceView();
       if (!view) return;
@@ -97,13 +122,25 @@ function bindToolbarEvents() {
     }
   });
   bind('btn-link', () => {
-    showLinkDialog();
+    if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+      showCoreLinkDialog();
+    } else {
+      showLinkDialog();
+    }
   });
-  bind('btn-ul', () => getEditor()?.chain().focus().toggleBulletList().run());
-  bind('btn-ol', () => getEditor()?.chain().focus().toggleOrderedList().run());
+  bind('btn-ul', () => executeActionOrFallback(
+    { type: 'toggle_list', kind: 'Unordered' },
+    () => getEditor()?.chain().focus().toggleBulletList().run(),
+  ));
+  bind('btn-ol', () => executeActionOrFallback(
+    { type: 'toggle_list', kind: 'Ordered' },
+    () => getEditor()?.chain().focus().toggleOrderedList().run(),
+  ));
   bind('btn-hr', () => getEditor()?.chain().focus().setHorizontalRule().run());
   bind('btn-codeblock', () => {
-    if (getMode() === 'source') {
+    if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+      void executeFormattingAction({ type: 'insert_code_fence', language: null });
+    } else if (getMode() === 'source') {
       // CM6: wrap selection with ``` fences
       const view = getSourceView();
       if (!view) return;
@@ -254,6 +291,43 @@ async function exportCurrentDocument(format: ExportFormat) {
       switchToSource();
     }
   }
+}
+
+/**
+ * Execute a Core EditCommand if Core-backed Source Mode is active and we're
+ * in source mode; otherwise fall back to the legacy Tiptap handler.
+ *
+ * `anchor` and `head` are initialised to 0 — the FormatCommandLayer reads the
+ * actual selection from the CodeMirror view at call time.
+ */
+function executeActionOrFallback(
+  action: FormattingAction,
+  fallback: () => void,
+): void {
+  if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+    void executeFormattingAction(action);
+  } else {
+    fallback();
+  }
+}
+
+function showCoreLinkDialog(): void {
+  const view = getSourceView();
+  const selectedText = view
+    ? view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)
+    : '';
+
+  showLinkDialog({
+    selectedText,
+    onConfirm: ({ href, text }) => {
+      void executeFormattingAction({
+        type: 'insert_link',
+        href,
+        title: null,
+        text,
+      });
+    },
+  });
 }
 
 function bind(id: string, fn: () => void) {

@@ -3,11 +3,21 @@ import { getEditor, getMode } from '../lib/editor';
 import { showToast } from './toast';
 import { showModal } from './ui/modal';
 
-export function showLinkDialog() {
-  const mode = getMode();
-  let selectedText = '';
+export interface LinkDialogResult {
+  href: string;
+  text: string;
+}
 
-  if (mode === 'source') {
+export interface LinkDialogOptions {
+  selectedText?: string;
+  onConfirm?: (result: LinkDialogResult) => void | Promise<void>;
+}
+
+export function showLinkDialog(options: LinkDialogOptions = {}) {
+  const mode = getMode();
+  let selectedText = options.selectedText ?? '';
+
+  if (!options.selectedText && mode === 'source') {
     const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;
     if (textarea) {
       const start = textarea.selectionStart;
@@ -16,7 +26,7 @@ export function showLinkDialog() {
         selectedText = textarea.value.substring(start, end);
       }
     }
-  } else {
+  } else if (!options.selectedText) {
     const editor = getEditor();
     selectedText = editor?.state.selection ? editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') : '';
   }
@@ -106,7 +116,9 @@ export function showLinkDialog() {
 
     if (aborted) return;
 
-    if (mode === 'source') {
+    if (options.onConfirm) {
+      await options.onConfirm({ href, text });
+    } else if (mode === 'source') {
       const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;
       if (!textarea) { close(); return; }
       const start = textarea.selectionStart;

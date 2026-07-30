@@ -59,6 +59,10 @@ pub enum AppErrorCode {
     Cancelled,
     /// Protocol version is unsupported.
     ProtocolVersionUnsupported,
+    /// Export IR schema version is unsupported by the caller.
+    UnsupportedExportIrVersion,
+    /// Export requested a revision that is no longer available/current.
+    ExportStaleRevision,
     /// Any other unexpected backend failure.
     Internal,
 }
@@ -89,6 +93,8 @@ impl serde::Serialize for AppErrorCode {
             Self::PendingQueueFull => "PENDING_QUEUE_FULL",
             Self::Cancelled => "CANCELLED",
             Self::ProtocolVersionUnsupported => "PROTOCOL_VERSION_UNSUPPORTED",
+            Self::UnsupportedExportIrVersion => "UNSUPPORTED_EXPORT_IR_VERSION",
+            Self::ExportStaleRevision => "EXPORT_STALE_REVISION",
             Self::Internal => "internal",
         };
         serializer.serialize_str(s)
@@ -122,6 +128,8 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
             "PENDING_QUEUE_FULL" => Ok(Self::PendingQueueFull),
             "CANCELLED" => Ok(Self::Cancelled),
             "PROTOCOL_VERSION_UNSUPPORTED" => Ok(Self::ProtocolVersionUnsupported),
+            "UNSUPPORTED_EXPORT_IR_VERSION" => Ok(Self::UnsupportedExportIrVersion),
+            "EXPORT_STALE_REVISION" => Ok(Self::ExportStaleRevision),
             "internal" => Ok(Self::Internal),
             _ => Err(serde::de::Error::unknown_variant(
                 &s,
@@ -146,6 +154,8 @@ impl<'de> serde::Deserialize<'de> for AppErrorCode {
                     "PENDING_QUEUE_FULL",
                     "CANCELLED",
                     "PROTOCOL_VERSION_UNSUPPORTED",
+                    "UNSUPPORTED_EXPORT_IR_VERSION",
+                    "EXPORT_STALE_REVISION",
                     "internal",
                 ],
             )),

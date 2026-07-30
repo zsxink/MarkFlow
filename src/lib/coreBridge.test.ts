@@ -24,6 +24,7 @@ import {
   flushDocument,
   getDocumentText,
   getRenderBlocks,
+  getExportDocument,
   getOutline,
   getDocumentStats,
   reloadDocument,
@@ -193,6 +194,44 @@ describe('coreBridge', () => {
         revision: 5,
         viewport: { start: 0, end: 20 },
         request_id: 'render-1',
+      });
+    });
+  });
+
+  describe('getExportDocument', () => {
+    it('calls invoke with session, revision, request id, and schema options', async () => {
+      const exportResult = {
+        schema_version: 1,
+        session_id: 42,
+        document_id: 9,
+        base_revision: 5,
+        export_request_id: 'export-1',
+        metadata: { frontmatter: null },
+        blocks: [],
+        assets: [],
+        diagnostics: [],
+      };
+      mocks.invoke.mockResolvedValue(exportResult);
+
+      const result = await getExportDocument(42, 5, 'export-1');
+
+      expect(result).toEqual(exportResult);
+      expect(mocks.invoke).toHaveBeenCalledWith('get_export_document', {
+        session_id: 42,
+        revision: 5,
+        export_request_id: 'export-1',
+        options: { max_schema_version: 1 },
+      });
+    });
+
+    it('wraps export-specific stale revision errors', async () => {
+      mocks.invoke.mockRejectedValue({
+        code: 'EXPORT_STALE_REVISION',
+        message: 'EXPORT_STALE_REVISION: Stale revision',
+      });
+
+      await expect(getExportDocument(42, 1, 'export-stale')).rejects.toMatchObject({
+        code: 'EXPORT_STALE_REVISION',
       });
     });
   });

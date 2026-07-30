@@ -1,6 +1,7 @@
 mod diagnostics;
 mod diagrams;
 mod edit_command;
+mod export_ir;
 mod frontmatter;
 mod history;
 mod line_ending_map;
@@ -24,6 +25,12 @@ pub use diagrams::{
     DiagramTargets, DiagramTargetsRequest,
 };
 pub use edit_command::{CommandResult, EditCommand, EditCommandRequest, EditOrigin, ListKind};
+pub use export_ir::{
+    ExportAsset, ExportBlock, ExportBlockKind, ExportDiagnostic, ExportDiagnosticCode,
+    ExportDiagnosticSeverity, ExportDiagramRenderTarget, ExportDocument, ExportFrontMatter,
+    ExportFrontMatterField, ExportMetadata, ExportOptions, ExportRange, ExportRequest,
+    ExportTableAlignment, FrontMatterExportFormat, EXPORT_IR_SCHEMA_VERSION,
+};
 pub use frontmatter::{
     FrontMatterCommand, FrontMatterCommandRequest, FrontMatterCommandResult, FrontMatterField,
     FrontMatterFormat, FrontMatterModel, FrontMatterTrivia, FrontMatterTriviaKind,

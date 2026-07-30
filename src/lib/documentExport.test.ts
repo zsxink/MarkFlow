@@ -6,6 +6,8 @@ const {
   showToastMock,
   invokeMock,
   buildExportSnapshotMock,
+  coreSessionState,
+  flushCoreSessionMock,
   triggerPdfExportMock,
   createDocxFromHtmlMock,
   saveDocxFileMock,
@@ -19,6 +21,20 @@ const {
     frag.appendChild(root.cloneNode(true));
     return Promise.resolve(frag);
   }),
+  coreSessionState: {
+    sessionId: 0,
+    documentId: 0,
+    confirmedRevision: 0,
+    persistedRevision: 0,
+    pendingCount: 0,
+    pendingBytes: 0,
+    syncState: 'idle',
+    isActive: false,
+    filePath: null,
+    sizeClass: 'normal',
+    stats: null,
+  },
+  flushCoreSessionMock: vi.fn().mockResolvedValue(5),
   triggerPdfExportMock: vi.fn().mockResolvedValue(true),
   createDocxFromHtmlMock: vi.fn().mockResolvedValue(new Uint8Array()),
   saveDocxFileMock: vi.fn().mockResolvedValue(true),
@@ -38,6 +54,10 @@ vi.mock('./logger', () => ({
 vi.mock('./exportSnapshot', () => ({
   buildExportSnapshot: buildExportSnapshotMock,
   waitForFontsReady: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('./coreSession', () => ({
+  getCoreSessionState: vi.fn(() => ({ ...coreSessionState })),
+  flushCoreSession: flushCoreSessionMock,
 }));
 vi.mock('./pdfExport', () => ({
   triggerPdfExport: triggerPdfExportMock,
@@ -72,6 +92,22 @@ afterEach(() => {
   readFileAsBase64Mock.mockReset();
   showToastMock.mockReset();
   invokeMock.mockReset();
+  buildExportSnapshotMock.mockClear();
+  flushCoreSessionMock.mockReset();
+  flushCoreSessionMock.mockResolvedValue(5);
+  Object.assign(coreSessionState, {
+    sessionId: 0,
+    documentId: 0,
+    confirmedRevision: 0,
+    persistedRevision: 0,
+    pendingCount: 0,
+    pendingBytes: 0,
+    syncState: 'idle',
+    isActive: false,
+    filePath: null,
+    sizeClass: 'normal',
+    stats: null,
+  });
   vi.useRealTimers();
 });
 
@@ -134,6 +170,102 @@ describe('rendered document export', () => {
       ['html'],
     );
     expect(showToastMock).toHaveBeenCalledWith('已导出 HTML 文件');
+  });
+
+  it('exports HTML from Core Export IR when a session is active', async () => {
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    saveDocumentExportMock.mockResolvedValue(true);
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [
+        {
+          id: 'b1',
+          kind: { type: 'heading', level: 1, title: '标题' },
+          source_range: { start: 0, end: 8 },
+          content_range: { start: 2, end: 8 },
+          line_range: { start: 0, end: 1 },
+          source: '# 标题',
+        },
+      ],
+      assets: [],
+      diagnostics: [],
+    }));
+
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
+
+    expect(result).toBe(true);
+    expect(flushCoreSessionMock).toHaveBeenCalled();
+    expect(invokeMock).toHaveBeenCalledWith('get_export_document', {
+      session_id: 42,
+      revision: 5,
+      export_request_id: expect.any(String),
+      options: { max_schema_version: 1, include_diagnostics: true },
+    });
+    expect(buildExportSnapshotMock).not.toHaveBeenCalled();
+    expect(saveDocumentExportMock).toHaveBeenCalledWith(
+      expect.stringContaining('<h1>标题</h1>'),
+      'a.html',
+      'HTML 文档',
+      ['html'],
+    );
+    expect(saveDocumentExportMock).toHaveBeenCalledWith(
+      expect.stringContaining('<div class="ProseMirror" data-export-ir-schema-version="1" data-session-id="42" data-revision="5">'),
+      'a.html',
+      'HTML 文档',
+      ['html'],
+    );
+  });
+
+  it('drains SourceSyncController pending patches before requesting Export IR', async () => {
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    flushCoreSessionMock.mockResolvedValue(8);
+    saveDocumentExportMock.mockResolvedValue(true);
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 8,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [
+        {
+          id: 'b1',
+          kind: { type: 'paragraph' },
+          source_range: { start: 0, end: 19 },
+          content_range: { start: 0, end: 19 },
+          line_range: { start: 0, end: 1 },
+          source: 'latest source text',
+        },
+      ],
+      assets: [],
+      diagnostics: [],
+    }));
+
+    await exportRenderedDocument('html', null, '/notes/a.md');
+
+    expect(flushCoreSessionMock.mock.invocationCallOrder[0])
+      .toBeLessThan(invokeMock.mock.invocationCallOrder[0]);
+    expect(invokeMock).toHaveBeenCalledWith('get_export_document', expect.objectContaining({
+      session_id: 42,
+      revision: 8,
+    }));
   });
 
   it('writes Word document via DOCX export', async () => {

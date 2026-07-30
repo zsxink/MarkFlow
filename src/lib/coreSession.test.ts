@@ -64,6 +64,7 @@ vi.mock('./imageUtils', () => ({
 import {
   openCoreSession,
   closeCoreSession,
+  flushCoreSession,
   saveCoreSession,
   setSourceSyncController,
   isCoreSessionDirty,
@@ -367,6 +368,30 @@ describe('coreSession', () => {
       const result = await saveCoreSession();
       expect(result).toBe(-1);
       expect(mocks.logException).toHaveBeenCalled();
+    });
+  });
+
+  describe('flushCoreSession', () => {
+    it('drains SourceSyncController before backend flush and returns confirmed revision', async () => {
+      mocks.openDocument.mockResolvedValue(sampleDto);
+      await openCoreSession('/tmp/test.md');
+      vi.clearAllMocks();
+      mocks.closeDocument.mockResolvedValue(undefined);
+      mocks.flushDocument.mockResolvedValue({ revision: 8 });
+
+      const sourceController = {
+        flush: vi.fn().mockResolvedValue(8),
+      };
+      setSourceSyncController(sourceController as never);
+
+      const result = await flushCoreSession();
+
+      expect(result).toBe(8);
+      expect(sourceController.flush).toHaveBeenCalled();
+      expect(mocks.flushDocument).toHaveBeenCalledWith(42);
+      expect(sourceController.flush.mock.invocationCallOrder[0])
+        .toBeLessThan(mocks.flushDocument.mock.invocationCallOrder[0]);
+      expect(getCoreSessionState().confirmedRevision).toBe(8);
     });
   });
 

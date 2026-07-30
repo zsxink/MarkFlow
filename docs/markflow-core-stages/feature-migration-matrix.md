@@ -29,6 +29,10 @@
 > - Issue #234 增加 Core Search、Diagnostics 和 Diagram render target API，全部绑定 session/revision/request identity。
 > - Search 支持分页、定位 range 和 replace preview；Diagnostics 支持 viewport 过滤并聚合坏链接、缺失图片、重复标题、FrontMatter、表格和图表错误。
 > - 验证记录见 `docs/markflow-core-stages/m7d-search-diagnostics-diagram-evidence.md`。
+> M8A 记录：
+> - Issue #238 增加 Export IR schema v1、Core `build_export_document` API、Tauri `get_export_document` bridge 和 TypeScript Export IR HTML renderer。
+> - HTML/PDF/DOCX/print 的前端导出输入优先来自 Core confirmed revision 的 Export IR；无 Core session 时保留 legacy DOM snapshot fallback，旧 serializer 不在 M8A 删除。
+> - 验证记录见 `docs/markflow-core-stages/m8a-export-ir-evidence.md`。
 
 ## 1. 使用规则
 
@@ -132,10 +136,10 @@
 
 | 能力 | 当前实现 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
-| HTML | 编辑 DOM snapshot | M8 | session confirmed Export IR golden test |
-| PDF 文件 | HTML + native WebView | M8 | session Export snapshot 与编辑模式无关 |
-| Word/DOCX | HTML -> JS docx | M8 | session Export IR；列表、表格、图片、代码块 smoke |
-| 系统打印 | WebView print | M8 | Host Adapter 能力，跨平台回退 |
+| HTML | M8A: Core Export IR v1 -> TypeScript HTML renderer；无 Core session 时 legacy DOM snapshot fallback | M8A Core 主路径 | session confirmed Export IR renderer test；Source Mode 不再为了导出切 WYSIWYG |
+| PDF 文件 | M8A: Core Export IR HTML -> native WebView PDF；平台输出仍走现有 Tauri PDF command | M8A 双轨；M8B Host port | session Export snapshot 与编辑模式无关；native PDF smoke 待 release gate |
+| Word/DOCX | M8A: Core Export IR HTML -> JS docx；docx adapter 暂保留 HTML 输入适配层 | M8A 双轨；M8B/M8C 收敛 | session Export IR；列表、表格、图片、代码块 renderer/unit smoke |
+| 系统打印 | M8A: Core Export IR HTML -> WebView print；Host Adapter 能力待 M8B | M8A 双轨；M8B Host port | Host Adapter 能力，跨平台回退 |
 | 导出主题/字体/媒体等待 | 前端 | M8 | 视觉回归和超时清理 |
 
 ## 9. 质量与安全

@@ -159,6 +159,102 @@ export interface RenderInlineDto {
   target: string | null;
 }
 
+export const EXPORT_IR_SCHEMA_VERSION = 1;
+
+export interface ExportDocumentDto {
+  schema_version: number;
+  session_id: number;
+  document_id: number;
+  base_revision: number;
+  export_request_id: string;
+  metadata: ExportMetadataDto;
+  blocks: ExportBlockDto[];
+  assets: ExportAssetDto[];
+  diagnostics: ExportDiagnosticDto[];
+}
+
+export interface ExportMetadataDto {
+  frontmatter: ExportFrontMatterDto | null;
+}
+
+export interface ExportFrontMatterDto {
+  format: 'yaml' | 'unknown';
+  fields: ExportFrontMatterFieldDto[];
+  unsafe_source_range: ExportRangeDto | null;
+}
+
+export interface ExportFrontMatterFieldDto {
+  key: string;
+  value: string;
+  source_range: ExportRangeDto;
+}
+
+export interface ExportBlockDto {
+  id: string;
+  kind: ExportBlockKindDto;
+  source_range: ExportRangeDto;
+  content_range: ExportRangeDto;
+  line_range: LineRangeDto;
+  source: string;
+}
+
+export type ExportBlockKindDto =
+  | { type: 'heading'; level: number; title: string }
+  | { type: 'paragraph' }
+  | { type: 'list'; ordered: boolean; task: boolean; checked: boolean[] }
+  | { type: 'blockquote' }
+  | { type: 'code_block'; language: string | null }
+  | {
+      type: 'table';
+      alignments: Array<'none' | 'left' | 'center' | 'right'>;
+    }
+  | {
+      type: 'image';
+      alt: string;
+      target: string;
+      title: string | null;
+      asset_id: string;
+    }
+  | {
+      type: 'diagram';
+      language: string;
+      render_target: 'mermaid' | 'plant_uml';
+      sandbox_required: boolean;
+      timeout_ms: number;
+    }
+  | { type: 'front_matter' }
+  | { type: 'unknown'; reason: string };
+
+export interface ExportAssetDto {
+  logical_id: string;
+  original_reference: string;
+  resolved_identity: string | null;
+  mime_type_hint: string | null;
+  requires_host_read: boolean;
+  source_range: ExportRangeDto;
+}
+
+export interface ExportDiagnosticDto {
+  code:
+    | 'EXPORT_IR_UNSUPPORTED_BLOCK'
+    | 'EXPORT_IR_UNSUPPORTED_DIAGRAM'
+    | 'EXPORT_IR_UNSAFE_FRONTMATTER';
+  severity: 'warning' | 'error';
+  block_id: string | null;
+  source_range: ExportRangeDto | null;
+  message: string;
+}
+
+export interface ExportRangeDto {
+  start: number;
+  end: number;
+}
+
+export interface ExportOptionsDto {
+  max_schema_version?: number;
+  include_diagnostics?: boolean;
+}
+
 // ── Error Handling ──────────────────────────────────────────────────────────
 
 export class BridgeError extends Error {
@@ -420,6 +516,43 @@ export async function getRenderBlocks(
       sessionId,
       revision,
       requestId,
+    });
+    throw err;
+  }
+}
+
+/** Get a full-document Export IR snapshot for a confirmed revision. */
+export async function getExportDocument(
+  sessionId: number,
+  revision: number,
+  exportRequestId = generateRequestId(),
+  options: ExportOptionsDto = { max_schema_version: EXPORT_IR_SCHEMA_VERSION },
+  _bridgeOptions?: BridgeOptions,
+): Promise<ExportDocumentDto> {
+  logDebug('bridge', 'getExportDocument', {
+    sessionId,
+    revision,
+    exportRequestId,
+  });
+  try {
+    const result = await invokeBridge<ExportDocumentDto>('get_export_document', {
+      session_id: sessionId,
+      revision,
+      export_request_id: exportRequestId,
+      options,
+    });
+    logDebug('bridge', 'getExportDocument completed', {
+      sessionId,
+      revision: result.base_revision,
+      exportRequestId: result.export_request_id,
+      blockCount: result.blocks.length,
+    });
+    return result;
+  } catch (err) {
+    logException('bridge', 'getExportDocument failed', err, {
+      sessionId,
+      revision,
+      exportRequestId,
     });
     throw err;
   }

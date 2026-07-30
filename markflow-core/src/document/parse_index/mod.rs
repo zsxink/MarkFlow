@@ -17,6 +17,8 @@ pub use style_map::{
     BulletMarker, FenceMarker, FenceStyle, ListStyleSpan, OrderedDelimiter, OrderedMarker,
     PipePadding, QuoteStyleSpan, StyleMap, TableAlignment, TableStyleSpan,
 };
+pub(crate) use table::table_model_from_block;
+pub use table::{TableCell, TableColumn, TableModel, TableModelStyle, TableRow, TableRowRole};
 pub use types::{
     AffectedRanges, BlockId, BlockKind, BlockNode, LineRange, OutlineItem, ParseIndex, ScanOutcome,
 };

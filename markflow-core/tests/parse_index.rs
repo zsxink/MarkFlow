@@ -2,9 +2,9 @@ mod common;
 
 use common::{fixture, open};
 use markflow_core::{
-    BlockId, BlockKind, BulletMarker, DeferredWork, DocumentSession, DocumentSizeClass,
+    BlockId, BlockKind, BulletMarker, CoreError, DeferredWork, DocumentSession, DocumentSizeClass,
     FenceMarker, LineEndingKind, OrderedDelimiter, Revision, SourceRange, TableAlignment,
-    TextChange, TextPatch, TransactionId,
+    TableRowRole, TextChange, TextPatch, TransactionId,
 };
 
 fn block_kinds(session: &DocumentSession) -> Vec<BlockKind> {
@@ -257,6 +257,7 @@ fn table_alignment_and_pipe_style_are_recorded() {
     );
     assert!(table.has_leading_pipe);
     assert!(table.has_trailing_pipe);
+    assert_eq!(table.delimiter_lengths, vec![3, 4, 4]);
     assert_eq!(table.line_range.start, 2);
     assert_eq!(table.line_range.end, 5);
 }
@@ -279,6 +280,117 @@ fn table_scan_stops_before_following_plain_paragraph() {
 
     assert_eq!(table.line_range.end, 2);
     assert_eq!(paragraph.line_range.start, 2);
+}
+
+#[test]
+fn table_scan_keeps_escaped_and_inline_code_pipes_inside_cells() {
+    let outcome =
+        open(b"| A | B |\n| --- | --- |\n| `a|b` | c\\|d |\nplain paragraph\n").parse_index();
+    let table = outcome
+        .parse_index
+        .blocks
+        .iter()
+        .find(|block| block.kind == BlockKind::Table)
+        .unwrap();
+    let paragraph = outcome
+        .parse_index
+        .blocks
+        .iter()
+        .find(|block| block.kind == BlockKind::Paragraph)
+        .unwrap();
+
+    assert_eq!(table.line_range.end, 3);
+    assert_eq!(paragraph.line_range.start, 3);
+}
+
+#[test]
+fn unmatched_backtick_does_not_hide_following_table_delimiter() {
+    let outcome = open(b"| a ` | b |\n| --- | --- |\n| c | d |\n").parse_index();
+    let table = outcome
+        .parse_index
+        .blocks
+        .iter()
+        .find(|block| block.kind == BlockKind::Table)
+        .unwrap();
+
+    assert_eq!(table.line_range.start, 0);
+    assert_eq!(table.line_range.end, 3);
+}
+
+#[test]
+fn table_model_exposes_cell_values_source_ranges_and_style() {
+    let source = b"| A | B |\n| :--- | ---: |\n| `a|b` | c\\|d |\n| | value |";
+    let session = open(source);
+    let outcome = session.parse_index();
+    let table = outcome
+        .parse_index
+        .blocks
+        .iter()
+        .find(|block| block.kind == BlockKind::Table)
+        .unwrap();
+    let model = session
+        .table_model(table.id, session.revision())
+        .unwrap()
+        .unwrap();
+    let text = session.text().logical_text();
+
+    assert_eq!(model.block_id, table.id);
+    assert_eq!(
+        model
+            .columns
+            .iter()
+            .map(|column| column.alignment)
+            .collect::<Vec<_>>(),
+        vec![TableAlignment::Left, TableAlignment::Right]
+    );
+    assert!(model.style.has_leading_pipe);
+    assert!(model.style.has_trailing_pipe);
+    assert_eq!(model.style.delimiter_lengths, vec![3, 3]);
+    assert_eq!(model.rows[0].role, TableRowRole::Header);
+    assert_eq!(model.rows[1].role, TableRowRole::Delimiter);
+    assert_eq!(model.rows[2].role, TableRowRole::Body);
+    assert_eq!(model.rows[2].cells[0].value, "`a|b`");
+    assert_eq!(model.rows[2].cells[1].value, "c\\|d");
+    assert_eq!(model.rows[3].cells[0].value, "");
+    assert_eq!(model.rows[3].cells[1].value, "value");
+
+    let inline = text.find("`a|b`").unwrap();
+    assert_eq!(
+        model.rows[2].cells[0].content_range,
+        SourceRange::new(Revision(0), inline, inline + "`a|b`".len())
+    );
+    let escaped = text.find("c\\|d").unwrap();
+    assert_eq!(
+        model.rows[2].cells[1].content_range,
+        SourceRange::new(Revision(0), escaped, escaped + "c\\|d".len())
+    );
+}
+
+#[test]
+fn table_model_rejects_stale_revision_and_non_table_blocks() {
+    let session = open(b"# Heading\n\n| A |\n| --- |\n");
+    let outcome = session.parse_index();
+    let heading = outcome
+        .parse_index
+        .blocks
+        .iter()
+        .find(|block| block.kind == BlockKind::Heading { level: 1 })
+        .unwrap();
+    let table = outcome
+        .parse_index
+        .blocks
+        .iter()
+        .find(|block| block.kind == BlockKind::Table)
+        .unwrap();
+
+    assert_eq!(
+        session.table_model(heading.id, session.revision()),
+        Ok(None)
+    );
+    assert!(matches!(
+        session.table_model(table.id, Revision(99)),
+        Err(CoreError::StaleRevision { .. })
+    ));
 }
 
 #[test]

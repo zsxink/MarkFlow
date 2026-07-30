@@ -54,6 +54,7 @@ pub struct TableStyleSpan {
     pub has_leading_pipe: bool,
     pub has_trailing_pipe: bool,
     pub delimiter_padding: Vec<PipePadding>,
+    pub delimiter_lengths: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

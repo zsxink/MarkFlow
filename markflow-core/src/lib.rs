@@ -18,6 +18,7 @@ pub use document::{
     PlannedHistoryPatch, PositionMap, QuoteStyleSpan, RenderBlock, RenderBlockKind, RenderDocument,
     RenderInline, RenderInlineKind, RenderRequest, Revision, SavePayload, ScanOutcome, Selection,
     SessionId, SourceByteOffset, SourceOffsetError, SourceRange, StyleMap, TableAlignment,
-    TableStyleSpan, TextBuffer, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
+    TableCell, TableColumn, TableModel, TableModelStyle, TableRow, TableRowRole, TableStyleSpan,
+    TextBuffer, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
     TRANSACTION_RETRY_WINDOW_CAPACITY,
 };

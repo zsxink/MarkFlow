@@ -7,8 +7,9 @@
 use crate::error::{lock_mutex, AppError, AppErrorCode};
 use crate::runtime_host::{AppHost, SESSION_REGISTRY};
 use markflow_core::{
-    RenderBlockKind, RenderDocument, RenderInlineKind, RenderRequest, Revision, Selection,
-    SessionId, SourceRange, TextChange, TextPatch, TransactionId, UiRange, Utf16Offset,
+    EditCommand, EditOrigin, HistoryLabel, ListKind, RenderBlockKind, RenderDocument,
+    RenderInlineKind, RenderRequest, Revision, Selection, SessionId, SourceRange, TextChange,
+    TextPatch, TransactionId, UiRange, Utf16Offset,
 };
 use markflow_runtime::error::{RuntimeError, RuntimeErrorCode};
 use markflow_runtime::host::Host;
@@ -227,6 +228,366 @@ pub struct RenderInlineDto {
     pub marker_ranges: Vec<UiRangeDto>,
     pub text: String,
     pub target: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// EditCommand DTOs — frontend sends UTF-16 selections, Core works in byte offsets
+// ---------------------------------------------------------------------------
+
+/// Serialisable edit command variant that the frontend can send.
+/// Mirrors `markflow_core::EditCommand` but uses UTF-16 offsets.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum EditCommandDto {
+    ToggleStrong {
+        anchor: usize,
+        head: usize,
+    },
+    ToggleEmphasis {
+        anchor: usize,
+        head: usize,
+    },
+    ToggleStrikethrough {
+        anchor: usize,
+        head: usize,
+    },
+    ToggleInlineCode {
+        anchor: usize,
+        head: usize,
+    },
+    SetHeading {
+        anchor: usize,
+        head: usize,
+        level: u8,
+    },
+    ToggleBlockQuote {
+        anchor: usize,
+        head: usize,
+    },
+    ToggleList {
+        anchor: usize,
+        head: usize,
+        kind: ListKindDto,
+    },
+    InsertCodeFence {
+        position: usize,
+        language: Option<String>,
+    },
+    InsertLink {
+        anchor: usize,
+        head: usize,
+        href: String,
+        title: Option<String>,
+    },
+    InsertImage {
+        position: usize,
+        reference: String,
+        alt: Option<String>,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub enum ListKindDto {
+    Unordered,
+    Ordered,
+}
+
+/// Result of executing an edit command, mapped back to UTF-16 offsets.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CommandResultDto {
+    pub session_id: u64,
+    pub transaction_id: String,
+    pub revision: u64,
+    pub selection_after: Option<SelectionDto>,
+}
+
+fn map_selection_to_core(
+    session: &markflow_core::DocumentSession,
+    anchor: usize,
+    head: usize,
+    revision: Revision,
+) -> Result<Selection, AppError> {
+    let byte_anchor = session.byte_for_utf16(Utf16Offset(anchor)).map_err(|_| {
+        AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
+            "Failed to convert selection anchor UTF-16 {} to byte",
+            anchor
+        ))
+    })?;
+    let byte_head = session.byte_for_utf16(Utf16Offset(head)).map_err(|_| {
+        AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
+            "Failed to convert selection head UTF-16 {} to byte",
+            head
+        ))
+    })?;
+    Ok(Selection {
+        anchor: byte_anchor,
+        head: byte_head,
+        revision,
+    })
+}
+
+fn build_edit_command(
+    session: &markflow_core::DocumentSession,
+    dto: EditCommandDto,
+    revision: Revision,
+) -> Result<EditCommand, AppError> {
+    Ok(match dto {
+        EditCommandDto::ToggleStrong { anchor, head } => {
+            EditCommand::ToggleStrong {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+            }
+        }
+        EditCommandDto::ToggleEmphasis { anchor, head } => {
+            EditCommand::ToggleEmphasis {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+            }
+        }
+        EditCommandDto::ToggleStrikethrough { anchor, head } => {
+            EditCommand::ToggleStrikethrough {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+            }
+        }
+        EditCommandDto::ToggleInlineCode { anchor, head } => {
+            EditCommand::ToggleInlineCode {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+            }
+        }
+        EditCommandDto::SetHeading { anchor, head, level } => {
+            EditCommand::SetHeading {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+                level,
+            }
+        }
+        EditCommandDto::ToggleBlockQuote { anchor, head } => {
+            EditCommand::ToggleBlockQuote {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+            }
+        }
+        EditCommandDto::ToggleList { anchor, head, kind } => {
+            let core_kind = match kind {
+                ListKindDto::Unordered => ListKind::Unordered,
+                ListKindDto::Ordered => ListKind::Ordered,
+            };
+            EditCommand::ToggleList {
+                selection: map_selection_to_core(session, anchor, head, revision)?,
+                kind: core_kind,
+            }
+        }
+        EditCommandDto::InsertCodeFence { position, language } => {
+            let byte_pos = session.byte_for_utf16(Utf16Offset(position)).map_err(|_| {
+                AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
+                    "Failed to convert code fence position UTF-16 {} to byte",
+                    position
+                ))
+            })?;
+            EditCommand::InsertCodeFence {
+                position: byte_pos,
+                language,
+            }
+        }
+        EditCommandDto::InsertLink {
+            anchor,
+            head,
+            href,
+            title,
+        } => EditCommand::InsertLink {
+            selection: map_selection_to_core(session, anchor, head, revision)?,
+            href,
+            title,
+        },
+        EditCommandDto::InsertImage {
+            position,
+            reference,
+            alt,
+        } => {
+            let byte_pos = session.byte_for_utf16(Utf16Offset(position)).map_err(|_| {
+                AppError::new(AppErrorCode::InvalidUtf16Boundary, format!(
+                    "Failed to convert image position UTF-16 {} to byte",
+                    position
+                ))
+            })?;
+            EditCommand::InsertImage {
+                position: byte_pos,
+                reference,
+                alt,
+            }
+        }
+    })
+}
+
+/// Execute a semantic edit command on a Core document session.
+#[tauri::command]
+pub fn execute_edit_command(
+    session_id: u64,
+    command: EditCommandDto,
+    base_revision: u64,
+    frontend_txn_id: String,
+) -> Result<CommandResultDto, AppError> {
+    let registry = &*SESSION_REGISTRY;
+    let sid = SessionId(session_id);
+    let base_rev = Revision(base_revision);
+
+    let result = with_session_state(registry, sid, |state| {
+        let current_revision = state.core.revision();
+        if base_rev != current_revision {
+            return Err(RuntimeError::revision_mismatch(format!(
+                "EditCommand revision mismatch: expected {}, current {}",
+                base_rev.0, current_revision.0
+            )));
+        }
+
+        let core_cmd = build_edit_command(&state.core, command, current_revision)
+            .map_err(|e| RuntimeError::internal(format!("Command build error: {}", e.message)))?;
+
+        let core_txn_id = map_frontend_txn(&frontend_txn_id)
+            .map_err(|e| RuntimeError::internal(format!("Failed to map txn: {}", e.message)))?;
+
+        // Execute the command (read-only, returns TextPatch)
+        let patch = core_cmd
+            .execute_with_transaction(&state.core, core_txn_id)
+            .map_err(|e| RuntimeError::internal(format!("Command execution error: {:?}", e)))?;
+
+        // Apply with history — store the inverse patch for undo.
+        // selection_before is None here; frontend can supply it later.
+        let _outcome = state
+            .core
+            .apply_patch_with_history(
+                patch.clone(),
+                EditOrigin::Command,
+                HistoryLabel::Command,
+                None,
+            )
+            .map_err(RuntimeError::from)?;
+
+        let new_revision = state.core.revision();
+
+        // Convert selection_after back to UTF-16
+        let selection_after = patch
+            .selection_after
+            .and_then(|sel| {
+                let anchor = state.core.utf16_for_byte(sel.anchor).ok()?.0;
+                let head = state.core.utf16_for_byte(sel.head).ok()?.0;
+                Some(SelectionDto { anchor, head })
+            });
+
+        tracing::debug!(
+            target: "runtime.edit_command",
+            session_id = session_id,
+            transaction_id = %frontend_txn_id,
+            new_revision = new_revision.0,
+            "Edit command executed"
+        );
+
+        Ok(CommandResultDto {
+            session_id,
+            transaction_id: frontend_txn_id,
+            revision: new_revision.0,
+            selection_after,
+        })
+    })
+    .map_err(map_error)?;
+
+    Ok(result)
+}
+
+/// Undo the last edit in a document session.
+#[tauri::command]
+pub fn undo_document(
+    session_id: u64,
+    frontend_txn_id: String,
+    max_steps: Option<u32>,
+) -> Result<CommandResultDto, AppError> {
+    let registry = &*SESSION_REGISTRY;
+    let sid = SessionId(session_id);
+    let core_txn_id = map_frontend_txn(&frontend_txn_id)
+        .map_err(|e| AppError::internal(format!("Failed to map txn: {}", e.message)))?;
+
+    let result = with_session_state(registry, sid, |state| {
+        let steps = max_steps.unwrap_or(1);
+        let mut final_revision = state.core.revision();
+        let mut selection_after = None::<SelectionDto>;
+
+        for _ in 0..steps {
+            if !state.core.can_undo() {
+                break;
+            }
+            let outcome = state
+                .core
+                .undo(core_txn_id)
+                .map_err(RuntimeError::from)?;
+
+            if let Some(outcome) = outcome {
+                final_revision = outcome.revision;
+                selection_after = outcome
+                    .selection_after
+                    .and_then(|sel| {
+                        let anchor = state.core.utf16_for_byte(sel.anchor).ok()?.0;
+                        let head = state.core.utf16_for_byte(sel.head).ok()?.0;
+                        Some(SelectionDto { anchor, head })
+                    });
+            }
+        }
+
+        Ok(CommandResultDto {
+            session_id,
+            transaction_id: frontend_txn_id,
+            revision: final_revision.0,
+            selection_after,
+        })
+    })
+    .map_err(map_error)?;
+
+    Ok(result)
+}
+
+/// Redo the last undone edit in a document session.
+#[tauri::command]
+pub fn redo_document(
+    session_id: u64,
+    frontend_txn_id: String,
+    max_steps: Option<u32>,
+) -> Result<CommandResultDto, AppError> {
+    let registry = &*SESSION_REGISTRY;
+    let sid = SessionId(session_id);
+    let core_txn_id = map_frontend_txn(&frontend_txn_id)
+        .map_err(|e| AppError::internal(format!("Failed to map txn: {}", e.message)))?;
+
+    let result = with_session_state(registry, sid, |state| {
+        let steps = max_steps.unwrap_or(1);
+        let mut final_revision = state.core.revision();
+        let mut selection_after = None::<SelectionDto>;
+
+        for _ in 0..steps {
+            if !state.core.can_redo() {
+                break;
+            }
+            let outcome = state
+                .core
+                .redo(core_txn_id)
+                .map_err(RuntimeError::from)?;
+
+            if let Some(outcome) = outcome {
+                final_revision = outcome.revision;
+                selection_after = outcome
+                    .selection_after
+                    .and_then(|sel| {
+                        let anchor = state.core.utf16_for_byte(sel.anchor).ok()?.0;
+                        let head = state.core.utf16_for_byte(sel.head).ok()?.0;
+                        Some(SelectionDto { anchor, head })
+                    });
+            }
+        }
+
+        Ok(CommandResultDto {
+            session_id,
+            transaction_id: frontend_txn_id,
+            revision: final_revision.0,
+            selection_after,
+        })
+    })
+    .map_err(map_error)?;
+
+    Ok(result)
 }
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,8 @@ import { showNewFileDialog } from '../components/newFileDialog';
 import { getWorkspacePath } from '../components/fileTree';
 import { open } from '@tauri-apps/plugin-dialog';
 import { addRecentFile } from '../lib/storage';
+import { isCoreBackedSourceModeEnabled } from '../lib/coreSession';
+import { executeFormatCommand } from '../editor-adapter/formatCommandLayer';
 
 function sanitizeLinkHref(input: string): string | null {
   const trimmed = input.trim();
@@ -33,11 +35,19 @@ export function initKeyboard() {
     switch (e.key.toLowerCase()) {
       case 'b':
         e.preventDefault();
-        editor?.chain().focus().toggleBold().run();
+        if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+          void executeFormatCommand({ type: 'toggle_strong', anchor: 0, head: 0 });
+        } else {
+          editor?.chain().focus().toggleBold().run();
+        }
         break;
       case 'i':
         e.preventDefault();
-        editor?.chain().focus().toggleItalic().run();
+        if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+          void executeFormatCommand({ type: 'toggle_emphasis', anchor: 0, head: 0 });
+        } else {
+          editor?.chain().focus().toggleItalic().run();
+        }
         break;
       case 's':
         e.preventDefault();
@@ -56,12 +66,29 @@ export function initKeyboard() {
         break;
       case 'k': {
         e.preventDefault();
-        const url = prompt('输入链接 URL:');
-        const href = url ? sanitizeLinkHref(url) : null;
-        if (href && editor) {
-          editor.chain().focus().setLink({ href }).run();
-        } else if (url) {
-          showToast('不支持的链接协议');
+        // In Core-backed source mode, use EditCommand for link insertion
+        if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+          const url = prompt('输入链接 URL:');
+          const href = url ? sanitizeLinkHref(url) : null;
+          if (href) {
+            void executeFormatCommand({
+              type: 'insert_link',
+              anchor: 0,
+              head: 0,
+              href,
+              title: null,
+            });
+          } else if (url) {
+            showToast('不支持的链接协议');
+          }
+        } else {
+          const url = prompt('输入链接 URL:');
+          const href = url ? sanitizeLinkHref(url) : null;
+          if (href && editor) {
+            editor.chain().focus().setLink({ href }).run();
+          } else if (url) {
+            showToast('不支持的链接协议');
+          }
         }
         break;
       }
@@ -95,7 +122,11 @@ export function initKeyboard() {
           break;
         case 's':
           e.preventDefault();
-          editor?.chain().focus().toggleStrike().run();
+          if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+            void executeFormatCommand({ type: 'toggle_strikethrough', anchor: 0, head: 0 });
+          } else {
+            editor?.chain().focus().toggleStrike().run();
+          }
           break;
       }
     }

@@ -13,6 +13,9 @@ import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
 import { showContextMenuStatic } from './ui/contextMenu';
 import { getSourceView } from '../lib/editor.source';
+import { isCoreBackedSourceModeEnabled } from '../lib/coreSession';
+import type { EditCommandDto } from '../lib/coreBridge';
+import { executeFormatCommand } from '../editor-adapter/formatCommandLayer';
 
 export function initToolbar() {
   initAriaAttributes();
@@ -62,14 +65,34 @@ function bindToolbarEvents() {
     showNewFileDialog('file', getWorkspacePath());
   });
 
-  bind('btn-bold', () => getEditor()?.chain().focus().toggleBold().run());
-  bind('btn-italic', () => getEditor()?.chain().focus().toggleItalic().run());
-  bind('btn-strike', () => getEditor()?.chain().focus().toggleStrike().run());
-  bind('btn-code', () => getEditor()?.chain().focus().toggleCode().run());
-  bind('btn-h1', () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run());
-  bind('btn-h2', () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run());
+  bind('btn-bold', () => executeCommandOrFallback(
+    { type: 'toggle_strong', anchor: 0, head: 0 },
+    () => getEditor()?.chain().focus().toggleBold().run(),
+  ));
+  bind('btn-italic', () => executeCommandOrFallback(
+    { type: 'toggle_emphasis', anchor: 0, head: 0 },
+    () => getEditor()?.chain().focus().toggleItalic().run(),
+  ));
+  bind('btn-strike', () => executeCommandOrFallback(
+    { type: 'toggle_strikethrough', anchor: 0, head: 0 },
+    () => getEditor()?.chain().focus().toggleStrike().run(),
+  ));
+  bind('btn-code', () => executeCommandOrFallback(
+    { type: 'toggle_inline_code', anchor: 0, head: 0 },
+    () => getEditor()?.chain().focus().toggleCode().run(),
+  ));
+  bind('btn-h1', () => executeCommandOrFallback(
+    { type: 'set_heading', anchor: 0, head: 0, level: 1 },
+    () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run(),
+  ));
+  bind('btn-h2', () => executeCommandOrFallback(
+    { type: 'set_heading', anchor: 0, head: 0, level: 2 },
+    () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run(),
+  ));
   bind('btn-quote', () => {
-    if (getMode() === 'source') {
+    if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+      void executeFormatCommand({ type: 'toggle_block_quote', anchor: 0, head: 0 });
+    } else if (getMode() === 'source') {
       // CM6: wrap selection/current line with > prefix
       const view = getSourceView();
       if (!view) return;
@@ -99,8 +122,14 @@ function bindToolbarEvents() {
   bind('btn-link', () => {
     showLinkDialog();
   });
-  bind('btn-ul', () => getEditor()?.chain().focus().toggleBulletList().run());
-  bind('btn-ol', () => getEditor()?.chain().focus().toggleOrderedList().run());
+  bind('btn-ul', () => executeCommandOrFallback(
+    { type: 'toggle_list', anchor: 0, head: 0, kind: 'Unordered' },
+    () => getEditor()?.chain().focus().toggleBulletList().run(),
+  ));
+  bind('btn-ol', () => executeCommandOrFallback(
+    { type: 'toggle_list', anchor: 0, head: 0, kind: 'Ordered' },
+    () => getEditor()?.chain().focus().toggleOrderedList().run(),
+  ));
   bind('btn-hr', () => getEditor()?.chain().focus().setHorizontalRule().run());
   bind('btn-codeblock', () => {
     if (getMode() === 'source') {
@@ -253,6 +282,24 @@ async function exportCurrentDocument(format: ExportFormat) {
     if (restoredMode) {
       switchToSource();
     }
+  }
+}
+
+/**
+ * Execute a Core EditCommand if Core-backed Source Mode is active and we're
+ * in source mode; otherwise fall back to the legacy Tiptap handler.
+ *
+ * `anchor` and `head` are initialised to 0 — the FormatCommandLayer reads the
+ * actual selection from the CodeMirror view at call time.
+ */
+function executeCommandOrFallback(
+  cmd: EditCommandDto,
+  fallback: () => void,
+): void {
+  if (isCoreBackedSourceModeEnabled() && getMode() === 'source') {
+    void executeFormatCommand(cmd);
+  } else {
+    fallback();
   }
 }
 

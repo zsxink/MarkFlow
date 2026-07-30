@@ -8,8 +8,8 @@ use super::types::{
     TransactionId, Utf16Offset,
 };
 use super::{
-    LineIndex, OriginalSnapshot, ParseIndex, PatchOutcome, PositionMap, ScanOutcome, TextBuffer,
-    TextPatch,
+    EditOrigin, HistoryEntry, HistoryLabel, HistoryStack, LineIndex, OriginalSnapshot, ParseIndex,
+    PatchOutcome, PositionMap, ScanOutcome, TextBuffer, TextPatch,
 };
 
 pub const TRANSACTION_RETRY_WINDOW_CAPACITY: usize = 256;
@@ -98,6 +98,7 @@ pub struct DocumentSession {
     line_index: LineIndex,
     position_map: PositionMap,
     parse_index_cache: RwLock<Option<ScanOutcome>>,
+    history: HistoryStack,
     applied_transactions: HashMap<TransactionId, AppliedTransaction>,
     transaction_order: VecDeque<TransactionId>,
 }
@@ -113,6 +114,7 @@ impl Clone for DocumentSession {
             line_index: self.line_index.clone(),
             position_map: self.position_map.clone(),
             parse_index_cache: RwLock::new(self.read_cache().clone()),
+            history: self.history.clone(),
             applied_transactions: self.applied_transactions.clone(),
             transaction_order: self.transaction_order.clone(),
         }
@@ -136,6 +138,7 @@ impl DocumentSession {
             line_index,
             position_map,
             parse_index_cache: RwLock::new(None),
+            history: HistoryStack::new(),
             applied_transactions: HashMap::new(),
             transaction_order: VecDeque::new(),
         })
@@ -219,7 +222,83 @@ impl DocumentSession {
         self.applied_transactions.len()
     }
 
+    pub fn history_len(&self) -> usize {
+        self.history.len()
+    }
+
+    pub fn history_cursor(&self) -> usize {
+        self.history.cursor()
+    }
+
+    pub fn can_undo(&self) -> bool {
+        self.history.can_undo()
+    }
+
+    pub fn can_redo(&self) -> bool {
+        self.history.can_redo()
+    }
+
     pub fn apply_patch(&mut self, patch: TextPatch) -> CoreResult<PatchOutcome> {
+        self.apply_patch_internal(
+            patch,
+            Some(HistoryMeta {
+                origin: EditOrigin::User,
+                label: HistoryLabel::TextInput,
+                selection_before: None,
+            }),
+        )
+    }
+
+    pub fn apply_patch_with_history(
+        &mut self,
+        patch: TextPatch,
+        origin: EditOrigin,
+        label: HistoryLabel,
+        selection_before: Option<super::Selection>,
+    ) -> CoreResult<PatchOutcome> {
+        self.apply_patch_internal(
+            patch,
+            Some(HistoryMeta {
+                origin,
+                label,
+                selection_before,
+            }),
+        )
+    }
+
+    pub fn undo(&mut self, transaction_id: TransactionId) -> CoreResult<Option<PatchOutcome>> {
+        if let Some(applied) = self.applied_transactions.get(&transaction_id) {
+            return Ok(Some(applied.outcome.clone()));
+        }
+
+        let Some(entry) = self.history.peek_undo().cloned() else {
+            return Ok(None);
+        };
+        let patch = rebase_patch(entry.inverse_patch, self.revision, transaction_id);
+        let outcome = self.apply_patch_internal(patch, None)?;
+        self.history.mark_undone();
+        Ok(Some(outcome))
+    }
+
+    pub fn redo(&mut self, transaction_id: TransactionId) -> CoreResult<Option<PatchOutcome>> {
+        if let Some(applied) = self.applied_transactions.get(&transaction_id) {
+            return Ok(Some(applied.outcome.clone()));
+        }
+
+        let Some(entry) = self.history.peek_redo().cloned() else {
+            return Ok(None);
+        };
+        let patch = rebase_patch(entry.patch, self.revision, transaction_id);
+        let outcome = self.apply_patch_internal(patch, None)?;
+        self.history.mark_redone();
+        Ok(Some(outcome))
+    }
+
+    fn apply_patch_internal(
+        &mut self,
+        patch: TextPatch,
+        history_meta: Option<HistoryMeta>,
+    ) -> CoreResult<PatchOutcome> {
         let fingerprint = patch.payload_fingerprint();
         if let Some(applied) = self.applied_transactions.get(&patch.transaction_id) {
             if applied.fingerprint == fingerprint {
@@ -229,6 +308,8 @@ impl DocumentSession {
         }
 
         let normalized_changes = patch.normalized_changes_against(self)?;
+        let inverse_changes =
+            inverse_changes_for(self.revision, self.text.logical_text(), &normalized_changes);
         let mut next_text = self.text.clone();
         next_text.apply_changes(&normalized_changes)?;
 
@@ -239,6 +320,27 @@ impl DocumentSession {
             revision: next_revision,
             selection_after: patch.selection_for_commit(next_revision, &next_text)?,
         };
+        let history_entry = history_meta.map(|meta| HistoryEntry {
+            session_id: self.id,
+            transaction_id: patch.transaction_id,
+            origin: meta.origin,
+            revision_before: self.revision,
+            revision_after: next_revision,
+            inverse_patch: TextPatch {
+                transaction_id: patch.transaction_id,
+                base_revision: next_revision,
+                changes: inverse_changes,
+                selection_after: meta.selection_before.clone(),
+            },
+            label: meta.label,
+            selection_before: meta.selection_before,
+            patch: TextPatch {
+                transaction_id: patch.transaction_id,
+                base_revision: self.revision,
+                changes: normalized_changes,
+                selection_after: patch.selection_after.clone(),
+            },
+        });
 
         self.text = next_text;
         self.revision = next_revision;
@@ -258,6 +360,9 @@ impl DocumentSession {
                 outcome: outcome.clone(),
             },
         );
+        if let Some(entry) = history_entry {
+            self.history.push(entry);
+        }
 
         Ok(outcome)
     }
@@ -272,5 +377,61 @@ impl DocumentSession {
         self.parse_index_cache
             .write()
             .expect("parse index cache lock poisoned")
+    }
+}
+
+struct HistoryMeta {
+    origin: EditOrigin,
+    label: HistoryLabel,
+    selection_before: Option<super::Selection>,
+}
+
+fn inverse_changes_for(
+    revision_after: Revision,
+    before_text: &str,
+    changes: &[super::TextChange],
+) -> Vec<super::TextChange> {
+    let mut inverse = Vec::with_capacity(changes.len());
+    let mut delta: isize = 0;
+
+    for change in changes {
+        let original = before_text[change.range.start.0..change.range.end.0].to_string();
+        let start_after = change.range.start.0.saturating_add_signed(delta);
+        let end_after = start_after + change.replacement.len();
+        inverse.push(super::TextChange {
+            range: super::SourceRange::new(revision_after, start_after, end_after),
+            replacement: original,
+        });
+        delta += change.replacement.len() as isize
+            - (change.range.end.0 - change.range.start.0) as isize;
+    }
+
+    inverse
+}
+
+fn rebase_patch(
+    patch: TextPatch,
+    base_revision: Revision,
+    transaction_id: TransactionId,
+) -> TextPatch {
+    TextPatch {
+        transaction_id,
+        base_revision,
+        changes: patch
+            .changes
+            .into_iter()
+            .map(|change| super::TextChange {
+                range: super::SourceRange {
+                    revision: base_revision,
+                    start: change.range.start,
+                    end: change.range.end,
+                },
+                replacement: change.replacement,
+            })
+            .collect(),
+        selection_after: patch.selection_after.map(|selection| super::Selection {
+            revision: base_revision,
+            ..selection
+        }),
     }
 }

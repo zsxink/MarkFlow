@@ -216,3 +216,115 @@ fn session_facade_keeps_all_position_maps_coherent_after_patch() {
         assert_eq!(session.byte_for_source_byte(source).unwrap(), byte);
     }
 }
+
+#[test]
+fn history_records_patch_and_undo_redo_round_trips_text() {
+    let mut session = open(b"abcdef");
+
+    session
+        .apply_patch(patch(
+            session.revision(),
+            3001,
+            vec![change(session.revision(), 1, 3, "XYZ")],
+            None,
+        ))
+        .unwrap();
+    session
+        .apply_patch(patch(
+            session.revision(),
+            3002,
+            vec![change(session.revision(), 7, 7, "!")],
+            None,
+        ))
+        .unwrap();
+
+    assert_eq!(session.text().logical_text(), "aXYZdef!");
+    assert_eq!(session.history_len(), 2);
+    assert_eq!(session.history_cursor(), 2);
+    assert!(session.can_undo());
+    assert!(!session.can_redo());
+
+    let undo_second = session.undo(markflow_core::TransactionId(4001)).unwrap();
+    assert!(undo_second.is_some());
+    assert_eq!(session.text().logical_text(), "aXYZdef");
+    assert_eq!(session.history_cursor(), 1);
+    assert!(session.can_redo());
+
+    let undo_first = session.undo(markflow_core::TransactionId(4002)).unwrap();
+    assert!(undo_first.is_some());
+    assert_eq!(session.text().logical_text(), "abcdef");
+    assert_eq!(session.history_cursor(), 0);
+    assert!(!session.can_undo());
+
+    let redo_first = session.redo(markflow_core::TransactionId(4003)).unwrap();
+    assert!(redo_first.is_some());
+    assert_eq!(session.text().logical_text(), "aXYZdef");
+    assert_eq!(session.history_cursor(), 1);
+
+    let redo_second = session.redo(markflow_core::TransactionId(4004)).unwrap();
+    assert!(redo_second.is_some());
+    assert_eq!(session.text().logical_text(), "aXYZdef!");
+    assert_eq!(session.history_cursor(), 2);
+    assert!(!session.can_redo());
+}
+
+#[test]
+fn undo_retry_is_idempotent_without_moving_history_twice() {
+    let mut session = open(b"abc");
+    session
+        .apply_patch(patch(
+            session.revision(),
+            3101,
+            vec![change(session.revision(), 3, 3, "!")],
+            None,
+        ))
+        .unwrap();
+
+    let first = session.undo(markflow_core::TransactionId(4101)).unwrap();
+    let retry = session.undo(markflow_core::TransactionId(4101)).unwrap();
+
+    assert_eq!(first, retry);
+    assert_eq!(session.text().logical_text(), "abc");
+    assert_eq!(session.history_cursor(), 0);
+    assert!(session.can_redo());
+}
+
+#[test]
+fn new_patch_after_undo_discards_redo_entries() {
+    let mut session = open(b"abc");
+    session
+        .apply_patch(patch(
+            session.revision(),
+            3201,
+            vec![change(session.revision(), 3, 3, "d")],
+            None,
+        ))
+        .unwrap();
+    session
+        .apply_patch(patch(
+            session.revision(),
+            3202,
+            vec![change(session.revision(), 4, 4, "e")],
+            None,
+        ))
+        .unwrap();
+    session.undo(markflow_core::TransactionId(4201)).unwrap();
+
+    session
+        .apply_patch(patch(
+            session.revision(),
+            3203,
+            vec![change(session.revision(), 4, 4, "X")],
+            None,
+        ))
+        .unwrap();
+
+    assert_eq!(session.text().logical_text(), "abcdX");
+    assert_eq!(session.history_len(), 2);
+    assert_eq!(session.history_cursor(), 2);
+    assert!(!session.can_redo());
+    assert_eq!(
+        session.redo(markflow_core::TransactionId(4202)).unwrap(),
+        None
+    );
+}

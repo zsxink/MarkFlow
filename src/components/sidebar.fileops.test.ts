@@ -3,14 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(), writeFile: vi.fn(), addRecentFile: vi.fn(), getFileMetadata: vi.fn(),
   authorizeImageStorage: vi.fn(), preparePendingImagesForSave: vi.fn(), completePendingImagesSave: vi.fn(), abortPendingImagesSave: vi.fn(), discardActiveImageDraft: vi.fn(),
-  getMarkdown: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(),
-  save: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(),
+  getCurrentSourceMarkdown: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(),
+  save: vi.fn(), showDialog: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(),
+  getCoreSessionState: vi.fn(), saveCoreSession: vi.fn(), openCoreSession: vi.fn(), closeCoreSession: vi.fn(),
 }));
 vi.mock('../lib/storage', () => ({ readFile: mocks.readFile, writeFile: mocks.writeFile, addRecentFile: mocks.addRecentFile, authorizeImageStorage: mocks.authorizeImageStorage, getFileMetadata: mocks.getFileMetadata }));
 vi.mock('../lib/imageUtils', () => ({ preparePendingImagesForSave: mocks.preparePendingImagesForSave, completePendingImagesSave: mocks.completePendingImagesSave, abortPendingImagesSave: mocks.abortPendingImagesSave, discardActiveImageDraft: mocks.discardActiveImageDraft }));
-vi.mock('../lib/editor', () => ({ getMarkdown: mocks.getMarkdown, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor }));
-vi.mock('../lib/editor.source', () => ({ setSourceReadOnly: vi.fn() })); vi.mock('./toast', () => ({ showToast: mocks.showToast })); vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() })); vi.mock('./outline', () => ({ refreshOutline: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() })); vi.mock('@tauri-apps/plugin-dialog', () => ({ save: mocks.save })); vi.mock('./ui/dialog', () => ({ showDialog: vi.fn() })); vi.mock('./activeDocument', () => ({ getActiveFilePath: mocks.getActiveFilePath, setActiveFilePath: mocks.setActiveFilePath })); vi.mock('./sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn() })); vi.mock('../lib/fileSizeTier', () => ({ determineTier: vi.fn(() => 'normal'), formatFileSize: vi.fn() })); vi.mock('./degradationBar', () => ({ showDegradationBar: vi.fn(), hideDegradationBar: vi.fn() })); vi.mock('../lib/store', () => ({ store: { setState: vi.fn() } })); vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
-import { openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
+vi.mock('../lib/editor', () => ({ getCurrentSourceMarkdown: mocks.getCurrentSourceMarkdown, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor }));
+vi.mock('../lib/editor.source', () => ({ setSourceReadOnly: vi.fn() })); vi.mock('./toast', () => ({ showToast: mocks.showToast })); vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() })); vi.mock('./outline', () => ({ refreshOutline: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() })); vi.mock('@tauri-apps/plugin-dialog', () => ({ save: mocks.save })); vi.mock('./ui/dialog', () => ({ showDialog: mocks.showDialog })); vi.mock('./activeDocument', () => ({ getActiveFilePath: mocks.getActiveFilePath, setActiveFilePath: mocks.setActiveFilePath })); vi.mock('./sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn() })); vi.mock('../lib/fileSizeTier', () => ({ determineTier: vi.fn(() => 'normal'), formatFileSize: vi.fn() })); vi.mock('./degradationBar', () => ({ showDegradationBar: vi.fn(), hideDegradationBar: vi.fn() })); vi.mock('../lib/store', () => ({ store: { setState: vi.fn() } })); vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
+vi.mock('../lib/coreSession', () => ({ getCoreSessionState: mocks.getCoreSessionState, saveCoreSession: mocks.saveCoreSession, openCoreSession: mocks.openCoreSession, closeCoreSession: mocks.closeCoreSession }));
+import { confirmDocumentTransition, openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
 
 function prepared(markdown: string, draftId: string | null = null) {
   return {
@@ -30,51 +32,54 @@ function prepared(markdown: string, draftId: string | null = null) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.getMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => prepared(markdown)); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
+  vi.clearAllMocks(); mocks.getCurrentSourceMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => prepared(markdown)); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images'); mocks.getCoreSessionState.mockReturnValue({ isActive: false }); mocks.saveCoreSession.mockResolvedValue(4); mocks.openCoreSession.mockResolvedValue({ session_id: 1, revision: 4 }); mocks.closeCoreSession.mockResolvedValue(undefined);
 });
 
 describe('active document file operations', () => {
-  it('saves an existing file and records its persisted revision', async () => {
+  it('fails closed for an existing file without a Core session', async () => {
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
-    await expect(saveActiveDocument()).resolves.toBe('saved');
-    expect(mocks.writeFile).toHaveBeenCalledWith('/work/note.md', '# edited');
-    expect(mocks.markDocumentPersisted).toHaveBeenCalledWith('# edited', 4);
-    expect(mocks.showToast).toHaveBeenCalledWith('已保存');
+    await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.writeFile).not.toHaveBeenCalled();
+    expect(mocks.preparePendingImagesForSave).not.toHaveBeenCalled();
+    expect(mocks.markDocumentPersisted).not.toHaveBeenCalled();
+    expect(mocks.showToast).toHaveBeenCalledWith('保存需要已确认的 Core 会话');
   });
-  it('prompts for a target when saving a new document', async () => {
+  it('fails closed after selecting a target for a new document without a Core session', async () => {
     mocks.getActiveFilePath.mockReturnValue(null); mocks.save.mockResolvedValue('/work/new.md');
-    await expect(saveActiveDocument()).resolves.toBe('saved');
-    expect(mocks.writeFile).toHaveBeenCalledWith('/work/new.md', '# edited');
-    expect(mocks.setActiveFilePath).toHaveBeenCalledWith('/work/new.md');
-    expect(mocks.addRecentFile).toHaveBeenCalledWith('/work/new.md');
+    await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.writeFile).not.toHaveBeenCalled();
+    expect(mocks.preparePendingImagesForSave).not.toHaveBeenCalled();
+    expect(mocks.setActiveFilePath).not.toHaveBeenCalled();
+    expect(mocks.addRecentFile).not.toHaveBeenCalled();
+    expect(mocks.showToast).toHaveBeenCalledWith('保存需要已确认的 Core 会话');
   });
-  it('migrates pending images before the first Markdown write and cleans afterward', async () => {
+  it('does not migrate pending images before Core save authority exists', async () => {
     mocks.getActiveFilePath.mockReturnValue(null); mocks.save.mockResolvedValue('/work/guide.md');
     const migration = prepared('![](guide-images/img.png)', 'draft-1');
     mocks.preparePendingImagesForSave.mockResolvedValue(migration);
-    await expect(saveActiveDocument()).resolves.toBe('saved');
-    expect(mocks.preparePendingImagesForSave).toHaveBeenCalledWith('# edited', '/work/guide.md');
-    expect(mocks.writeFile).toHaveBeenCalledWith('/work/guide.md', '![](guide-images/img.png)');
-    expect(mocks.setMarkdown).toHaveBeenCalledWith('![](guide-images/img.png)');
-    expect(mocks.completePendingImagesSave).toHaveBeenCalledWith(migration.transaction);
-    expect(mocks.writeFile.mock.invocationCallOrder[0])
-      .toBeLessThan(mocks.completePendingImagesSave.mock.invocationCallOrder[0]);
+    await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.preparePendingImagesForSave).not.toHaveBeenCalled();
+    expect(mocks.writeFile).not.toHaveBeenCalled();
+    expect(mocks.setMarkdown).not.toHaveBeenCalled();
+    expect(mocks.completePendingImagesSave).not.toHaveBeenCalled();
   });
-  it('aborts first save and preserves the draft when migration fails', async () => {
+  it('does not start first-save image migration without a Core session', async () => {
     mocks.getActiveFilePath.mockReturnValue(null); mocks.save.mockResolvedValue('/work/guide.md');
     mocks.preparePendingImagesForSave.mockRejectedValue(new Error('migration failed'));
     await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.preparePendingImagesForSave).not.toHaveBeenCalled();
     expect(mocks.writeFile).not.toHaveBeenCalled();
     expect(mocks.completePendingImagesSave).not.toHaveBeenCalled();
     expect(mocks.setActiveFilePath).not.toHaveBeenCalled();
   });
-  it('preserves migrated draft metadata when the Markdown write fails', async () => {
+  it('does not create migrated draft metadata when the Markdown write path is unavailable', async () => {
     mocks.getActiveFilePath.mockReturnValue(null); mocks.save.mockResolvedValue('/work/guide.md');
     mocks.preparePendingImagesForSave.mockResolvedValue(prepared('![](guide-images/img.png)', 'draft-1'));
     mocks.writeFile.mockRejectedValue(new Error('write failed'));
     await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.preparePendingImagesForSave).not.toHaveBeenCalled();
     expect(mocks.completePendingImagesSave).not.toHaveBeenCalled();
-    expect(mocks.abortPendingImagesSave).toHaveBeenCalledOnce();
+    expect(mocks.abortPendingImagesSave).not.toHaveBeenCalled();
     expect(mocks.setMarkdown).not.toHaveBeenCalled();
     expect(mocks.setActiveFilePath).not.toHaveBeenCalled();
   });
@@ -83,6 +88,14 @@ describe('active document file operations', () => {
     await expect(saveActiveDocument()).resolves.toBe('skipped');
     expect(mocks.writeFile).not.toHaveBeenCalled();
     expect(mocks.showToast).toHaveBeenCalledWith('已取消保存');
+  });
+  it('blocks document transition when the requested save fails closed', async () => {
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.showDialog.mockResolvedValue('save');
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    await expect(confirmDocumentTransition()).resolves.toBe(false);
+    expect(mocks.writeFile).not.toHaveBeenCalled();
+    expect(mocks.showToast).toHaveBeenCalledWith('保存需要已确认的 Core 会话');
   });
   it('reloads disk content only when the document is safe to replace', async () => {
     mocks.getActiveFilePath.mockReturnValue('/work/note.md'); mocks.readFile.mockResolvedValue('# disk');

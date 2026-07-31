@@ -185,6 +185,9 @@ impl HostRequestContext {
 
     pub fn validate_required_scope(&self) -> Result<(), HostErrorCode> {
         self.validate_protocol()?;
+        if self.request_id.trim().is_empty() {
+            return Err(HostErrorCode::HostRequestMismatch);
+        }
         if self.capability.requires_session() && self.session_id.is_none() {
             return Err(HostErrorCode::HostSessionMismatch);
         }
@@ -450,6 +453,13 @@ mod tests {
 
     #[test]
     fn host_context_enforces_required_session_window_and_revision() {
+        let mut missing_request = context(HostCapability::Export);
+        missing_request.request_id = " ".into();
+        assert_eq!(
+            missing_request.validate_required_scope(),
+            Err(HostErrorCode::HostRequestMismatch)
+        );
+
         let mut export = context(HostCapability::Export);
         export.session_id = None;
         assert_eq!(

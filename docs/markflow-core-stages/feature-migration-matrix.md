@@ -38,6 +38,12 @@
 > - 已完成 M8B-1 协议与测试基础、Host capability matrix / Tauri permission drift gate、Runtime file_system Host context、Tauri save dialog context、前端 clipboard context、Host windows lifecycle context、App Service toast routing、Host shell bridge、Host network image context、Core-backed Host render context、Host export output context、Bridge Host/export 错误映射与结果身份校验、non-Tauri Runtime harness。
 > - OS-level notifications 仍为 `not_configured`；legacy ProseMirror diagram DOM render 和 legacy DOM export fallback 仍待后续收敛。
 > - 验证记录见 `docs/markflow-core-stages/m8b-host-portability-evidence.md`。
+> M8C 记录：
+> - Issue #244 / change `m8c-legacy-removal` 删除产品主路径中的 `tiptap-markdown` 依赖、ProseMirror serializer save、`getMarkdown()` save fallback、WYSIWYG 整篇 serializer sync 和 DOM export snapshot fallback。
+> - HTML/PDF/print/DOCX 导出入口要求 active Core session、confirmed revision、Export IR rendered HTML 和 Export Host identity；缺失时返回稳定错误，不读取当前 editor DOM 或 active window。
+> - 非 Core 保存/另存失败关闭，只有 Runtime/Core save workflow 可提交持久化内容；文档切换在保存返回 `saved` 前不会放行。
+> - M8C removal audit 已加入 `npm run check:m8c-removal` / `npm run test:m8c-removal-audit`，产品路径 legacy truth path 静态扫描为零。
+> - 验证记录见 `docs/markflow-core-stages/m8c-legacy-removal-evidence.md`。
 
 ## 1. 使用规则
 
@@ -47,15 +53,31 @@
 - 删除旧 ProseMirror 路径前，所有 P0/P1 项必须为 `已验收`。
 - 平台相关能力必须分别记录 macOS、Windows、Linux 结果。
 
+## 1.1 M8C P0/P1 Removal Gate
+
+以下 P0/P1 仅覆盖 M8C removal 范围：保存与模式切换 document truth、Export IR 导出输入、Host side-effect scope、session isolation、legacy fallback 清零和 regression audit。Task List、图片插入/编辑、复制/粘贴、StyleMap inheritance、OS-level notifications 等在本矩阵中仍为后续阶段，不属于 M8C removal gate。
+
+| 优先级 | 能力 | owner | M8C 状态 | 验收证据 |
+| --- | --- | --- | --- | --- |
+| P0 | 保存内容来源 | Runtime + Host | 已验收 | `src/components/sidebar.fileops.ts` 非 Core 保存/另存失败关闭；Core path 调 `saveCoreSession()` + `getCurrentSourceMarkdown()` baseline；`npm test`、`src/lib/sidebar.fileops.save.test.ts`、`src/components/sidebar.fileops.test.ts` |
+| P0 | 文档切换保存 gate | App Service + Runtime | 已验收 | `confirmDocumentTransition()` 仅接受 `SaveResult === 'saved'`；`src/components/sidebar.fileops.test.ts` 覆盖保存失败不切换 |
+| P0 | Source/WYSIWYG 模式切换 | Editor Adapter + Core | 已验收 | legacy serializer sync 删除；Core WYSIWYG/source round-trip tests；保存失败不离开 dirty WYSIWYG；`src/lib/editor.modeSwitch.test.ts` |
+| P0 | HTML 导出输入 | Export IR + Host | 已验收 | `documentExport.ts` 要求 active Core session + `getExportDocument()`；无 Core session 稳定失败；`src/lib/documentExport.test.ts` |
+| P0 | PDF/print 导出输入 | Export IR + Host | 已验收 | PDF/print 入口要求 `ExportHostIdentity`；backend Host context 绑定 session/revision/request/window；`src/lib/pdfExport.test.ts`、`src-tauri` export tests |
+| P0 | DOCX 导出输入 | Export IR + Host | 已验收 | DOCX save 要求 `ExportHostIdentity`；adapter 输入来自 Export IR rendered HTML；`src/lib/docxExport.test.ts` |
+| P0 | Host request scope | Runtime + Host | 已验收 | `host_contract.rs` 拒绝缺少 request/session/revision/window/capability scope；`src-tauri/host-capability-matrix.json` fallback entry 为空；`cargo test` |
+| P1 | Session isolation / stale result | Runtime + Host Bridge | 已验收 | A/B document switch、same-path multi-session、export during edit、window close/cancellation、stale revision tests；见 M8C evidence |
+| P1 | Removal audit | CI / Regression Coverage | 已验收 | `npm run check:m8c-removal` 和 `npm run test:m8c-removal-audit` 通过；产品路径扫描未发现 legacy truth path |
+
 ## 2. 文档生命周期
 
 | 能力 | 当前实现 | 目标 owner | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- | --- |
 | 打开 Markdown | TS + Tauri file command → M3: Runtime crate (read + FileIdentity) + Session Registry + Host trait；M8B: Host file_system context 已接入，open 仍为 pre-session context | Runtime + Host | M3 (已验收)；M8B 收敛 | UTF-8/BOM/EOL 正确，创建 session |
 | 新建文档 | UI 临时状态 | Runtime | M3/M4 | 未命名 session 可编辑、另存 |
-| 保存 | `getMarkdown()` + Tauri write → M3/M3.1: Runtime session.submit_patch + save workflow (pending patch flush, SaveLease, per-path coordinator, atomic write)；M8B: Runtime Host file_system trait 接收 HostRequestContext | Runtime + Host | M3 已验收；M8 移除 legacy serializer | pending patch flush，原子写入 |
+| 保存 | M3/M3.1: Runtime session.submit_patch + save workflow (pending patch flush, SaveLease, per-path coordinator, atomic write)；M8C: 产品路径删除 `getMarkdown()`/ProseMirror serializer save fallback，非 Core 保存失败关闭 | Runtime + Host | M3 已验收；M8C 已验收 | pending patch flush，原子写入，保存失败不合成 Markdown |
 | 自动保存 | `main.ts` timer | App Service | M4/M6 | 按 session 保存；不并发保存，不丢 revision |
-| 另存为 | UI + dialog；M8B: Tauri save dialog 入口已接 Host dialogs context gate | Runtime + Host | M4/M8 | 按 session 另存；路径和资源引用更新一致 |
+| 另存为 | UI + dialog；M8B: Tauri save dialog 入口已接 Host dialogs context gate；M8C: 无 Core session 时失败关闭，不走 legacy write fallback | Runtime + Host | M4/M8C 已验收 | 按 session 另存；路径和资源引用更新一致；失败不合成 Markdown |
 | 未保存提示 | UI dirty state | Runtime state + UI | M4 | dirty 以 session confirmed revision 为准 |
 | 外部修改检测 | watcher + mtime/size → M3/M3.1: Runtime FileIdentity + true reload + conflict gate | Runtime + Host | M3 已验收；M8 完整 Host gate | clean reload、dirty conflict |
 | 外部删除 | watcher + UI | Runtime + Host | M4 | 明确保留/关闭/另存路径 |
@@ -69,8 +91,8 @@
 | 能力 | 当前实现 | 目标 owner | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- | --- |
 | Source Mode | CodeMirror → M3/M3.1: Runtime-backed source mode (patch-based sync via Session, strict flush/resync, feature flag 回退) | Editor Adapter + Core | M3 已验收 | 小 patch 同步，不传全文 |
-| WYSIWYG | ProseMirror | CodeMirror Live Preview | M5-M8 | 长期保留，保存不经 serializer |
-| 模式切换 | 整篇序列化 | Editor Adapter | M5 | byte-for-byte 不变 |
+| WYSIWYG | Core-backed projection；legacy ProseMirror 只保留 UI compatibility，不再作为保存/导出真相 | CodeMirror Live Preview | M5-M8C 已验收 | 长期保留，保存不经 serializer |
+| 模式切换 | Core-backed Source/WYSIWYG flush + remount；M8C 删除整篇 serializer sync | Editor Adapter | M5/M8C 已验收 | byte-for-byte 不变，不调用 ProseMirror serializer |
 | Undo/Redo | 编辑器 history → M6 Phase 3-5: Core-backed Source Mode 快捷键调用 Core undo/redo IPC，命令前 flush pending patch，返回 patch/selection/revision | Core History | M6 Core 主路径；IME 分组后续补齐 | 单 owner，IME 分组正确 |
 | 光标/选区 | PM/CM 各自模型 | Adapter + PositionMap | M3-M6 | 中英文、emoji、组合字符 |
 | 大纲 | ProseMirror/DOM 派生 | Core ParseIndex | M2-M4 | 点击定位到 revision range |
@@ -141,10 +163,10 @@
 
 | 能力 | 当前实现 | 目标阶段 | 最低验收 |
 | --- | --- | --- | --- |
-| HTML | M8A: Core Export IR v1 -> TypeScript HTML renderer；无 Core session 时 legacy DOM snapshot fallback | M8A Core 主路径 | session confirmed Export IR renderer test；Source Mode 不再为了导出切 WYSIWYG |
-| PDF 文件 | M8A: Core Export IR HTML -> native WebView PDF；平台输出仍走现有 Tauri PDF command；M8B: Host export capability/error registry 已建立 | M8A 双轨；M8B Host port | session Export snapshot 与编辑模式无关；native PDF smoke 待 release gate |
-| Word/DOCX | M8A: Core Export IR HTML -> JS docx；docx adapter 暂保留 HTML 输入适配层 | M8A 双轨；M8B/M8C 收敛 | session Export IR；列表、表格、图片、代码块 renderer/unit smoke |
-| 系统打印 | M8A: Core Export IR HTML -> WebView print；M8B: Host export/window capability registry 已建立，Tauri port 待迁移 | M8A 双轨；M8B Host port | Host Adapter 能力，跨平台回退 |
+| HTML | M8C: Core Export IR v1 -> TypeScript HTML renderer；无 Core session 时稳定失败，不再 clone editor DOM | M8C 已验收 | session confirmed Export IR renderer test；Source Mode 不再为了导出切 WYSIWYG；无 DOM fallback |
+| PDF 文件 | M8C: Core Export IR HTML -> native WebView PDF；Host export context 绑定 session/revision/request/window；缺 identity 稳定失败 | M8C 已验收；release smoke 待验 | session Export snapshot 与编辑模式无关；native PDF smoke 待 release gate |
+| Word/DOCX | M8C: Core Export IR rendered HTML -> JS docx；保存要求 Export Host identity，不读取 ProseMirror nodes/live DOM/HTML snapshot | M8C 已验收；release smoke 待验 | session Export IR；列表、表格、图片、代码块 renderer/unit smoke |
+| 系统打印 | M8C: Core Export IR HTML -> print/native PDF flow；入口要求 Export Host identity | M8C 已验收；release smoke 待验 | Host Adapter 能力，跨平台回退 |
 | 导出主题/字体/媒体等待 | 前端 | M8 | 视觉回归和超时清理 |
 
 ## 9. 质量与安全
@@ -184,7 +206,7 @@ M0 OpenSpec apply 未修改产品运行路径；仅为离线验证修正了 Rust
 | History | 编辑器 history | Core History | M6 | `adr-history-owner.md` |
 | 图片/资源 | TS image utils + Tauri image commands | Runtime asset workflow + Host | M6/M7 | 当前仅冻结 owner，不迁移 |
 | 图表 | 前端渲染与导出路径 | Internal provider + Host renderer/export | M7/M8 | 当前仅冻结 owner，不迁移 |
-| 导出/打印 | DOM/HTML snapshot + Tauri/WebView print/export | Export IR + Host | M8 | 当前仅冻结 owner，不迁移 |
+| 导出/打印 | M8C: Export IR rendered HTML + Host scoped output；DOM/HTML snapshot fallback 已从产品主路径删除 | Export IR + Host | M8C 已验收；跨平台 smoke 待验 | `documentExport.test.ts`、`pdfExport.test.ts`、`docxExport.test.ts`、M8C removal audit |
 | Settings/Theme | TS store + Tauri settings config | App Service + Host | M4 | 当前仅冻结 owner，不迁移 |
 | 外部修改/冲突 | watcher + mtime/size + UI conflict flow → M3/M3.1: Runtime FileIdentity、true reload、PathSaveCoordinator conflict detection | Runtime + Host | M3 已验收；M8 完整 Host portability | clean reload、dirty conflict、同路径后保存冲突已进入 Runtime 路径 |
 | 大文件分级 | `document-size-tier` 同时使用 byte 与 line count | Core byte-based tier + budget inputs | M2/M4 | follow-up 记录在 `reports/document-size-tier-follow-up.md` |

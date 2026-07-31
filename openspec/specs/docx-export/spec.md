@@ -25,7 +25,7 @@
 - **AND** SHALL 通过 `save_binary_export` 命令保存为文件
 
 ### Requirement: DOCX 语义映射
-系统 SHALL 将 ProseMirror 节点树映射为 DOCX 语义结构，而非直接嵌入浏览器 HTML。
+系统 SHALL 将 Export IR blocks 和 assets 映射为 DOCX 语义结构，而非直接嵌入浏览器 HTML、读取 ProseMirror 节点树或克隆实时编辑器 DOM。
 
 #### Scenario: 段落映射
 - **WHEN** 文档包含普通段落文本
@@ -55,6 +55,11 @@
 #### Scenario: 图片映射
 - **WHEN** 文档包含图片
 - **THEN** DOCX SHALL 在文档中嵌入图片，保留宽高比和位置
+
+#### Scenario: DOCX 不读取实时 DOM
+- **WHEN** 用户选择 Word (.docx) 导出
+- **THEN** DOCX adapter SHALL consume Export IR or structures derived from Export IR
+- **AND** MUST NOT read ProseMirror nodes, live editor DOM, or HTML snapshot as document truth
 
 ### Requirement: DOCX 样式定义
 系统 SHALL 使用 `ExportTheme`（通过 `exportThemeToDocxStyles()` 转换）定义 DOCX 样式，确保与编辑器主题一致。不再使用硬编码的 Times New Roman 12pt 等固定样式。

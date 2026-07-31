@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(), writeFile: vi.fn(), addRecentFile: vi.fn(), getFileMetadata: vi.fn(),
   authorizeImageStorage: vi.fn(), preparePendingImagesForSave: vi.fn(), completePendingImagesSave: vi.fn(), abortPendingImagesSave: vi.fn(), discardActiveImageDraft: vi.fn(),
-  getMarkdown: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(),
+  getCurrentSourceMarkdown: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(),
   save: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(),
   getCoreSessionState: vi.fn(), saveCoreSession: vi.fn(),
 }));
 
 vi.mock('./storage', () => ({ readFile: mocks.readFile, writeFile: mocks.writeFile, addRecentFile: mocks.addRecentFile, authorizeImageStorage: mocks.authorizeImageStorage, getFileMetadata: mocks.getFileMetadata }));
 vi.mock('./imageUtils', () => ({ preparePendingImagesForSave: mocks.preparePendingImagesForSave, completePendingImagesSave: mocks.completePendingImagesSave, abortPendingImagesSave: mocks.abortPendingImagesSave, discardActiveImageDraft: mocks.discardActiveImageDraft }));
-vi.mock('./editor', () => ({ getMarkdown: mocks.getMarkdown, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor }));
+vi.mock('./editor', () => ({ getCurrentSourceMarkdown: mocks.getCurrentSourceMarkdown, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor }));
 vi.mock('./editor.source', () => ({ setSourceReadOnly: vi.fn() }));
 vi.mock('../components/toast', () => ({ showToast: mocks.showToast }));
 vi.mock('../components/fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() }));
@@ -47,7 +47,7 @@ function prepared(markdown: string, draftId: string | null = null) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.getMarkdown.mockReturnValue('# edited');
+  mocks.getCurrentSourceMarkdown.mockReturnValue('# edited');
   mocks.getRevision.mockReturnValue(4);
   mocks.getLastReadMtime.mockReturnValue(0);
   mocks.getLastReadSize.mockReturnValue(0);
@@ -62,36 +62,28 @@ beforeEach(() => {
 });
 
 describe('Core-backed vs legacy save path routing', () => {
-  // Bug 4 fix: Core save now calls getMarkdown() for markDocumentPersisted
-  // to sync the legacy dirty-tracking state after the save completes.
-  it('core_backed_save_calls_getMarkdown_for_dirty_state_sync', async () => {
+  it('core_backed_save_uses_source_mirror_for_dirty_state_sync', async () => {
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.getCoreSessionState.mockReturnValue({ isActive: true });
 
     await expect(saveActiveDocument()).resolves.toBe('saved');
 
-    // Core save path should call getMarkdown once (for markDocumentPersisted)
-    expect(mocks.getMarkdown).toHaveBeenCalledTimes(1);
-    // Core save path should call markDocumentPersisted to sync dirty state
+    expect(mocks.getCurrentSourceMarkdown).toHaveBeenCalledTimes(1);
     expect(mocks.markDocumentPersisted).toHaveBeenCalledWith('# edited', 5);
     // Core save path should call saveCoreSession
     expect(mocks.saveCoreSession).toHaveBeenCalledOnce();
     expect(mocks.saveCoreSession).toHaveBeenCalledWith({ interactive: true });
   });
 
-  // 6.3: Legacy WYSIWYG save calls getMarkdown when Core is not active
-  it('legacy_save_calls_getMarkdown_when_core_not_active', async () => {
+  it('non_core_save_fails_without_legacy_serializer_fallback', async () => {
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.getCoreSessionState.mockReturnValue({ isActive: false });
 
-    await expect(saveActiveDocument()).resolves.toBe('saved');
+    await expect(saveActiveDocument()).resolves.toBe('failed');
 
-    // Legacy path should call getMarkdown for the write
-    expect(mocks.getMarkdown).toHaveBeenCalled();
-    // Legacy path should NOT call saveCoreSession
+    expect(mocks.getCurrentSourceMarkdown).not.toHaveBeenCalled();
     expect(mocks.saveCoreSession).not.toHaveBeenCalled();
-    // Legacy path should call writeFile
-    expect(mocks.writeFile).toHaveBeenCalledWith('/work/note.md', '# edited');
+    expect(mocks.writeFile).not.toHaveBeenCalled();
   });
 
   // 6.3: Core-backed save does NOT call writeFile (the legacy path)

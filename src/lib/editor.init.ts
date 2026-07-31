@@ -7,7 +7,6 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import { Markdown } from 'tiptap-markdown';
 
 import { copyLocalFileToStorage, imagePathToSrc, pasteImageFile, getImageSettings } from './imageUtils';
 import type { ImageSettings } from '../types/image';
@@ -37,7 +36,7 @@ import {
 import { store } from './store';
 import { scheduler } from './taskScheduler';
 import { getSourceContent } from './editor.source';
-import { normalizeImageMarkdown, replaceAssetUrlsWithOriginal } from './editor.serializer';
+import { normalizeImageMarkdown } from './editor.serializer';
 import { ensureContinuationParagraph } from './editor.continuation';
 
 export async function initEditor() {
@@ -84,13 +83,6 @@ export async function initEditor() {
       }),
       complexityLimitExtension(),
       mermaidCodeBlockExtension(),
-      Markdown.configure({
-        html: false,
-        tightLists: true,
-        bulletListMarker: '-',
-        transformPastedText: true,
-        transformCopiedText: false,
-      }),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
       Extension.create({
@@ -104,12 +96,12 @@ export async function initEditor() {
     onUpdate: () => {
       const currentMd = getMode() === 'source'
         ? normalizeImageMarkdown(getSourceContent())
-        : normalizeImageMarkdown(replaceAssetUrlsWithOriginal(getEditor()!.storage.markdown.getMarkdown()));
+        : getDocumentState().lastPersistedMarkdown;
 
       scheduler.schedule('dirty-check', 400, () => {
         if (!getDocumentState().programmaticUpdate) {
           bumpRevision();
-          store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
+          store.setState({ dirty: getMode() === 'source' ? currentMd !== getDocumentState().lastPersistedMarkdown : true });
         }
       });
 

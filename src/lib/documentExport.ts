@@ -6,7 +6,7 @@ import { getExportDocument, generateRequestId } from './coreBridge';
 import { flushCoreSession, getCoreSessionState } from './coreSession';
 import { renderExportIrToHtmlContent } from './exportIrRenderer';
 import { logDebug, logException } from './logger';
-import { buildExportSnapshot, waitForFontsReady } from './exportSnapshot';
+import { waitForFontsReady } from './exportSnapshot';
 import { triggerPdfExport, exportPdfToFile } from './pdfExport';
 import { createDocxFromHtml, saveDocxFile } from './docxExport';
 import { buildExportTheme, exportThemeToCss, generateInlineFontCss, type ExportTheme } from './exportTheme';
@@ -88,8 +88,8 @@ export async function exportRenderedDocument(
     return false;
   }
   const initialSessionForContent = getCoreSessionState();
-  if (!initialSessionForContent.isActive && !renderedRoot) {
-    showToast('没有可导出的文档内容');
+  if (!initialSessionForContent.isActive || initialSessionForContent.sessionId <= 0) {
+    showToast('导出需要已确认的 Core 会话');
     return false;
   }
 
@@ -102,7 +102,7 @@ export async function exportRenderedDocument(
   exportInProgress = true;
   try {
     await waitForFontsReady();
-    const rendered = await buildConfirmedRevisionHtml(renderedRoot);
+    const rendered = await buildConfirmedRevisionHtml();
     const renderedHtml = rendered.html;
 
     if (format === 'print') {
@@ -147,7 +147,7 @@ interface RenderedExportHtml {
   identity?: ExportHostIdentity;
 }
 
-async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Promise<RenderedExportHtml> {
+async function buildConfirmedRevisionHtml(): Promise<RenderedExportHtml> {
   const initialSession = getCoreSessionState();
   if (initialSession.isActive && initialSession.sessionId > 0) {
     const exportRequestId = generateRequestId();
@@ -201,15 +201,7 @@ async function buildConfirmedRevisionHtml(renderedRoot: HTMLElement | null): Pro
     };
   }
 
-  if (!renderedRoot) {
-    throw new Error('EXPORT_NO_CONTENT: no rendered root or active Core session');
-  }
-
-  const snapshot = await buildExportSnapshot(renderedRoot);
-  const div = document.createElement('div');
-  div.appendChild(snapshot.cloneNode(true));
-  logDebug('export', 'Using legacy DOM export snapshot');
-  return { html: div.innerHTML };
+  throw new Error('EXPORT_CORE_SESSION_UNAVAILABLE: export requires an active Core session');
 }
 
 function wrapExportIrHtml(

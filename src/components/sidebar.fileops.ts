@@ -1,10 +1,10 @@
-import { readFile, writeFile, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
+import { readFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
+import { getCurrentSourceMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, setLastReadStats, getEditor } from '../lib/editor';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';
-import { logException, logInfo, logDebug } from '../lib/logger';
+import { logException, logDebug } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from './ui/dialog';
 import { getActiveFilePath, setActiveFilePath } from './activeDocument';
@@ -13,12 +13,7 @@ import { determineTier, formatFileSize } from '../lib/fileSizeTier';
 import { showDegradationBar, hideDegradationBar } from './degradationBar';
 import { store } from '../lib/store';
 import { invoke } from '@tauri-apps/api/core';
-import {
-  abortPendingImagesSave,
-  completePendingImagesSave,
-  discardActiveImageDraft,
-  preparePendingImagesForSave,
-} from '../lib/imageUtils';
+import { discardActiveImageDraft } from '../lib/imageUtils';
 import { saveCoreSession, getCoreSessionState, openCoreSession, closeCoreSession } from '../lib/coreSession';
 
 // ── Serial save guard ────────────────────────────────────────────────
@@ -54,7 +49,7 @@ export async function confirmDocumentTransition(): Promise<boolean> {
 
   if (result === 'save') {
     const saved = await saveActiveDocument({ interactive: true });
-    if (saved) return true;
+    if (saved === 'saved') return true;
     return false;
   }
 
@@ -122,20 +117,8 @@ export async function saveActiveDocumentAsNewFile() {
       return true;
     }
 
-    // Legacy path (no Core session) — use getMarkdown + writeFile
-    const currentContent = getMarkdown();
-    await writeFile(targetPath, currentContent);
-    setActiveFilePath(targetPath);
-    // Record mtime + size for future external-modification checks
-    try {
-      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
-      setLastReadStats(stats.mtime, stats.size);
-    } catch (e) { logDebug('fileops', 'Failed to get file stats after save-as (non-critical)', { path: targetPath, error: String(e) }); }
-    markDocumentPersisted(currentContent);
-    await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
-    refreshOutline();
-    showToast('已另存为新文件');
-    return true;
+    showToast('另存为需要已确认的 Core 会话');
+    return false;
   } catch (e) {
     showToast(`另存为失败: ${e}`);
     return false;
@@ -163,43 +146,8 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (!targetPath) return 'skipped';
-    const content = getMarkdown();
-    const revision = getRevision();
-    savingInProgress = true;
-    try {
-      const prepared = await preparePendingImagesForSave(content, targetPath);
-      suppressNextWatcherRefresh(targetPath);
-      await writeFile(targetPath, prepared.markdown);
-      setActiveFilePath(targetPath);
-      if (prepared.markdown !== content) setMarkdown(prepared.markdown);
-      // Record mtime + size for future external-modification checks
-      try {
-        const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
-        setLastReadStats(stats.mtime, stats.size);
-      } catch (e) { logDebug('fileops', 'Failed to get file stats after save new file (non-critical)', { path: targetPath, error: String(e) }); }
-      markDocumentPersisted(prepared.markdown, revision);
-      try {
-        await completePendingImagesSave(prepared.transaction);
-      } catch (e) {
-        logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
-          path: targetPath,
-          error: String(e),
-        });
-      }
-      addRecentFile(targetPath).catch((e) =>
-        logDebug('sidebar.save', 'Failed to record recent file (best-effort)', { path: targetPath, error: String(e) }),
-      );
-      logInfo('sidebar.save', 'Saved new file', { path: targetPath });
-      showToast('已保存');
-      return 'saved';
-    } catch (e) {
-      abortPendingImagesSave();
-      logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
-      showToast('保存失败');
-      return 'failed';
-    } finally {
-      savingInProgress = false;
-    }
+    showToast('保存需要已确认的 Core 会话');
+    return 'failed';
   }
 
   // ── External modification check (mtime + size) ──────────────────
@@ -219,9 +167,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     try {
       const savedRevision = await saveCoreSession({ interactive });
       if (savedRevision >= 0) {
-        // Sync the legacy dirty-tracking state so the save is reflected
-        // in both Core session state and the editor's baseline.
-        markDocumentPersisted(getMarkdown(), savedRevision);
+        markDocumentPersisted(getCurrentSourceMarkdown(), savedRevision);
         if (interactive) {
           showToast('已保存');
         }
@@ -238,66 +184,8 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     }
   }
 
-  // ── Pre-save mtime + size validation ────────────────────────────
-  const lastMtime = getLastReadMtime();
-  const lastSize = getLastReadSize();
-  if (lastMtime > 0 || lastSize > 0) {
-    try {
-      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
-      if (stats.mtime !== lastMtime || stats.size !== lastSize) {
-        if (!interactive) {
-          logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
-          return 'skipped';
-        }
-        const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
-        if (!confirmed) {
-          showToast('已取消保存');
-          return 'skipped';
-        }
-      }
-    } catch (e) {
-      // If stat fails, proceed with save anyway
-      logDebug('fileops', 'Pre-save stat check failed, proceeding with save', { path: filePath, error: String(e) });
-    }
-  }
-
-  // ── Atomic save with revision tracking ──────────────────────────
-  const content = getMarkdown();
-  const revision = getRevision();
-  savingInProgress = true;
-  try {
-    const prepared = await preparePendingImagesForSave(content, filePath);
-    suppressNextWatcherRefresh(filePath);
-    await writeFile(filePath, prepared.markdown);
-    if (prepared.markdown !== content) setMarkdown(prepared.markdown);
-    // Record mtime + size after successful write
-    try {
-      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
-      setLastReadStats(stats.mtime, stats.size);
-    } catch (e) { logDebug('fileops', 'Failed to get file stats after write (non-critical)', { path: filePath, error: String(e) }); }
-    markDocumentPersisted(prepared.markdown, revision);
-    try {
-      await completePendingImagesSave(prepared.transaction);
-    } catch (e) {
-      logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
-        path: filePath,
-        error: String(e),
-      });
-    }
-    if (interactive) {
-      logInfo('sidebar.save', 'Saved active document', { path: filePath, interactive: true });
-      showToast('已保存');
-    }
-    return 'saved';
-  } catch (e) {
-    abortPendingImagesSave();
-    // Keep dirty state on failure — user sees error toast in interactive mode
-    logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
-    if (interactive) showToast('保存失败，请重试');
-    return 'failed';
-  } finally {
-    savingInProgress = false;
-  }
+  if (interactive) showToast('保存需要已确认的 Core 会话');
+  return 'failed';
 }
 
 export async function reloadActiveDocumentFromDisk(options: { force?: boolean } = {}) {

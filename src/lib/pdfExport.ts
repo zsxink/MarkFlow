@@ -38,6 +38,12 @@ export async function exportPdfToFile(
   defaultName = 'document.pdf',
   identity?: ExportHostIdentity,
 ): Promise<boolean> {
+  if (!identity) {
+    logException('export.pdf', 'error', new Error('EXPORT_HOST_CONTEXT_REQUIRED'));
+    showRoutedToast('PDF 导出失败，请重试', createToastRouteContext());
+    return false;
+  }
+
   if (pdfExportInProgress) {
     showToast('正在导出中，请稍候');
     return false;
@@ -64,7 +70,7 @@ export async function exportPdfToFile(
     const result = await invoke<PdfExportResult>('create_pdf', {
       htmlContent: html,
       outputPath,
-      hostContext: identity ? createExportHostRequestContext(identity) : null,
+      hostContext: createExportHostRequestContext(identity),
     });
 
     if (!Number.isFinite(result.bytesWritten) || result.bytesWritten < 5) {
@@ -103,6 +109,12 @@ let printInProgress = false;
  * This is the "Print..." menu option (task 4.6).
  */
 export async function triggerPdfExport(html: string, identity?: ExportHostIdentity): Promise<boolean> {
+  if (!identity) {
+    logException('export.pdf', 'error', new Error('EXPORT_HOST_CONTEXT_REQUIRED'));
+    showRoutedToast('无法打开 PDF 打印窗口', createToastRouteContext());
+    return false;
+  }
+
   if (printInProgress) {
     showToast('正在导出中，请稍候');
     return false;
@@ -124,14 +136,14 @@ export async function triggerPdfExport(html: string, identity?: ExportHostIdenti
   }
 }
 
-async function triggerNativePdfExport(html: string, identity?: ExportHostIdentity): Promise<boolean> {
+async function triggerNativePdfExport(html: string, identity: ExportHostIdentity): Promise<boolean> {
   // Use Tauri print command — creates a temporary print page and
   // calls WebviewWindow::print() on the Rust side
   const toastRoute = createToastRouteContext();
   try {
     const result = await invoke<boolean>('print_webview', {
       htmlContent: html,
-      hostContext: identity ? createExportHostRequestContext(identity) : null,
+      hostContext: createExportHostRequestContext(identity),
     });
     if (result) {
       logInfo('export.pdf', 'afterprint');

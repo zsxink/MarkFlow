@@ -58,14 +58,18 @@
 - [document-size-tier](document-size-tier/spec.md) — 文档大小分级与降级。
 - [documentation-consistency](documentation-consistency/spec.md) — 文档一致性要求。
 - [editor-bottom-spacer](editor-bottom-spacer/spec.md) — 两种编辑模式的底部留白。
+- [editor-input-integrity](editor-input-integrity/spec.md) — 编辑器输入完整性、IME 组合与 History owner。
 - [empty-line-preservation](empty-line-preservation/spec.md) — 空行保真与图片归一化边界。
 - [enter-content-integrity](enter-content-integrity/spec.md) — Enter 与模式切换的内容完整性。
 - [expensive-task-scheduling](expensive-task-scheduling/spec.md) — 高开销编辑任务的调度。
 - [keyboard-shortcuts](keyboard-shortcuts/spec.md) — 全局快捷键与编辑器命令。
 - [lazy-code-languages](lazy-code-languages/spec.md) — 语言包按需加载与回退。
+- [markdown-semantic-projection](markdown-semantic-projection/spec.md) — Markdown 语义投影、Render IR v2 与增量失效。
 - [settings-code-highlight](settings-code-highlight/spec.md) — 代码高亮开关与即时生效。
 - [source-toolbar-cm6](source-toolbar-cm6/spec.md) — Source/WYSIWYG 工具栏分派。
+- [structured-block-editing](structured-block-editing/spec.md) — 表格、图片、任务/代码、FrontMatter 等结构化块编辑。
 - [trailing-newlines-preservation](trailing-newlines-preservation/spec.md) — legacy 尾部换行元数据保真。
+- [typora-live-preview](typora-live-preview/spec.md) — Typora 级实时预览、标记隐藏与投影生命周期。
 - [url-decoration](url-decoration/spec.md) — 裸 URL 的非侵入式装饰、打开与复制。
 
 ### 工作区与文件
@@ -121,6 +125,7 @@
 - [safe-http-fetch](safe-http-fetch/spec.md) — HTTP、DNS、重定向与图片安全限制。
 - [source-mode-core](source-mode-core/spec.md) — Source Mode Core 命令主路径。
 - [type-system](type-system/spec.md) — 共享类型的边界与使用。
+- [visual-release-gate](visual-release-gate/spec.md) — WYSIWYG 语义 GUI E2E、视觉基线、IME 与性能发布门禁。
 - [vitest-coverage-threshold](vitest-coverage-threshold/spec.md) — Vitest 覆盖率阈值。
 
 ## 追踪与历史资料（非行为规范）

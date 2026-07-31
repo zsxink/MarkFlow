@@ -93,13 +93,19 @@ export async function saveDocxFile(
   identity?: ExportHostIdentity,
 ): Promise<boolean> {
   const toastRoute = createToastRouteContext();
+  if (!identity) {
+    logException('export.docx', 'Missing Export Host identity', new Error('EXPORT_HOST_CONTEXT_REQUIRED'));
+    showRoutedToast('导出失败，请重试', toastRoute);
+    return false;
+  }
+
   try {
     const saved = await invoke<boolean>('save_binary_export', {
       data: Array.from(data),
       defaultName,
       filterName: 'Word 文档',
       extensions: ['docx'],
-      hostContext: identity ? createExportHostRequestContext(identity) : null,
+      hostContext: createExportHostRequestContext(identity),
     });
     if (saved) {
       showRoutedToast('已导出 Word 文档', toastRoute);

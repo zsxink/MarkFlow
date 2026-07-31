@@ -5,7 +5,6 @@ const {
   readFileAsBase64Mock,
   showToastMock,
   invokeMock,
-  buildExportSnapshotMock,
   coreSessionState,
   flushCoreSessionMock,
   triggerPdfExportMock,
@@ -16,11 +15,6 @@ const {
   readFileAsBase64Mock: vi.fn(),
   showToastMock: vi.fn(),
   invokeMock: vi.fn(),
-  buildExportSnapshotMock: vi.fn().mockImplementation((root: HTMLElement) => {
-    const frag = document.createDocumentFragment();
-    frag.appendChild(root.cloneNode(true));
-    return Promise.resolve(frag);
-  }),
   coreSessionState: {
     sessionId: 0,
     documentId: 0,
@@ -52,7 +46,6 @@ vi.mock('./logger', () => ({
   logInfo: vi.fn(),
 }));
 vi.mock('./exportSnapshot', () => ({
-  buildExportSnapshot: buildExportSnapshotMock,
   waitForFontsReady: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('./coreSession', () => ({
@@ -92,7 +85,6 @@ afterEach(() => {
   readFileAsBase64Mock.mockReset();
   showToastMock.mockReset();
   invokeMock.mockReset();
-  buildExportSnapshotMock.mockClear();
   flushCoreSessionMock.mockReset();
   flushCoreSessionMock.mockResolvedValue(5);
   Object.assign(coreSessionState, {
@@ -142,35 +134,55 @@ describe('rendered document export', () => {
   });
 
   it('does not write when the save dialog is cancelled', async () => {
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [
+        {
+          id: 'b1',
+          kind: { type: 'paragraph' },
+          source_range: { start: 0, end: 6 },
+          content_range: { start: 0, end: 6 },
+          line_range: { start: 0, end: 1 },
+          source: '内容',
+        },
+      ],
+      assets: [],
+      diagnostics: [],
+    }));
     saveDocumentExportMock.mockResolvedValue(false);
-    const container = document.createElement('div');
-    container.innerHTML = '<p>内容</p>';
-    const result = await exportRenderedDocument('html', container, '/notes/a.md');
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
     expect(result).toBe(false);
     expect(showToastMock).not.toHaveBeenCalled();
   });
 
-  it('shows warning when renderedRoot is null', async () => {
+  it('requires an active Core session before exporting', async () => {
     const result = await exportRenderedDocument('html', null, '/notes/a.md');
     expect(result).toBe(false);
-    expect(showToastMock).toHaveBeenCalledWith('没有可导出的文档内容');
+    expect(showToastMock).toHaveBeenCalledWith('导出需要已确认的 Core 会话');
     expect(saveDocumentExportMock).not.toHaveBeenCalled();
   });
 
-  it('writes standalone HTML via backend command', async () => {
+  it('does not use a rendered DOM root as fallback without Core session', async () => {
     saveDocumentExportMock.mockResolvedValue(true);
     const container = document.createElement('div');
     container.innerHTML = '<p>内容</p>';
     const result = await exportRenderedDocument('html', container, '/notes/a.md');
-    expect(result).toBe(true);
-    expect(saveDocumentExportMock).toHaveBeenCalledWith(
-      expect.stringContaining('<p>内容</p>'),
-      'a.html',
-      'HTML 文档',
-      ['html'],
-      undefined,
-    );
-    expect(showToastMock).toHaveBeenCalledWith('已导出 HTML 文件');
+    expect(result).toBe(false);
+    expect(saveDocumentExportMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(showToastMock).toHaveBeenCalledWith('导出需要已确认的 Core 会话');
   });
 
   it('exports HTML from Core Export IR when a session is active', async () => {
@@ -213,7 +225,6 @@ describe('rendered document export', () => {
       export_request_id: expect.any(String),
       options: { max_schema_version: 1, include_diagnostics: true },
     });
-    expect(buildExportSnapshotMock).not.toHaveBeenCalled();
     expect(saveDocumentExportMock).toHaveBeenCalledWith(
       expect.stringContaining('<h1>标题</h1>'),
       'a.html',
@@ -309,47 +320,214 @@ describe('rendered document export', () => {
     expect(showToastMock).toHaveBeenCalledWith('导出失败，请重试');
   });
 
+  it('rejects export when the active session changes during flush', async () => {
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    flushCoreSessionMock.mockImplementation(async () => {
+      Object.assign(coreSessionState, {
+        sessionId: 99,
+        documentId: 10,
+        confirmedRevision: 1,
+        isActive: true,
+        filePath: '/notes/b.md',
+      });
+      return 5;
+    });
+
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
+
+    expect(result).toBe(false);
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(saveDocumentExportMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects export when the active session changes before result routing', async () => {
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    saveDocumentExportMock.mockResolvedValue(true);
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => {
+      Object.assign(coreSessionState, {
+        sessionId: 99,
+        documentId: 10,
+        confirmedRevision: 1,
+        isActive: true,
+        filePath: '/notes/b.md',
+      });
+      return Promise.resolve({
+        schema_version: 1,
+        session_id: 42,
+        document_id: 9,
+        base_revision: 5,
+        export_request_id: payload.export_request_id,
+        metadata: { frontmatter: null },
+        blocks: [
+          {
+            id: 'b1',
+            kind: { type: 'paragraph' },
+            source_range: { start: 0, end: 9 },
+            content_range: { start: 0, end: 9 },
+            line_range: { start: 0, end: 1 },
+            source: 'session A',
+          },
+        ],
+        assets: [],
+        diagnostics: [],
+      });
+    });
+
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
+
+    expect(result).toBe(false);
+    expect(saveDocumentExportMock).not.toHaveBeenCalled();
+  });
+
   it('writes Word document via DOCX export', async () => {
-    const container = document.createElement('div');
-    container.innerHTML = '<p>内容</p>';
-    const result = await exportRenderedDocument('word', container, '/notes/a.md');
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [
+        {
+          id: 'b1',
+          kind: { type: 'paragraph' },
+          source_range: { start: 0, end: 6 },
+          content_range: { start: 0, end: 6 },
+          line_range: { start: 0, end: 1 },
+          source: '内容',
+        },
+      ],
+      assets: [],
+      diagnostics: [],
+    }));
+
+    const result = await exportRenderedDocument('word', null, '/notes/a.md');
     expect(result).toBe(true);
-    expect(createDocxFromHtmlMock).toHaveBeenCalled();
-    expect(saveDocxFileMock).toHaveBeenCalledWith(expect.any(Uint8Array), 'a.docx', undefined);
+    expect(createDocxFromHtmlMock).toHaveBeenCalledWith(
+      expect.stringContaining('<p>内容</p>'),
+      'a',
+      expect.any(Object),
+    );
+    expect(saveDocxFileMock).toHaveBeenCalledWith(expect.any(Uint8Array), 'a.docx', {
+      sessionId: 42,
+      documentId: 9,
+      baseRevision: 5,
+      requestId: expect.any(String),
+    });
   });
 
   it('passes print HTML and the active document name to PDF export', async () => {
-    const container = document.createElement('div');
-    container.className = 'ProseMirror';
-    container.innerHTML = '<p>内容</p>';
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [
+        {
+          id: 'b1',
+          kind: { type: 'paragraph' },
+          source_range: { start: 0, end: 6 },
+          content_range: { start: 0, end: 6 },
+          line_range: { start: 0, end: 1 },
+          source: '内容',
+        },
+      ],
+      assets: [],
+      diagnostics: [],
+    }));
 
-    const result = await exportRenderedDocument('pdf', container, '/notes/a.md');
+    const result = await exportRenderedDocument('pdf', null, '/notes/a.md');
 
     expect(result).toBe(true);
     expect(triggerPdfExportMock).toHaveBeenCalledWith(
       expect.stringContaining('@media print {'),
       'a.pdf',
-      undefined,
+      {
+        sessionId: 42,
+        documentId: 9,
+        baseRevision: 5,
+        requestId: expect.any(String),
+      },
     );
   });
 
   it('reports export failure when backend command throws', async () => {
     saveDocumentExportMock.mockRejectedValue(new Error('disk full'));
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const container = document.createElement('div');
-    container.innerHTML = '<p>内容</p>';
-    const result = await exportRenderedDocument('html', container, '/notes/a.md');
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [],
+      assets: [],
+      diagnostics: [],
+    }));
+    const result = await exportRenderedDocument('html', null, '/notes/a.md');
     expect(result).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('导出失败，请重试');
   });
 
   it('does not allow concurrent exports', async () => {
     saveDocumentExportMock.mockImplementation(() => new Promise(() => {}));
+    Object.assign(coreSessionState, {
+      sessionId: 42,
+      documentId: 9,
+      confirmedRevision: 4,
+      isActive: true,
+      filePath: '/notes/a.md',
+    });
+    invokeMock.mockImplementation((_command: string, payload: { export_request_id: string }) => Promise.resolve({
+      schema_version: 1,
+      session_id: 42,
+      document_id: 9,
+      base_revision: 5,
+      export_request_id: payload.export_request_id,
+      metadata: { frontmatter: null },
+      blocks: [],
+      assets: [],
+      diagnostics: [],
+    }));
 
-    const container = document.createElement('div');
-    container.innerHTML = '<p>内容</p>';
-    void exportRenderedDocument('html', container, '/notes/a.md');
-    const second = exportRenderedDocument('html', container, '/notes/a.md');
+    void exportRenderedDocument('html', null, '/notes/a.md');
+    const second = exportRenderedDocument('html', null, '/notes/a.md');
 
     expect(await second).toBe(false);
   });

@@ -14,6 +14,8 @@
     "tauri": "tauri",
     "analyze": "npx vite build --mode analyze",
     "check-size": "bash scripts/check-bundle-size.sh",
+    "check:m8c-removal": "node scripts/check-m8c-removal-audit.mjs",
+    "test:m8c-removal-audit": "node scripts/check-m8c-removal-audit.mjs --self-test",
     "benchmark:file-tree": "node scripts/file-tree-benchmark.mjs",
     "validate:openspec": "openspec validate --all",
     "postinstall": "patch-package"
@@ -57,8 +59,7 @@
     "markdown-it": "^14.3.0",
     "mermaid": "^11.0.0",
     "pako": "^2.2.0",
-    "solid-js": "^1.9.14",
-    "tiptap-markdown": "^0.8.10"
+    "solid-js": "^1.9.14"
   },
   "devDependencies": {
     "@fission-ai/openspec": "^1.6.0",

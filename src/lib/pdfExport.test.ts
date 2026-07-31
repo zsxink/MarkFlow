@@ -25,6 +25,13 @@ vi.mock('./logger', () => ({
 
 import { exportPdfToFile, triggerPdfExport } from './pdfExport';
 
+const exportIdentity = {
+  sessionId: 42,
+  documentId: 9,
+  baseRevision: 5,
+  requestId: 'export_req_1',
+};
+
 beforeEach(() => {
   saveMock.mockResolvedValue('/tmp/document.pdf');
 });
@@ -45,10 +52,10 @@ describe('PDF export - file generation', () => {
     }));
 
     // Start first export (will hang)
-    const first = exportPdfToFile('<html>test</html>');
+    const first = exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
 
     // Second export should be blocked
-    const second = exportPdfToFile('<html>test2</html>');
+    const second = exportPdfToFile('<html>test2</html>', 'document.pdf', exportIdentity);
     expect(await second).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('正在导出中，请稍候');
 
@@ -59,7 +66,7 @@ describe('PDF export - file generation', () => {
   it('does not call the backend when the save dialog is cancelled', async () => {
     saveMock.mockResolvedValue(null);
 
-    const result = await exportPdfToFile('<html>test</html>');
+    const result = await exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
     expect(result).toBe(false);
     expect(invokeMock).not.toHaveBeenCalled();
     expect(showToastMock).not.toHaveBeenCalled();
@@ -69,7 +76,7 @@ describe('PDF export - file generation', () => {
     saveMock.mockResolvedValue('/tmp/report.pdf');
     invokeMock.mockResolvedValue({ bytesWritten: 1_024 });
 
-    const result = await exportPdfToFile('<html>test</html>', 'report');
+    const result = await exportPdfToFile('<html>test</html>', 'report', exportIdentity);
 
     expect(result).toBe(true);
     expect(saveMock).toHaveBeenCalledWith({
@@ -79,7 +86,16 @@ describe('PDF export - file generation', () => {
     expect(invokeMock).toHaveBeenCalledWith('create_pdf', {
       htmlContent: '<html>test</html>',
       outputPath: '/tmp/report.pdf',
-      hostContext: null,
+      hostContext: {
+        protocolVersion: 1,
+        requestId: 'export_req_1',
+        clientId: 'default',
+        windowLabel: 'main',
+        sessionId: '42',
+        documentId: '9',
+        baseRevision: 5,
+        capability: 'export',
+      },
     });
     expect(showToastMock).toHaveBeenCalledWith('已导出 PDF 文件');
   });
@@ -87,7 +103,7 @@ describe('PDF export - file generation', () => {
   it('logs the successful lifecycle in order', async () => {
     invokeMock.mockResolvedValue({ bytesWritten: 512 });
 
-    await exportPdfToFile('<html>test</html>');
+    await exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
 
     expect(logInfoMock.mock.calls.map(call => call.slice(0, 2))).toEqual([
       ['export.pdf', 'start'],
@@ -101,7 +117,7 @@ describe('PDF export - file generation', () => {
   it('rejects invalid backend metadata', async () => {
     invokeMock.mockResolvedValue({ bytesWritten: 0 });
 
-    const result = await exportPdfToFile('<html>test</html>');
+    const result = await exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
 
     expect(result).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('PDF 导出失败，请重试');
@@ -110,7 +126,7 @@ describe('PDF export - file generation', () => {
   it('handles timeout gracefully', async () => {
     invokeMock.mockRejectedValue('PDF_TIMEOUT: native PDF generation timed out');
 
-    const result = await exportPdfToFile('<html>test</html>');
+    const result = await exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
     expect(result).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('PDF 导出超时，请重试');
     expect(logInfoMock).toHaveBeenCalledWith('export.pdf', 'timeout');
@@ -119,7 +135,7 @@ describe('PDF export - file generation', () => {
   it('shows a specific message for unsupported systems', async () => {
     invokeMock.mockRejectedValue('PDF_UNSUPPORTED: macOS version is not supported');
 
-    const result = await exportPdfToFile('<html>test</html>');
+    const result = await exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
     expect(result).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('当前系统版本暂不支持直接导出 PDF');
   });
@@ -127,9 +143,18 @@ describe('PDF export - file generation', () => {
   it('handles create_pdf command failure', async () => {
     invokeMock.mockRejectedValue(new Error('PDF_GENERATION_FAILED: WebKit error'));
 
+    const result = await exportPdfToFile('<html>test</html>', 'document.pdf', exportIdentity);
+
+    expect(result).toBe(false);
+    expect(showToastMock).toHaveBeenCalledWith('PDF 导出失败，请重试');
+  });
+
+  it('requires Export Host identity before opening the save dialog', async () => {
     const result = await exportPdfToFile('<html>test</html>');
 
     expect(result).toBe(false);
+    expect(saveMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
     expect(showToastMock).toHaveBeenCalledWith('PDF 导出失败，请重试');
   });
 });
@@ -149,10 +174,10 @@ describe('PDF export - print dialog', () => {
     invokeMock.mockImplementation(() => new Promise(() => {}));
 
     // Start first print (will hang on non-macOS path)
-    const first = triggerPdfExport('<html>test</html>');
+    const first = triggerPdfExport('<html>test</html>', exportIdentity);
 
     // Second print should be blocked
-    const second = triggerPdfExport('<html>test2</html>');
+    const second = triggerPdfExport('<html>test2</html>', exportIdentity);
     expect(await second).toBe(false);
     expect(showToastMock).toHaveBeenCalledWith('正在导出中，请稍候');
 

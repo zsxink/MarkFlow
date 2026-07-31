@@ -81,6 +81,7 @@ const mocks = vi.hoisted(() => {
     showToast: vi.fn(),
     showDegradationBar: vi.fn(),
     hideDegradationBar: vi.fn(),
+    saveActiveDocument: vi.fn(),
   };
 });
 
@@ -154,6 +155,9 @@ vi.mock('../components/degradationBar', () => ({
   showDegradationBar: mocks.showDegradationBar,
   hideDegradationBar: mocks.hideDegradationBar,
 }));
+vi.mock('../components/sidebar', () => ({
+  saveActiveDocument: mocks.saveActiveDocument,
+}));
 vi.mock('./fileSizeTier', () => ({ formatFileSize: vi.fn(() => '5 B') }));
 vi.mock('./SourceSyncController', () => ({
   SourceSyncController: vi.fn(() => mocks.controller),
@@ -176,6 +180,7 @@ describe('Core-backed WYSIWYG mode switch integration', () => {
     mocks.sessionState.confirmedRevision = 7;
     mocks.flags.coreBackedSourceModeEnabled = true;
     mocks.getSourceContent.mockReturnValue('## Hi\n');
+    mocks.saveActiveDocument.mockResolvedValue('saved');
     document.body.innerHTML = `
       <div id="wysiwyg-editor"></div>
       <div id="source-editor-wrapper"></div>
@@ -205,7 +210,7 @@ describe('Core-backed WYSIWYG mode switch integration', () => {
     expect(wysiwygEditor.hidden).toBe(true);
     expect(wrapper.hidden).toBe(false);
     expect(wrapper.dataset.coreWysiwyg).toBe('true');
-    expect(editor.getMarkdown()).toBe('## Hi\n');
+    expect(editor.getCurrentSourceMarkdown()).toBe('## Hi\n');
     expect(mocks.legacyEditor.storage.markdown.getMarkdown).not.toHaveBeenCalled();
 
     await editor.switchToSource();
@@ -223,10 +228,10 @@ describe('Core-backed WYSIWYG mode switch integration', () => {
     expect(mocks.closeCoreSession).not.toHaveBeenCalled();
     expect(mocks.storeState.mode).toBe('source');
     expect(wrapper.dataset.coreWysiwyg).toBeUndefined();
-    expect(editor.getMarkdown()).toBe('## Hi\n');
+    expect(editor.getCurrentSourceMarkdown()).toBe('## Hi\n');
   });
 
-  it('falls back to legacy ProseMirror when Core WYSIWYG feature flag is disabled', async () => {
+  it('does not fall back to legacy ProseMirror when Core WYSIWYG feature flag is disabled', async () => {
     mocks.flags.coreBackedSourceModeEnabled = false;
     const editor = await import('./editor');
     const wysiwygEditor = document.getElementById('wysiwyg-editor') as HTMLElement;
@@ -236,13 +241,42 @@ describe('Core-backed WYSIWYG mode switch integration', () => {
     await Promise.resolve();
 
     expect(mocks.createCoreWysiwygEditor).not.toHaveBeenCalled();
-    expect(mocks.legacyEditor.commands.setContent).toHaveBeenCalledWith('## Hi\n');
-    expect(mocks.closeCoreSession).toHaveBeenCalledTimes(1);
+    expect(mocks.legacyEditor.commands.setContent).not.toHaveBeenCalled();
+    expect(mocks.closeCoreSession).not.toHaveBeenCalled();
     expect(editor.getWysiwygEngine()).toBe('legacy-prosemirror');
     expect(editor.isCoreBackedWysiwygActive()).toBe(false);
-    expect(mocks.storeState.mode).toBe('wysiwyg');
+    expect(mocks.storeState.mode).toBe('source');
     expect(wysiwygEditor.hidden).toBe(false);
-    expect(wrapper.hidden).toBe(true);
+    expect(wrapper.hidden).toBe(false);
     expect(wrapper.dataset.coreWysiwyg).toBeUndefined();
+    expect(mocks.showToast).toHaveBeenCalledWith('所见即所得模式需要 Core 会话，当前文档暂不能切换');
+  });
+
+  it('does not switch away from dirty legacy WYSIWYG when save fails closed', async () => {
+    mocks.storeState.mode = 'wysiwyg';
+    mocks.storeState.dirty = true;
+    mocks.sessionState.isActive = false;
+    mocks.saveActiveDocument.mockResolvedValue('failed');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const editor = await import('./editor');
+
+    await editor.switchToSource();
+
+    expect(mocks.saveActiveDocument).toHaveBeenCalledOnce();
+    expect(mocks.createSourceEditor).not.toHaveBeenCalled();
+    expect(mocks.storeState.mode).toBe('wysiwyg');
+  });
+
+  it('sets a WYSIWYG document baseline without reading Core source content', async () => {
+    mocks.storeState.mode = 'wysiwyg';
+    mocks.getSourceContent.mockImplementation(() => {
+      throw new Error('source should not be read');
+    });
+    const editor = await import('./editor');
+
+    expect(() => editor.setMarkdown('# opened\n')).not.toThrow();
+
+    expect(mocks.legacyEditor.commands.setContent).toHaveBeenCalledWith('# opened');
+    expect(mocks.documentState.lastPersistedMarkdown).toBe('# opened');
   });
 });

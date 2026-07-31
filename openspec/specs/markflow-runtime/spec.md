@@ -151,7 +151,7 @@ SessionRegistry SHALL 使用 DashMap + per-session `Arc<Mutex<DocumentRuntimeSta
 
 ### Requirement: Runtime owns Host workflow lifecycle
 
-Runtime SHALL own session, save, asset, export, and Host task lifecycle, including request id allocation, cancellation, timeout, stale result rejection, and Host error mapping. Host SHALL only execute platform side effects and SHALL NOT own Core revision, dirty state, Markdown generation, history, active editor state, active file path, or fallback policy.
+Runtime SHALL own session, save, asset, export, and Host task lifecycle, including request id allocation, cancellation, timeout, stale result rejection, and Host error mapping. Host SHALL only execute platform side effects and SHALL NOT own Core revision, dirty state, Markdown generation, history, active editor state, active file path, or fallback policy. M8C removal SHALL delete product-path fallback policies that call ProseMirror serializer, `getMarkdown()` save, WYSIWYG whole-document serializer sync, or DOM-based export when Core-backed workflows fail.
 
 #### Scenario: Host does not mutate Core revision
 
@@ -164,6 +164,12 @@ Runtime SHALL own session, save, asset, export, and Host task lifecycle, includi
 - **WHEN** a Host result arrives after the session was closed or advanced beyond the request revision
 - **THEN** Runtime drops the result or returns `HOST_STALE_SESSION` / `HOST_STALE_REVISION`
 - **THEN** no stale result is applied to another session or window
+
+#### Scenario: Runtime rejects legacy save fallback
+
+- **WHEN** Core-backed save cannot produce a confirmed SavePayload
+- **THEN** Runtime SHALL return a stable save error
+- **THEN** Runtime and frontend MUST NOT call ProseMirror serializer or `getMarkdown()` to synthesize a replacement save payload
 
 ### Requirement: Runtime Host port boundary
 
@@ -219,7 +225,7 @@ Runtime SHALL define Host port traits or equivalent modules for file system, cli
 - **WHEN** HTML, PDF, print, or DOCX output is produced from a Core Export IR snapshot
 - **THEN** the platform output request carries Host `export` context with `request_id`, `window_label`, `session_id`, `document_id`, and `base_revision`
 - **THEN** Host output does not read active editor DOM, active path, active selection, or current window content as document truth
-- **THEN** legacy DOM export fallback is only used when there is no active Core session and remains documented as a fallback
+- **THEN** legacy DOM export fallback MUST NOT be used in product main paths after M8C removal
 
 #### Scenario: Export failure codes remain stable
 

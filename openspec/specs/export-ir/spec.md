@@ -174,7 +174,7 @@ CoreSession SHALL 提供 `build_export_document(request: ExportRequest)` 方法�
 - **THEN** Tauri 命令 SHALL 返回 `SessionNotFound` 错误
 
 ### Requirement: 前端 Export IR 渲染
-前端 SHALL 通过 `exportIrRenderer.ts` 将 ExportDocument 中的 blocks 渲染为 HTML 字符串。渲染器 SHALL 按顺序处理每个块，根据 `ExportBlockKind` 类型生成对应的 HTML 标记。前端 `documentExport.ts` SHALL 将 IR 渲染的 HTML 嵌入完整导出文档（含样式和字体声明）。
+前端 SHALL 通过 `exportIrRenderer.ts` 将 ExportDocument 中的 blocks 渲染为 HTML 字符串。渲染器 SHALL 按顺序处理每个块，根据 `ExportBlockKind` 类型生成对应的 HTML 标记。前端 `documentExport.ts` SHALL 将 IR 渲染的 HTML 嵌入完整导出文档（含样式和字体声明）。M8C removal 后，产品主路径 MUST NOT 因 Core 会话不可用、sessionId 缺失或 revision 不可确认而回退到当前编辑器 DOM；系统 SHALL 返回稳定导出错误并保持文档状态不变。
 
 #### Scenario: IR 渲染优先
 - **WHEN** Core 会话活跃且导出触发
@@ -186,14 +186,23 @@ CoreSession SHALL 提供 `build_export_document(request: ExportRequest)` 方法�
 #### Scenario: 诊断信息记录
 - **WHEN** ExportDocument 包含 diagnostics
 - **THEN** 系统 SHALL 在日志中输出诊断信息（代码、消息、block_id）
-- **AND** 不阻塞导出流程
+- **AND** 不阻塞导出流程，除非目标 adapter 声明该 diagnostic 为失败级别
 
-#### Scenario: DOM 快照 fallback
-- **WHEN** Core 会话不可用（未激活或无 sessionId）
-- **THEN** 前端 SHALL 回退到 DOM 快照路径
-- **AND** 渲染结果 SHALL 与 IR 路径兼容
+#### Scenario: Core 会话缺失不回退 DOM
+- **WHEN** 导出触发但 Core 会话不可用、没有 sessionId 或 revision 不可确认
+- **THEN** 前端 SHALL 返回稳定导出错误
+- **AND** 不得克隆或读取当前编辑器 DOM 作为导出内容
+- **AND** 不得报告导出成功
 
 #### Scenario: IR 响应校验
 - **WHEN** 前端收到 ExportDocument
 - **THEN** SHALL 验证 `session_id`、`base_revision`、`export_request_id` 与请求一致
 - **AND** 不一致时抛出 `EXPORT_SESSION_MISMATCH` 错误
+
+### Requirement: DOM 快照 fallback removed
+The DOM snapshot fallback MUST NOT be used as document truth after M8C removal.
+
+#### Scenario: Missing Core identity fails export
+- **WHEN** Core session or revision identity cannot be confirmed
+- **THEN** export SHALL fail with a stable error
+- **AND** export MUST NOT read the current editor DOM, active selection, active path, or active window content

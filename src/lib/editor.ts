@@ -1,11 +1,6 @@
 import { showToast } from '../components/toast';
 import { logException, logDebug } from './logger';
-import { checkSerializationIntegrity } from './editor.helpers';
-import {
-  normalizeImageMarkdown,
-  replaceAssetUrlsWithOriginal,
-  extractDocAsFallback,
-} from './editor.serializer';
+import { normalizeImageMarkdown } from './editor.serializer';
 
 // Shared state
 import {
@@ -36,7 +31,6 @@ import {
 } from './editor.source';
 import {
   openCoreSession,
-  closeCoreSession,
   isCoreBackedSourceModeEnabled,
   getCoreSessionState,
   setSourceSyncController,
@@ -87,9 +81,9 @@ function stripTrailingNewlines(s: string): string {
   return s.replace(/\n+$/, '');
 }
 
-// ── Markdown serialization ────────────────────────────────────────────
+// ── Core/source Markdown mirror ────────────────────────────────────────
 
-export function getMarkdown(): string {
+export function getCurrentSourceMarkdown(): string {
   if (getMode() === 'source' || isCoreBackedWysiwygActive()) {
     const src = normalizeImageMarkdown(getSourceContent());
     // If the user typed trailing newlines in source mode, preserve them
@@ -100,12 +94,7 @@ export function getMarkdown(): string {
     const tn = getDocumentState().trailingNewlines;
     return tn > 0 ? src + '\n'.repeat(tn) : src;
   }
-  if (!getEditor()) return '';
-  const md = getEditor()!.storage.markdown.getMarkdown();
-  const normalized = normalizeImageMarkdown(replaceAssetUrlsWithOriginal(md));
-  // ProseMirror serializer discards trailing newlines — restore from metadata.
-  const tn = getDocumentState().trailingNewlines;
-  return tn > 0 ? normalized + '\n'.repeat(tn) : normalized;
+  throw new Error('CORE_MARKDOWN_UNAVAILABLE: active editor is not backed by Core source');
 }
 
 // ── Scroll reset ──────────────────────────────────────────────────────
@@ -116,8 +105,7 @@ export function resetEditorScroll() {
 
 export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
   // Store the persisted content as the new baseline, without trailing newlines.
-  // ProseMirror's serializer never produces trailing newlines, so all dirty
-  // comparisons deal with content trimmed of them on both sides.
+  // Dirty comparisons strip trailing newlines on both sides.
   getDocumentState().lastPersistedMarkdown = stripTrailingNewlines(markdown);
 
   // If a revision was captured at save-start, only clear dirty when no newer
@@ -128,11 +116,14 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
     return;
   }
 
-  // Content-based sanity check: compare actual current content against what
-  // was just persisted.  This handles edge cases where the revision counter
-  // incremented (e.g. from a debounced onUpdate) but the current editor
-  // content hasn't materially changed (just the debounce timer caught up).
-  const currentMd = stripTrailingNewlines(normalizeImageMarkdown(getMarkdown()));
+  // Content-based sanity check when a Core/source mirror is available. Plain
+  // WYSIWYG open/reload calls provide the just-read disk content directly and
+  // must not synthesize Markdown from the editor DOM.
+  const currentMd = stripTrailingNewlines(normalizeImageMarkdown(
+    getMode() === 'source' || isCoreBackedWysiwygActive()
+      ? getCurrentSourceMarkdown()
+      : markdown,
+  ));
   // A successful save clears the persistent autosave-failure banner, regardless
   // of whether the save came from autosave or an interactive (Ctrl+S) save.
   store.setState({
@@ -157,8 +148,8 @@ export function setMarkdown(content: string) {
       setSourceContent(normalized);
     }
     getDocumentState().programmaticUpdate = false;
-    // Store the serializer-friendly version (no trailing newlines) as
-    // the baseline — dirty comparisons always strip trailing newlines.
+    // Store the just-read Markdown as the baseline. This path must not call a
+    // ProseMirror serializer to synthesize persisted content.
     markDocumentPersisted(normalized);
   }
 }
@@ -186,7 +177,7 @@ export async function switchToSource() {
       // The saveActiveDocument function handles both legacy and Core-backed saves.
       const { saveActiveDocument } = await import('../components/sidebar');
       const saved = await saveActiveDocument();
-      if (saved || !isDocumentDirty()) {
+      if (saved === 'saved' || !isDocumentDirty()) {
         // Proceed with switch
       } else {
         // User cancelled save or save failed — stay in WYSIWYG
@@ -196,48 +187,14 @@ export async function switchToSource() {
     // action === 'discard': proceed without saving
   }
 
-  const rawMarkdown = replaceAssetUrlsWithOriginal(ed.storage.markdown.getMarkdown());
-  const normalized = normalizeImageMarkdown(rawMarkdown);
-
-  // Determine the content to populate CM6 with
-  let content: string;
-  const docText = ed.state.doc.textContent;
-  const integrity = checkSerializationIntegrity(docText, normalized);
-
-  if (integrity.truncated) {
-    logException('editor.serialize', 'Markdown serialization integrity failure', undefined, {
-      reason: integrity.reason,
-      docLen: docText.length,
-      mdLen: normalized.length,
-    });
-    showToast('Markdown 序列化异常，已保存全部内容');
-    content = normalizeImageMarkdown(extractDocAsFallback(ed.state.doc));
-  } else {
-    content = normalized;
-  }
-
   // Clear stale scheduler task from any previous CM6 session
   scheduler.cancel('source-update');
 
   const isReadOnly = store.getState().readOnly;
   const coreBacked = isCoreBackedSourceModeEnabled();
 
-  // Legacy source mode path (no Core backing)
   if (!coreBacked) {
-    wysiwygEditor.hidden = true;
-    wrapper.hidden = false;
-    wysiwygEngine = 'legacy-prosemirror';
-    setMode('source');
-
-    const view = createSourceEditor(wrapper, content, (doc) => {
-      bumpRevision();
-      store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
-      scheduler.schedule('source-update', 50, () => {
-        store.emit({ type: 'editor:update' });
-      });
-    }, isReadOnly);
-
-    view.focus();
+    showToast('源码模式需要 Core 会话，当前文档暂不能切换');
     return;
   }
 
@@ -371,47 +328,7 @@ export async function switchToWysiwyg() {
     return;
   }
 
-  let controller: SourceSyncController | null = null;
-  if (sessionState.isActive) {
-    controller = getSourceSyncController();
-    try {
-      await controller.flush();
-    } catch (err) {
-      logDebug('editor.switch', 'Flush error during mode switch', { error: String(err) });
-    }
-
-    // Detach the SourceSyncController before destroying the editor
-    controller.detach();
-  }
-
-  try {
-    const ed = getEditor();
-    if (ed) {
-      getDocumentState().programmaticUpdate = true;
-      ed.commands.setContent(normalizeImageMarkdown(getSourceContent()));
-    }
-  } finally {
-    getDocumentState().programmaticUpdate = false;
-    wysiwygEditor.hidden = false;
-    wrapper.hidden = true;
-    wysiwygEngine = 'legacy-prosemirror';
-
-    // Close the Core session when leaving source mode
-    const sessionState = getCoreSessionState();
-    if (sessionState.isActive) {
-      closeCoreSession().catch((err) => {
-        logDebug('editor.switch', 'Non-critical error closing core session on mode switch', {
-          error: String(err),
-        });
-      });
-    }
-
-    destroySourceEditor();
-    setMode('wysiwyg');
-    getEditor()?.commands.focus();
-    // Immediate refresh so outline/statusbar show WYSIWYG data right away
-    store.emit({ type: 'editor:update' });
-  }
+  showToast('所见即所得模式需要 Core 会话，当前文档暂不能切换');
 }
 
 async function switchCoreSourceToWysiwyg(

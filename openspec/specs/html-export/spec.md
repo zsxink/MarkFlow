@@ -62,12 +62,26 @@
 - **THEN** 导出 HTML 中该图表 SHALL 使用渲染后的 PNG data URI
 
 ### Requirement: 不含编辑器交互控件
-导出 HTML SHALL 不包含编辑器交互元素（光标、选区、拖拽控件、NodeView 按钮、右键菜单等）。
+导出 HTML SHALL 不包含编辑器交互元素（光标、选区、拖拽控件、NodeView 按钮、右键菜单等）。M8C removal 后，该要求 SHALL 通过 Export IR renderer 只生成导出允许的结构来满足，而不是依赖清理实时编辑器 DOM clone。
 
-#### Scenario: 清理编辑器标记
-- **WHEN** 系统创建导出快照
-- **THEN** 快照 SHALL 移除 `contenteditable`、`draggable`、`.ProseMirror-cursorWrapper`、NodeView 控件元素
+#### Scenario: 导出结构不生成编辑器控件
+- **WHEN** 系统从 Export IR 生成 HTML
+- **THEN** 输出 SHALL 不包含 `contenteditable`、`draggable`、`.ProseMirror-cursorWrapper`、NodeView 控件元素
 - **AND** 导出 HTML 不得包含任何编辑器专用 CSS 类名对应的交互样式
+
+### Requirement: HTML 导出输入来自 Export IR
+HTML export SHALL use HTML rendered from Core Export IR for the initiating `sessionId`, confirmed `revision`, and `exportRequestId`. The HTML export path MUST NOT clone the current editor DOM, read active editor state, or infer the document from the current active window.
+
+#### Scenario: HTML export uses confirmed revision
+- **WHEN** the user selects HTML export
+- **THEN** Runtime SHALL flush the initiating session
+- **THEN** the export adapter SHALL render HTML from Export IR for the confirmed revision
+- **THEN** the output SHALL remain bound to the initiating session even if the active document changes
+
+#### Scenario: HTML export cannot use DOM fallback
+- **WHEN** Export IR cannot be built
+- **THEN** HTML export SHALL fail with a stable export error
+- **THEN** HTML export MUST NOT clone `.ProseMirror` from the live editor
 
 ### Requirement: 导出 Ready 协议
 系统 SHALL 在导出前等待所有资源就绪：`document.fonts.ready` resolve、所有 `<img>` 的 `decode()` 完成、Mermaid/PlantUML 渲染完成。

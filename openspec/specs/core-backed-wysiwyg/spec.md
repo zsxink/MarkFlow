@@ -17,7 +17,7 @@ The system SHALL generate a viewport-scoped Render IR from the Core confirmed sn
 - **THEN** the Editor Adapter displays editable Markdown text instead of blocking editing
 
 ### Requirement: Source/WYSIWYG switching is byte-preserving
-The Core-backed WYSIWYG path SHALL use the same Markdown text mirror and Core confirmed snapshot model as Source Mode. Switching between Source Mode and Core-backed WYSIWYG SHALL flush pending patches before leaving a mode and SHALL NOT call the ProseMirror serializer.
+The Core-backed WYSIWYG path SHALL use the same Markdown text mirror and Core confirmed snapshot model as Source Mode. Switching between Source Mode and Core-backed WYSIWYG SHALL flush pending patches before leaving a mode and SHALL NOT call the ProseMirror serializer. After M8C removal, the legacy ProseMirror WYSIWYG compatibility path MUST NOT be used for product-path save or whole-document mode synchronization.
 
 #### Scenario: Round trip does not change bytes
 - **WHEN** a file is opened through Core-backed Source Mode
@@ -38,10 +38,10 @@ The Core-backed WYSIWYG path SHALL use the same Markdown text mirror and Core co
 - **THEN** CodeMirror is remounted as Source Mode with the same Markdown source text
 - **THEN** the Core session remains active and the legacy ProseMirror path is not used
 
-#### Scenario: Legacy WYSIWYG remains available
-- **WHEN** the Core-backed WYSIWYG feature is disabled or unsupported
-- **THEN** the existing ProseMirror WYSIWYG compatibility path remains reachable
-- **THEN** existing legacy behavior is not removed by M5
+#### Scenario: WYSIWYG remains available without serializer save
+- **WHEN** M8C removal is complete
+- **THEN** WYSIWYG editing remains available through Core-backed projection and patching
+- **THEN** product save and mode-switch paths MUST NOT call ProseMirror serializer or whole-document Markdown serializer fallback
 
 ### Requirement: CodeMirror WYSIWYG decorations and marker reveal
 The Editor Adapter SHALL convert Render IR into viewport-scoped CodeMirror decorations and widgets. Heading, emphasis, inline code, link, blockquote/list indentation, code block style, and image preview SHALL be rendered as projection state only. Marker reveal SHALL weaken markers while the cursor is outside the relevant range and reveal markers when the cursor, selection, or composition is inside or near the range.
@@ -90,4 +90,3 @@ Widgets SHALL provide a keyboard path and screen-reader fallback text. Widget co
 - **WHEN** Markdown contains raw HTML, an SVG event handler, or a `javascript:` link
 - **THEN** Core-backed WYSIWYG displays safe editable source or sanitized inert projection
 - **THEN** no script executes in the editor WebView
-

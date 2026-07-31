@@ -1,6 +1,7 @@
 {
   "matrix_version": 1,
   "host_protocol_version": 1,
+  "m8c_removed_fallback_entries": [],
   "capabilities": [
     {
       "name": "file_system",

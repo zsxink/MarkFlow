@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen stability observation protocol. The observation gate becomes an archive gate only when run against the release candidate fixed by this manifest.",
+  "releaseRevision": "the exact commit SHA frozen by R5A desktop/visual/platform evidence; observation MUST run on that same build",
+  "windowDays": 7,
+  "windowHours": 20,
+  "perPlatformScenarioCount": 3,
+  "workflows": [
+    "open-edit-save",
+    "source-wysiwyg-switch",
+    "ime-input-cjk",
+    "structured-widget-edit",
+    "export-and-reload"
+  ],
+  "logCompleteness": {
+    "continuous": "application logs must be continuous across the observation window with no gaps exceeding 1 minute",
+    "forbiddenMarkers": "no error/panic/stale-marker/session-leak/wrong-result-routing log markers during the window",
+    "noDocumentContent": "logs must never contain document content or secrets",
+    "retention": "logs archived per session; the app retention window is 7 days and is not extended for observation"
+  },
+  "blockers": [
+    "silent fallback",
+    "lost input",
+    "revision divergence",
+    "session leak",
+    "wrong-result routing"
+  ],
+  "evidenceRequired": "per platform per workflow >= 3 successful runs recorded as observation evidence entries with start/end timestamps and log excerpts"
+}

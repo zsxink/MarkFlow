@@ -21,6 +21,15 @@ CodeMirror 投影基础足以支撑二期，但 parser/source-map 选型、单�
 transaction 协议、IME 前置门禁、P0 widget 范围和发布证据环境必须在对应阶段开工前冻结。
 二期不得作为一个 119 项任务的单分支直接实施。
 
+**实现追踪源（机器可读）**：本 charter 已归档，只作为 program charter；当前实现
+状态、capability 状态与 evidence 一律以
+[`openspec/capabilities/matrix.json`](../../openspec/capabilities/matrix.json) 为唯一
+机器可读追踪源，task 归属以
+[`openspec/capabilities/requirements.json`](../../openspec/capabilities/requirements.json)
+为唯一源。**charter 已归档 ≠ 产品已验收**：charter archived 只表示规划完成，
+implementation evidence 尚未建立、产品未验收，除非 matrix 中对应 capability 的
+`productAccepted` 状态与 evidence 明确成立。
+
 ## 1. 执行摘要
 
 MarkFlow Core 一期已经完成文档真相、patch、revision、保存、导出和 Host 边界重构，但现有 Core-backed WYSIWYG 只具备基础 Markdown Live Preview。真实桌面验收仍可能显示源码，工具栏、快捷键、History、IME、结构化块和视觉测试也没有形成完整产品闭环。

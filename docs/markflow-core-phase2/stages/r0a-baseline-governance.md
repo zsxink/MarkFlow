@@ -7,12 +7,12 @@
 ## 范围
 
 - OpenSpec tasks：`1.1-1.7`、`2.10`。
-- 主要区域：`docs/`、`openspec/`、`scripts/`、fixtures、CI workflow。
+- 主要区域：`docs/`、`openspec/`、`scripts/`、`markflow-core/fixtures/`、CI workflow。
 - 不改产品编辑行为，除非为可观测性增加不含文档内容的日志字段。
 
 ## 实现
 
-1. 建立 CommonMark、GFM、CJK、malformed、nested、table、FrontMatter、image、diagram、
+1. 在 `markflow-core/fixtures/` 建立 CommonMark、GFM、CJK、malformed、nested、table、FrontMatter、image、diagram、
    HTML、LF/CRLF/mixed EOL、BOM、1/10/50 MiB canonical fixtures。
 2. 建立 machine-readable capability matrix，至少记录 owner、child change、flag、
    implementation、unit、integration、desktop、visual、IME、platform、observation 和 evidence URI。

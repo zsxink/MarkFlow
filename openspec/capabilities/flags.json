@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "flags": [
+    {
+      "id": "wysiwyg.singleEditorView.v1",
+      "stage": "r1a",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r2b",
+      "owner": "r1a-single-editor-surface"
+    },
+    {
+      "id": "wysiwyg.renderIr.v2",
+      "stage": "r2a",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r2b",
+      "owner": "r2a-render-ir-v2"
+    },
+    {
+      "id": "wysiwyg.livePreview.v2",
+      "stage": "r2b",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r2b-live-preview"
+    },
+    {
+      "id": "wysiwyg.markerFolding",
+      "stage": "r2b",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r2b-live-preview"
+    },
+    {
+      "id": "widget.table",
+      "stage": "r3b",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r3b-table-image-widgets"
+    },
+    {
+      "id": "widget.image",
+      "stage": "r3b",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r3b-table-image-widgets"
+    },
+    {
+      "id": "widget.frontmatter",
+      "stage": "r3c",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r3c-frontmatter-diagram-html"
+    },
+    {
+      "id": "widget.diagram",
+      "stage": "r3c",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r3c-frontmatter-diagram-html"
+    },
+    {
+      "id": "html.rawPolicy",
+      "stage": "r3c",
+      "default": false,
+      "fallback": "exact-source-projection",
+      "deleteAfter": "r5c",
+      "owner": "r3c-frontmatter-diagram-html"
+    }
+  ]
+}

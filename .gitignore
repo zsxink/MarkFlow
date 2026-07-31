@@ -7,6 +7,19 @@ output/
 e2e/artifacts/
 e2e/.tmp-*/
 
+# Evidence large artifacts (screenshots, logs, traces). INDEX.json and
+# evidence.json stay committed; binary/large artifacts stay local.
+docs/markflow-core-phase2/evidence/**/*.png
+docs/markflow-core-phase2/evidence/**/*.jpg
+docs/markflow-core-phase2/evidence/**/*.jpeg
+docs/markflow-core-phase2/evidence/**/*.gif
+docs/markflow-core-phase2/evidence/**/*.webp
+docs/markflow-core-phase2/evidence/**/*.log
+docs/markflow-core-phase2/evidence/**/*.jsonl
+docs/markflow-core-phase2/evidence/**/*.trace.json
+docs/markflow-core-phase2/evidence/**/*.mp4
+docs/markflow-core-phase2/evidence/**/*.mov
+
 # Rust build artifacts
 target/
 src-tauri/target/

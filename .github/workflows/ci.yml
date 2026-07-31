@@ -61,6 +61,22 @@ jobs:
 
       - name: Validate OpenSpec specs
         run: npm run validate:openspec
+        env:
+          # Honesty auto-skip needs the PR base to detect archive changes.
+          HONESTY_BASE: ${{ github.event.pull_request.base.sha || 'main' }}
+
+      - name: Check canonical fixture manifest
+        run: bash scripts/check-fixtures.sh
+
+      - name: Check capability matrix, task ownership, flags and manifests
+        run: bash scripts/check-capability-matrix.sh
+
+      - name: Check evidence honesty (archive PRs only)
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          HONESTY_AUTO: '1'
+          HONESTY_BASE: ${{ github.event.pull_request.base.sha }}
+        run: bash scripts/check-evidence-honesty.sh
 
       - name: Check archived changes are synced to main specs
         run: bash scripts/check-archive-synced.sh

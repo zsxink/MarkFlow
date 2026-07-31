@@ -1,0 +1,2397 @@
+{
+  "schemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "active-document-state",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "archive-sync-gate",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "atomic-save",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "autosave-dirty-guard",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "autosave-reliability",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "backend-dead-code",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "background-task-lifecycle",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "block-continuation-paragraph",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "bundle-budget",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "canonical-fixtures",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "ci-core-test",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "ci-openspec-validation",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "ci-rust-quality-gates",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "ci-type-check",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "code-block-serialization",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "codemirror-source-editor",
+      "owner": "@xian",
+      "childChange": "r1a-single-editor-surface",
+      "flag": "wysiwyg.singleEditorView.v1",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "context-menu",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-backed-source-mode",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-backed-wysiwyg",
+      "owner": "@xian",
+      "childChange": "r0c-projection-correctness",
+      "flag": "wysiwyg.livePreview.v2",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-bridge-protocol",
+      "owner": "@xian",
+      "childChange": "r0b-parser-bridge-spike",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-code-quality",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-diagnostics",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-diagram-render-targets",
+      "owner": "@xian",
+      "childChange": "r3c-frontmatter-diagram-html",
+      "flag": "widget.diagram",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-restructure",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "core-search",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "crash-logging",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "dep-audit-ci",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "dialog-system",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "doc-spec-reconciliation",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "document-size-tier",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "documentation-consistency",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "docx-export",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "e2e-test-coverage",
+      "owner": "@xian",
+      "childChange": "r5a-desktop-visual-platform",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "editor-bottom-spacer",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "editor-input-integrity",
+      "owner": "@xian",
+      "childChange": "r4a-input-integrity",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "empty-line-preservation",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "enter-content-integrity",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "error-handling",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "expensive-task-scheduling",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "export-ir",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "export-theme",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "export-workspace-bypass",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "feature-flag-rollback",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "file-tree-architecture",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "file-tree-incremental-update",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "font-stack",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "frontend-error-handling",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "frontmatter-core",
+      "owner": "@xian",
+      "childChange": "r3c-frontmatter-diagram-html",
+      "flag": "widget.frontmatter",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "gfm-table-core",
+      "owner": "@xian",
+      "childChange": "r3b-table-image-widgets",
+      "flag": "widget.table",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "host-portability",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "html-export",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "image-naming",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "image-storage-engine",
+      "owner": "@xian",
+      "childChange": "r3b-table-image-widgets",
+      "flag": "widget.image",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "image-streaming",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "issue-workflow",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "keyboard-shortcuts",
+      "owner": "@xian",
+      "childChange": "r1b-command-history",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "lazy-code-languages",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "lazy-mermaid",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "m0-architecture-baseline",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "markdown-semantic-projection",
+      "owner": "@xian",
+      "childChange": "r2a-render-ir-v2",
+      "flag": "wysiwyg.renderIr.v2",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "markflow-core-foundation",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "markflow-runtime",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "multi-window-close-isolation",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "pdf-export",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "phase2-governance",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "plantuml-export",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "plantuml-render",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "readme-sync",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "regression-coverage",
+      "owner": "@xian",
+      "childChange": "r5c-cleanup-archive",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "rendered-document-export",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "runtime-document-service",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "safe-dom-construction",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "safe-http-fetch",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "save-integrity",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "settings-code-highlight",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "sidebar",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "source-lifecycle-guard",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "source-mode-core",
+      "owner": "@xian",
+      "childChange": "r1a-single-editor-surface",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "source-patch-adapter",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "source-sync-controller",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "source-toolbar-cm6",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "statusbar",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "structured-block-editing",
+      "owner": "@xian",
+      "childChange": "r3a-task-code-widgets",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "toolbar-layout",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "trailing-newlines-preservation",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "type-system",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "typora-live-preview",
+      "owner": "@xian",
+      "childChange": "r2b-live-preview",
+      "flag": "wysiwyg.livePreview.v2",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "ui-aria-attributes",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "url-decoration",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "visual-release-gate",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": "wysiwyg.livePreview.v2",
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "vitest-coverage-threshold",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    },
+    {
+      "id": "write-file-permission",
+      "owner": "@xian",
+      "childChange": "r0a-baseline-governance",
+      "flag": null,
+      "default": false,
+      "states": {
+        "notStarted": true,
+        "implemented": false,
+        "automatedVerified": false,
+        "desktopVerified": false,
+        "visualVerified": false,
+        "imeVerified": false,
+        "platformVerified": false,
+        "productAccepted": false
+      },
+      "evidence": {
+        "unit": [],
+        "integration": [],
+        "desktop": [],
+        "visual": [],
+        "ime": [],
+        "platform": [],
+        "observation": []
+      }
+    }
+  ]
+}

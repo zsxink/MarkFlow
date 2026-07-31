@@ -18,6 +18,7 @@
 | 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[image-storage-engine](image-storage-engine/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/lib/editor.image.*.ts`、`imageUtils.ts`、`mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
 | 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/lib/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
 | 体积、字体、CI、回归测试、e2e 测试或 archive 门禁 | [e2e-test-coverage](e2e-test-coverage/spec.md)、[bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`.github/`、`scripts/check-archive-synced.sh`、`e2e/` | `npm test`、`npm run test:e2e`（smoke 套件）、`npm run build` |
+| phase-2 治理：能力矩阵、任务 owner、证据、特性开关或规范化夹具 | [phase2-governance](phase2-governance/spec.md)、[feature-flag-rollback](feature-flag-rollback/spec.md)、[canonical-fixtures](canonical-fixtures/spec.md)、[visual-release-gate](visual-release-gate/spec.md)、[ci-openspec-validation](ci-openspec-validation/spec.md) | `openspec/capabilities/`、`scripts/check-capability-matrix.sh`、`scripts/check-evidence-honesty.sh`、`scripts/check-fixtures.sh`、`markflow-core/fixtures/` | `npm run validate:openspec` |
 
 所有改动完成后运行 `npx openspec validate --specs`。路由没有覆盖的任务，先从 `src/main.ts` 和最接近的模块测试反查实际入口，再为受影响行为补充或更新模块规范。
 
@@ -108,6 +109,7 @@
 ### 可靠性、质量与安全
 
 - [bundle-budget](bundle-budget/spec.md) — 构建产物与字体体积预算。
+- [canonical-fixtures](canonical-fixtures/spec.md) — 规范化测试夹具清单与哈希校验。
 - [e2e-test-coverage](e2e-test-coverage/spec.md) — 端到端自动化测试覆盖范围。
 - [crash-logging](crash-logging/spec.md) — 崩溃日志与敏感信息脱敏。
 - [archive-sync-gate](archive-sync-gate/spec.md) — 归档变更的 spec 同步完整性校验与 CI 验证门禁。
@@ -117,9 +119,11 @@
 - [core-restructure](core-restructure/spec.md) — markflow-core 模块分层重构。
 - [dep-audit-ci](dep-audit-ci/spec.md) — 依赖审计与 CI 质量要求。
 - [error-handling](error-handling/spec.md) — 锁恢复、错误分类与前端异常。
+- [feature-flag-rollback](feature-flag-rollback/spec.md) — 特性开关注册、回退边界与过期删除。
 - [frontend-error-handling](frontend-error-handling/spec.md) — 前端错误处理。
 - [issue-workflow](issue-workflow/spec.md) — Issue/分支工作流。
 - [markflow-core-foundation](markflow-core-foundation/spec.md) — markflow-core 基础能力。
+- [phase2-governance](phase2-governance/spec.md) — phase-2 能力矩阵、任务 owner、证据与归档 honesty 治理。
 - [readme-sync](readme-sync/spec.md) — README 同步。
 - [regression-coverage](regression-coverage/spec.md) — 核心与高风险路径的回归覆盖。
 - [safe-http-fetch](safe-http-fetch/spec.md) — HTTP、DNS、重定向与图片安全限制。

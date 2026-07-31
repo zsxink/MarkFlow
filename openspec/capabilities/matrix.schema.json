@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://markflow.dev/schemas/capability-matrix.schema.json",
+  "title": "MarkFlow Phase-2 Capability Matrix",
+  "description": "Machine-readable phase-2 capability/evidence matrix. Each capability records an owner, the child change that owns it, the feature flag that gates it, its default state, per-layer states (eight-level vocabulary from the phase-2 acceptance manual), and evidence URIs per evidence layer. The states vocabulary is frozen and must match the acceptance manual exactly.",
+  "type": "object",
+  "required": ["schemaVersion", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "owner", "childChange", "flag", "default", "states", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "childChange": { "type": "string", "minLength": 1 },
+          "flag": {
+            "description": "Feature flag id from openspec/capabilities/flags.json, or null if the capability is not flag-gated.",
+            "type": ["string", "null"]
+          },
+          "default": { "type": "boolean" },
+          "states": {
+            "type": "object",
+            "required": ["notStarted", "implemented", "automatedVerified", "desktopVerified", "visualVerified", "imeVerified", "platformVerified", "productAccepted"],
+            "additionalProperties": false,
+            "properties": {
+              "notStarted": { "type": "boolean" },
+              "implemented": { "type": "boolean" },
+              "automatedVerified": { "type": "boolean" },
+              "desktopVerified": { "type": "boolean" },
+              "visualVerified": { "type": "boolean" },
+              "imeVerified": { "type": "boolean" },
+              "platformVerified": { "type": "boolean" },
+              "productAccepted": { "type": "boolean" }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "required": ["unit", "integration", "desktop", "visual", "ime", "platform", "observation"],
+            "additionalProperties": false,
+            "properties": {
+              "unit": { "$ref": "#/definitions/evidenceUris" },
+              "integration": { "$ref": "#/definitions/evidenceUris" },
+              "desktop": { "$ref": "#/definitions/evidenceUris" },
+              "visual": { "$ref": "#/definitions/evidenceUris" },
+              "ime": { "$ref": "#/definitions/evidenceUris" },
+              "platform": { "$ref": "#/definitions/evidenceUris" },
+              "observation": { "$ref": "#/definitions/evidenceUris" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "evidenceUris": {
+      "description": "Evidence URIs for one layer. URIs are repo-relative paths, or reference keys into docs/markflow-core-phase2/evidence/INDEX.json.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

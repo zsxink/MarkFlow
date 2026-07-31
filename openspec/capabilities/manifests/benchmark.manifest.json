@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen reference environment and measurement protocol for performance budgets. Approved at R0; budgets in the acceptance manual become required gates only against this manifest.",
+  "referenceHardware": {
+    "macOS": "Apple Silicon arm64 (reference: Mac mini M2), 16 GB RAM minimum",
+    "windows": "x86_64, 16 GB RAM minimum (reference profile: Windows 11 x64)",
+    "linux": "x86_64, 16 GB RAM minimum (reference profile: Ubuntu 22.04 x64)"
+  },
+  "referenceSoftware": {
+    "os": "macOS 26.x / Windows 11 / Ubuntu 22.04 (only the platform under test)",
+    "webView": "WKWebView (macOS) / WebView2 (Windows) / WebKitGTK 4.1 (Linux), stock system build",
+    "rust": "stable toolchain pinned by CI (rust-toolchain.toml)",
+    "node": ">=20",
+    "buildProfile": "tauri release build (npm run tauri build -- --debug false)"
+  },
+  "buildProfile": "release",
+  "fixtures": [
+    "markflow-core/fixtures/size/1mb-filler.md",
+    "markflow-core/fixtures/size/10mb-filler.md",
+    "markflow-core/fixtures/size/50mb-filler.md"
+  ],
+  "measurementStart": "first editable state after document load",
+  "measurementEnd": "confirmed patch ack and confirmed projection applied",
+  "warmUp": "3 warm-up iterations before any sample is recorded",
+  "samples": ">= 30 samples per scenario",
+  "repetitions": ">= 3 independent runs per fixture; report median and p95 across runs",
+  "noisePolicy": "a scenario fails the budget if p95 exceeds the budget in any single run; outliers caused by OS background activity are recorded with the trace, not silently dropped",
+  "budgets": {
+    "localInputCommitP95Ms": 16,
+    "normalProjectionP95Ms": 50,
+    "largeProjectionP95Ms": 100,
+    "modeReconfigureP95Ms": 50,
+    "firstEditable": { "1mb": 500, "10mb": 2000, "50mb": 5000 }
+  },
+  "evidenceMustInclude": "raw per-sample traces and environment manifest; averages alone are not accepted (acceptance manual §8.5)"
+}

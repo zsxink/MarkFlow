@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen structured-widget release scope. P0 widgets must ship (with full keyboard/focus/accessibility and lossless behavior) before WYSIWYG can become the product default; P1 widgets may ship later without blocking the default switch.",
+  "p0": [
+    "task-list-checkbox",
+    "code-fence-panel",
+    "gfm-table-grid",
+    "image-preview",
+    "frontmatter-form",
+    "mermaid-diagram",
+    "plantuml-diagram",
+    "html-comment-fold"
+  ],
+  "p1": [
+    "html-raw-preview"
+  ],
+  "notes": {
+    "evidenceClaimBoundary": "A widget evidence claim must reference a widget id inside the P0/P1 lists above; claims for any other widget id are out of scope and rejected.",
+    "p0Gate": "Each P0 widget requires keyboard-only mount/focus/edit/commit/cancel/undo/reveal/exit, focus not trapped, accessible names, and exact source fallback on unsupported models.",
+    "p1Policy": "P1 widgets remain default-off until accepted; they never block the P0 default switch.",
+    "finalBoundary": "Final P0/P1 boundary is frozen once adr-widget-p0-scope.md is approved (R0); edits before approval are allowed, after approval require an ADR update."
+  }
+}

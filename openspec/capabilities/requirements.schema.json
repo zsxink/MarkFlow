@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://markflow.dev/schemas/requirements.schema.json",
+  "title": "MarkFlow Phase-2 Task Ownership",
+  "description": "Unique ownership mapping from phase-2 umbrella task IDs to a single child change and owner. A task ID must appear exactly once.",
+  "type": "object",
+  "required": ["schemaVersion", "tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "source": { "type": "string" },
+    "description": { "type": "string" },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task", "owner", "childChange"],
+        "additionalProperties": false,
+        "properties": {
+          "task": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+          "owner": { "type": "string", "minLength": 1 },
+          "childChange": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

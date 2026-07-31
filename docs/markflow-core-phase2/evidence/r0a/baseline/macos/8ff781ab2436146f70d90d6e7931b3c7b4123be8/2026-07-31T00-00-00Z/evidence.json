@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "stage": "r0a",
+  "caseId": "r0a-baseline",
+  "platform": "macos",
+  "result": "IN_PROGRESS",
+  "operator": "@xian",
+  "revision": "8ff781ab2436146f70d90d6e7931b3c7b4123be8",
+  "buildProfile": "tauri debug (dev); release build not run in this environment",
+  "flags": {
+    "wysiwyg.singleEditorView.v1": false,
+    "wysiwyg.renderIr.v2": false,
+    "wysiwyg.livePreview.v2": false,
+    "wysiwyg.markerFolding": false,
+    "widget.table": false,
+    "widget.image": false,
+    "widget.frontmatter": false,
+    "widget.diagram": false,
+    "html.rawPolicy": false
+  },
+  "environment": {
+    "os": "macOS 26.5.2 (BuildVersion 25F84), arm64",
+    "webView": "WKWebView (stock system build; version not captured without GUI launch)",
+    "ime": "not exercised in this environment (GUI cannot be launched)",
+    "locale": "en_US.UTF-8 (shell); app locale not captured without GUI",
+    "theme": "not captured without GUI",
+    "scale": "not captured without GUI",
+    "viewport": "not captured without GUI"
+  },
+  "fixture": {
+    "name": "markflow-core/fixtures/lossless/crlf.md",
+    "initialHash": "347b15eb509252d7e542c689f0d8964829b591e68ae2092e9771ac226690988b"
+  },
+  "startTime": "2026-07-31T00:00:00Z",
+  "endTime": "2026-07-31T09:10:31Z",
+  "artifactPaths": [],
+  "screenshotPaths": [],
+  "notes": "R0 baseline report for the R0A governance work package. The Tauri desktop GUI cannot be launched in this automated environment (no display/GUI runtime), so GUI/visual/IME/screenshot evidence is NOT collected here and must be supplemented by a human operator per M-R0-03. This entry records the repository-verifiable baseline facts: git revision, build profile, log directory resolution rule, and the initial fixture hashes for the known-projection fixtures. 'result' is IN_PROGRESS, not PASS, because GUI verification is still outstanding.",
+  "repro": [
+    "GUI-dependent steps in M-R0-03 (launch current build and reproduce known projection/log issues) are BLOCKED in this environment.",
+    "Known runtime log errors (missing-argument/duplicate-session markers from acceptance manual §1) cannot be reproduced without launching the desktop app.",
+    "Log directory rule: src-tauri/src/logger.rs defines log_dir() = app_config_dir().join(\"logs\"); on macOS non-e2e this resolves to ~/Library/Application Support/MarkFlow/logs (dirs::config_dir()). The app prints 'log_dir = <normalized path>' at startup.",
+    "Known projection/log issues documented in docs/markflow-core-phase2/02-multi-stage-implementation-plan.md and 03-acceptance-and-manual-test-plan.md (silent degraded fallback, patch ack not driving projection refresh, stale Render IR decoration) require GUI reproduction."
+  ],
+  "logDirectory": "~/Library/Application Support/MarkFlow/logs",
+  "knownProjectionIssues": [
+    {
+      "id": "silent-source-fallback",
+      "description": "Render failure silently displays source while statusbar may still show WYSIWYG",
+      "reference": "docs/markflow-core-phase2/README.md §2.2",
+      "reproNeedsGui": true
+    },
+    {
+      "id": "ack-not-driving-refresh",
+      "description": "patch ack does not actively drive projection refresh",
+      "reference": "docs/markflow-core-phase2/README.md §2.2",
+      "reproNeedsGui": true
+    },
+    {
+      "id": "stale-render-ir-decoration",
+      "description": "old Render IR ranges may participate in decoration after text change",
+      "reference": "docs/markflow-core-phase2/README.md §2.2",
+      "reproNeedsGui": true
+    },
+    {
+      "id": "missing-argument-save-logs",
+      "description": "desktop renders may log missing argument or duplicate session markers",
+      "reference": "docs/markflow-core-phase2/03-acceptance-and-manual-test-plan.md §1",
+      "reproNeedsGui": true
+    }
+  ],
+  "affectedFixtures": [
+    { "path": "markflow-core/fixtures/lossless/lf.md", "initialHash": "be6b6303cb7d3eb64d1f14eb053df60cac0849ae1a022273de5dfe31c60999c0" },
+    { "path": "markflow-core/fixtures/lossless/crlf.md", "initialHash": "347b15eb509252d7e542c689f0d8964829b591e68ae2092e9771ac226690988b" },
+    { "path": "markflow-core/fixtures/lossless/mixed-eol.md", "initialHash": "9c4e65fdde56ae56422b355a6332e03ccc3a5e1031cfda4def911f8130d9e723" },
+    { "path": "markflow-core/fixtures/lossless/utf8-bom.md", "initialHash": "6ede8329c7095c92fbe0d47b97510d04b8127bef969cc314e0b2fcb91896a1f8" },
+    { "path": "markflow-core/fixtures/lossless/malformed-syntax.md", "initialHash": "cd320103c88f295be82b076d99e401111ab0aa63e1f2da6fbc9b6030eea1af71" },
+    { "path": "markflow-core/fixtures/lossless/nested-structures.md", "initialHash": "e8b6c79ab81df8306fbaec2ec9387d2a2b2e6ceb6cc5a0aaf017d7027ffcdb80" },
+    { "path": "markflow-core/fixtures/lossless/cjk-unicode.md", "initialHash": "659cc7233be4507079fa7c49c4471572c72ae32abd162aa0a361c8f8ab086dae" }
+  ]
+}

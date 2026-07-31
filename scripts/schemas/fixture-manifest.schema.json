@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://markflow.dev/schemas/fixture-manifest.schema.json",
+  "title": "MarkFlow Canonical Fixture Manifest",
+  "description": "Machine-readable manifest of phase-2 canonical Markdown fixtures. Each entry records a category, the source of the file (canonical = maintained as a phase-2 canonical fixture, core = inherited from the Core lossless suite), and a sha256 hash of the file bytes. All fixture files live under markflow-core/fixtures and are committed to git (including the size fillers).",
+  "type": "object",
+  "required": ["schemaVersion", "categories", "fixtures"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "categories": {
+      "description": "Fixed category vocabulary. Every fixture entry's category must be one of these.",
+      "type": "array",
+      "items": { "type": "string", "enum": ["commonmark", "gfm", "cjk", "malformed", "nested", "table", "frontmatter", "image", "diagram", "html", "eol", "size"] }
+    },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "category", "source", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "Repo-relative path to the fixture file.",
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._/-]+$"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["commonmark", "gfm", "cjk", "malformed", "nested", "table", "frontmatter", "image", "diagram", "html", "eol", "size"]
+          },
+          "source": {
+            "type": "string",
+            "enum": ["canonical", "core"]
+          },
+          "sha256": {
+            "description": "Hex sha256 of the file bytes on disk.",
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "sizeBytes": {
+            "description": "Target size in bytes (size category only).",
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "description": "Human-readable purpose of the fixture.",
+            "type": "string"
+          },
+          "generator": {
+            "description": "Deterministic generator parameters for regenerating size fixtures. Reserved for future use; current size fixtures are committed directly to git.",
+            "type": "object",
+            "required": ["script", "charsPerLine", "newlineBytes", "targetBytes"],
+            "additionalProperties": false,
+            "properties": {
+              "script": { "type": "string" },
+              "charsPerLine": { "type": "integer", "minimum": 1 },
+              "newlineBytes": { "type": "integer", "minimum": 0 },
+              "targetBytes": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

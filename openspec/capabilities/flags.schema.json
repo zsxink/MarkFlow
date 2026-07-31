@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://markflow.dev/schemas/feature-flags.schema.json",
+  "title": "MarkFlow Phase-2 Feature Flags",
+  "description": "Machine-readable phase-2 feature flag registry. Each flag records its id, milestone stage, default value, fallback behavior, deletion time, and owning child change. Rollback is restricted to exact source projection: serializer, DOM-save and ProseMirror fallbacks are forbidden.",
+  "type": "object",
+  "required": ["schemaVersion", "flags"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "stage", "default", "fallback", "deleteAfter", "owner"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "stage": { "type": "string", "minLength": 1 },
+          "default": { "type": "boolean" },
+          "fallback": {
+            "type": "string",
+            "enum": ["exact-source-projection"]
+          },
+          "deleteAfter": {
+            "description": "Deletion time as a milestone name or YYYY-MM-DD date. Flags whose date has passed must be removed.",
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

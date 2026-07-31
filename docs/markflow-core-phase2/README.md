@@ -2,9 +2,24 @@
 
 > 状态：提案完成，待实施
 > Issue：#247
-> OpenSpec change：`typora-grade-live-preview-phase2`
+> 方案评审 Issue：#250
+> OpenSpec charter：`archive/2026-07-31-typora-grade-live-preview-phase2`
 > 目标分支：`feat/issue-247-typora-grade-live-preview`
 > 文档日期：2026-07-31
+
+## 文档导航
+
+本文件是二期建设总纲。实施前还必须阅读：
+
+- [方案 Review 与可行性分析](./01-review-and-feasibility.md)
+- [多阶段详细实施计划](./02-multi-stage-implementation-plan.md)
+- [验收标准与人工验收手册](./03-acceptance-and-manual-test-plan.md)
+- [OpenSpec 任务与能力追踪矩阵](./04-traceability-matrix.md)
+
+评审结论为“有条件可行”：现有 Core 文档真相、revision、patch、History、模型与
+CodeMirror 投影基础足以支撑二期，但 parser/source-map 选型、单一 History 的 pending
+transaction 协议、IME 前置门禁、P0 widget 范围和发布证据环境必须在对应阶段开工前冻结。
+二期不得作为一个 119 项任务的单分支直接实施。
 
 ## 1. 执行摘要
 
@@ -772,9 +787,9 @@ Export 若继续使用 `.ProseMirror` class 作为输出 CSS namespace，应先�
 
 ## 13. 项目治理
 
-- 当前 `typora-grade-live-preview-phase2` 是二期 program charter，不直接作为单一实施分支执行。
+- 已归档的 `typora-grade-live-preview-phase2` 是二期 program charter，不直接作为单一实施分支执行。
 - R0 开始前将 R0-R5 拆为 child Issue、branch 和 OpenSpec change；每个 requirement/task ID 只归属一个 child，实施证据写入 child change。
-- umbrella checklist 作为 WBS 和追踪索引，不能由多个并行分支共同修改或作为虚假完成证据。
+- 已归档 umbrella checklist 只作为 WBS；实施状态写入独立 tracking 文档，不能回写 archive。
 - 每个里程碑建立真实 GitHub Issue、独立分支和 OpenSpec change。
 - proposal/apply 前必须先创建分支。
 - 每个 capability 的状态分为：未开始、实现中、自动验证、GUI 验证、平台验证、已验收。
@@ -821,7 +836,7 @@ Export 若继续使用 `.ProseMirror` class 作为输出 CSS namespace，应先�
 
 ## 16. OpenSpec 文档
 
-- [Proposal](../../openspec/changes/typora-grade-live-preview-phase2/proposal.md)
-- [Technical Design](../../openspec/changes/typora-grade-live-preview-phase2/design.md)
-- [Implementation Tasks](../../openspec/changes/typora-grade-live-preview-phase2/tasks.md)
-- [Delta Specifications](../../openspec/changes/typora-grade-live-preview-phase2/specs/)
+- [Proposal](../../openspec/changes/archive/2026-07-31-typora-grade-live-preview-phase2/proposal.md)
+- [Technical Design](../../openspec/changes/archive/2026-07-31-typora-grade-live-preview-phase2/design.md)
+- [Implementation Tasks](../../openspec/changes/archive/2026-07-31-typora-grade-live-preview-phase2/tasks.md)
+- [Delta Specifications](../../openspec/changes/archive/2026-07-31-typora-grade-live-preview-phase2/specs/)

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen IME evidence boundary. Defines which IME scenarios must be automated and which require signed manual evidence before IME acceptance can be claimed. Approved at R0.",
+  "automated": {
+    "description": "Scenarios covered by deterministic automated tests (Core command-level and unit) that do not depend on a real OS IME composition session.",
+    "scenarios": [
+      "grapheme/UTF-16 offset mapping for CJK, emoji, surrogate pairs, combining marks",
+      "compositionstart/update/end transaction grouping into a single Core History group",
+      "protected-range marker suspension near active composition",
+      "deferred conflicting projection until composition end",
+      "exact source projection fallback when composition intersects a folded marker"
+    ],
+    "fixtures": [
+      "markflow-core/fixtures/lossless/cjk-unicode.md",
+      "markflow-core/fixtures/lossless/unicode-offsets.md"
+    ]
+  },
+  "signedManual": {
+    "description": "Scenarios that require a human-operated real OS IME on the target platform, captured as evidence.json with operator signature and platform environment.",
+    "scenarios": [
+      "macOS: Chinese pinyin continuous input on canonical corpus (>= 1000 events) with zero lost/duplicated/reordered characters",
+      "macOS: Japanese input",
+      "Windows: system IME (Chinese/Japanese) with the same corpus",
+      "Korean, emoji, combining mark, RTL core scenarios repeated on at least one platform",
+      "single-Undo of a complete composition with no residual pinyin or markers"
+    ],
+    "platforms": ["macos", "windows", "linux"],
+    "evidenceRequired": [
+      "caseId", "operator", "commitSha", "buildProfile", "flags", "os", "webView",
+      "ime", "locale", "theme", "scale", "viewport", "fixture", "fixtureInitialHash",
+      "startTime", "endTime", "artifactPaths", "fixtureHashAfterSave"
+    ]
+  },
+  "boundary": "CI cannot provide a stable automated Chinese IME, so IME acceptance for a platform is only claimable via signedManual evidence from that platform. Automated scenarios gate implementation readiness but never substitute for signed manual evidence."
+}

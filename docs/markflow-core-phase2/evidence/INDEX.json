@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "description": "Phase-2 evidence index. Every evidence entry lives at evidence/<stage>/<case>/<platform>/<revision>/<timestamp>/evidence.json. The 'entries' array references each entry directory relative to this file; large artifacts (screenshots, logs, traces) are git-ignored and referenced only by the entry's artifactPaths.",
+  "entries": [
+    {
+      "dir": "r0a/baseline/macos/8ff781ab2436146f70d90d6e7931b3c7b4123be8/2026-07-31T00-00-00Z",
+      "caseId": "r0a-baseline",
+      "platform": "macos",
+      "revision": "8ff781ab2436146f70d90d6e7931b3c7b4123be8"
+    }
+  ]
+}

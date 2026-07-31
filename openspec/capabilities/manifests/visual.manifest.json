@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Frozen visual baseline environment. Approved at R0; visual baselines become gates only when captured under exactly these pinned parameters.",
+  "runner": "TBD at R0 (Playwright screenshots or WebdriverIO screenshots); approved by R0 ADR before any baseline is frozen",
+  "osImage": "stock OS desktop wallpaper and accent color; no third-party theming installed on the reference machine",
+  "webView": "stock system WebView build (WKWebView / WebView2 / WebKitGTK 4.1); no user zoom or text-scaling overrides",
+  "fonts": "system font stack only: -apple-system/SF Pro (macOS), Segoe UI (Windows), Ubuntu/DejaVu (Linux); no custom @font-face, no font smoothing differences across runs",
+  "theme": "both light and dark; theme selected before launch and kept constant for the entire run",
+  "scale": "100% OS display scale",
+  "viewport": "fixed window 1280x800, devicePixelRatio 1.0, no device emulation",
+  "animationState": "reduced motion enabled; CSS animations disabled for determinism",
+  "fixtures": [
+    "markflow-core/fixtures/lossless/commonmark-basic.md",
+    "markflow-core/fixtures/lossless/cjk-unicode.md",
+    "markflow-core/fixtures/lossless/nested-structures.md",
+    "markflow-core/fixtures/lossless/gfm-extensions.md",
+    "markflow-core/fixtures/lossless/html-raw.md"
+  ],
+  "pixelThreshold": "per-pixel RGB channel delta <= 3 (0-255)",
+  "changedPixelRatio": ">= 0.1% of viewport pixels changed triggers a diff review; < 0.1% is accepted noise",
+  "masks": "reviewed masks per state: text caret, animated spinner, remote image areas, dynamic time displays; every mask carries a written justification",
+  "statesCovered": [
+    "inactive", "active", "composing", "selected", "widget", "source", "degraded"
+  ]
+}

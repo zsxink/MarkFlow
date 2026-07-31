@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://markflow.dev/schemas/evidence.schema.json",
+  "title": "MarkFlow Phase-2 Evidence Entry",
+  "description": "Machine-readable evidence entry stored at docs/markflow-core-phase2/evidence/<stage>/<case>/<platform>/<revision>/<timestamp>/evidence.json. Fields align with the phase-2 acceptance manual §2. The revision MUST equal the git HEAD SHA at collection time; stale evidence fails the honesty check.",
+  "type": "object",
+  "required": [
+    "caseId", "result", "operator", "revision", "buildProfile", "flags",
+    "environment", "startTime", "endTime"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "stage": { "type": "string", "minLength": 1 },
+    "caseId": { "type": "string", "minLength": 1 },
+    "platform": { "type": "string", "enum": ["macos", "windows", "linux", "ci"] },
+    "result": { "type": "string", "enum": ["PASS", "FAIL", "BLOCKED", "IN_PROGRESS"] },
+    "operator": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "buildProfile": { "type": "string", "minLength": 1 },
+    "flags": { "type": "object" },
+    "environment": {
+      "type": "object",
+      "required": ["os", "webView", "ime", "locale", "theme", "scale", "viewport"],
+      "additionalProperties": false,
+      "properties": {
+        "os": { "type": "string" },
+        "webView": { "type": "string" },
+        "ime": { "type": "string" },
+        "locale": { "type": "string" },
+        "theme": { "type": "string" },
+        "scale": { "type": "string" },
+        "viewport": { "type": "string" }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "initialHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "hashAfterSave": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "startTime": { "type": "string", "minLength": 1 },
+    "endTime": { "type": "string", "minLength": 1 },
+    "artifactPaths": { "type": "array", "items": { "type": "string" } },
+    "trace": {
+      "description": "Optional performance trace artifact references.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": { "type": "string" },
+    "repro": {
+      "description": "Reproduction steps for FAIL/BLOCKED evidence.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "screenshotPaths": {
+      "description": "Screenshot artifact paths (relative to the evidence entry dir).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "logDirectory": {
+      "description": "Runtime log directory resolved by app_config_dir().join(\"logs\") on the recorded platform.",
+      "type": "string"
+    },
+    "knownProjectionIssues": {
+      "description": "R0 baseline: known projection/log issues with reproduction status.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "reference": { "type": "string" },
+          "reproNeedsGui": { "type": "boolean" }
+        }
+      }
+    },
+    "affectedFixtures": {
+      "description": "R0 baseline: fixture paths and their initial hashes affected by known issues.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "initialHash"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "initialHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}

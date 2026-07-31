@@ -84,7 +84,7 @@ Benchmark files SHALL use descriptive names:
 
 Empty directories `examples/lossless/` and `examples/m3/` SHALL be deleted.
 
-`fixtures/m3/` directory SHALL be deleted. Filler files (1mb.md, 10mb.md, 50mb.md) SHALL be moved to `fixtures/size/`.
+`markflow-core/fixtures/` SHALL contain no `m3/` subdirectory. Size filler files (1mb-filler.md, 10mb-filler.md, 50mb-filler.md) SHALL live in `markflow-core/fixtures/size/`.
 
 #### Scenario: descriptive benchmark names
 
@@ -99,5 +99,5 @@ Empty directories `examples/lossless/` and `examples/m3/` SHALL be deleted.
 #### Scenario: size fixtures in size dir
 
 - **WHEN** looking for large test fixtures
-- **THEN** they SHALL be in `fixtures/size/`
+- **THEN** they SHALL be in `markflow-core/fixtures/size/`
 

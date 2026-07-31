@@ -26,6 +26,12 @@
 `8.12` 虽由三个 child change 分担，但 task owner 只能是 R3C 汇总 child；R3A/R3B 以 prerequisite
 evidence 链接回汇总项，避免三个分支重复勾选同一 task。
 
+**task 唯一归属源**：每个 umbrella task ID 的唯一 child owner 由机器可读的
+[`openspec/capabilities/requirements.json`](../../openspec/capabilities/requirements.json)
+定义（校验：`scripts/check-capability-matrix.sh`），本表仅为人工可读摘要，不作为归属断言源。
+charter archived 只表示规划完成，**不代表产品已验收**；实现/验收状态以
+[`openspec/capabilities/matrix.json`](../../openspec/capabilities/matrix.json) 为准。
+
 ## 2. Capability 映射
 
 | Delta spec capability | 主工作包 | 关联验收 |

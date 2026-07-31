@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "categories": ["commonmark", "gfm", "cjk", "malformed", "nested", "table", "frontmatter", "image", "diagram", "html", "eol", "size"],
+  "fixtures": [
+    {
+      "path": "markflow-core/fixtures/lossless/code-fence-backtick.md",
+      "category": "commonmark",
+      "source": "core",
+      "sha256": "6131c7b3b42f1167621017950dc00df044ddfbc6b8d7b4ecd998fa81193236cd",
+      "description": "Lossless fixture: backtick code fence preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/code-fence-tilde.md",
+      "category": "commonmark",
+      "source": "core",
+      "sha256": "3b7bbc1d2885b0f03c6f6fc1a80dadb8d2119cb9833d2543c1ae032b090db154",
+      "description": "Lossless fixture: tilde code fence preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/commonmark-basic.md",
+      "category": "commonmark",
+      "source": "canonical",
+      "sha256": "16a07e461f8d6c5f567e9d534901d335f8f546ca2be930e10271c3b536ce019d",
+      "description": "CommonMark baseline: headings, blockquote, lists, fenced/indented code, links, emphasis nesting, thematic break, hard break, reference links, escapes."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/gfm-extensions.md",
+      "category": "gfm",
+      "source": "canonical",
+      "sha256": "e6c8f55faf04273b0f7e2bb120e80551bf13493b9d14862315d7f240a887b7e6",
+      "description": "GFM extensions: table, task list, strikethrough, autolink, footnote, emoji shortcode, alignment whitespace."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/unicode-offsets.md",
+      "category": "cjk",
+      "source": "core",
+      "sha256": "55867697f7ebc16c24ce65159029104bde9edaa95e253644f5aaaaea32471ad6",
+      "description": "Lossless fixture: unicode/UTF-16 offset preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/cjk-unicode.md",
+      "category": "cjk",
+      "source": "canonical",
+      "sha256": "659cc7233be4507079fa7c49c4471572c72ae32abd162aa0a361c8f8ab086dae",
+      "description": "Chinese/Japanese/Korean paragraphs, emoji + ZWJ surrogate pairs, astral plane, combining marks, RTL, mixed CJK inline and table."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/malformed-syntax.md",
+      "category": "malformed",
+      "source": "canonical",
+      "sha256": "cd320103c88f295be82b076d99e401111ab0aa63e1f2da6fbc9b6030eea1af71",
+      "description": "Malformed syntax: unclosed fence/emphasis/delimiters, bad table, heading without space, stray markers, empty reference, mis-nested emphasis, bad link destination."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/mixed-list-markers.md",
+      "category": "nested",
+      "source": "core",
+      "sha256": "3fbec6767f2e2d5997d0c4e10a9979d36b14972805bbeff5dc6d7bd27864b7d9",
+      "description": "Lossless fixture: mixed list marker preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/nested-structures.md",
+      "category": "nested",
+      "source": "canonical",
+      "sha256": "e8b6c79ab81df8306fbaec2ec9387d2a2b2e6ceb6cc5a0aaf017d7027ffcdb80",
+      "description": "Nested blockquote/list/code/inline structures and deep mixed nesting."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/table-alignment.md",
+      "category": "table",
+      "source": "core",
+      "sha256": "cae3da641251e950a6f1ad56cfdf570faf9c292b16f33a43df467d968311e8d7",
+      "description": "Lossless fixture: table alignment preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/gfm-table.md",
+      "category": "table",
+      "source": "canonical",
+      "sha256": "b516a5d1ed59f4db3bee4654aa00b5a5f311e3cfc42234fe2383818feda47153",
+      "description": "GFM table: alignment, escaped pipe, empty cells, wrapped paragraph cell, no-alignment-row table."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/frontmatter.md",
+      "category": "frontmatter",
+      "source": "core",
+      "sha256": "88f3974c162c194f4923ef101ed3a206c6879f9970be0114c08efbdea110cb93",
+      "description": "Lossless fixture: FrontMatter preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/frontmatter-rich.md",
+      "category": "frontmatter",
+      "source": "canonical",
+      "sha256": "f097120b6d5fd51cafba46011afef14087786b27396dbbdebc3b04094fec2266",
+      "description": "YAML FrontMatter with comments, quotes, ordering, indentation, nested fields, arrays and inline flow lists."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/image-links.md",
+      "category": "image",
+      "source": "canonical",
+      "sha256": "44a77ee705cbb5d1606802275ff287d83ba0bc35b30cc0a34f2211d1efb5fc11",
+      "description": "Inline/reference/relative/broken/unsafe image URLs, escaped brackets, image-in-link, image in list."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/diagram-fences.md",
+      "category": "diagram",
+      "source": "canonical",
+      "sha256": "2c534aaaa5d1971a0f679b06550701f9dd9f5dcfddffd33ce45cbe1a3495a16c",
+      "description": "Mermaid flowchart/sequence/gantt, PlantUML class, and a non-diagram fenced code block."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/html-comment.md",
+      "category": "html",
+      "source": "core",
+      "sha256": "c64779bb7bc023e79996dded892dd35044390facee49343475d95d5e0d9329db",
+      "description": "Lossless fixture: HTML comment preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/html-raw.md",
+      "category": "html",
+      "source": "canonical",
+      "sha256": "54059c0bc8d6e701c225aa91f46f1ecf72aab3a38075d22e677581c33ca7c28c",
+      "description": "HTML comments, raw block/inline HTML, inert script/event handlers, unsafe URLs, entities, CDATA, mixed HTML/Markdown."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/lf.md",
+      "category": "eol",
+      "source": "core",
+      "sha256": "be6b6303cb7d3eb64d1f14eb053df60cac0849ae1a022273de5dfe31c60999c0",
+      "description": "LF line endings only."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/crlf.md",
+      "category": "eol",
+      "source": "core",
+      "sha256": "347b15eb509252d7e542c689f0d8964829b591e68ae2092e9771ac226690988b",
+      "description": "CRLF line endings only."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/mixed-eol.md",
+      "category": "eol",
+      "source": "core",
+      "sha256": "9c4e65fdde56ae56422b355a6332e03ccc3a5e1031cfda4def911f8130d9e723",
+      "description": "Mixed LF and CRLF line endings."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/utf8-bom.md",
+      "category": "eol",
+      "source": "core",
+      "sha256": "6ede8329c7095c92fbe0d47b97510d04b8127bef969cc314e0b2fcb91896a1f8",
+      "description": "UTF-8 BOM prefix with LF line endings."
+    },
+    {
+      "path": "markflow-core/fixtures/lossless/trailing-newlines.md",
+      "category": "eol",
+      "source": "core",
+      "sha256": "a5be87db2aa7b7c392a298d59fce4af374309174d67acd879f8053c1fcaefa7b",
+      "description": "Lossless fixture: trailing newline preservation."
+    },
+    {
+      "path": "markflow-core/fixtures/size/1mb-filler.md",
+      "category": "size",
+      "source": "core",
+      "sha256": "8d5e921f5e509f263422e64c997f9e2f417a9a02088d6b3728740fbd88ca03cc",
+      "sizeBytes": 1048562,
+      "description": "1 MiB filler (committed to git) for performance budgets and large-document behavior."
+    },
+    {
+      "path": "markflow-core/fixtures/size/10mb-filler.md",
+      "category": "size",
+      "source": "core",
+      "sha256": "a0d429f113bf0648e325cf07ff2dd820c5ae987f2dc5df9e0df85bc774616c98",
+      "sizeBytes": 10485707,
+      "description": "10 MiB filler (committed to git) for performance budgets and large-document behavior."
+    },
+    {
+      "path": "markflow-core/fixtures/size/50mb-filler.md",
+      "category": "size",
+      "source": "core",
+      "sha256": "2af0af67d0bddce5cc60a08a49a8b66bbf054cd7907f8826f6637cdbbd936b1c",
+      "sizeBytes": 52428730,
+      "description": "50 MiB filler (committed to git) for performance budgets and large-document behavior."
+    }
+  ]
+}

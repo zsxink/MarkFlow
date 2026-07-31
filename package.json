@@ -17,7 +17,11 @@
     "check:m8c-removal": "node scripts/check-m8c-removal-audit.mjs",
     "test:m8c-removal-audit": "node scripts/check-m8c-removal-audit.mjs --self-test",
     "benchmark:file-tree": "node scripts/file-tree-benchmark.mjs",
-    "validate:openspec": "openspec validate --all",
+    "check:fixtures": "bash scripts/check-fixtures.sh",
+    "check:capability-matrix": "bash scripts/check-capability-matrix.sh",
+    "check:evidence-honesty": "bash scripts/check-evidence-honesty.sh",
+    "test:evidence-honesty": "node scripts/test-evidence-honesty.mjs",
+    "validate:openspec": "openspec validate --all && bash scripts/check-fixtures.sh && bash scripts/check-capability-matrix.sh && HONESTY_AUTO=${CI:+1} bash scripts/check-evidence-honesty.sh",
     "postinstall": "patch-package"
   },
   "dependencies": {

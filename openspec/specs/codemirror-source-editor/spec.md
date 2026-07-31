@@ -11,16 +11,21 @@
 ## Requirements
 ### Requirement: CM6 实例生命周期管理
 
-系统 SHALL 在用户切换到源码模式时创建 CodeMirror 6 实例，并在切换到 WYSIWYG 模式时销毁实例。不在 WYSIWYG 模式时，CM6 实例不应占用内存。
+系统 SHALL 为活动文档维护单一 CodeMirror 6 EditorView。Source 与 WYSIWYG 切换 SHALL 通过 Compartment 或等效 extension reconfiguration 完成，不得销毁 EditorView、替换 document 或创建并行编辑实例。关闭文档或窗口时 SHALL 销毁实例并清理插件、请求和 widget。
 
-#### Scenario: 切换到源码模式时创建 CM6
-- **WHEN** 用户从 WYSIWYG 切换到源码模式
-- **THEN** 系统在 `#source-editor-wrapper` 内创建 CM6 `EditorView`，初始内容为当前文档的 Markdown 源码
-- **THEN** `#source-editor-wrapper` 的 `hidden` 属性被移除
+#### Scenario: 打开文档时创建唯一 CM6
+- **WHEN** Core session 成功打开活动文档
+- **THEN** 系统在编辑器容器内创建一个 CM6 EditorView
+- **THEN** Source 或 WYSIWYG 模式只改变该实例的 extension 配置
 
-#### Scenario: 切换到 WYSIWYG 时销毁 CM6
-- **WHEN** 用户从源码模式切换到 WYSIWYG
-- **THEN** 系统调用 `view.destroy()` 销毁 CM6 实例，释放所有资源
+#### Scenario: 模式切换不销毁 CM6
+- **WHEN** 用户在 Source 和 WYSIWYG 之间切换
+- **THEN** `view.destroy()` 不被调用
+- **THEN** selection、scroll、document、pending patches 和 History 保持
+
+#### Scenario: 文档关闭时释放资源
+- **WHEN** 活动文档关闭或窗口销毁
+- **THEN** 系统销毁 CM6 实例并取消绑定的 render、widget 和 patch 任务
 
 ### Requirement: Markdown 语法高亮
 
@@ -63,21 +68,22 @@
 
 ### Requirement: WYSIWYG 与 Source 双向内容同步
 
-系统 SHALL 确保 WYSIWYG 和 Source 模式间的内容一致性。切换模式时，源编辑器内容 SHALL 精确反映 WYSIWYG 编辑器的 Markdown 序列化结果；切换回 WYSIWYG 时，源编辑器修改 SHALL 完全应用到 Tiptap 文档。
+Source 与 WYSIWYG SHALL 直接共享同一个 CodeMirror Markdown document 和 Core confirmed session，不存在模式间全文内容同步。模式切换只 reconfigure projection extensions，并在需要离开当前 revision barrier 时执行 Core flush。
 
-#### Scenario: WYSIWYG → Source 同步
-- **WHEN** 用户从 WYSIWYG 切换到源码模式
-- **THEN** CM6 文档内容 = Tiptap 的 `editor.storage.markdown.getMarkdown()` 序列化结果
-- **THEN** dirty 标志不变
+#### Scenario: WYSIWYG → Source 共享内容
+- **WHEN** 用户从 WYSIWYG 切换到 Source
+- **THEN** Source 立即显示同一 CodeMirror document 的完整 Markdown
+- **THEN** 不调用 serializer、`setContent` 或全文替换
 
-#### Scenario: Source → WYSIWYG 同步
-- **WHEN** 用户从源码模式切换到 WYSIWYG
-- **THEN** Tiptap `setContent(content)` 接收 CM6 文档当前内容
-- **THEN** 同步后 CM6 实例被销毁
+#### Scenario: Source → WYSIWYG 共享内容
+- **WHEN** 用户从 Source 切换到 WYSIWYG
+- **THEN** 系统在同一 EditorView 上启用 Live Preview extensions
+- **THEN** 不重新解析或注入第二份文档内容
 
-#### Scenario: 外部 setMarkdown 同步到 CM6
-- **WHEN** 系统调用 `setMarkdown(content)` 且当前为源码模式
-- **THEN** CM6 文档被替换为新的 content（通过 `view.dispatch({changes})` 使用 `programmaticUpdate` 标记）
+#### Scenario: 外部 confirmed snapshot 重同步
+- **WHEN** Runtime resync 返回合法 confirmed snapshot
+- **THEN** Adapter 使用标记为 resync 的 transaction 更新同一 CodeMirror document
+- **THEN** dirty、selection、History 和 pending state 按 resync 规范恢复
 
 ### Requirement: 内容变更追踪
 
@@ -129,22 +135,16 @@ Store SHALL 移除不再使用的 `cachedSourceGutterStyles` 字段。导入该�
 
 ### Requirement: 焦点管理
 
-源码模式时焦点事件 SHALL 正确传递给 CM6，WYSIWYG 模式时焦点事件 SHALL 正确传递给 Tiptap。
+单一 CodeMirror 编辑视图 SHALL 在 Source 和 WYSIWYG 下保持焦点语义。工具栏、菜单和 widget 操作 SHALL 恢复到正确文本 selection 或结构化焦点，不得把焦点发送到隐藏 ProseMirror。
 
-#### Scenario: CM6 焦点
-- **WHEN** 切换到源码模式
-- **THEN** CM6 实例自动获取焦点
-- **WHEN** 点击工具栏操作（如保存）
-- **THEN** CM6 实例不因此失去焦点或状态
+#### Scenario: 模式切换保持焦点
+- **WHEN** 用户切换 Source 或 WYSIWYG
+- **THEN** 同一 CodeMirror EditorView 保持或恢复焦点
+- **THEN** 当前 selection 不发生无意变化
 
-### Requirement: 序列化完整性检查保留
-
-切换模式时，Markdown 序列化完整性检查 SHALL 在 Tiptap → CM6 方向保留。即 WYSIWYG → Source 切换时，仍需检查 Tiptap Markdown 序列化是否截断。
-
-#### Scenario: 序列化完整性检查
-- **WHEN** WYSIWYG → Source 切换，且序列化完整性检查失败
-- **THEN** 使用 fallback 内容填充 CM6 文档而非直接使用序列化结果
-- **THEN** toast 通知用户序列化异常
+#### Scenario: Widget 操作返回文本流
+- **WHEN** 用户提交或取消结构化 widget 操作
+- **THEN** 焦点返回该 block 的稳定文本锚点或下一个可编辑位置
 
 ### Requirement: CM6 工具栏操作支持
 

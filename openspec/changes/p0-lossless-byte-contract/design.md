@@ -41,7 +41,8 @@ P0 characterization 测试必须选用以上场景之一以字节级 diff 稳定
 
 ## 4. 冻结 ADR（tasks 1.5）
 
-以下决策在 P0 冻结，后续 Slice 只能通过同步修改 capability spec / Patch DTO / golden fixtures 的流程变更：
+> 权威决策记录见 [docs/adr.md](./docs/adr.md)，本节为设计摘要。以下决策在 P0 冻结，
+> 后续 Slice 只能通过同步修改 capability spec / Patch DTO / golden fixtures 的流程变更。
 
 ### ADR-1 坐标类型
 - `Utf16Offset`（CodeMirror transaction/selection）、`LogicalUtf8ByteOffset`（Core 逻辑 LF 文本）、`SourceByteOffset`（含 BOM 与原始 EOL 宽度的磁盘 bytes）、`Revision`、`Affinity`、`SourceRange<T>`。

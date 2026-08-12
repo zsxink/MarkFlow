@@ -1,0 +1,670 @@
+{
+  "generatedBy": "tests/byte-contract/generate-fixtures.mjs",
+  "intents": [
+    {
+      "id": "utf8-lf-tail0-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 9,
+      "to": 9,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail0-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 9,
+      "to": 10,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail0-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 43,
+      "to": 43,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-lf-tail0-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 66,
+      "to": 66,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-lf-tail1-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 9,
+      "to": 9,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail1-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 9,
+      "to": 10,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail1-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 43,
+      "to": 43,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-lf-tail1-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 67,
+      "to": 67,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-lf-tail1-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 66,
+      "to": 66,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-lf-tail2-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 9,
+      "to": 9,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail2-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 9,
+      "to": 10,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail2-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 43,
+      "to": 43,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-lf-tail2-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 68,
+      "to": 68,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-lf-tail2-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 66,
+      "to": 67,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-lf-tail3-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 9,
+      "to": 9,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail3-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 9,
+      "to": 10,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-lf-tail3-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 43,
+      "to": 43,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-lf-tail3-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 69,
+      "to": 69,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-lf-tail3-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 66,
+      "to": 68,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-crlf-tail1-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 11,
+      "to": 11,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-crlf-tail1-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 11,
+      "to": 12,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-crlf-tail1-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 45,
+      "to": 45,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-crlf-tail1-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 71,
+      "to": 71,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-crlf-tail1-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\r\\n\")",
+      "from": 69,
+      "to": 69,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-crlf-tail2-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 11,
+      "to": 11,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-crlf-tail2-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 11,
+      "to": 12,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-crlf-tail2-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 45,
+      "to": 45,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-crlf-tail2-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 73,
+      "to": 73,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-crlf-tail2-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\r\\n\")",
+      "from": 69,
+      "to": 71,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-crlf-tail3-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 11,
+      "to": 11,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-crlf-tail3-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 11,
+      "to": 12,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-crlf-tail3-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 45,
+      "to": 45,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-crlf-tail3-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 75,
+      "to": 75,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-crlf-tail3-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\r\\n\")",
+      "from": 69,
+      "to": 73,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-cr-tail1-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 9,
+      "to": 9,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-cr-tail1-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 9,
+      "to": 10,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-cr-tail1-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 43,
+      "to": 43,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-cr-tail1-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 67,
+      "to": 67,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-cr-tail1-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\r\")",
+      "from": 66,
+      "to": 66,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-mixed-tail2-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 10,
+      "to": 10,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-mixed-tail2-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 10,
+      "to": 11,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-mixed-tail2-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 44,
+      "to": 44,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-mixed-tail2-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 91,
+      "to": 91,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-mixed-tail2-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 89,
+      "to": 90,
+      "inserted": ""
+    },
+    {
+      "id": "utf8-bom-lf-tail2-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 12,
+      "to": 12,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-bom-lf-tail2-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 12,
+      "to": 13,
+      "inserted": "Z"
+    },
+    {
+      "id": "utf8-bom-lf-tail2-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 46,
+      "to": 46,
+      "inserted": "改"
+    },
+    {
+      "id": "utf8-bom-lf-tail2-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 71,
+      "to": 71,
+      "inserted": "\n"
+    },
+    {
+      "id": "utf8-bom-lf-tail2-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 69,
+      "to": 70,
+      "inserted": ""
+    },
+    {
+      "id": "empty-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 0,
+      "to": 0,
+      "inserted": "\n"
+    },
+    {
+      "id": "bom-only-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 3,
+      "to": 3,
+      "inserted": "\n"
+    },
+    {
+      "id": "newlines-only-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 3,
+      "to": 3,
+      "inserted": "\n"
+    },
+    {
+      "id": "newlines-only-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 0,
+      "to": 2,
+      "inserted": ""
+    },
+    {
+      "id": "spaces-only-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 6,
+      "to": 6,
+      "inserted": "\n"
+    },
+    {
+      "id": "unicode-cjk-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 83,
+      "to": 83,
+      "inserted": "Z"
+    },
+    {
+      "id": "unicode-cjk-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 83,
+      "to": 84,
+      "inserted": "Z"
+    },
+    {
+      "id": "unicode-cjk-insert-cjk-body",
+      "description": "insert CJK char before first CJK char",
+      "from": 2,
+      "to": 2,
+      "inserted": "改"
+    },
+    {
+      "id": "unicode-cjk-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 102,
+      "to": 102,
+      "inserted": "\n"
+    },
+    {
+      "id": "unicode-cjk-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 100,
+      "to": 101,
+      "inserted": ""
+    },
+    {
+      "id": "unicode-emoji-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 0,
+      "to": 0,
+      "inserted": "Z"
+    },
+    {
+      "id": "unicode-emoji-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 0,
+      "to": 1,
+      "inserted": "Z"
+    },
+    {
+      "id": "unicode-emoji-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 92,
+      "to": 92,
+      "inserted": "\n"
+    },
+    {
+      "id": "unicode-emoji-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 90,
+      "to": 91,
+      "inserted": ""
+    },
+    {
+      "id": "unicode-combining-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 0,
+      "to": 0,
+      "inserted": "Z"
+    },
+    {
+      "id": "unicode-combining-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 0,
+      "to": 1,
+      "inserted": "Z"
+    },
+    {
+      "id": "unicode-combining-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 88,
+      "to": 88,
+      "inserted": "\n"
+    },
+    {
+      "id": "unicode-combining-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 86,
+      "to": 87,
+      "inserted": ""
+    },
+    {
+      "id": "syntax-lists-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 2,
+      "to": 2,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-lists-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 2,
+      "to": 3,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-lists-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 120,
+      "to": 120,
+      "inserted": "\n"
+    },
+    {
+      "id": "syntax-lists-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 118,
+      "to": 119,
+      "inserted": ""
+    },
+    {
+      "id": "syntax-fence-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 6,
+      "to": 6,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-fence-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 6,
+      "to": 7,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-fence-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 80,
+      "to": 80,
+      "inserted": "\n"
+    },
+    {
+      "id": "syntax-fence-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 78,
+      "to": 79,
+      "inserted": ""
+    },
+    {
+      "id": "syntax-frontmatter-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 6,
+      "to": 6,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-frontmatter-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 6,
+      "to": 7,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-frontmatter-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 92,
+      "to": 92,
+      "inserted": "\n"
+    },
+    {
+      "id": "syntax-frontmatter-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 90,
+      "to": 91,
+      "inserted": ""
+    },
+    {
+      "id": "syntax-table-reference-footnote-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 35,
+      "to": 35,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-table-reference-footnote-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 35,
+      "to": 36,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-table-reference-footnote-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 127,
+      "to": 127,
+      "inserted": "\n"
+    },
+    {
+      "id": "syntax-table-reference-footnote-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 125,
+      "to": 126,
+      "inserted": ""
+    },
+    {
+      "id": "syntax-html-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 5,
+      "to": 5,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-html-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 5,
+      "to": 6,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-html-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 81,
+      "to": 81,
+      "inserted": "\n"
+    },
+    {
+      "id": "syntax-html-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 79,
+      "to": 80,
+      "inserted": ""
+    },
+    {
+      "id": "syntax-image-blanklines-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 8,
+      "to": 8,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-image-blanklines-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 8,
+      "to": 9,
+      "inserted": "Z"
+    },
+    {
+      "id": "syntax-image-blanklines-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 40,
+      "to": 40,
+      "inserted": "\n"
+    },
+    {
+      "id": "syntax-image-blanklines-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 37,
+      "to": 39,
+      "inserted": ""
+    },
+    {
+      "id": "malformed-insert-ascii-body",
+      "description": "insert ASCII char at start of a body word",
+      "from": 3,
+      "to": 3,
+      "inserted": "Z"
+    },
+    {
+      "id": "malformed-replace-ascii-body",
+      "description": "replace first ASCII body char with 'Z'",
+      "from": 3,
+      "to": 4,
+      "inserted": "Z"
+    },
+    {
+      "id": "malformed-add-trailing-boundary",
+      "description": "append one explicit trailing line-break boundary",
+      "from": 97,
+      "to": 97,
+      "inserted": "\n"
+    },
+    {
+      "id": "malformed-delete-last-trailing-boundary",
+      "description": "delete the last trailing line-break boundary (\"\\n\")",
+      "from": 95,
+      "to": 96,
+      "inserted": ""
+    }
+  ]
+}

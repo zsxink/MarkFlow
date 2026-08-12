@@ -1,0 +1,246 @@
+{
+  "generatedBy": "tests/byte-contract/generate-fixtures.mjs",
+  "generatedAt": "deterministic",
+  "fixtures": [
+    {
+      "id": "utf8-lf-tail0",
+      "file": "fixtures/utf8-lf-tail0.md",
+      "byteLength": 66,
+      "sha256": "b8ada2a7b0e544abde49ce047b911c3d9838a51422f5e2cb4781ee12a3a4a5c5",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 0,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-lf-tail1",
+      "file": "fixtures/utf8-lf-tail1.md",
+      "byteLength": 67,
+      "sha256": "52a435d76c69c819c3b16972bca4214984a4c19f906a2ade440c025e471f3fdc",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 1,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-lf-tail2",
+      "file": "fixtures/utf8-lf-tail2.md",
+      "byteLength": 68,
+      "sha256": "bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-lf-tail3",
+      "file": "fixtures/utf8-lf-tail3.md",
+      "byteLength": 69,
+      "sha256": "201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 3,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-crlf-tail1",
+      "file": "fixtures/utf8-crlf-tail1.md",
+      "byteLength": 71,
+      "sha256": "262aa53ae6984dc1299336bdcd0137ef4f616f022fc9fe63f280c32368aebd5c",
+      "bom": "none",
+      "eol": "crlf",
+      "trailing": 1,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-crlf-tail2",
+      "file": "fixtures/utf8-crlf-tail2.md",
+      "byteLength": 73,
+      "sha256": "6928ce6518b78c454a84fdd0296563cdbf815e34bc67048c6451bbe4e6bcbafb",
+      "bom": "none",
+      "eol": "crlf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-crlf-tail3",
+      "file": "fixtures/utf8-crlf-tail3.md",
+      "byteLength": 75,
+      "sha256": "db562fc521f4ff93c530de24139cc7161a522d12f65948219dfc26b6fb6cc42a",
+      "bom": "none",
+      "eol": "crlf",
+      "trailing": 3,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-cr-tail1",
+      "file": "fixtures/utf8-cr-tail1.md",
+      "byteLength": 67,
+      "sha256": "3e505e2c736942f615b6070bb561442271035453390544cf27f57d34642c0879",
+      "bom": "none",
+      "eol": "cr",
+      "trailing": 1,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-mixed-tail2",
+      "file": "fixtures/utf8-mixed-tail2.md",
+      "byteLength": 91,
+      "sha256": "0a892d540a04d1b306768be51e56b90f89dce7d649f76d0fe87712a9053e3f85",
+      "bom": "none",
+      "eol": "mixed",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "utf8-bom-lf-tail2",
+      "file": "fixtures/utf8-bom-lf-tail2.md",
+      "byteLength": 71,
+      "sha256": "c7d99fe8fa174dabd66a7be7463cc17d4475272432cf640fb177de53557d92fd",
+      "bom": "utf8",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "empty",
+      "file": "fixtures/empty.md",
+      "byteLength": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bom": "none",
+      "eol": "none",
+      "trailing": 0,
+      "encoding": "utf8"
+    },
+    {
+      "id": "bom-only",
+      "file": "fixtures/bom-only.md",
+      "byteLength": 3,
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5",
+      "bom": "utf8",
+      "eol": "none",
+      "trailing": 0,
+      "encoding": "utf8"
+    },
+    {
+      "id": "newlines-only",
+      "file": "fixtures/newlines-only.md",
+      "byteLength": 3,
+      "sha256": "6a3cf5192354f71615ac51034b3e97c20eda99643fcaf5bbe6d41ad59bd12167",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 3,
+      "encoding": "utf8"
+    },
+    {
+      "id": "spaces-only",
+      "file": "fixtures/spaces-only.md",
+      "byteLength": 6,
+      "sha256": "52d8194d6705aedb21ccffe6965db6913d277d3d259ad5f071f38034e8aa7f52",
+      "bom": "none",
+      "eol": "none",
+      "trailing": 0,
+      "encoding": "utf8"
+    },
+    {
+      "id": "unicode-cjk",
+      "file": "fixtures/unicode-cjk.md",
+      "byteLength": 102,
+      "sha256": "d5ccc8920e626890beb4074f7d3edd28dd78e02144786d39a2d753f2ba6b2c95",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "unicode-emoji",
+      "file": "fixtures/unicode-emoji.md",
+      "byteLength": 92,
+      "sha256": "5466f6833170d5923a67a721110534460ab690069263d9734e1927456f97338b",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "unicode-combining",
+      "file": "fixtures/unicode-combining.md",
+      "byteLength": 88,
+      "sha256": "db3a90e6287fef4445ca6fee4cc57fb5935aa08a5b59787c635eb29c518868d8",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "syntax-lists",
+      "file": "fixtures/syntax-lists.md",
+      "byteLength": 120,
+      "sha256": "b6a683596bc16e83ed02584af26cfcb74c454e6048012160195371b082eb4df8",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "syntax-fence",
+      "file": "fixtures/syntax-fence.md",
+      "byteLength": 80,
+      "sha256": "5b0b7280306de9e7e775b4fbc751e584cfd5a4fb1db9d7b06d21aa34b700368d",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "syntax-frontmatter",
+      "file": "fixtures/syntax-frontmatter.md",
+      "byteLength": 92,
+      "sha256": "d298cb82a277b66abe81e6b64dceae71c5e8c1571256909ae3d578bf8614616d",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "syntax-table-reference-footnote",
+      "file": "fixtures/syntax-table-reference-footnote.md",
+      "byteLength": 127,
+      "sha256": "a0d1b76f9a4d3811f5960379ea61d61f84cd89abc24c21bfb9f5b9960813405f",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "syntax-html",
+      "file": "fixtures/syntax-html.md",
+      "byteLength": 81,
+      "sha256": "daa8c887c1bb4149b7bff33e00a7e4ed3c9c4e0a65a9de35e19199253ccda1d0",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    },
+    {
+      "id": "syntax-image-blanklines",
+      "file": "fixtures/syntax-image-blanklines.md",
+      "byteLength": 40,
+      "sha256": "1405f11cd7dd713510577201d95c99b2f6cebbebfba4472c5fe80966857d4ac0",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 3,
+      "encoding": "utf8"
+    },
+    {
+      "id": "malformed",
+      "file": "fixtures/malformed.md",
+      "byteLength": 97,
+      "sha256": "bad0e9ced2c588b80322ce356b6effb19493e3fc787c5b56d237f30938996b1d",
+      "bom": "none",
+      "eol": "lf",
+      "trailing": 2,
+      "encoding": "utf8"
+    }
+  ]
+}

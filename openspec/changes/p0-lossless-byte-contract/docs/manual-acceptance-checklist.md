@@ -1,8 +1,8 @@
 # P0 人工验收清单（handoff）
 
-> 人工验收人执行。AI 已停止，不代替点击。候选 commit：`aba52cc`
-> （branch `test/issue-255-lossless-byte-contract`）；flags：legacy baseline
-> （无 lossless flags，默认 ProseMirror 路径）。
+> 人工验收人执行。AI 已停止，不代替点击。候选 commit：`dd610f7`
+> （branch `test/issue-255-lossless-byte-contract`；产品代码与基线 `6bfba453` 完全一致，
+> P0 未修改任何产品 runtime）。flags：legacy baseline（无 lossless flags，默认 ProseMirror 路径）。
 >
 > 对应设计：umbrella `design/phases/P0-baseline-contract.md` §6 人工验证。
 > 验收结果写入 umbrella `validation/phases/P0.md`「人工验证记录」或本目录的验收记录。

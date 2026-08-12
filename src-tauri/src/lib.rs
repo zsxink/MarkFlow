@@ -7,6 +7,9 @@ mod logger;
 mod paths;
 mod state;
 
+#[cfg(test)]
+mod dispatcher_contract;
+
 use commands::files;
 use commands::files_image;
 use commands::files_meta;

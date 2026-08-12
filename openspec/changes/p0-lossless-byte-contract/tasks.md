@@ -43,14 +43,14 @@
 
 ## 7. 全 gate 与基线证据（1.7）
 
-- [ ] 7.1 运行 npm test、npx tsc --noEmit、npm run build、cargo test、npm run test:e2e（smoke）、openspec validate --all、archive sync gate
-- [ ] 7.2 创建 `validation/evidence/P0/<run-id>/RUN.md` + `ENVIRONMENT.md`（environment hash、命令、退出码、fixture hash、byte diff、未运行项）
-- [ ] 7.3 更新 umbrella `validation/phases/P0.md` 的 AI 验证清单
+- [x] 7.1 运行 npm test（339）、npx tsc --noEmit（0）、npm run build、cargo test（126）、npm run test:e2e（smoke 5）、openspec validate --all（61）、archive sync gate —— 全部 exit 0
+- [x] 7.2 创建 `validation/evidence/P0/20260812-192707-p0-baseline/RUN.md` + `ENVIRONMENT.md`（environment hash `71a646f4...`、命令、退出码、fixture hash、byte diff、未运行项）
+- [x] 7.3 更新 umbrella `validation/phases/P0.md` 的 AI 验证清单（全部勾选，状态 AI GATE PASS）
 
 ## 8. 独立 Reviewer（1.8）
 
-- [ ] 8.1 派独立 Reviewer 检查 fixture manifest、L0/L1 positive/negative controls、PM 失败复现与 ADR
-- [ ] 8.2 Reviewer 重跑 LF、CRLF/Mixed、Unicode 各一组 + 故意损坏 negative control，输出 REVIEW.md
+- [x] 8.1 独立 Reviewer（fresh context）检查 fixture manifest、L0/L1 positive/negative controls、PM 失败复现与 ADR
+- [x] 8.2 Reviewer 重跑 LF、CRLF/Mixed、Unicode、byte-contract/characterization/dispatcher + 自建 negative control（CRLF 尾部损坏单字节 → firstDiffAt 精确命中）；结论 PASS，输出 REVIEW.md 至 evidence run 目录
 
 ## 9. 行为矩阵（1.9–1.10）
 
@@ -59,5 +59,5 @@
 
 ## 10. 人工验收交接
 
-- [ ] 10.1 准备人工步骤与候选 commit/flags 后停止，通知用户执行 P0 人工验证（LF+CRLF fixtures、正文单字符编辑、2/3 boundary）
+- [x] 10.1 准备人工步骤与候选 commit/flags（`docs/manual-acceptance-checklist.md`，候选 commit `aba52cc`）—— 已就绪，等待人工执行
 - [ ] 10.2 P0 Go 前禁止进入 P1A；只有 AI、独立 Reviewer、人工验收与 Program Owner 全部通过才标记 Go

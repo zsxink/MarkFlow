@@ -25,6 +25,9 @@
 - [x] 4.1 实证定位 #189 补偿不满足 L1 的场景（CRLF/CR 尾部被改/丢失、count 低估、陈旧元数据补回用户删除）—— 见 `docs/pm-tail-newline-characterization.md`
 - [x] 4.2 实现 `pm-tail-newline.characterization.test.ts`，驱动真实 Tiptap + tiptap-markdown + 真实 `setMarkdown`/`getMarkdown`，以字节级 diff 稳定复现
 - [x] 4.3 配置独立 config `vitest.characterization.config.ts` + `npm run test:characterization`（不进默认红色 suite）
+- [x] 4.4 新增真实 legacy 生命周期 characterization：`openFileInEditor → setReadOnly/onUpdate → autosave → saveActiveDocument → isolated file`，autosave 开启且零编辑等待至少两个 tick
+- [x] 4.5 分别记录 LF/CRLF 的 dirty transition、关闭提示、save count、mtime、input/output SHA-256，并把 soft break、EOL 与尾部 boundary diff 分项报告
+- [x] 4.6 证明现有 L0 oracle self-check 和 `autosave=false` E2E 不能替代 4.4；把测试边界与已知缺口写入 characterization 文档
 
 ## 5. ADR 冻结（1.5）
 
@@ -46,11 +49,14 @@
 - [x] 7.1 运行 npm test（339）、npx tsc --noEmit（0）、npm run build、cargo test（126）、npm run test:e2e（smoke 5）、openspec validate --all（61）、archive sync gate —— 全部 exit 0
 - [x] 7.2 创建 `validation/evidence/P0/20260812-192707-p0-baseline/RUN.md` + `ENVIRONMENT.md`（environment hash `71a646f4...`、命令、退出码、fixture hash、byte diff、未运行项）
 - [x] 7.3 更新 umbrella `validation/phases/P0.md` 的 AI 验证清单（全部勾选，状态 AI GATE PASS）
+- [x] 7.4 为人工发现创建新的 corrective run-id；保留 `20260812-192707-p0-baseline` 不可变，并在新 RUN 中链接历史 run、人工 hash 与根因
+- [x] 7.5 重跑默认 gates、两类 characterization、OpenSpec strict validation；不得继续把历史 AI GATE PASS 视为完整 P0 AI gate
 
 ## 8. 独立 Reviewer（1.8）
 
 - [x] 8.1 独立 Reviewer（fresh context）检查 fixture manifest、L0/L1 positive/negative controls、PM 失败复现与 ADR
 - [x] 8.2 Reviewer 重跑 LF、CRLF/Mixed、Unicode、byte-contract/characterization/dispatcher + 自建 negative control（CRLF 尾部损坏单字节 → firstDiffAt 精确命中）；结论 PASS，输出 REVIEW.md 至 evidence run 目录
+- [x] 8.3 派新的独立 Reviewer 复核 lifecycle characterization，确认真实打开/dirty/autosave/写盘均在调用链中，且测试未关闭 autosave、未 mock 掉保存（PASS，REVIEW.md 见 corrective run `20260813-005131`）
 
 ## 9. 行为矩阵（1.9–1.10）
 
@@ -59,5 +65,7 @@
 
 ## 10. 人工验收交接
 
-- [x] 10.1 准备人工步骤与候选 commit/flags（`docs/manual-acceptance-checklist.md`，候选 commit `aba52cc`）—— 已就绪，等待人工执行
-- [ ] 10.2 P0 Go 前禁止进入 P1A；只有 AI、独立 Reviewer、人工验收与 Program Owner 全部通过才标记 Go
+- [x] 10.1 准备人工步骤与候选 commit/flags（`docs/manual-acceptance-checklist.md`，候选 commit `dd610f7`）—— 已就绪，人工已执行
+- [x] 10.2 完成清单要求的正文单字符编辑（B1–B5 ×4）、重开 UI 与 ADR 审阅 —— 2026-08-13 验收人完成 L0 复跑与 L1 B1–B3 ×4、B4/A5 重开确认；ADR 审阅由验收人委托 AI 执行（PASS，验收人保留复核权）；“零编辑失败更严重”未替代任何步骤
+- [x] 10.3 修订后的 AI 报告同时准确描述零编辑与编辑后失败（corrective RUN.md 覆盖零编辑 lifecycle，L1 B1–B5 覆盖编辑后），人工实测结果与报告逐字节一致；P0 人工 Accept 仅表示“基线刻画准确”，不表示 legacy 产品 byte fidelity 通过 —— **Accept/Reject 决定仍待人工给出（见 10.4 前最终待决）**
+- [ ] 10.4 P0 Go 前禁止进入 P1A；只有 corrective AI gate、新独立 Reviewer、完整人工验收与 Program Owner 全部通过才标记 Go —— corrective AI gate ✓、独立 Reviewer ✓、完整人工验收 ✓（重开/ADR/SHA 确认由验收人委托 AI 执行）；**Program Owner Go/No-Go 与人工 Accept/Reject 仍 PENDING**

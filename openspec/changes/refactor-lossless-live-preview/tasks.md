@@ -1,10 +1,10 @@
-> 执行约束：本 checklist 是 Issue #254 的 program 级实施顺序。每个 Slice 必须创建独立 child Issue、branch、OpenSpec change 和 PR；不得在一个长期分支一次性实现全部任务。每个 Slice 合入前必须保留可运行产品、feature flag 回滚和当前 commit 的验证证据。
+> 执行约束：本 checklist 是 Issue #254 的 program 级实施顺序。Program Owner 已批准全部任务在当前分支 `test/issue-255-lossless-byte-contract` 与 umbrella change `refactor-lossless-live-preview` 中连续完成；后续不新建 Issue、branch、child change 或阶段 PR。每个 Slice 仍必须建立独立 commit checkpoint、evidence run、独立 Reviewer、Program Owner 人工验收和 Go/No-Go，并保留可运行产品与 feature flag 回滚。该例外只适用于 Issue #254。
 >
 > 验证记录约束：实现 AI 在每个阶段开始前更新本 change 的 `validation/ENVIRONMENT.md` 和 `validation/phases/<phase>.md`，每次运行建立 `validation/evidence/<phase>/<run-id>/RUN.md`，同时写入不可变的同目录 `ENVIRONMENT.md` 与 hash，并保存证据索引。阶段只有在 AI gate、独立 Reviewer、人工验收和 Program Owner 决定全部记录后才可勾选完成。`/Users/xian/markflow-test` 只作为人工打开 Markdown 测试文档的目录，不存放任务、spec、报告或日志。
 
 ## 1. Slice 0 — 现状刻画与字节合同
 
-- [ ] 1.1 建立 child Issue/change，记录 `feat-v0.1.0` 基线 SHA、支持平台、feature flags、日志目录和当前编辑链路调用图
+- [ ] 1.1 使用现有 Issue #254/#255、当前分支与现有 changes，记录 `feat-v0.1.0` 基线 SHA、支持平台、feature flags、日志目录和当前编辑链路调用图
 - [ ] 1.2 建立 canonical byte fixtures：UTF-8/BOM、LF/CRLF/CR/Mixed、文末 0/1/2/3 换行、文中空行、Unicode、列表/fence/frontmatter、图片与 malformed Markdown
 - [ ] 1.3 实现 byte fixture hash/golden harness，可分别验证无编辑 L0 与局部编辑 L1 的 prefix/suffix/存活 span 保真
 - [ ] 1.4 添加当前 ProseMirror 路径回归测试，稳定复现“修改正文后文末空行丢失”，证明 #189 元数据方案不满足 L1
@@ -14,6 +14,19 @@
 - [ ] 1.8 派独立 reviewer 检查 fixtures、失败复现和 ADR；L0/L1 合同未能机器验证则 Slice 0 No-Go
 - [ ] 1.9 以固定 SHA 保存 Muya/Vditor 行为矩阵，覆盖 block closure、marker reveal、selection、Enter/Backspace、paste、History，并将“可借鉴机制/禁止移植机制”冻结进 ADR
 - [ ] 1.10 对用户指定的 ChatGPT Desktop 26.803.61601 建立黑盒行为矩阵，记录版本、合成输入、selection/Enter/Backspace/paste/Undo/Redo/marker/export 观察，并把 Observed/Official/Inference 分开；无公开源码时禁止推断内部编辑器或 byte-to-byte 架构
+- [ ] 1.11 补真实 legacy 生命周期 characterization：autosave 开启，完整驱动 open→editable/onUpdate→dirty scheduler→autosave→write，零编辑等待至少两个 tick
+- [ ] 1.12 分项记录 dirty/close prompt/save count/mtime/hash/length 与 soft-break/EOL/tail diff；禁止用 standalone Editor、oracle self-check 或 `autosave=false` smoke 代替
+- [ ] 1.13 为人工新发现建立 corrective evidence run，保持历史 run 不可变；完成新的独立 Reviewer、正文单字符编辑、重开、ADR 人工审阅和 Program Owner 决定
+
+## 1S. Slice 0S — Legacy 零编辑写盘安全止血
+
+- [ ] 1S.1 在当前分支记录 P0S start commit、flags 和引用的 P0 failing/corrective evidence；产品实现归 umbrella change，P0 evidence-only child 保持历史边界
+- [ ] 1S.2 让 hydration/read-only/editable programmatic transaction 不增加 user revision；`setEditable` 不发送正文 update
+- [ ] 1S.3 移除 legacy dirty 对 PM serializer/normalized string 回比的依赖，建立临时 userRevision/persistedRevision 与明确 transaction origin
+- [ ] 1S.4 在 autosave coordinator 和最终 write 入口增加双重 clean guard；干净 Ctrl+S 返回 `skipped` 且不调用 serializer/write
+- [ ] 1S.5 将 P0 零编辑 failing lifecycle 转为默认绿色 integration/desktop regression，覆盖 LF/CRLF/CR/Mixed/BOM/tail0-3、两个 autosave tick、关闭提示与 mtime/hash
+- [ ] 1S.6 验证一个真实用户 transaction 仍进入 dirty/保存；继续记录 legacy 编辑后 L1 失败，禁止宣称 byte-to-byte 已修复
+- [ ] 1S.7 运行全 gate，派独立 Reviewer 检查没有接受 serializer 输出、扩大 trailing metadata 或全局关闭 autosave；完成人工验收与 Program Owner Go
 
 ## 2. Slice 1A — 最小 Lossless Core
 
@@ -24,6 +37,7 @@
 - [ ] 2.5 实现 revision-bound `TextPatch`：多 change 原子校验、重叠/边界拒绝、transaction ID 幂等和 selectionAfter
 - [ ] 2.6 实现 `LosslessDocumentSession` 的 open/apply/snapshot/prepare-save/mark-persisted/reload/close 状态机
 - [ ] 2.7 添加 Core golden/property tests，覆盖全部 byte fixtures、Unicode boundary、Mixed EOL replacement 与正文编辑保留尾部空行
+- [ ] 2.7.1 对每个 fixture 证明 open 后零 patch 的 `prepare_save` 返回原始 bytes，重复 clean prepare 不改变 revision/hash；显式 clean save payload 不能来自 parser/serializer
 - [ ] 2.8 运行 Core fmt/clippy/test；独立 reviewer 对 byte contract、panic、安全边界与 draft 移植差异做专项复核
 
 ## 3. Slice 1B — Bridge、同步管线与无损 Source 闭环
@@ -37,8 +51,10 @@
 - [ ] 3.7 把 save、save-as、new file、reload、close 与外部修改冲突接入 flush/prepare/commit 生命周期
 - [ ] 3.8 改造图片 pending-save 流程，使路径迁移返回显式局部 Markdown patch，不在保存前全文 `normalizeImageMarkdown()`
 - [ ] 3.9 添加 Bridge integration 与 desktop E2E：打开—正文编辑—保存—重开，逐 fixture 比较完整 bytes/hash/mtime；覆盖 write/commit response 丢失、重复 operation、竞争外部替换、崩溃后 receipt reconcile
+- [ ] 3.9.1 继承 P0S lifecycle：autosave 开启，零编辑等待两个 tick、Ctrl+S、关闭、reload、A/B 切换均证明 dirty=false、save count=0、hash/length/mtime 不变
+- [ ] 3.9.2 对 lossless flag 做调用审计/spy，证明打开、dirty、autosave、手动保存、reload 和 close 不调用 `setMarkdown/getMarkdown/normalizeImageMarkdown` 或 PM serializer
 - [ ] 3.10 证明 render/parser 不可用时 Source 仍能编辑保存；任何 byte fixture 失败则 lossless flag 保持 default-off
-- [ ] 3.11 运行 TS/build、Core/Tauri、E2E 全 gate并派独立 reviewer；通过后归档 Slice 1 child change
+- [ ] 3.11 运行 TS/build、Core/Tauri、E2E 全 gate并派独立 reviewer；通过并经人工验收后记录 Slice 1B Go checkpoint，不归档 umbrella change
 
 ## 4. Slice 2 — 单一 CodeMirror Surface 与基础 Live Preview
 
@@ -56,6 +72,7 @@
 - [ ] 4.12 执行 Source/Live Preview 100 次切换测试，验证 bytes、EditorView identity、selection、scroll、dirty、revision 和 History
 - [ ] 4.13 注入 projection failure，验证只回退同一 CodeMirror Source 且保存 bytes 不受影响
 - [ ] 4.14 运行全 gate 与独立 reviewer；真实 WYSIWYG 未呈现 Markdown 语义则 Slice 2 No-Go
+- [ ] 4.15 重跑零编辑两个 autosave tick、干净 Ctrl+S、模式切换与关闭 L0 门禁，证明 projection reconfigure 不产生 transaction 或写盘
 
 ## 5. Slice 3 — 默认保存主链与常用编辑能力迁移
 
@@ -70,13 +87,14 @@
 - [ ] 5.9 增加 CJK/emoji、pending-save、写盘期间继续输入、跨模式 Undo/Redo、A/B 文档隔离 E2E
 - [ ] 5.10 逐行通过并签署 default minimum parity matrix 后才让 `losslessCoreSession` 默认开启；legacy ProseMirror 仅保留显式 flag 且与 lossless session owner 严格隔离
 - [ ] 5.11 收集一轮真实日常工作流证据与 legacy 回退原因；任何数据完整性问题立即关闭默认 flag
-- [ ] 5.12 运行全 gate、三平台可用环境 smoke 与独立 reviewer；通过后归档 Slice 3 child change
+- [ ] 5.12 运行全 gate、三平台可用环境 smoke 与独立 reviewer；通过并经人工验收后记录 Slice 3 Go checkpoint，不归档 umbrella change
+- [ ] 5.13 在默认 flags 上重跑全部 L0 lifecycle 与 L1 surviving-span 案例；任何打开即 dirty/写盘或 serializer save 立即关闭默认 flag
 
 ## 6. Slice 4A — Parser/Source Map Spike 与 Confirmed Render IR
 
 - [ ] 6.1 用统一 fixtures 比较 CodeMirror Lezer、draft ParseIndex、markdown-rs/pulldown-cmark 等候选的 source/content/marker ranges、unknown fallback、性能、维护和许可
 - [ ] 6.2 对 CJK、emoji、escape、nested、malformed 与随机 boundary 做 range→source slice property tests；任一 lossless/range 失败淘汰候选
-- [ ] 6.3 冻结 parser/source-map ADR；无合格胜者时以 `SPIKE_COMPLETE_NO_CORE_IR` 关闭 child change，保留本地基础投影和复杂源码 fallback，并标记后续依赖项，不阻塞默认编辑
+- [ ] 6.3 冻结 parser/source-map ADR；无合格胜者时在当前分支把 P4A 标记为 `SPIKE_COMPLETE_NO_CORE_IR`，保留本地基础投影和复杂源码 fallback，并标记后续依赖项，不阻塞默认编辑
 - [ ] 6.4 定义 versioned Render IR：binding/session/document/revision/request/source hash/viewport、stable block identity、ranges、fallback/widget descriptors
 - [ ] 6.5 实现 viewport/cancel/stale/degraded 协议与 construct owner registry，保证 local/core/source-fallback 唯一 owner
 - [ ] 6.6 接入 Core IR 作为增强投影，验证 IR timeout/stale/跨文档结果不会影响本地基础投影、输入和保存
@@ -93,7 +111,7 @@
 - [ ] 7.6 最后实现 FrontMatter、Mermaid/PlantUML 与 raw HTML policy；复杂/不安全内容精确回退源码
 - [ ] 7.7 对每个 widget 单独添加 unit、desktop semantic、visual、IME、keyboard-only、安全和 failure injection 证据
 - [ ] 7.8 按 Normal/Large/Huge 验证 viewport-only projection、重型 widget 降级与内存/延迟预算
-- [ ] 7.9 每个 cohort/widget 使用独立 flag 与 child change；一个失败不得被“整体 Live Preview 通过”掩盖
+- [ ] 7.9 每个 cohort/widget 使用独立 flag、evidence run 与验收结论；一个失败不得被“整体 Live Preview 通过”掩盖
 
 ## 8. Slice 5 — 发布门禁、稳定观察与 Legacy 清理
 
@@ -103,6 +121,7 @@
 - [ ] 8.4 审计产品代码中 ProseMirror/Tiptap、serializer、`getMarkdown/setMarkdown`、`trailingNewlines` 和 `normalizeImageMarkdown` 的剩余消费者
 - [ ] 8.5 删除 legacy ProseMirror 产品路径、隐藏 DOM、无效 CSS/dependencies/tests；保留的只读 renderer 必须明确不参与正文真相
 - [ ] 8.6 重跑 canonical byte/property、TS/build、Core/Tauri、desktop semantic、visual、IME、security、performance 和 archive gates
+- [ ] 8.6.1 在三平台对最终默认配置执行零编辑打开、两个 autosave tick、Ctrl+S、关闭和重开，记录 save count/hash/length/mtime，作为删除 legacy 前不可豁免证据
 - [ ] 8.7 派独立 reviewer 做静态走查与全测试；存在任何 serializer 保存、双 owner 或数据完整性阻塞则拒绝清理合入
 - [ ] 8.8 将全部 delta specs 同步到 main specs，运行 `npx openspec validate --all` 与 `bash scripts/check-archive-synced.sh`
-- [ ] 8.9 归档所有 child changes 和本 program change，更新 Issue #254/追踪文档并明确产品已验收范围与仍为 source fallback 的 constructs
+- [ ] 8.9 将现有 P0 child delta 与 program delta 同步到 main specs，归档现有 changes，更新 Issue #254/追踪文档并明确产品已验收范围与仍为 source fallback 的 constructs

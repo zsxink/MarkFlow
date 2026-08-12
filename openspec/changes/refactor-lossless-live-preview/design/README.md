@@ -2,7 +2,7 @@
 
 ## 1. 文档目的
 
-本目录把 umbrella `design.md` 拆成可由 AI Coding Agent 分阶段执行、可由人独立验收的设计包。它不授权一次性实现全部阶段。每个阶段必须建立 child Issue、独立 branch、OpenSpec child change 和 PR，并在进入下一阶段前完成对应 Go/No-Go。
+本目录把 umbrella `design.md` 拆成可由 AI Coding Agent 分阶段执行、由 Program Owner 逐阶段人工验收的设计包。Issue #254 使用 Program Owner 批准的单分支连续交付例外：从当前分支 `test/issue-255-lossless-byte-contract` 和 umbrella change `refactor-lossless-live-preview` 持续完成 P0 corrective、P0S、P1A–P5，不再为后续阶段建立新 Issue、branch、child change 或阶段 PR。单分支不等于无阶段门禁；每个阶段仍必须形成可审查 commit checkpoint、独立 evidence run、Reviewer 结论、人工验收和 Go/No-Go，直到全部重构完成。
 
 ## 2. 规范优先级
 
@@ -32,6 +32,7 @@
 | 阶段 | 文档 | 产品状态 | 退出结果 |
 | --- | --- | --- | --- |
 | P0 | [P0-baseline-contract.md](./phases/P0-baseline-contract.md) | 默认仍为 ProseMirror | 现有失败可重现，byte 合同可机器判定 |
+| P0S | [P0S-legacy-no-edit-save-guard.md](./phases/P0S-legacy-no-edit-save-guard.md) | legacy 安全止血 | 零编辑打开/等待/关闭绝不写盘；不宣称编辑后保真 |
 | P1A | [P1A-lossless-core.md](./phases/P1A-lossless-core.md) | 无 UI 切换 | Core 可无损 open/patch/save payload |
 | P1B | [P1B-source-vertical-slice.md](./phases/P1B-source-vertical-slice.md) | lossless Source flag | 真实桌面 Source 打开、编辑、保存、重开闭环 |
 | P2 | [P2-live-preview-surface.md](./phases/P2-live-preview-surface.md) | CodeMirror Live Preview flag | 单一 EditorView 提供基础 Markdown 语义投影 |
@@ -44,7 +45,7 @@
 
 每个阶段不得缺少以下产物：
 
-- child Issue、branch、OpenSpec change 和基线 commit SHA；
+- 当前 program Issue、固定工作分支、umbrella change、阶段起止 commit SHA；
 - 实现 diff 与架构决策记录；
 - 自动化测试及原始输出；
 - `validation/phases/<phase>.md` 完整运行记录；

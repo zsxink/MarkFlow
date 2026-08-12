@@ -8,7 +8,7 @@
 
 | Branch | Commit | Parser/IR flags | Run ID |
 | --- | --- | --- | --- |
-| NOT RECORDED | NOT RECORDED | NOT RECORDED | NOT RECORDED |
+| `test/issue-255-lossless-byte-contract` | NOT RECORDED | NOT RECORDED | NOT RECORDED |
 
 ## AI Coding 验证
 

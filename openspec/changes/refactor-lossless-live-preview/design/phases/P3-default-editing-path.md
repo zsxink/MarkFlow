@@ -54,6 +54,7 @@ AI 必须为每个 command 建 table-driven test，覆盖 collapsed/range/revers
 - export 不改变正文/dirty；
 - A/B 文档 command/History/resource 隔离；
 - canonical fixtures 全工作流 bytes；
+- 默认 flags 下重跑零编辑打开、两个 autosave tick、干净 Ctrl+S、模式切换、关闭/reopen，记录 dirty/save count/hash/length/mtime；
 - legacy flag 与 default path owner 隔离。
 - minimum parity matrix 每行都有自动化证据、人工结论和 fallback 截图/录屏。
 
@@ -77,6 +78,7 @@ Reviewer 必须搜索并追踪所有保存消费者，证明默认路径不读�
 8. Save As、关闭重开、导出；
 9. 同时操作 A/B 两文档；
 10. 运行至少 30 分钟连续编辑并记录任何 selection、dirty、保存、资源问题。
+11. 在默认 flags 下用全新 LF/CRLF/Mixed/BOM fixtures 执行零编辑 lifecycle 和干净 Ctrl+S，确认无写盘与关闭提示。
 
 人工还需逐行填写 minimum parity matrix，并比较 legacy 与新路径的常用体验，列出阻止默认切换的问题。视觉差异可接受，但数据完整性、输入丢失、基础语义不可辨认、fallback 不可编辑和核心命令不可用不可接受。
 
@@ -94,7 +96,7 @@ Reviewer 必须搜索并追踪所有保存消费者，证明默认路径不读�
 
 ## 8. Go/No-Go
 
-Go：minimum parity 每行 PASS 或经 Program Owner 明确接受的 FALLBACK-ACCEPTED；常用工作流、数据完整性、History、资源、conflict、人工连续编辑通过；lossless 默认 flag 可安全发布。
+Go：minimum parity 每行 PASS 或经 Program Owner 明确接受的 FALLBACK-ACCEPTED；默认 flags 的零编辑 lifecycle、常用工作流、数据完整性、History、资源、conflict、人工连续编辑通过；lossless 默认 flag 可安全发布。
 
 No-Go：任何默认 save 依赖 serializer；常用 Enter/Backspace/paste 丢内容；Undo 跨模式断裂；图片异步串文档；rollback 无法保护当前输入。
 

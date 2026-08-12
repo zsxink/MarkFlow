@@ -8,7 +8,7 @@
 
 | Branch | Commit | Core manifest | Run ID |
 | --- | --- | --- | --- |
-| NOT RECORDED | NOT RECORDED | NOT RECORDED | NOT RECORDED |
+| `test/issue-255-lossless-byte-contract` | NOT RECORDED | NOT RECORDED | NOT RECORDED |
 
 ## AI Coding 验证
 
@@ -16,6 +16,7 @@
 - [ ] Core `cargo clippy -D warnings`
 - [ ] Core 全量 tests
 - [ ] L0 全 canonical fixtures
+- [ ] 零 patch 重复 prepare-save 等于 original bytes，revision/hash 不变且不依赖 parser/serializer
 - [ ] L1 文首/正文/文尾/跨行 edits
 - [ ] BOM 与 LF/CRLF/CR/Mixed boundary provenance
 - [ ] 普通 inherit 固定顺序与显式 paste EOL provenance
@@ -35,6 +36,7 @@
 
 - 验收人：NOT RECORDED
 - [ ] 审阅五组代表性 byte diff
+- [ ] 审阅零 patch open/prepare-save 的原始 bytes 回放报告
 - [ ] 审阅 Mixed EOL 新增换行行为
 - [ ] 审阅 invalid UTF-8 产品行为
 - [ ] 审阅 Core scope 未包含 parser/DOM/History

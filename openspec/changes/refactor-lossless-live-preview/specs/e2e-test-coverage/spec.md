@@ -13,7 +13,13 @@
 #### Scenario: 打开多空行 fixture
 - **WHEN** 分别打开包含文中空行以及文末 2/3 个 line-break boundaries 的 fixtures
 - **THEN** CodeMirror document 包含全部逻辑换行
-- **THEN** 不做编辑等待 autosave 后磁盘 hash 与 mtime 不变
+- **THEN** autosave 使用产品实际启用配置，不做编辑等待至少两个 tick 后 dirty 保持 false、save count 为 0
+- **THEN** 磁盘 hash、长度与 mtime 不变，关闭不出现未保存提示
+
+#### Scenario: 干净文档主动保存
+- **WHEN** 用户打开 fixture 后不产生文档 transaction并主动保存
+- **THEN** 保存返回 clean skip 或 Core 原始 byte payload
+- **THEN** 不调用 ProseMirror serializer，磁盘 hash、长度与 mtime 不变
 
 ### Requirement: 编辑、保存与重新加载
 
@@ -49,9 +55,14 @@
 E2E/regression SHALL 使用覆盖 UTF-8 BOM、LF/CRLF/CR/Mixed EOL、文末 0/1/2/3 换行、CJK/emoji、列表/fence/frontmatter、图片、未知与损坏语法的 canonical fixtures，并记录输入与输出 hash。
 
 #### Scenario: 无编辑矩阵
-- **WHEN** 测试逐个打开 canonical fixtures、切换模式并等待 autosave
+- **WHEN** 测试逐个打开 canonical fixtures、切换模式并等待至少两个 autosave tick
 - **THEN** 每个 fixture 输出 hash 与输入 hash 相同
-- **THEN** 干净文件 mtime 不变
+- **THEN** 干净文件 dirty=false、save count=0、mtime 不变且关闭无提示
+
+#### Scenario: Smoke 配置关闭 autosave
+- **WHEN** 某 smoke profile 使用 `autosave=false` 或不记录 save count/hash/mtime
+- **THEN** 该结果只证明基础 UI smoke
+- **THEN** 不得用于满足零编辑 lifecycle 或 byte fidelity gate
 
 #### Scenario: 正文局部编辑矩阵
 - **WHEN** 测试对每个 fixture 的已知正文 range 执行局部编辑

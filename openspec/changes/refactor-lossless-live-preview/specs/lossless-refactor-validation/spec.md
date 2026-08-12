@@ -2,7 +2,13 @@
 
 ### Requirement: 每阶段必须生成可追溯 AI 验证记录
 
-Issue #254 的每个阶段 SHALL 绑定 child Issue/change、branch、commit、feature flags 和唯一 validation run。实现 AI MUST 将环境、命令、退出码、fixture hashes、byte diff、日志索引和 Go/No-Go 建议写入项目内的 `validation/` 资产目录。聊天消息、未保存的终端输出或只写“tests passed”不得作为阶段证据。`/Users/xian/markflow-test` SHALL 只保存平铺的、供人工使用 MarkFlow 打开的 `.md` 测试文档，不得包含子目录或其他资产。
+Issue #254 SHALL 使用 Program Owner 批准的当前工作分支和 umbrella change 连续实施，不要求每阶段新建 Issue、branch、child change 或阶段 PR。每个阶段 SHALL 绑定当前 program Issue、branch、start/end commit、feature flags 和唯一 validation run。实现 AI MUST 将环境、命令、退出码、fixture hashes、byte diff、日志索引和 Go/No-Go 建议写入项目内的 `validation/` 资产目录。聊天消息、未保存的终端输出或只写“tests passed”不得作为阶段证据。`/Users/xian/markflow-test` SHALL 只保存平铺的、供人工使用 MarkFlow 打开的 `.md` 测试文档，不得包含子目录或其他资产。
+
+#### Scenario: 单分支进入下一阶段
+- **WHEN** 某阶段在当前 program 分支完成 AI gate、独立 Reviewer 和 Program Owner 人工验收
+- **THEN** 阶段记录 start/end commit、flags、run-id 和 Go 决定
+- **THEN** 后续阶段继续使用同一分支和 umbrella change，不创建新的 Issue、branch 或 child change
+- **THEN** 前一阶段的 evidence 和失败历史保持可独立审查
 
 #### Scenario: AI 完成一次 P1B 候选验证
 - **WHEN** 实现 AI 对一个 P1B commit 运行自动化和 desktop workflow
@@ -51,6 +57,24 @@ Issue #254 的每个阶段 SHALL 绑定 child Issue/change、branch、commit、f
 - **THEN** 该 widget 保持 default-off 并回退源码
 - **THEN** 失败不要求关闭已通过的基础 Live Preview 或其他独立 widget
 
+#### Scenario: P0 人工发现 AI 未覆盖的失败路径
+- **WHEN** P0 人工验收发现零编辑写盘或其他不在 AI characterization 中的行为
+- **THEN** P0 状态变为 corrective run required，历史 evidence 保持不可变
+- **THEN** 新 run 补齐真实 lifecycle 自动化并由新的独立 Reviewer 复核
+- **THEN** “失败更严重”不得替代未执行的正文编辑、重开或 ADR 人工步骤
+
+#### Scenario: P0 characterization Go
+- **WHEN** legacy 产品仍按预期违反 byte contract
+- **AND** serializer 与真实 lifecycle 失败均被自动化、Reviewer 和人工完整一致地捕获
+- **THEN** P0 可以 Go 进入修复阶段
+- **THEN** 该 Go 不得表述为 legacy 产品已通过 byte fidelity
+
+#### Scenario: P0S 零编辑止血 Go
+- **WHEN** legacy safety candidate 开启 autosave并对 canonical fixtures等待两个 tick
+- **THEN** dirty=false、save count=0、hash/length/mtime 不变且关闭无提示
+- **THEN** 一个真实用户 transaction 仍进入 dirty
+- **THEN** P0S 报告明确编辑后 byte fidelity 仍由 P1B 验收
+
 ### Requirement: 性能与稳定观察门禁必须量化
 
 进入 P4A 和 P5 前，Program SHALL 冻结按文档等级和平台划分的 latency、RSS、样本数、观察时长、操作数量与允许错误率。候选运行开始后 MUST NOT 因测试失败临时放宽门槛。数据完整性、安全、跨文档和保存安全错误允许数量始终为零。
@@ -67,7 +91,7 @@ Issue #254 的每个阶段 SHALL 绑定 child Issue/change、branch、commit、f
 
 ### Requirement: 临时证据必须脱敏并可迁移
 
-验证目录 MUST 只使用合成 fixtures 或隔离 workspace，并对日志、截图和报告脱敏。Token、Authorization、私人正文和不必要的完整私人路径 MUST NOT 写入证据。阶段完成时，需要长期保留的证据 SHALL 迁入 child change 或 CI artifact，并保留 manifest/hash。
+验证目录 MUST 只使用合成 fixtures 或隔离 workspace，并对日志、截图和报告脱敏。Token、Authorization、私人正文和不必要的完整私人路径 MUST NOT 写入证据。阶段完成时，需要长期保留的证据 SHALL 留在 umbrella change 或迁入 CI artifact，并保留 manifest/hash。
 
 #### Scenario: Desktop E2E 失败
 - **WHEN** E2E 保存 backend/frontend logs 和截图

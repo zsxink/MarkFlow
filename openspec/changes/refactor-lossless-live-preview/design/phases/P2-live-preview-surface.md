@@ -40,6 +40,7 @@ AI 必须验证：
 - light/dark/sepia、zoom 200%、read-only；
 - Large/Huge 文档降级；
 - unit、adapter、desktop semantic E2E、visual snapshot 全部输出证据。
+- 在 autosave 实际开启时，干净文档切换模式 100 次并等待至少两个 tick，确认 dirty=false、save count=0、hash/length/mtime 不变且关闭无提示。
 
 运行通用 gate：`npm test`、`npx tsc --noEmit`、`npm run build`、Rust tests、smoke/regression E2E。
 
@@ -66,6 +67,7 @@ AI 必须验证：
 8. 注入/触发 projection failure，确认回退源码并仍可保存；
 9. 打开 malformed Markdown，确认不是空白或错误富文本；
 10. 对编辑体验给出 Accept/Reject 与具体问题编号。
+11. 使用一个全新 byte fixture，零编辑切换模式后等待两个 autosave tick并关闭，确认没有写盘或未保存提示。
 
 ## 7. 必须证据
 
@@ -79,7 +81,7 @@ AI 必须验证：
 
 ## 8. Go/No-Go
 
-Go：真实 UI 呈现语义；单 surface 不变；切换不改变正文/History；IME/selection 基线通过；失败可 Source fallback。
+Go：真实 UI 呈现语义；单 surface 不变；切换不改变正文/History/dirty 且不触发保存；IME/selection 基线通过；失败可 Source fallback。
 
 No-Go：只显示源码却宣称 Live Preview；光标频繁跳动；marker 隐藏导致不可编辑；projection 改正文；Core IR 故障使基础视图不可用。
 

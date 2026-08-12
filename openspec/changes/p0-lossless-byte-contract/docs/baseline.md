@@ -42,7 +42,8 @@ WebView：macOS 使用 WKWebView（系统 WebKit）。
 
 - P0 基线无任何 `losslessCoreSession` / `codemirrorLivePreview` / `coreRenderIr` flag（尚未引入）。
 - 默认编辑链路 = **ProseMirror (Tiptap) WYSIWYG**；Source 模式临时创建 CodeMirror 6，切换时通过 PM serializer 与 `setContent()` 全文同步。
-- 产品设置中与预览相关的默认：`livePreview: true`（e2e 默认 settings 模板），`autosave: false`（e2e 默认）、`autosaveInterval: 10000`。
+- 产品运行时默认/人工实测：`autosave: true`、`autosaveInterval: 10000`；P0 人工设备的实际 settings 同样为 autosave 开启。
+- E2E settings 模板单独使用 `autosave: false`。因此现有 smoke PASS 不能证明真实产品的零编辑 autosave 生命周期安全，后续 lifecycle characterization 必须显式开启 autosave并等待至少两个 tick。
 
 ## 1.1.5 配置与日志目录
 
@@ -87,3 +88,27 @@ saveActiveDocument()                     src/components/sidebar.fileops.ts
 - 元数据：`DocumentState.trailingNewlines`（`src/lib/editor.state.ts`）。
 
 该方案把「打开时捕获的尾部换行数」当作常量补偿，存在三类不满足 L1 的场景（详见 `docs/pm-tail-newline-characterization.md`）：CRLF/CR 尾部边界被补成 LF、用户显式增删尾换行被陈旧元数据覆盖、Mixed EOL 无法区分边界类型。
+
+## 1.1.7 人工发现的零编辑生命周期（P0 corrective input）
+
+2026-08-12 人工在真实 Tauri dev build 中打开四个隔离 LF/CRLF tail2/tail3 副本，未产生任何用户编辑；全部文件约每 10 秒被 autosave 改写，关闭时出现未保存提示。LF 尾部计数虽被 #189 补回，但段落内 soft break `\n` 被 serializer 改为空格；CRLF 全文被 `normalizeImageMarkdown()` 归一化为 LF，且 tail2/tail3 都因 `/\n+$/` 低估而坍缩为一个 LF。
+
+直接调用链：
+
+```text
+setMarkdown(original)
+  → strip tail + normalizeImageMarkdown(CRLF→LF)
+  → ProseMirror hydration
+  → markDocumentPersisted(pre-PM markdown)
+      → getMarkdown(PM serializer; soft break→space)
+      → content mismatch → dirty=true
+openFileInEditor
+  → setReadOnly(false)
+      → setEditable(true; emitUpdate default true)
+      → delayed onUpdate 再次维持 dirty
+autosave tick (~10s)
+  → saveActiveDocument
+  → serializer output 写盘
+```
+
+原 P0 serializer characterization 没有运行 `openFileInEditor`、read-only/editable 同步、产品 `onUpdate`、autosave timer 或实际 write；L0 harness 只验证 oracle，不驱动产品。该覆盖缺口必须通过新的 corrective run 修正，历史 evidence 保持不可变。

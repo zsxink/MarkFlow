@@ -23,6 +23,8 @@ Source Mode 会临时创建 CodeMirror 6，WYSIWYG/Source 切换时通过 ProseM
 2. Source 与 WYSIWYG 是两个文本模型，模式切换就是一次有损导入/导出。
 3. `normalizeImageMarkdown()` 等保存前全文处理会修改用户未触及区域，和 byte-to-byte 合同直接冲突。
 
+P0 真实桌面人工验收还确认了一个更早的故障：`setMarkdown()` 以进入 ProseMirror 前的文本建立 persisted baseline，却通过 serializer 输出回比 dirty；段内 soft break 被规范化为空格，`normalizeImageMarkdown()` 同时把 CRLF 全文转换为 LF。随后 `setReadOnly(false)` 的 editable update 进入 dirty scheduler，autosave 在零用户 transaction 的情况下周期性写盘。因此“只打开文件”已经可能改变 bytes、mtime 并触发关闭提示。此行为必须在 P0 corrective run 中被机器刻画，并由 P0S 在 legacy 路径止血。
+
 ### draft 分支可复用结论
 
 `feat-v0.1.0-draft@1e97c113` 不作为合并基线，只作为设计与代码证据。可复用的部分包括：
@@ -524,11 +526,25 @@ get_render_blocks(...)  // 后续增强，不是打开/保存前置
 
 - 固定当前基线、flags、日志与测试环境；
 - 建立 canonical byte fixtures 和 hash harness；
-- 用真实失败用例证明当前 PM 路径在正文编辑后会丢文末空行；
+- 用 serializer characterization 证明当前 PM 路径在正文编辑后会改写未触及 bytes；
+- 用 autosave 开启的真实产品生命周期 characterization 证明零编辑打开是否 dirty/写盘，记录 save count、mtime/hash 与 soft-break/EOL/tail 分项 diff；
 - 冻结 byte contract、UTF-16/UTF-8 mapping、EOL inheritance 和 file identity ADR；
 - 建立真实 Tauri dispatcher contract test，禁止只 mock `invoke`。
 
-退出条件：测试能稳定抓住 #189 无效场景；设计中的 L0/L1 合同可机器验证。
+退出条件：测试能稳定抓住 #189 无效场景和零编辑写盘；AI 与完整人工步骤一致；设计中的 L0/L1 合同可机器验证。P0 Go 只表示失败刻画可信，不表示 legacy 产品通过。
+
+### Slice 0S：Legacy 零编辑写盘安全止血
+
+P0 Go 后建立独立安全 child change：
+
+- programmatic hydration、read-only/editable 同步不产生 user revision；
+- legacy dirty 临时改为用户 transaction/revision 驱动，不再用 PM serializer 字符串回比；
+- autosave 与最终 write 入口都有 clean-session guard；
+- 干净文档显式 Save 跳过写盘；
+- 将 P0 零编辑 failing lifecycle 转为默认长期绿色回归；
+- 不扩大 `trailingNewlines`，不声称解决编辑后的 L1，不阻塞 P1A Core 独立开发。
+
+退出条件：autosave 实际开启、等待两个 tick后 save count=0、dirty=false、无关闭提示，全部 L0 fixture 的 hash/length/mtime 不变；一个真实用户 edit 仍能进入 dirty。任何继续提供 legacy 默认路径的发布构建必须先通过 P0S。
 
 ### Slice 1：Lossless Core + CodeMirror Source 纵向切片
 
@@ -588,9 +604,11 @@ get_render_blocks(...)  // 后续增强，不是打开/保存前置
 
 退出条件：产品不再有 ProseMirror 文档真相或 serializer 保存路径。
 
-### Child change 规则
+### 单分支持续实施规则
 
-本 umbrella proposal 不应由一个长期分支一次实现。每个 Slice 至少一个独立 Issue/branch/OpenSpec child change；Slice 4 的每个高风险 widget/cohort 可继续拆分。每个 child 必须记录：基线 SHA、flags、fixtures、自动化结果、真实桌面证据、rollback 和未完成项。
+Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-contract` 持续实施到 P5 完成，不再为后续 Slice 新建 Issue、branch、OpenSpec child change 或阶段 PR。现有 P0 child change 保留，后续产品实现、阶段设计、任务与证据统一由 umbrella change 管理。
+
+单分支必须保留阶段隔离：每个 Slice 记录 start/end commit、flags、fixtures、自动化结果、真实桌面证据、Reviewer、人工验收、rollback 和未完成项；前一阶段未 Go 时可以在同分支准备明确允许并行的代码，但不得启用、宣称或验收后续阶段。P4B cohort/widget 仍使用独立 feature flag、evidence run 和 Go/No-Go，只是不再创建独立 Git/OpenSpec 容器。
 
 ## Verification Strategy
 

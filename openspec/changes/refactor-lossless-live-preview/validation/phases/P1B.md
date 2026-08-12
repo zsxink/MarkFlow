@@ -8,7 +8,7 @@
 
 | Branch | Commit | Flags | Run ID |
 | --- | --- | --- | --- |
-| NOT RECORDED | NOT RECORDED | `losslessCoreSession=true` | NOT RECORDED |
+| `test/issue-255-lossless-byte-contract` | NOT RECORDED | `losslessCoreSession=true` | NOT RECORDED |
 
 ## AI Coding 验证
 
@@ -16,6 +16,8 @@
 - [ ] E2E debug build、smoke、regression
 - [ ] 真实 dispatcher open/apply/save/commit/reload/close
 - [ ] 全 fixtures 未编辑 Save L0
+- [ ] autosave 实际开启，零编辑等待至少两个 tick：dirty=false、save count=0、hash/length/mtime 不变、关闭无提示
+- [ ] 干净 Ctrl+S/reload/close/A-B switch 不写盘
 - [ ] 全 fixtures 正文编辑 Save/reopen L1
 - [ ] pending input 立即 Save flush
 - [ ] save 期间继续输入仍保持 dirty
@@ -30,6 +32,7 @@
 - [ ] reload/close/save-as flush barrier
 - [ ] parser/render failure 不影响 Source
 - [ ] flag off legacy 与 flag on lossless owner 隔离
+- [ ] lossless open/dirty/autosave/save/reload/close 无 `setMarkdown/getMarkdown/normalizeImageMarkdown`/PM serializer 调用
 - [ ] 脱敏 E2E artifacts 保存
 
 ## 人工验证记录
@@ -37,6 +40,7 @@
 - 验收人/环境：NOT RECORDED
 - [ ] LF/CRLF/BOM/尾部 2/3 line-break-boundary fixtures
 - [ ] 不编辑 dirty/mtime
+- [ ] 不编辑等待两个 autosave tick + 干净 Ctrl+S，记录 save count/hash/length/mtime/关闭提示
 - [ ] 中文+emoji 正文编辑立即保存并重开 hash
 - [ ] autosave 工作流
 - [ ] 外部修改 conflict
@@ -50,6 +54,7 @@
 ## Reviewer 与决定
 
 - [ ] 保存路径无 serializer/normalize/PM source
+- [ ] autosave coordinator 与最终 write 入口均有 clean-session guard
 - [ ] dirty 为 revision/pending
 - [ ] async identity 与 lifecycle cleanup
 - [ ] 按操作 identity matrix；保存变更 file identity 不误拒绝 N+1 patch

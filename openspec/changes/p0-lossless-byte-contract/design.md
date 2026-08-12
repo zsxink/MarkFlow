@@ -23,21 +23,29 @@ tests/byte-contract/
   l1-harness.mjs            # L1 surviving-interval 判定（prefix/suffix/存活 span + JSON diff）
   negative-control.mjs      # 故意损坏未触及 byte → 必须失败
   pm-tail-newline.characterization.test.ts  # PM 尾换行丢失复现（独立 suite）
+  legacy-open-autosave.characterization.test.ts # 真实打开/dirty/autosave/写盘生命周期复现
 ```
 
 - fixtures 全部确定性合成，绝不写入 `/Users/xian/markflow-test`。
 - L1 edit intent 记录源 range 与 inserted bytes；harness 生成 old→new surviving interval map，逐区间比较 bytes。
 - negative control 是 harness 自身的自检：损坏一个未触及 byte 必须导致验证失败。
 
-## 3. PM 尾换行丢失复现（tasks 1.4）
+## 3. Legacy PM 数据损坏复现（tasks 1.4）
 
 现状（`src/lib/editor.ts`）：`setMarkdown()` 在打开时捕获 `trailingNewlines = content.match(/\n+$/)?.[0].length`，`getMarkdown()` 在 serializer 输出末尾 `'\n'.repeat(tn)` 补回。该方案在以下场景不满足 L1：
 
 1. **CRLF/CR 尾部边界**：文件以 `\r\n` 或 `\r` 结尾时，补偿一律补 LF，尾部字节被改写。
 2. **用户显式增删尾换行**：元数据在打开时冻结，正文编辑保存时把陈旧计数补回，覆盖用户对尾部的意图。
 3. **Mixed EOL**：补偿无法区分每个边界的原始类型。
+4. **零编辑打开即改写**：`setMarkdown()` 把进入 PM 前的 Markdown 作为 persisted baseline，却在 `markDocumentPersisted()` 中拿 PM serializer 输出回比；段落内 soft break 会被序列化为空格，导致打开即 dirty。随后 `setReadOnly(false)` 的 `setEditable()` 默认发送 update，autosave 在约 10 秒后把 serializer 结果写回磁盘。
+5. **打开时全篇 EOL 归一化**：`normalizeImageMarkdown()` 内部把 `\r\n` 全部替换为 `\n`，且尾部 `content.match(/\n+$/)` 对 CRLF/CR 低估 boundary 数，因此即使没有用户正文 transaction，也可能发生 CRLF→LF 与尾部坍缩。
 
-P0 characterization 测试必须选用以上场景之一以字节级 diff 稳定复现，证明 #189 元数据方案不满足 L1；测试以显式命令运行，不进默认红色 suite（vitest 默认 `include` 之外，用独立 script）。
+P0 必须分别覆盖两条路径：
+
+- serializer 级 characterization：正文局部编辑后用 L1 byte diff 证明未触及尾部被改写；
+- 产品生命周期 characterization：使用真实打开、dirty、autosave 和实际临时文件，开启产品实际 autosave 默认值，零编辑等待至少两个 tick，记录 dirty、关闭提示、save count、mtime 与 SHA-256。
+
+后者不得用“输入文件与 oracle 副本自比较”冒充真实 L0，也不得用 `autosave=false` 的 smoke 代替。两类预期失败测试以显式命令运行，不进入默认长期红色 suite；但止血修复合入后，零编辑不写盘必须另有默认长期绿色回归。
 
 ## 4. 冻结 ADR（tasks 1.5）
 
@@ -97,6 +105,7 @@ P0 characterization 测试必须选用以上场景之一以字节级 diff 稳定
 
 - 按 umbrella `VALIDATION-PROTOCOL.md` 运行：`evidence/P0/<run-id>/RUN.md` + 不可变 `ENVIRONMENT.md`（含 environment hash）。
 - gate：`npm test`、`npx tsc --noEmit`、`npm run build`、`cargo test --manifest-path src-tauri/Cargo.toml`、`npm run test:e2e`（smoke）、`npx openspec validate --all`、`bash scripts/check-archive-synced.sh`。
+- P0 特殊 gate：必须同时保存 serializer characterization 与真实产品生命周期 characterization；桌面测试配置必须记录 autosave 的真实值。历史 run 不可回写，发现覆盖缺口后创建新的 corrective run-id，并由独立 Reviewer 重新复核新增证据。
 - P0 只增加测试、fixtures 与文档；回滚为关闭/撤销本 child change，不影响产品 runtime。
 
 ## 8. 范围边界

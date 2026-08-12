@@ -43,17 +43,23 @@ P4A parser spike 允许阶段专用完成态 `Spike-Complete-No-IR`：候选淘�
 
 任一状态出现数据损坏、错误写盘、跨文档污染、无法恢复的 blocked pipeline 或真实 UI 只显示源码，立即转为 `No-Go`。No-Go 后只能修复并从失败 gate 重新开始，不能跳过。
 
-## 4. Child change 规则
+P0 是 characterization 特殊阶段：legacy 产品出现预期数据损坏本身不阻止 P0 Go，前提是自动化、Reviewer 与人工完整且一致地捕获该损坏。人工发现 AI 未覆盖的新失败路径时，P0 立即进入 `Corrective-Run-Required`，补测试、建立新 evidence run 并重新独立复核；历史 evidence 不得回写。P0S 是后续独立产品安全阶段，其 Go 只证明“零编辑永不写盘”，不得宣称编辑后 byte fidelity 已修复。
 
-每个 P 阶段至少建立一个 child change。P4B 中每个 marker cohort 或 widget 必须有独立 child change。child change 必须引用：
+## 4. Issue #254 单分支持续交付例外
 
-- parent Issue #254；
-- 本阶段设计文档；
-- 受影响 capability specs；
-- `validation/phases/<phase>.md`；
-- feature flag 与回滚路径。
+Program Owner 已书面决定：Issue #254 后续不再创建新的 Issue、branch、OpenSpec child change 或阶段 PR。P0 corrective、P0S、P1A–P5 全部在当前分支 `test/issue-255-lossless-byte-contract` 与 umbrella change `refactor-lossless-live-preview` 中连续实施，直到完整重构完成。现有 `p0-lossless-byte-contract` child change 继续保存 P0 已有资产和 corrective 证据，不要求迁移或重建。
 
-一个 child PR 只允许一个可验收纵向目标。若 diff 同时改变 Core text model、编辑投影、save pipeline 和 UI shell，必须拆分，除非无法形成可运行切片且已由 Program Owner 书面批准。
+该例外只改变 Git/OpenSpec 容器数量，不降低工程隔离：
+
+- 每个阶段开始前记录 start commit、工作区状态、flags 和前置 Go；
+- 每个阶段结束形成独立 commit checkpoint 与 `validation/evidence/<phase>/<run-id>/`；
+- Core、投影、save pipeline、widgets 仍按阶段顺序实施，禁止以“同一分支”为由把多个未验收阶段一起标记完成；
+- 每阶段继续使用独立 Reviewer；Program Owner 亲自执行或参与人工验收；
+- 阶段失败时在当前分支继续修复并建立新 run-id，历史失败证据不得删除；
+- feature flags、owner 隔离和回滚仍是阶段门禁；回滚目标是当前分支上一个已 Go 的 checkpoint；
+- 最终由一个 program 级 PR/合入动作交付；是否以及何时创建由 Program Owner 决定。
+
+本例外不修改 Issue #254 之外的仓库默认 Issue/分支规则。
 
 ## 5. 证据等级
 
@@ -66,7 +72,7 @@ P4A parser spike 允许阶段专用完成态 `Spike-Complete-No-IR`：候选淘�
 | E4 | visual/IME/accessibility | 人可观察编辑体验和平台差异 |
 | E5 | stability observation | 长时使用、性能和低频竞态 |
 
-P0 至少需要 E1；P1A 需要 E1；P1B 需要 E1-E3；P2/P3/P4B 需要 E1-E4；P5 需要 E1-E5。
+P0 至少需要 E1，并为零编辑 open/dirty/autosave/write 生命周期提供 E3；P0S 需要 E1-E3；P1A 需要 E1；P1B 需要 E1-E3；P2/P3/P4B 需要 E1-E4；P5 需要 E1-E5。
 
 ## 6. AI 验证通用要求
 
@@ -110,6 +116,8 @@ Go 必须同时满足：
 - rollback 已实际演练或由 feature flag 证明；
 - 验证目录没有未归类失败产物；
 - OpenSpec strict validation 通过。
+
+P0 的“无 P0/P1 数据完整性问题”解释为“所有已观察 legacy 数据损坏都有稳定、完整的 characterization 和后续处置”，不是要求 P0 修改产品。P0S 及 P1B 之后恢复通常含义：候选产品不得存在对应数据损坏。
 
 No-Go 的强制条件：
 

@@ -2,7 +2,7 @@
 
 ## 1. 边界
 
-`/Users/xian/markflow-test` 是人工在 MarkFlow 中打开的外部测试目录，只允许放平铺的 `.md` 文档；不得放 spec、任务、验证报告、日志、截图、图片子目录或其他资产。项目可重复的 canonical fixtures 仍必须放在 child change 的项目测试目录中，不能依赖这里的可变文件。
+`/Users/xian/markflow-test` 是人工在 MarkFlow 中打开的外部测试目录，只允许放平铺的 `.md` 文档；不得放 spec、任务、验证报告、日志、截图、图片子目录或其他资产。项目可重复的 canonical fixtures 仍必须放在仓库内的版本化测试目录中，不能依赖这里的可变文件。
 
 每次人工验收从下表选择文档，开始前记录文件 SHA-256、长度、BOM 和尾部 line-break boundary 数量。人工原件只读使用；需要保存时先复制到隔离 workspace。
 

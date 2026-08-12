@@ -51,6 +51,34 @@ The repository SHALL provide a baseline characterization test that reproduces, o
 - **WHEN** `npm test` runs the default suite
 - **THEN** the characterization test does not run as a permanent red failure; it runs only via its explicit command
 
+### Requirement: Legacy no-edit desktop lifecycle characterization
+The repository SHALL provide a baseline characterization that exercises the current product lifecycle from real file open through editor hydration, read-only/editable synchronization, dirty scheduling, autosave tick and actual isolated-file write. With product autosave enabled, it SHALL prove whether a zero-edit open changes dirty state, save count, file mtime or bytes. A fixture-to-oracle self-check, a standalone `setMarkdown()/getMarkdown()` editor, or an E2E profile with autosave disabled SHALL NOT be accepted as this evidence.
+
+#### Scenario: Zero-edit open reaches two autosave ticks
+- **WHEN** the current legacy application opens an isolated LF or CRLF fixture
+- **AND** no user document transaction occurs
+- **AND** the test waits for at least two configured autosave intervals
+- **THEN** the characterization records dirty transitions, autosave attempts, close-prompt state, input/output SHA-256, byte length, mtime and save count
+- **THEN** any write or byte change is reported as a reproducible baseline L0 violation rather than a successful clean-save result
+
+#### Scenario: Soft break and CRLF corruption are distinguished
+- **WHEN** a zero-edit lifecycle run rewrites a fixture
+- **THEN** the report separately identifies interior soft-break changes, EOL normalization and trailing-boundary changes
+- **THEN** preserving only the LF tail does not make the run pass
+
+#### Scenario: Desktop smoke cannot substitute for lifecycle evidence
+- **WHEN** a desktop smoke profile disables autosave or does not compare file hash and mtime
+- **THEN** the run is recorded as smoke coverage only
+- **THEN** the P0 lifecycle characterization remains incomplete
+
+### Requirement: Characterization-to-regression handoff
+When a product safety fix is implemented in a later child change, the zero-edit lifecycle scenario SHALL become a default always-green regression proving that opening, waiting for autosave and closing an unedited document performs no write. Historical P0 expected-failure evidence SHALL remain immutable and linked from the later regression run.
+
+#### Scenario: Safety fix closes the baseline violation
+- **WHEN** the later safety candidate runs the same zero-edit lifecycle fixture and timing
+- **THEN** dirty remains false, no close prompt appears, save count is zero, and hash/length/mtime remain unchanged
+- **THEN** the regression links the original P0 failing run without altering it
+
 ### Requirement: Real Tauri dispatcher contract harness
 The harness SHALL exercise the real Tauri dispatcher for the current `read_file`/`write_file` commands and the future Core commands, SHALL NOT mock `invoke`, and SHALL assert command names, argument shapes, error codes and session lifecycle behavior against the documented contract. The harness SHALL record command, exit code, payload hash and any failure separately.
 

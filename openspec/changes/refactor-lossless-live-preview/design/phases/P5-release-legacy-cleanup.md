@@ -31,6 +31,7 @@ AI 必须：
 - 运行 Rust fmt/clippy/test；
 - 运行 smoke/regression E2E；
 - 运行 canonical L0/L1 全矩阵；
+- 在 macOS/Windows/Linux 最终默认配置执行零编辑打开、两个 autosave tick、干净 Ctrl+S、关闭与重开，记录 dirty/save count/hash/length/mtime；
 - 运行三主题 visual、IME、keyboard、a11y、security；
 - 运行 Normal/Large/Huge performance；
 - 运行 external conflict、autosave、resource、export；
@@ -47,7 +48,7 @@ AI 必须：
 
 至少在可用的 macOS、Windows、Linux 环境各执行 release checklist；缺少平台不能用单平台模拟替代，应阻止三平台完成声明或明确缩小发布范围。
 
-人工覆盖：安装/升级、打开旧文档、日常编辑、IME、模式切换、图片/table/diagram、autosave、外部冲突、save-as、export、崩溃重启、Large/Huge、主题与 accessibility。稳定观察使用冻结 commit；每个平台累计 ≥8 小时、≥2 session，并达到 NFR 中的操作数量。任何代码变化后重新开始相应观察窗口。
+人工覆盖：安装/升级、打开旧文档、零编辑两个 autosave tick与干净 Ctrl+S、日常编辑、IME、模式切换、图片/table/diagram、autosave、外部冲突、save-as、export、崩溃重启、Large/Huge、主题与 accessibility。稳定观察使用冻结 commit；每个平台累计 ≥8 小时、≥2 session，并达到 NFR 中的操作数量。任何代码变化后重新开始相应观察窗口。
 
 ## 7. 必须证据
 
@@ -62,7 +63,7 @@ AI 必须：
 
 ## 8. Go/No-Go
 
-Go：新路径在声明平台通过；量化性能 SLO 与稳定观察样本全部达标，关键错误数为零；legacy 产品真相清零；独立 Reviewer和人工批准；archive gates 通过。
+Go：新路径在声明平台通过，包括最终默认配置零编辑 lifecycle 无写盘；量化性能 SLO 与稳定观察样本全部达标，关键错误数为零；legacy 产品真相清零；独立 Reviewer和人工批准；archive gates 通过。
 
 No-Go：任何 serializer/双 owner 残留；关键平台未验；稳定期数据问题；删除后 bundle/test/体验回归；只能靠重新引入 PM 才能正常打开文档。
 

@@ -20,6 +20,7 @@ openspec/changes/refactor-lossless-live-preview/validation/
 │   └── RUN-RECORD.md
 ├── phases/
 │   ├── P0.md
+│   ├── P0S.md
 │   ├── P1A.md
 │   ├── P1B.md
 │   ├── P2.md
@@ -48,6 +49,7 @@ openspec/changes/refactor-lossless-live-preview/validation/
 8. `PASS` 只表示该条证据通过；阶段完成还需要 Reviewer、人工和 Program Owner。
 9. 每个 run 保存自己的不可变 `ENVIRONMENT.md` 与 SHA-256；根目录环境文件只作当前模板/索引。
 10. 人工测试目录的文件名、用途与特殊字节预期维护在 [`MANUAL-FIXTURES.md`](./MANUAL-FIXTURES.md)；run 使用时重新记录实际 hash。
+11. Issue #254 使用当前分支和 umbrella change 连续实施；每阶段记录 start/end commit、独立 run、Reviewer、Program Owner 人工验收和 Go/No-Go，不因未创建新 branch/change 而合并证据。
 
 ## 4. 状态值
 
@@ -68,7 +70,8 @@ Byte fidelity、错误写盘、安全、跨文档污染和规范 MUST 项不得 
 
 | 阶段 | AI | Reviewer | 人工 | Program Go |
 | --- | --- | --- | --- | --- |
-| P0 | NOT STARTED | NOT STARTED | NOT STARTED | NOT STARTED |
+| P0 | CORRECTIVE RUN REQUIRED | historical scope PASS / corrective PENDING | INCOMPLETE | NO-GO |
+| P0S | BLOCKED by P0 | NOT STARTED | NOT STARTED | NOT STARTED |
 | P1A | BLOCKED by P0 | NOT STARTED | NOT STARTED | NOT STARTED |
 | P1B | BLOCKED by P1A | NOT STARTED | NOT STARTED | NOT STARTED |
 | P2 | BLOCKED by P1B | NOT STARTED | NOT STARTED | NOT STARTED |
@@ -76,3 +79,5 @@ Byte fidelity、错误写盘、安全、跨文档污染和规范 MUST 项不得 
 | P4A | BLOCKED by P3 | NOT STARTED | NOT STARTED | NOT STARTED |
 | P4B | BLOCKED by P4A/construct | NOT STARTED | NOT STARTED | NOT STARTED |
 | P5 | BLOCKED by release gates | NOT STARTED | NOT STARTED | NOT STARTED |
+
+P0 Go 后 P0S 与 P1A 可以在当前分支按不重叠模块推进并使用独立 checkpoint；P0S 是任何继续提供 legacy 默认路径的构建的发布/人工使用门禁，P1A 是 P1B 的架构前置。P1B 必须继承 P0S 的零编辑 lifecycle regression，不能把 legacy safety state 当作 Core revision 真相。Program Owner 参与每个阶段的人工验收，直到 P5 完成。

@@ -16,7 +16,7 @@ marker cohorts：heading+strong；emphasis+strike+inline code；links；quote+li
 
 widgets：task checkbox；code fence controls；image；GFM table；frontmatter；Mermaid/PlantUML；raw HTML policy。
 
-每项必须建立 child Issue/change/flag，声明 source range、交互、History、failure fallback、security、accessibility 和 export。
+每项必须在当前 program 分支建立独立 flag、任务组、evidence run 和验收结论，声明 source range、交互、History、failure fallback、security、accessibility 和 export；不再新建 child Issue/change。
 
 ## 4. AI Coding 验证
 

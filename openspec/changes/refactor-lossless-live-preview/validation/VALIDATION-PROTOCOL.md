@@ -5,13 +5,15 @@
 AI 必须确认：
 
 - `git rev-parse --show-toplevel` 返回当前目标仓库，并把实际绝对路径写入本次 run；
-- 当前 branch 与目标 child change 一致；
+- 当前 branch 为 Program Owner 批准的 Issue #254 工作分支，并记录本阶段 start commit；
 - `git status` 中所有既有变更归属清楚；
 - 前置阶段已 Go；
 - 对应 OpenSpec strict validation 通过；
 - 自动化测试只使用项目 canonical fixtures 或隔离生成 workspace；人工测试可从 `/Users/xian/markflow-test` 复制对应 Markdown 文档，但验证流程不得改写原人工样本；
 - `/Users/xian/markflow-test` 的直接条目全部是 `.md` 文件且没有子目录，选择方式与特殊字节预期见 `MANUAL-FIXTURES.md`；
 - 不会覆盖用户真实文档。
+
+P0 corrective run 允许前置产品行为为预期失败，但必须使用隔离副本；P0S 及 P1B 之后的零编辑 lifecycle 必须是绿色回归。所有涉及 autosave 的 L0 run 必须记录实际开关和 interval，并至少等待两个 tick；`autosave=false` 的 smoke 只能计为基础 UI smoke。
 
 ## 2. Run record
 
@@ -48,8 +50,11 @@ Core child workspace 出现后增加该 workspace 的 `cargo fmt --check`、`car
 - L1 surviving interval result；
 - mtime/file identity；
 - 保存次数与触发来源。
+- dirty transition、关闭提示、autosave 开关/interval 与等待 tick 数；
 
 不得只记录 Markdown 可见文本相同。
+
+零编辑 lifecycle 证据必须驱动真实 open、editor hydration/read-only 同步、dirty scheduler、autosave coordinator 和隔离文件 write。Standalone editor、fixture/oracle 自比较或 mock 掉 write 的测试不能满足 E3。
 
 ## 5. Desktop 证据
 
@@ -64,6 +69,8 @@ E2E 和人工使用隔离 data/workspace。证据至少包含：应用 commit、
 5. 修复后创建新 run-id；
 6. 在旧 issue 中链接验证 run；
 7. 只有验证通过才能关闭 issue。
+
+历史 RUN/ENVIRONMENT/REVIEW 是不可变证据。人工发现历史 AI run 未覆盖的新路径时，建立 corrective run 并链接历史记录，不得直接修改历史 run 的结论使其看起来已经覆盖。
 
 ## 7. Reviewer
 
@@ -83,4 +90,4 @@ AI 把候选 commit、flags、fixture 和操作步骤准备好，但不能代替
 - Reviewer 和人工签字存在；
 - Program Owner 写 Go；
 - 临时大文件可清理，但报告、hash、关键日志与截图索引保留；
-- 需要长期保存的证据迁入 child change 或 CI artifact，不能只留在用户主目录。
+- 需要长期保存的证据保留在 umbrella change 或迁入 CI artifact，不能只留在用户主目录。

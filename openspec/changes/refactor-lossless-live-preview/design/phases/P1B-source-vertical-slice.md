@@ -37,6 +37,8 @@ AI 必须运行：
 - `npm run test:e2e:build`；
 - `npm run test:e2e` 与 lossless 专项 regression；
 - 全 canonical fixture 真实打开、无编辑 Save、正文编辑 Save、reopen hash；
+- 继承 P0S lifecycle：产品实际 autosave 开启，零编辑等待至少两个 tick，记录 dirty、close prompt、save count、hash/length/mtime；
+- 干净 Ctrl+S、reload、关闭和 A/B 切换均不得触发 write；
 - pending 输入后立即 Save；
 - 写盘期间继续输入；
 - patch timeout/retry/duplicate ack/stale ack；
@@ -47,6 +49,7 @@ AI 必须运行：
 - prepare 后外部替换、锁不被遵守、write/commit response 丢失、重复 operation 与启动 receipt reconcile；
 - close/reload/save-as 的 flush barrier；
 - renderer/parser command 故障时 Source 保持可用。
+- 对 lossless flag 的打开、dirty、autosave、手动保存、reload、close 做调用审计，证明不调用 `setMarkdown/getMarkdown/normalizeImageMarkdown` 或 PM serializer。
 
 所有 desktop E2E 使用隔离 workspace，证据索引写入 `validation/evidence/P1B/<run-id>/`；大型原始 artifact 进入受控 CI artifact 或项目忽略的临时证据目录，日志先脱敏。
 
@@ -55,6 +58,7 @@ AI 必须运行：
 Reviewer 检查：
 
 - 产品 save path 没有 serializer/normalize/PM 正文来源；
+- clean-session guard 同时存在于 autosave coordinator 与最终 write 入口，错误 UI dirty 也不能造成写盘；
 - dirty 使用 revision/pending，而不是 normalized string；
 - blocked/conflict 不写盘；
 - async request 按操作 identity matrix 携带字段，不把 file identity 用于拒绝合法 patch；
@@ -68,15 +72,16 @@ Reviewer 检查：
 人工使用 lossless flag：
 
 1. 打开 LF、CRLF、BOM，以及尾部 2/3 个 line-break boundaries fixtures；
-2. 不编辑观察 dirty 与 mtime；
-3. 在正文中间输入中文和 emoji，立即保存；
-4. 重开并由脚本比较 bytes；
-5. 开启 autosave，修改正文并等待；
-6. 保存前用外部工具修改磁盘文件，确认不会静默覆盖；
-7. 模拟断开/阻塞 patch，确认 Save 被阻止且恢复文本可复制；
-8. 快速 A/B 切换，确认内容、dirty、错误提示不串文档；
-9. 关闭 lossless flag，确认 legacy 基线仍可使用；
-10. 检查错误提示可理解且不泄漏正文。
+2. 开启 autosave，不编辑等待至少两个 tick，确认 dirty=false、save count=0、hash/length/mtime 不变且关闭无提示；
+3. 对干净文档主动 Ctrl+S，确认不写盘；
+4. 在另一全新副本的正文中间输入中文和 emoji，立即保存；
+5. 重开并由脚本比较 bytes；
+6. 开启 autosave，修改正文并等待；
+7. 保存前用外部工具修改磁盘文件，确认不会静默覆盖；
+8. 模拟断开/阻塞 patch，确认 Save 被阻止且恢复文本可复制；
+9. 快速 A/B 切换，确认内容、dirty、错误提示不串文档；
+10. 关闭 lossless flag，确认 legacy 基线仍可使用且 P0S 已启用；
+11. 检查错误提示可理解且不泄漏正文。
 
 ## 7. 必须证据
 
@@ -91,7 +96,7 @@ Reviewer 检查：
 
 ## 8. Go/No-Go
 
-Go：全部 fixture 真实桌面 L0/L1 通过；pending/blocked/conflict/outcome-unknown 保存安全；guarded-write race 与 restart reconcile 通过；A/B 隔离；人工工作流通过。
+Go：全部 fixture 真实桌面零编辑 lifecycle、干净 Ctrl+S、L0/L1 通过；pending/blocked/conflict/outcome-unknown 保存安全；guarded-write race 与 restart reconcile 通过；A/B 隔离；人工工作流通过。
 
 No-Go：任何 serializer 保存；旧 snapshot 写盘；数据串文档；flag 打开后 parser/renderer 失败导致不能编辑保存；自动测试只 mock 前端。
 

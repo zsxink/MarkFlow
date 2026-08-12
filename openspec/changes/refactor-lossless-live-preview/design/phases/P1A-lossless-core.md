@@ -31,6 +31,7 @@ AI 必须运行：
 - `cargo clippy --all-targets --all-features -- -D warnings`，按实际 workspace manifest 调整目录但记录命令；
 - Core 全量 `cargo test`；
 - P0 canonical fixture L0；
+- 每个 fixture 在零 patch 下重复 `prepare-save`，确认 payload 等于 original bytes、revision 不变，且不依赖 parser/serializer；
 - 每个 fixture 的正文、文首、文尾、跨行 L1 edits；
 - UTF-16/UTF-8/source byte property tests；
 - stale revision、overlap、invalid boundary、duplicate retry、duplicate mismatch negative tests；
@@ -60,10 +61,11 @@ Reviewer 必须：
 
 1. 审阅 Core API 是否严格小于 draft 范围；
 2. 查看五组代表性 byte diff 报告；
-3. 确认 LF/CRLF/Mixed/BOM/尾部空行行为符合产品预期；
-4. 确认无效 UTF-8 的只读/拒绝提示文案方案；
-5. 审阅 benchmark，确认进入 P1B 不会明显阻塞打开/输入；
-6. 签署 byte contract，不把 parser/renderer 需求塞入 Core 保存主链。
+3. 查看零 patch open/prepare-save 报告，确认干净保存 payload 与原始 bytes 完全相同；
+4. 确认 LF/CRLF/Mixed/BOM/尾部空行行为符合产品预期；
+5. 确认无效 UTF-8 的只读/拒绝提示文案方案；
+6. 审阅 benchmark，确认进入 P1B 不会明显阻塞打开/输入；
+7. 签署 byte contract，不把 parser/renderer 需求塞入 Core 保存主链。
 
 ## 7. 必须证据
 
@@ -76,7 +78,7 @@ Reviewer 必须：
 
 ## 8. Go/No-Go
 
-Go：所有 canonical fixture L0/L1 通过；PositionMap/property tests 通过；无 panic/静默 normalize；Reviewer 与人工批准。
+Go：所有 canonical fixture 的零 patch payload、L0/L1 通过；PositionMap/property tests 通过；无 panic/静默 normalize；Reviewer 与人工批准。
 
 No-Go：任何未触及 byte 改变；EOL 统一化；stale patch 可应用；Core 依赖 parser 才能保存；失败后 session 部分改变。
 

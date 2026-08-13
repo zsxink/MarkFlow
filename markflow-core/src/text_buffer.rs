@@ -158,11 +158,21 @@ impl TextBuffer {
 
     /// Resolve each replacement newline's concrete EOL kind.
     ///
-    /// Fixed order per design 01 §3.4 and §3.5:
-    /// explicit provenance wins; otherwise `Inherit` consumes same-ordinal
-    /// replaced boundary first, then the right surviving neighbor, then the
-    /// left surviving neighbor, then the document-dominant EOL, then the frozen
-    /// default EOL. This module never swaps the right/left precedence.
+    /// Fixed order per design 01 §3.4 and §3.5: explicit provenance wins;
+    /// otherwise each `Inherit` newline consumes the fixed chain one position
+    /// at a time, in document order:
+    ///
+    /// 1. the same-ordinal replaced boundary (consumed one-for-one),
+    /// 2. then the right surviving neighbor,
+    /// 3. then the left surviving neighbor,
+    /// 4. then the document-dominant EOL,
+    /// 5. then the frozen default EOL.
+    ///
+    /// §3.5: when a replacement inserts more inherit newlines than it replaces
+    /// boundaries, the overflow "continues using the same fixed neighborhood
+    /// order" — i.e. the chain is consumed sequentially, so the first overflow
+    /// newline takes the right neighbor, the next the left neighbor, and so on.
+    /// This module never swaps the right/left precedence.
     fn resolve_replacement_endings(
         &self,
         start_boundary: usize,
@@ -177,9 +187,17 @@ impl TextBuffer {
             .checked_sub(1)
             .and_then(|b| self.line_endings.kind_at(b));
         let dominant = self.dominant;
+        // The overflow chain: right → left → dominant (dominant always present,
+        // so the chain is never empty).
+        let overflow_chain: Vec<LineEndingKind> = [right, left]
+            .into_iter()
+            .flatten()
+            .chain(std::iter::once(dominant))
+            .collect();
+        let chain_len = overflow_chain.len();
 
         let mut removed_cursor = 0usize;
-        let mut consumed_replaced = false;
+        let mut chain_cursor = 0usize;
         provenance
             .iter()
             .map(|prov| {
@@ -192,19 +210,14 @@ impl TextBuffer {
                     removed_cursor += 1;
                     return kind;
                 }
-                // Exhausted replaced boundaries: follow the fixed neighbor
-                // order; the same resolution holds for the entire overflow.
-                if !consumed_replaced {
-                    consumed_replaced = true;
-                    if let Some(right) = right {
-                        return right;
-                    }
-                    if let Some(left) = left {
-                        return left;
-                    }
-                    return dominant;
+                // Exhausted replaced boundaries: continue consuming the fixed
+                // neighbor chain (right → left → dominant), one position per
+                // overflow newline. Explicit newlines do not advance the chain.
+                let kind = overflow_chain[chain_cursor.min(chain_len - 1)];
+                if chain_cursor < chain_len - 1 {
+                    chain_cursor += 1;
                 }
-                dominant
+                kind
             })
             .collect()
     }

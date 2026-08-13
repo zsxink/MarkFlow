@@ -237,3 +237,57 @@ fn cr_file_edit_preserves_cr() {
     let out = apply_and_replay(&mut s, p);
     assert_eq!(out, b"aM\rb\rc");
 }
+
+/// §3.5 overflow: inserting MORE inherit newlines than replaced boundaries,
+/// where the right surviving neighbor differs from the document dominant. The
+/// overflow must resolve to the right neighbor, not the dominant.
+///
+/// Source `a\r\nb\r\nc` (dominant CRLF). Replace the range that covers "a\nb"
+/// (logical 0..3, removing 1 boundary) with "X\nY\nZ\nW" (3 inherit newlines,
+/// 2 of them overflow). The removed boundary is CRLF → first newline CRLF;
+/// right surviving neighbor is CRLF → remaining overflow all CRLF.
+#[test]
+fn inherit_overflow_uses_right_neighbor_not_dominant() {
+    let bytes = b"a\r\nb\r\nc";
+    let mut s = session(bytes);
+    let p = one_change(
+        &s,
+        1,
+        0,
+        3,
+        "X\nY\nZ\nW",
+        &[
+            NewlineEnding::Inherit,
+            NewlineEnding::Inherit,
+            NewlineEnding::Inherit,
+        ],
+    );
+    let out = apply_and_replay(&mut s, p);
+    assert_eq!(out, b"X\r\nY\r\nZ\r\nW\r\nc");
+}
+
+/// §3.5 overflow with a RIGHT neighbor that differs from dominant: LF-dominant
+/// file, insert at a point whose right surviving neighbor is CRLF. Overflow
+/// must consume the chain sequentially: first overflow → right (CRLF), second
+/// → left (LF), not both → right.
+#[test]
+fn inherit_overflow_right_differs_from_dominant() {
+    // boundaries [LF, CRLF], tie → frozen default LF = dominant. Insert at a
+    // point (replacing "b") whose right surviving neighbor is CRLF, left is LF.
+    let bytes = b"a\nb\r\nc";
+    let mut s = session(bytes);
+    // logical 2..3 = "b"; inserting 2 inherit newlines (0 replaced boundaries
+    // inside the range). Right surviving neighbor = CRLF, left = LF.
+    let p = one_change(
+        &s,
+        1,
+        2,
+        3,
+        "X\nY\nZ",
+        &[NewlineEnding::Inherit, NewlineEnding::Inherit],
+    );
+    let out = apply_and_replay(&mut s, p);
+    // Replaced "b"; overflow chain consumed sequentially:
+    // #1 → right (CRLF), #2 → left (LF). Result: X CRLF Y LF Z.
+    assert_eq!(out, b"a\nX\r\nY\nZ\r\nc");
+}

@@ -33,14 +33,14 @@
 
 ## 2. Slice 1A — 最小 Lossless Core
 
-- [ ] 2.1 建立独立 `markflow-core` crate/模块边界，只引入 document snapshot、TextBuffer、LineEndingMap、PositionMap、patch 与 session 所需依赖
-- [ ] 2.2 实现 `OriginalSnapshot`：原始 hash/长度、UTF-8 BOM、每边界 EOL、尾部换行和 file identity
-- [ ] 2.3 实现逻辑 LF `TextBuffer` 与 `to_source_bytes()`，保证未编辑 bytes 完全回放、编辑后未触及 EOL/BOM 原样保留
-- [ ] 2.4 实现 UTF-16 UI offset、逻辑 UTF-8 byte offset、source byte offset 的显式类型与双向 PositionMap
-- [ ] 2.5 实现 revision-bound `TextPatch`：多 change 原子校验、重叠/边界拒绝、transaction ID 幂等和 selectionAfter
-- [ ] 2.6 实现 `LosslessDocumentSession` 的 open/apply/snapshot/prepare-save/mark-persisted/reload/close 状态机
-- [ ] 2.7 添加 Core golden/property tests，覆盖全部 byte fixtures、Unicode boundary、Mixed EOL replacement 与正文编辑保留尾部空行
-- [ ] 2.7.1 对每个 fixture 证明 open 后零 patch 的 `prepare_save` 返回原始 bytes，重复 clean prepare 不改变 revision/hash；显式 clean save payload 不能来自 parser/serializer
+- [x] 2.1 建立独立 `markflow-core` crate/模块边界，只引入 document snapshot、TextBuffer、LineEndingMap、PositionMap、patch 与 session 所需依赖
+- [x] 2.2 实现 `OriginalSnapshot`：原始 hash/长度、UTF-8 BOM、每边界 EOL、尾部换行和 file identity
+- [x] 2.3 实现逻辑 LF `TextBuffer` 与 `to_source_bytes()`，保证未编辑 bytes 完全回放、编辑后未触及 EOL/BOM 原样保留
+- [x] 2.4 实现 UTF-16 UI offset、逻辑 UTF-8 byte offset、source byte offset 的显式类型与双向 PositionMap
+- [x] 2.5 实现 revision-bound `TextPatch`：多 change 原子校验、重叠/边界拒绝、transaction ID 幂等和 selectionAfter
+- [x] 2.6 实现 `LosslessDocumentSession` 的 open/apply/snapshot/prepare-save/mark-persisted/reload/close 状态机
+- [x] 2.7 添加 Core golden/property tests，覆盖全部 byte fixtures、Unicode boundary、Mixed EOL replacement 与正文编辑保留尾部空行
+- [x] 2.7.1 对每个 fixture 证明 open 后零 patch 的 `prepare_save` 返回原始 bytes，重复 clean prepare 不改变 revision/hash；显式 clean save payload 不能来自 parser/serializer
 - [ ] 2.8 运行 Core fmt/clippy/test；独立 reviewer 对 byte contract、panic、安全边界与 draft 移植差异做专项复核
 
 ## 3. Slice 1B — Bridge、同步管线与无损 Source 闭环

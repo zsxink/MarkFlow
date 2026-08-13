@@ -1,8 +1,8 @@
 # 验证环境清单
 
-当前状态：P0S IN PROGRESS（由 Program Owner 决定于 2026-08-13 进入 P0S）
+当前状态：P1A AI-Verified（P0S 已 GO；P1A Core 实现完成，独立 Reviewer 待派，Program Owner 未 Go）
 
-本文件是当前环境清单模板/索引，不是历史 run 的不可变证据。AI 在每次 P0S run 开始时
+本文件是当前环境清单模板/索引，不是历史 run 的不可变证据。AI 在每次 P1A run 开始时
 必须把完整实测值复制到该 run 目录的 `ENVIRONMENT.md`，计算 SHA-256，并在 `RUN.md` 中
 记录。后续修改本文件不得改变旧 run 的环境证据。
 

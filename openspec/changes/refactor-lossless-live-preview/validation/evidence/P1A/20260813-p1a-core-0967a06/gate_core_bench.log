@@ -1,0 +1,7 @@
+   Compiling markflow-core v0.1.0 (/Users/xian/Project/book/MarkFlow/markflow-core)
+    Finished `release` profile [optimized] target(s) in 0.48s
+     Running `target/release/examples/bench_large_inputs`
+  1 MiB | open  15.37ms | prepare-save   1.05ms | patch   6.37ms | prepare-after-edit 984.08µs | hash c3915f78480bdfba6adf927197a50f1572e0937d0ad4904cea27233d195c3d0c
+ 10 MiB | open  75.71ms | prepare-save   4.59ms | patch  27.48ms | prepare-after-edit   4.36ms | hash 2dffd0f515b398cdf7e64952fa17ef504fbcf684c6737bccfeaa4d0cab06d699
+ 50 MiB | open 301.36ms | prepare-save  22.26ms | patch 141.02ms | prepare-after-edit  23.12ms | hash c7d910252b25af9eeaa796feb45b2b2c00e806e1b143e96960f955aa48c32814
+bench: 0

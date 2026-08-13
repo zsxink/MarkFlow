@@ -1,5 +1,5 @@
 import { readFile, writeFile, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
+import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor, hasUnpersistedUserChanges } from '../lib/editor';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
@@ -114,6 +114,19 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   }
 
   let filePath = getActiveFilePath();
+
+  // ── P0S clean-session guard (final write entrance) ────────────────
+  // Even if the caller (UI/store/autosave) wrongly reports dirty, a document
+  // with zero confirmed user edits MUST NOT be serialized or written. We check
+  // this before any getMarkdown()/serializer call, so a clean Ctrl+S or an
+  // erroneous dirty flag never touches disk or changes mtime/hash/length.
+  if (!hasUnpersistedUserChanges()) {
+    logDebug('sidebar.save', 'Save skipped — clean session (no unpersisted user changes)', {
+      path: filePath,
+      userRevision: getRevision(),
+    });
+    return 'skipped';
+  }
 
   if (!filePath) {
     if (!interactive) return 'skipped';
@@ -354,7 +367,11 @@ function setReadOnly(readOnly: boolean): void {
   // ProseMirror (WYSIWYG) read-only
   const editor = getEditor();
   if (editor) {
-    editor.setEditable(!readOnly);
+    // P0S: setEditable(true) after open must NOT send a document update — that
+    // fired onUpdate, bumped userRevision and (with the old serializer dirty
+    // check) made a zero-edit doc dirty so autosave rewrote the file. The
+    // read-only toggle itself carries no document change.
+    editor.setEditable(!readOnly, /* emitUpdate */ false);
   }
   // CodeMirror (source mode) read-only
   setSourceReadOnly(readOnly);

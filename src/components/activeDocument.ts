@@ -36,7 +36,8 @@ export function clearActiveDocument() {
   refreshOutline();
   store.setState({ readOnly: false });
   const editor = getEditor();
-  if (editor) editor.setEditable(true);
+  // P0S: setEditable(true) must not fire a document update (no doc change).
+  if (editor) editor.setEditable(true, /* emitUpdate */ false);
   hideDegradationBar();
 }
 

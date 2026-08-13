@@ -20,13 +20,13 @@
 
 ## 1S. Slice 0S — Legacy 零编辑写盘安全止血
 
-- [ ] 1S.1 在当前分支记录 P0S start commit、flags 和引用的 P0 failing/corrective evidence；产品实现归 umbrella change，P0 evidence-only child 保持历史边界
-- [ ] 1S.2 让 hydration/read-only/editable programmatic transaction 不增加 user revision；`setEditable` 不发送正文 update
-- [ ] 1S.3 移除 legacy dirty 对 PM serializer/normalized string 回比的依赖，建立临时 userRevision/persistedRevision 与明确 transaction origin
-- [ ] 1S.4 在 autosave coordinator 和最终 write 入口增加双重 clean guard；干净 Ctrl+S 返回 `skipped` 且不调用 serializer/write
-- [ ] 1S.5 将 P0 零编辑 failing lifecycle 转为默认绿色 integration/desktop regression，覆盖 LF/CRLF/CR/Mixed/BOM/tail0-3、两个 autosave tick、关闭提示与 mtime/hash
-- [ ] 1S.6 验证一个真实用户 transaction 仍进入 dirty/保存；继续记录 legacy 编辑后 L1 失败，禁止宣称 byte-to-byte 已修复
-- [ ] 1S.7 运行全 gate，派独立 Reviewer 检查没有接受 serializer 输出、扩大 trailing metadata 或全局关闭 autosave；完成人工验收与 Program Owner Go
+- [x] 1S.1 在当前分支记录 P0S start commit、flags 和引用的 P0 failing/corrective evidence；产品实现归 umbrella change，P0 evidence-only child 保持历史边界
+- [x] 1S.2 让 hydration/read-only/editable programmatic transaction 不增加 user revision；`setEditable` 不发送正文 update
+- [x] 1S.3 移除 legacy dirty 对 PM serializer/normalized string 回比的依赖，建立临时 userRevision/persistedRevision 与明确 transaction origin
+- [x] 1S.4 在 autosave coordinator 和最终 write 入口增加双重 clean guard；干净 Ctrl+S 返回 `skipped` 且不调用 serializer/write
+- [x] 1S.5 将 P0 零编辑 failing lifecycle 转为默认绿色 integration/desktop regression，覆盖 LF/CRLF/CR/Mixed/BOM/tail0-3、两个 autosave tick、关闭提示与 mtime/hash
+- [x] 1S.6 验证一个真实用户 transaction 仍进入 dirty/保存；继续记录 legacy 编辑后 L1 失败，禁止宣称 byte-to-byte 已修复
+- [x] 1S.7 运行全 gate，派独立 Reviewer 检查没有接受 serializer 输出、扩大 trailing metadata 或全局关闭 autosave；完成人工验收与 Program Owner Go
 
 ## 2. Slice 1A — 最小 Lossless Core
 

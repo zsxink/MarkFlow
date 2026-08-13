@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   isSavingInProgress: vi.fn(),
   isDocumentDirty: vi.fn(),
+  hasUnpersistedUserChanges: vi.fn(),
   getActiveFilePath: vi.fn(),
   saveActiveDocument: vi.fn(),
   store: { getState: vi.fn(), setState: vi.fn() },
@@ -18,7 +19,7 @@ vi.mock('./components/sidebar', () => ({
   saveActiveDocument: mocks.saveActiveDocument,
   switchSidebarTab: vi.fn(),
 }));
-vi.mock('./lib/editor', () => ({ isDocumentDirty: mocks.isDocumentDirty, initEditor: vi.fn(), markExternalModification: vi.fn() }));
+vi.mock('./lib/editor', () => ({ isDocumentDirty: mocks.isDocumentDirty, hasUnpersistedUserChanges: mocks.hasUnpersistedUserChanges, initEditor: vi.fn(), markExternalModification: vi.fn() }));
 vi.mock('./components/fileTree', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), isSuppressedPath: vi.fn(), getWorkspacePath: vi.fn(), applyFileTreeEvents: vi.fn() }));
 vi.mock('./components/sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn(), handleExternalDeletion: vi.fn() }));
 vi.mock('./components/statusbar', () => ({ initStatusBar: vi.fn() }));
@@ -37,6 +38,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.isSavingInProgress.mockReturnValue(false);
   mocks.isDocumentDirty.mockReturnValue(false);
+  mocks.hasUnpersistedUserChanges.mockReturnValue(false);
   mocks.getActiveFilePath.mockReturnValue(null);
   mocks.store.getState.mockReturnValue({ autosaveErrorCount: 0 });
 });
@@ -55,8 +57,19 @@ describe('autosave tick', () => {
     expect(mocks.saveActiveDocument).not.toHaveBeenCalled();
   });
 
+  it('skips when revision model says clean even if store dirty is stale (coordinator clean guard)', async () => {
+    // A stale store `dirty` flag (e.g. legacy programmatic update) must not
+    // make a zero-user-edit doc autosave.
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(false);
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    await runAutoSaveTick();
+    expect(mocks.saveActiveDocument).not.toHaveBeenCalled();
+  });
+
   it('saves when document is dirty and has a file path', async () => {
     mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.saveActiveDocument.mockResolvedValue('saved');
     mocks.store.getState.mockReturnValue({ autosaveErrorCount: 0 });
@@ -66,6 +79,7 @@ describe('autosave tick', () => {
 
   it('resets error count on successful save', async () => {
     mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.saveActiveDocument.mockResolvedValue('saved');
     mocks.store.getState.mockReturnValue({ autosaveErrorCount: 3 });
@@ -75,6 +89,7 @@ describe('autosave tick', () => {
 
   it('increments error count on failed save', async () => {
     mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.saveActiveDocument.mockResolvedValue('failed');
     mocks.store.getState.mockReturnValue({ autosaveErrorCount: 1 });
@@ -84,6 +99,7 @@ describe('autosave tick', () => {
 
   it('does not change error count on skipped save', async () => {
     mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.saveActiveDocument.mockResolvedValue('skipped');
     mocks.store.getState.mockReturnValue({ autosaveErrorCount: 2 });
@@ -93,6 +109,7 @@ describe('autosave tick', () => {
 
   it('does not save when no active file path', async () => {
     mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
     mocks.getActiveFilePath.mockReturnValue(null);
     await runAutoSaveTick();
     expect(mocks.saveActiveDocument).not.toHaveBeenCalled();

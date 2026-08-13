@@ -1,5 +1,5 @@
 import { initTheme } from './lib/theme';
-import { initEditor, isDocumentDirty, markExternalModification } from './lib/editor';
+import { initEditor, isDocumentDirty, markExternalModification, hasUnpersistedUserChanges } from './lib/editor';
 import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
 import { initMenu } from './components/menu';
@@ -193,7 +193,11 @@ async function restoreWorkspace() {
 /** Single autosave tick — extracted for testability. */
 export async function runAutoSaveTick() {
   if (isSavingInProgress()) return; // skip — previous save still running
-  if (!isDocumentDirty()) return;   // skip — no changes to persist
+  // ── P0S coordinator clean guard ─────────────────────────────────────
+  // Two independent checks: the store dirty flag (UI/programmatic) AND the
+  // revision model. Even if a stale `dirty` flag lingers in the store, a
+  // document with zero unpersisted user edits must never reach saveActiveDocument.
+  if (!isDocumentDirty() || !hasUnpersistedUserChanges()) return; // skip — no user changes to persist
   const filePath = getActiveFilePath();
   if (filePath) {
     const result = await saveActiveDocument({ interactive: false });

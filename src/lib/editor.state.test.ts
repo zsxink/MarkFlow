@@ -12,6 +12,10 @@ import {
   getDocumentState,
   bumpRevision,
   getRevision,
+  markProgrammaticContent,
+  resetDocumentRevision,
+  markDocumentPersistedRevision,
+  hasUnpersistedUserChanges,
   setLastReadStats,
   getLastReadMtime,
   getLastReadSize,
@@ -31,7 +35,8 @@ beforeEach(() => {
   getDocumentState().externallyModified = false;
   getDocumentState().programmaticUpdate = false;
   getDocumentState().lastPersistedMarkdown = '';
-  getDocumentState().revision = 0;
+  getDocumentState().userRevision = 0;
+  getDocumentState().persistedRevision = 0;
   getDocumentState().trailingNewlines = 0;
   getDocumentState().lastReadMtime = 0;
   getDocumentState().lastReadSize = 0;
@@ -163,7 +168,7 @@ describe('getMermaidExportBaseName', () => {
 });
 
 describe('revision and file snapshot tracking', () => {
-  it('increments revisions so an in-flight save can detect newer edits', () => {
+  it('increments user revisions so an in-flight save can detect newer edits', () => {
     const saveRevision = getRevision();
     bumpRevision();
     expect(getRevision()).toBe(saveRevision + 1);
@@ -174,5 +179,53 @@ describe('revision and file snapshot tracking', () => {
     setLastReadStats(1234, 56);
     expect(getLastReadMtime()).toBe(1234);
     expect(getLastReadSize()).toBe(56);
+  });
+});
+
+describe('P0S revision model (userRevision / persistedRevision)', () => {
+  it('hydration resets both revisions to 0 (clean definition)', () => {
+    bumpRevision();
+    bumpRevision();
+    markDocumentPersistedRevision(2);
+    expect(hasUnpersistedUserChanges()).toBe(false);
+    resetDocumentRevision();
+    expect(getRevision()).toBe(0);
+    expect(hasUnpersistedUserChanges()).toBe(false);
+  });
+
+  it('markProgrammaticContent never increments userRevision', () => {
+    resetDocumentRevision();
+    markProgrammaticContent('hydration');
+    markProgrammaticContent('readOnlySync');
+    markProgrammaticContent('reloadSync');
+    expect(getRevision()).toBe(0);
+    expect(hasUnpersistedUserChanges()).toBe(false);
+  });
+
+  it('a user transaction followed by persisted-at-save clears dirty', () => {
+    resetDocumentRevision();
+    bumpRevision();
+    expect(hasUnpersistedUserChanges()).toBe(true);
+    const persisted = markDocumentPersistedRevision(1);
+    expect(persisted).toBe(true);
+    expect(hasUnpersistedUserChanges()).toBe(false);
+  });
+
+  it('a user transaction after save-start keeps dirty', () => {
+    resetDocumentRevision();
+    bumpRevision();
+    const persisted = markDocumentPersistedRevision(0); // stale save-start revision
+    expect(persisted).toBe(false);
+    expect(hasUnpersistedUserChanges()).toBe(true);
+  });
+
+  it('dirty = userRevision > persistedRevision', () => {
+    resetDocumentRevision();
+    bumpRevision();
+    bumpRevision();
+    markDocumentPersistedRevision(1);
+    expect(hasUnpersistedUserChanges()).toBe(true);
+    markDocumentPersistedRevision(2);
+    expect(hasUnpersistedUserChanges()).toBe(false);
   });
 });

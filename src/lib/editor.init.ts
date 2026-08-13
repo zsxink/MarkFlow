@@ -29,15 +29,13 @@ import {
   setEditor,
   getEditor,
   getDocumentState,
-  getMode,
   getActiveDocPath,
   assetToOriginalMap,
   bumpRevision,
+  hasUnpersistedUserChanges,
 } from './editor.state';
 import { store } from './store';
 import { scheduler } from './taskScheduler';
-import { getSourceContent } from './editor.source';
-import { normalizeImageMarkdown, replaceAssetUrlsWithOriginal } from './editor.serializer';
 import { ensureContinuationParagraph } from './editor.continuation';
 
 export async function initEditor() {
@@ -102,14 +100,15 @@ export async function initEditor() {
     ],
     content: '',
     onUpdate: () => {
-      const currentMd = getMode() === 'source'
-        ? normalizeImageMarkdown(getSourceContent())
-        : normalizeImageMarkdown(replaceAssetUrlsWithOriginal(getEditor()!.storage.markdown.getMarkdown()));
-
+      // P0S: dirty is revision-driven. A real user edit increments
+      // userRevision; programmatic hydration / read-only sync / setEditable
+      // updates never do. We no longer serialize current content here — that
+      // made a clean doc dirty by comparing the PM serializer output to the
+      // input Markdown (soft breaks → spaces).
       scheduler.schedule('dirty-check', 400, () => {
         if (!getDocumentState().programmaticUpdate) {
           bumpRevision();
-          store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
+          store.setState({ dirty: hasUnpersistedUserChanges() });
         }
       });
 

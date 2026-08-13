@@ -20,6 +20,10 @@ import {
   setActiveDocumentPath,
   bumpRevision,
   getRevision,
+  markDocumentPersistedRevision,
+  resetDocumentRevision,
+  hasUnpersistedUserChanges,
+  markProgrammaticContent,
   getLastReadMtime,
   getLastReadSize,
   setLastReadStats,
@@ -45,6 +49,10 @@ export {
   setActiveDocumentPath,
   bumpRevision,
   getRevision,
+  markProgrammaticContent,
+  resetDocumentRevision,
+  markDocumentPersistedRevision,
+  hasUnpersistedUserChanges,
   getLastReadMtime,
   getLastReadSize,
   setLastReadStats,
@@ -90,30 +98,27 @@ export function resetEditorScroll() {
 }
 
 export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
-  // Store the persisted content as the new baseline, without trailing newlines.
-  // ProseMirror's serializer never produces trailing newlines, so all dirty
-  // comparisons deal with content trimmed of them on both sides.
+  // ── P0S revision-driven persisted baseline ────────────────────────
+  // Store a serializer-friendly string for legacy status reads, but dirty is
+  // now decided ONLY by userRevision vs persistedRevision — never by comparing
+  // the ProseMirror serializer output against a normalized Markdown string.
   getDocumentState().lastPersistedMarkdown = stripTrailingNewlines(markdown);
 
-  // If a revision was captured at save-start, only clear dirty when no newer
-  // edits arrived during the write.  Without a revision (legacy callers) we
-  // always clear dirty for backward compatibility.
-  if (persistedRevision !== undefined && persistedRevision !== getRevision()) {
-    // Newer edits landed — keep dirty so the next save picks them up.
-    return;
+  // `persistedRevision` (captured at save-start) is the userRevision at the
+  // moment the save read its content. Only clear dirty if no newer user edit
+  // landed during the write. If a caller passes a revision that is stale
+  // (e.g. after hydration reset), keep dirty conservatively.
+  if (persistedRevision !== undefined) {
+    const settled = markDocumentPersistedRevision(persistedRevision);
+    if (!settled) return; // newer edits landed — keep dirty for next save
+  } else {
+    // Legacy callers (conflict restore / save-as) have no save-start revision.
+    // Mark the current userRevision as persisted (this is a deliberate save).
+    getDocumentState().persistedRevision = getRevision();
   }
 
-  // Content-based sanity check: compare actual current content against what
-  // was just persisted.  This handles edge cases where the revision counter
-  // incremented (e.g. from a debounced onUpdate) but the current editor
-  // content hasn't materially changed (just the debounce timer caught up).
-  const currentMd = stripTrailingNewlines(normalizeImageMarkdown(getMarkdown()));
-  // A successful save clears the persistent autosave-failure banner, regardless
-  // of whether the save came from autosave or an interactive (Ctrl+S) save.
-  store.setState({
-    dirty: currentMd !== getDocumentState().lastPersistedMarkdown,
-    autosaveErrorCount: 0,
-  });
+  // A successful save clears the persistent autosave-failure banner.
+  store.setState({ dirty: hasUnpersistedUserChanges(), autosaveErrorCount: 0 });
   getDocumentState().externallyModified = false;
 }
 
@@ -126,15 +131,23 @@ export function setMarkdown(content: string) {
     getDocumentState().trailingNewlines = match ? match[0].length : 0;
     const stripped = stripTrailingNewlines(content);
     const normalized = normalizeImageMarkdown(stripped);
-    getDocumentState().programmaticUpdate = true;
+    // ── P0S: hydration must NOT count as a user transaction ──────────
+    // A fresh (or reloaded) document starts clean: userRevision and
+    // persistedRevision are both 0, dirty=false. setContent can fire onUpdate
+    // (via Tiptap), but the revision model makes that harmless — and we also
+    // explicitly clear dirty so a stale persistedRevision never leaks.
+    resetDocumentRevision();
+    // Record the transaction origin so hydration is explicitly non-user.
+    markProgrammaticContent('hydration');
     ed.commands.setContent(normalized);
     if (getMode() === 'source') {
       setSourceContent(normalized);
     }
     getDocumentState().programmaticUpdate = false;
+    store.setState({ dirty: false });
     // Store the serializer-friendly version (no trailing newlines) as
-    // the baseline — dirty comparisons always strip trailing newlines.
-    markDocumentPersisted(normalized);
+    // the legacy status baseline; dirty stays revision-driven.
+    getDocumentState().lastPersistedMarkdown = stripTrailingNewlines(normalized);
   }
 }
 
@@ -176,9 +189,12 @@ export function switchToSource() {
 
   // Create CM6 inside wrapper (respecting read-only state)
   const isReadOnly = store.getState().readOnly;
-  const view = createSourceEditor(wrapper, content, (doc) => {
+  const view = createSourceEditor(wrapper, content, () => {
+    // ── P0S: real source-mode user edits increment userRevision only when the
+    // change is a genuine user transaction (programmatic fill is suppressed by
+    // the source editor's own programmaticUpdate guard). dirty is revision-driven.
     bumpRevision();
-    store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
+    store.setState({ dirty: hasUnpersistedUserChanges() });
     scheduler.schedule('source-update', 50, () => {
       store.emit({ type: 'editor:update' });
     });

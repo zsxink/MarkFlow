@@ -54,7 +54,8 @@ beforeEach(() => {
   const d = getDocumentState();
   d.trailingNewlines = 0;
   d.lastPersistedMarkdown = '';
-  d.revision = 0;
+  d.userRevision = 0;
+  d.persistedRevision = 0;
   d.programmaticUpdate = false;
   setMode('wysiwyg');
   setEditor(makeEditor());

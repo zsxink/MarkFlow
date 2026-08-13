@@ -40,15 +40,26 @@ WYSIWYG Save/A→B/close、in-flight 与跨文档隔离。
 
 ## Fix
 
-NOT IMPLEMENTED
+IMPLEMENTED（`d74a79d`）：新增专用 P0S desktop lifecycle suite
+`e2e/specs/p0s/`（`npm run test:e2e:p0s`）。`e2e/run.mjs` 在 p0s suite 用
+`autosave=true` + `autosaveInterval=2000` 并预置 byte-contract fixtures；
+`e2e/wdio.conf.mjs` 注册 p0s suite；`package.json` 新增 `test:e2e:p0s`。
+e2e-only（`import.meta.env.MODE === 'e2e'`）暴露 `window.__markflowEditor`/
+`__markflowStore` 供测试 dispatch 真实 ProseMirror transaction 与断言 active/dirty
+（WebKit 的 `browser.keys`/`execCommand` 不触发 ProseMirror transaction）。
 
 ## Verification
 
-NOT STARTED；新增专用 suite 后由实现 AI 和新的独立 Reviewer 分别运行。
+DONE：`e2e/specs/p0s/p0s-lifecycle.e2e.mjs` 4 测试在真实 WebKit 605.1.15 全过：
+(1) 零编辑打开 7 个 byte-contract fixtures 等待两个 autosave tick 字节/mtime 不变；
+(2) 立即 Cmd+S 后磁盘含输入字符（not skipped）；(3) 立即 A→B discard 后 A 未被写盘；
+(4) 干净 Cmd+S 不写盘。实现 AI 与独立 Reviewer（`20260813-170525`）分别运行均 PASS。
+人工 Section 7 确认 desktop E3 立即 A→B 不写盘 + 立即 Cmd+S 落盘。
 
 ## Closure
 
-- Fix commit: NOT RECORDED
-- Passing run: NOT RECORDED
-- Reviewer: NOT RECORDED
-- Closed date: NOT RECORDED
+- Fix commit: `d74a79d4ce0205f97fc94080966dc9a3af62ddf8`
+- Passing run: `20260813-1715-p0s-final-d74a79d`（C08 p0s e2e 4/4 PASS）
+- Reviewer: 独立 Reviewer PASS（`20260813-170525-independent-review-d74a79d/REVIEW.md`
+  功能复核 PASS；evidence 治理 NO-GO 已由本 final run + ISSUE-004 closure 处理）
+- Closed date: 2026-08-13

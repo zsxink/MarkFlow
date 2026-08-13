@@ -1,6 +1,15 @@
 # P0S 验证记录：Legacy 零编辑写盘安全止血
 
-总体状态：**P0S GO（PASS）**（run `20260813-100918-p0s-immediate-transaction-guard`）。上一轮独立 Reviewer 的三个问题（ISSUE-001 in-flight 保存污染、ISSUE-002 保存锁 await gap、ISSUE-003 缺专用 desktop lifecycle）已全部修复，独立 Reviewer 复核 **PASS**（375/375 单元 + 4/4 p0s desktop e2e），xian 二次人工确认（立即 A→B 不保存不写盘 + 立即 Cmd+S 落盘）通过，Program Owner **P0S 恢复 GO** → 允许进入 P1A。1S.10 完成。
+总体状态：**P0S GO（PASS）**。候选 `d74a79d4ce0205f97fc94080966dc9a3af62ddf8` 的
+final evidence run [`20260813-1715-p0s-final-d74a79d`](../evidence/P0S/20260813-1715-p0s-final-d74a79d/RUN.md)
+manifest 16 项 0 mismatch，独立 Reviewer final gate **PASS**
+（`…/20260813-1715-p0s-final-d74a79d/REVIEW.md`），ISSUE-001/002/003 closure 完整，
+xian 人工验收适用候选确认，Program Owner 批准 P0S GO → **允许进入 P1A**。ISSUE-004 已关闭。
+
+历史治理说明：上一轮 `20260813-170525` NO-GO 指出的「final 证据链不可审计」已由本 final run
+修复（新建独立不可变 run + manifest 0 mismatch + ISSUE closure 补全 + 状态一致）。
+历史 `20260813-100918-p0s-immediate-transaction-guard` 保留原样（顶部 NO-GO / candidate
+`9884790`，manifest 未重算）。
 
 正式设计：[P0S：Legacy 零编辑写盘安全止血](../../design/phases/P0S-legacy-no-edit-save-guard.md)
 
@@ -69,6 +78,8 @@ xian 于桌面 E3 二次人工确认 `p0s-reverify-20260813/` 隔离副本：
 - **立即 Cmd+S**：输入字符后不等待立即 `Cmd+S`，`Saved active document`（`interactive:true`），文件含输入字符（如 `BodyX paragraph`），保存成功未 skipped。
 
 Program Owner（xian）：**P0S 恢复 GO** → 允许进入 P1A。
+> ⚠️ 本条为 ISSUE-004 之前的二次人工确认记录，已被 evidence 治理（final run +
+> final gate PASS + Program Owner 最终批准）supersede；当前权威状态见本文件顶部「P0S GO」。
 
 ## AI Coding 验证（首轮历史 run）
 

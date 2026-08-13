@@ -29,7 +29,7 @@
 - [x] 1S.7 运行全 gate，派独立 Reviewer 检查没有接受 serializer 输出、扩大 trailing metadata 或全局关闭 autosave；完成人工验收与 Program Owner Go
 - [x] 1S.8 纠正 Reviewer 发现的 `<400ms` 数据丢失窗口：WYSIWYG user revision/dirty 在 transaction dispatch 同步更新，programmatic origin 使用同一 transaction meta，取消 dirty debounce 的权威职责
 - [x] 1S.9 补立即 Cmd+S、A→B、close、save in-flight 新编辑、跨文档隔离和 `SaveResult` 三态自动化；重跑默认/characterization/byte/Rust gate
-- [x] 1S.10 对纠偏候选执行新的独立 Reviewer desktop lifecycle 与人工立即 Save/切换/关闭验收；两者通过并由 Program Owner 重新确认后，P0S 才恢复 GO 并允许进入 P1A
+- [x] 1S.10 对纠偏候选执行新的独立 Reviewer desktop lifecycle 与人工立即 Save/切换/关闭验收；两者通过并由 Program Owner 重新确认后，P0S 才恢复 GO 并允许进入 P1A（final run `20260813-1715-p0s-final-d74a79d` manifest 0 mismatch，final gate Reviewer PASS，Program Owner GO 2026-08-13；ISSUE-004 已关闭）
 
 ## 2. Slice 1A — 最小 Lossless Core
 

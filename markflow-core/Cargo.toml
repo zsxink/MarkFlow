@@ -1,0 +1,21 @@
+[package]
+name = "markflow-core"
+version = "0.1.0"
+edition = "2021"
+description = "Lossless Markdown document kernel for MarkFlow (P1A minimal Core)"
+license = "MIT"
+
+# P1A dependency boundary (task 2.1): only what document snapshot, TextBuffer,
+# LineEndingMap, PositionMap, TextPatch and LosslessDocumentSession need.
+# Deliberately NO parser, Render IR, widgets, History, DOM, Tauri or network.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+serde_json = "1"
+
+[[example]]
+name = "bench_large_inputs"
+path = "examples/bench_large_inputs.rs"
+required-features = []

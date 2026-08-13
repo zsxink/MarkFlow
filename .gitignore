@@ -9,6 +9,7 @@ e2e/.tmp-*/
 
 # Rust build artifacts
 src-tauri/target/
+markflow-core/target/
 
 # Tauri generated
 src-tauri/gen/

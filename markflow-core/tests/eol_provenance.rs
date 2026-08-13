@@ -226,6 +226,32 @@ fn empty_document_insert_uses_frozen_default() {
     assert_eq!(out, b"a\r\nb");
 }
 
+/// §3.5 discriminator (pins the frozen semantic): when the LEFT neighbor
+/// differs from the DOMINANT, and there are ≥2 overflow newlines, the
+/// sequential chain (right → left → dominant) must be consumed one position
+/// per overflow newline.
+///
+/// Source `a\r\nb\nc`: boundaries [CRLF, LF], tie → frozen default LF. Replace
+/// "b" (logical 2..3) with "X\nY\nZ" (2 inherit newlines). Removed = [] (no
+/// boundary inside the range). Right = LF, Left = CRLF, Dominant = LF.
+/// Sequential-advance: #1 → right (LF), #2 → left (CRLF) → `a\r\nX\nY\r\nZ\nc`.
+/// (Reading "all overflow = right/dominant" would give `a\r\nX\nY\nZ\nc`.)
+#[test]
+fn inherit_overflow_discriminator_left_vs_dominant() {
+    let bytes = b"a\r\nb\nc";
+    let mut s = session(bytes);
+    let p = one_change(
+        &s,
+        1,
+        2,
+        3,
+        "X\nY\nZ",
+        &[NewlineEnding::Inherit, NewlineEnding::Inherit],
+    );
+    let out = apply_and_replay(&mut s, p);
+    assert_eq!(out, b"a\r\nX\nY\r\nZ\nc");
+}
+
 /// Editing inside a CR-only file (CR separator, no CRLF) keeps CR separators.
 /// Logical offset 1 is the position before the first `\n` boundary, so the
 /// insert lands between 'a' and the CR.

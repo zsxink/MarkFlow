@@ -60,7 +60,7 @@ utf8-lf-tail1    67 bytes  52a435d76c69c819c3b16972bca4214984a4c19f906a2ade440c0
 utf8-crlf-tail1  71 bytes  262aa53ae6984dc1299336bdcd0137ef4f616f022fc9fe63f280c32368aebd5c  OK
 utf8-crlf-tail3  75 bytes  db562fc521f4ff93c530de24139cc7161a522d12f65948219dfc26b6fb6cc42a  OK
 ```
-（`fixture_l0.rs` 在 HEAD `0041c57` 上对全部 24 个 fixture 断言零 patch payload 等于原始
+（`fixture_l0.rs` 在 HEAD `648e9a3` 上对全部 24 个 fixture 断言零 patch payload 等于原始
 bytes、长度等于 manifest、重复 prepare 不改变 revision/hash；4 个测试全过。）
 
 `scan_line_endings` 的边界扫描（`snapshot.rs:131-162`）与 `to_source_bytes` 的重放
@@ -224,7 +224,7 @@ canonical fixtures 与 95 个 L1 intents 在候选语义下均通过，因分歧
 ## 7. Random fixture hash re-run
 
 **结论：PASS。** 实跑 `cd markflow-core && cargo test --test fixture_l0`（HEAD
-`0041c57`），4 项全过。独立 SHA-256 抽查 7 个随机 fixture，全部与 manifest 一致
+`648e9a3`），4 项全过。独立 SHA-256 抽查 7 个随机 fixture，全部与 manifest 一致
 （详见 §1 表格；全量 hex 已列出 5 个，其余 2 个以截断形式给出并已与 manifest 全量比对）。
 
 `ContentHash` 为 SHA-256（`identity.rs:18-39`），与 manifest/byte-contract harness 一致，
@@ -262,7 +262,7 @@ fallible 分支。
 - stale patch 拒绝、失败后 session 不部分改变；
 - Core 不依赖 parser/serializer 即可保存；
 - EOL 继承顺序（含 §3.5 多 overflow）已冻结为顺序消费语义，实现、代码注释与测试一致；
-- `cargo fmt --check` / `cargo clippy -D warnings` / 86 项测试全绿（复核时复跑）。
+- `cargo fmt --check` / `cargo clippy -D warnings` / 87 项测试全绿（复核时复跑）。
 
 ## Open issues
 

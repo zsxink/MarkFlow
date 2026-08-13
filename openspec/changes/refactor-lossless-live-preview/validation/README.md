@@ -71,8 +71,8 @@ Byte fidelity、错误写盘、安全、跨文档污染和规范 MUST 项不得 
 | 阶段 | AI | Reviewer | 人工 | Program Go |
 | --- | --- | --- | --- | --- |
 | P0 | CORRECTIVE AI GATE PASS + 完整人工验收完成 | historical + corrective PASS | ACCEPTED（表征准确，byte fidelity 未通过） | GO → P0S |
-| P0S | AI GATE PASS（run 20260813-031727-p0s-legacy-no-edit-guard） | PASS + Addendum（fresh-context Reviewer；零编辑/真实编辑/红线全确认） | ACCEPTED（2026-08-13 xian；清单 manual-acceptance-p0s-checklist.md，verify-all 字节未变） | GO（2026-08-13） |
-| P1A | BLOCKED by P0 | NOT STARTED | NOT STARTED | NOT STARTED |
+| P0S | CORRECTIVE AI gates PASS（375/375 + 4/4 p0s desktop e2e） | **PASS**（二次纠偏修复复核：ISSUE-001/002/003 全 FIXED；Addendum 见 run REVIEW.md） | ACCEPTED（二次人工确认：不保存不写盘 + 立即 Cmd+S 落盘，2026-08-13） | **GO**（2026-08-13 恢复） |
+| P1A | BLOCKED by P0S | NOT STARTED | NOT STARTED | NOT STARTED |
 | P1B | BLOCKED by P1A | NOT STARTED | NOT STARTED | NOT STARTED |
 | P2 | BLOCKED by P1B | NOT STARTED | NOT STARTED | NOT STARTED |
 | P3 | BLOCKED by P2 | NOT STARTED | NOT STARTED | NOT STARTED |

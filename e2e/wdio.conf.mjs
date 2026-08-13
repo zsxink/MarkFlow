@@ -21,6 +21,7 @@ export const config = {
   suites: {
     smoke: ['./specs/smoke/**/*.e2e.mjs'],
     regression: ['./specs/regression/**/*.e2e.mjs'],
+    p0s: ['./specs/p0s/**/*.e2e.mjs'],
   },
   maxInstances: 1,
   logLevel: process.env.CI ? 'info' : 'warn',

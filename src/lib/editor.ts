@@ -20,10 +20,12 @@ import {
   setActiveDocumentPath,
   bumpRevision,
   getRevision,
+  getDocumentGeneration,
   markDocumentPersistedRevision,
   resetDocumentRevision,
   hasUnpersistedUserChanges,
-  markProgrammaticContent,
+  TRANSACTION_ORIGIN_META,
+  type TransactionOrigin,
   getLastReadMtime,
   getLastReadSize,
   setLastReadStats,
@@ -49,7 +51,7 @@ export {
   setActiveDocumentPath,
   bumpRevision,
   getRevision,
-  markProgrammaticContent,
+  getDocumentGeneration,
   resetDocumentRevision,
   markDocumentPersistedRevision,
   hasUnpersistedUserChanges,
@@ -122,9 +124,14 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
   getDocumentState().externallyModified = false;
 }
 
-export function setMarkdown(content: string) {
+export function setMarkdown(
+  content: string,
+  origin: Extract<TransactionOrigin, 'hydration' | 'reloadSync'> = 'hydration',
+) {
   const ed = getEditor();
   if (ed) {
+    // A stale pre-P0S dirty task must never run against the newly-opened doc.
+    scheduler.cancel('dirty-check');
     assetToOriginalMap.clear();
     // Capture trailing newlines before ProseMirror strips them
     const match = content.match(/\n+$/);
@@ -133,17 +140,19 @@ export function setMarkdown(content: string) {
     const normalized = normalizeImageMarkdown(stripped);
     // ── P0S: hydration must NOT count as a user transaction ──────────
     // A fresh (or reloaded) document starts clean: userRevision and
-    // persistedRevision are both 0, dirty=false. setContent can fire onUpdate
-    // (via Tiptap), but the revision model makes that harmless — and we also
-    // explicitly clear dirty so a stale persistedRevision never leaks.
+    // persistedRevision are both 0, dirty=false. setContent still dispatches a
+    // transaction, so it carries explicit origin meta and cannot be mistaken
+    // for user input; stale persisted state is cleared before dispatch.
     resetDocumentRevision();
-    // Record the transaction origin so hydration is explicitly non-user.
-    markProgrammaticContent('hydration');
-    ed.commands.setContent(normalized);
+    // Origin is carried by the same ProseMirror transaction; no later callback
+    // reads a mutable module boolean to guess whether this was user input.
+    ed.chain()
+      .setMeta(TRANSACTION_ORIGIN_META, origin)
+      .setContent(normalized, false)
+      .run();
     if (getMode() === 'source') {
       setSourceContent(normalized);
     }
-    getDocumentState().programmaticUpdate = false;
     store.setState({ dirty: false });
     // Store the serializer-friendly version (no trailing newlines) as
     // the legacy status baseline; dirty stays revision-driven.
@@ -212,11 +221,12 @@ export function switchToWysiwyg() {
   try {
     const ed = getEditor();
     if (ed) {
-      getDocumentState().programmaticUpdate = true;
-      ed.commands.setContent(normalizeImageMarkdown(getSourceContent()));
+      ed.chain()
+        .setMeta(TRANSACTION_ORIGIN_META, 'modeSync')
+        .setContent(normalizeImageMarkdown(getSourceContent()), false)
+        .run();
     }
   } finally {
-    getDocumentState().programmaticUpdate = false;
     wysiwygEditor.hidden = false;
     wrapper.hidden = true;
     destroySourceEditor();

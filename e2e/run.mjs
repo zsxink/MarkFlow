@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const suite = process.argv[2] ?? 'smoke';
-if (!['smoke', 'regression'].includes(suite)) {
+if (!['smoke', 'regression', 'p0s'].includes(suite)) {
   throw new Error(`Unknown E2E suite: ${suite}`);
 }
 
@@ -12,13 +12,20 @@ const e2eDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(e2eDir, '..');
 const artifactsRoot = path.join(e2eDir, 'artifacts');
 
+// ── P0S suite runs with autosave ENABLED so the zero-edit autosave lifecycle
+// and immediate Save/A→B/close paths are exercised against the real product
+// configuration. A short interval makes the two-tick wait deterministic in CI;
+// the product default 10000ms interval is covered by the manual desktop E3 and
+// the lifecycle integration tests (main.lifecycle.guard.test.ts).
+const autosaveEnabled = suite === 'p0s';
+
 const defaultSettings = (workspace) => ({
   version: 1,
   theme: 'light',
   fontSize: 18,
   lineHeight: 1.7,
-  autosave: false,
-  autosaveInterval: 10000,
+  autosave: autosaveEnabled,
+  autosaveInterval: autosaveEnabled ? 2000 : 10000,
   spellcheck: true,
   softWrap: true,
   livePreview: true,
@@ -120,6 +127,13 @@ try {
   await Promise.all([mkdir(dataDir, { recursive: true }), mkdir(workspace, { recursive: true }), mkdir(artifactsDir, { recursive: true })]);
   await writeFile(path.join(dataDir, 'settings.json'), `${JSON.stringify(defaultSettings(workspace), null, 2)}\n`);
   await writeFile(path.join(workspace, 'welcome.md'), '# MarkFlow E2E Testing\n\n这是 E2E 测试的初始文档，包含段落内容。\n\n- 列表项一\n- 列表项二\n- 列表项三\n');
+  // ── P0S lifecycle fixtures (byte-contract copies, autosave ENABLED) ──
+  if (autosaveEnabled) {
+    const fixturesDir = path.join(projectRoot, 'tests/fixtures/byte-contract/fixtures');
+    for (const name of ['utf8-lf-tail2.md', 'utf8-lf-tail3.md', 'utf8-crlf-tail2.md', 'utf8-crlf-tail3.md', 'utf8-cr-tail1.md', 'utf8-mixed-tail2.md', 'utf8-bom-lf-tail2.md']) {
+      await cp(path.join(fixturesDir, name), path.join(workspace, name));
+    }
+  }
   await run('npm', ['run', 'test:e2e:build'], environment);
   await run('npx', ['wdio', 'run', 'e2e/wdio.conf.mjs', '--suite', suite], environment);
   failed = false;

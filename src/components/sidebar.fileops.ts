@@ -1,5 +1,5 @@
 import { readFile, writeFile, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor, hasUnpersistedUserChanges } from '../lib/editor';
+import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getDocumentGeneration, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor, hasUnpersistedUserChanges } from '../lib/editor';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
@@ -53,8 +53,7 @@ export async function confirmDocumentTransition(): Promise<boolean> {
 
   if (result === 'save') {
     const saved = await saveActiveDocument({ interactive: true });
-    if (saved) return true;
-    return false;
+    return saved === 'saved';
   }
 
   if (result === 'discard') return true;
@@ -128,29 +127,41 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     return 'skipped';
   }
 
-  if (!filePath) {
-    if (!interactive) return 'skipped';
-    const targetPath = await save({
-      title: '保存文件',
-      defaultPath: 'untitled.md',
-      filters: [{ name: 'Markdown', extensions: ['md'] }],
-    });
-    if (!targetPath) return 'skipped';
-    const content = getMarkdown();
-    const revision = getRevision();
-    savingInProgress = true;
-    try {
+  // ── P1: occupy the save lock BEFORE any await ─────────────────────
+  // The save dialog, pre-save stat check, image migration, write and post-write
+  // completion all run under the lock, so a second Cmd+S/autosave issued while
+  // any of them is awaiting can never slip past isSavingInProgress() and start a
+  // concurrent prepare/write. Released in the finally covering the whole body.
+  savingInProgress = true;
+  try {
+    // ── P0: capture document identity for the async completion ──────
+    // The generation token identifies the document instance this save started on.
+    // If the user discards A and opens/edits B while the write is in flight, the
+    // completion must NOT mark the NEW document persisted/clean or overwrite its
+    // file stats — a stale A-save would otherwise clear B's dirty protection.
+    const saveGeneration = getDocumentGeneration();
+
+    if (!filePath) {
+      if (!interactive) return 'skipped';
+      const targetPath = await save({
+        title: '保存文件',
+        defaultPath: 'untitled.md',
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
+      if (!targetPath) return 'skipped';
+      const content = getMarkdown();
+      const revision = getRevision();
       const prepared = await preparePendingImagesForSave(content, targetPath);
       suppressNextWatcherRefresh(targetPath);
       await writeFile(targetPath, prepared.markdown);
       setActiveFilePath(targetPath);
-      if (prepared.markdown !== content) setMarkdown(prepared.markdown);
+      if (getDocumentGeneration() === saveGeneration && prepared.markdown !== content) setMarkdown(prepared.markdown);
       // Record mtime + size for future external-modification checks
       try {
         const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
-        setLastReadStats(stats.mtime, stats.size);
+        if (getDocumentGeneration() === saveGeneration) setLastReadStats(stats.mtime, stats.size);
       } catch (e) { logDebug('fileops', 'Failed to get file stats after save new file (non-critical)', { path: targetPath, error: String(e) }); }
-      markDocumentPersisted(prepared.markdown, revision);
+      if (getDocumentGeneration() === saveGeneration) markDocumentPersisted(prepared.markdown, revision);
       try {
         await completePendingImagesSave(prepared.draftId);
       } catch (e) {
@@ -165,64 +176,63 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       logInfo('sidebar.save', 'Saved new file', { path: targetPath });
       showToast('已保存');
       return 'saved';
-    } catch (e) {
-      abortPendingImagesSave();
-      logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
-      showToast('保存失败');
-      return 'failed';
-    } finally {
-      savingInProgress = false;
     }
-  }
 
-  // ── External modification check (mtime + size) ──────────────────
-  if (hasExternalModification()) {
-    if (!interactive) return 'skipped';
-    const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
-    if (!confirmed) {
-      showToast('已取消保存');
-      return 'skipped';
-    }
-  }
-
-  // ── Pre-save mtime + size validation ────────────────────────────
-  const lastMtime = getLastReadMtime();
-  const lastSize = getLastReadSize();
-  if (lastMtime > 0 || lastSize > 0) {
-    try {
-      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
-      if (stats.mtime !== lastMtime || stats.size !== lastSize) {
-        if (!interactive) {
-          logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
-          return 'skipped';
-        }
-        const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
-        if (!confirmed) {
-          showToast('已取消保存');
-          return 'skipped';
-        }
+    // ── External modification check (mtime + size) ──────────────────
+    if (hasExternalModification()) {
+      if (!interactive) return 'skipped';
+      const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
+      if (!confirmed) {
+        showToast('已取消保存');
+        return 'skipped';
       }
-    } catch (e) {
-      // If stat fails, proceed with save anyway
-      logDebug('fileops', 'Pre-save stat check failed, proceeding with save', { path: filePath, error: String(e) });
     }
-  }
 
-  // ── Atomic save with revision tracking ──────────────────────────
-  const content = getMarkdown();
-  const revision = getRevision();
-  savingInProgress = true;
-  try {
+    // ── Pre-save mtime + size validation ────────────────────────────
+    const lastMtime = getLastReadMtime();
+    const lastSize = getLastReadSize();
+    if (lastMtime > 0 || lastSize > 0) {
+      try {
+        const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
+        if (stats.mtime !== lastMtime || stats.size !== lastSize) {
+          if (!interactive) {
+            logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
+            return 'skipped';
+          }
+          const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
+          if (!confirmed) {
+            showToast('已取消保存');
+            return 'skipped';
+          }
+        }
+      } catch (e) {
+        // If stat fails, proceed with save anyway
+        logDebug('fileops', 'Pre-save stat check failed, proceeding with save', { path: filePath, error: String(e) });
+      }
+    }
+
+    // ── Atomic save with revision tracking ──────────────────────────
+    const content = getMarkdown();
+    const revision = getRevision();
     const prepared = await preparePendingImagesForSave(content, filePath);
     suppressNextWatcherRefresh(filePath);
     await writeFile(filePath, prepared.markdown);
-    if (prepared.markdown !== content) setMarkdown(prepared.markdown);
+    if (getDocumentGeneration() === saveGeneration && prepared.markdown !== content) setMarkdown(prepared.markdown);
     // Record mtime + size after successful write
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
-      setLastReadStats(stats.mtime, stats.size);
+      if (getDocumentGeneration() === saveGeneration) setLastReadStats(stats.mtime, stats.size);
     } catch (e) { logDebug('fileops', 'Failed to get file stats after write (non-critical)', { path: filePath, error: String(e) }); }
-    markDocumentPersisted(prepared.markdown, revision);
+    // ── P0: only mark persisted/clear dirty if identity still matches ──
+    if (getDocumentGeneration() === saveGeneration) {
+      markDocumentPersisted(prepared.markdown, revision);
+    } else {
+      // The write itself succeeded, but the active document changed while it was
+      // in flight. Keep the NEW document's revision/dirty/file-stat state untouched.
+      logDebug('sidebar.save', 'Save completed for a previous document — leaving active document state untouched', {
+        path: filePath,
+      });
+    }
     try {
       await completePendingImagesSave(prepared.draftId);
     } catch (e) {
@@ -256,7 +266,7 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
 
   try {
     const content = await readFile(filePath);
-    setMarkdown(content);
+    setMarkdown(content, 'reloadSync');
     refreshOutline();
     return true;
   } catch (e) {

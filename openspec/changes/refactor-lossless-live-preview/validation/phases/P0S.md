@@ -1,7 +1,6 @@
 # P0S 验证记录：Legacy 零编辑写盘安全止血
 
-总体状态：AI GATE PASS + 独立 Reviewer PASS（run `20260813-031727-p0s-legacy-no-edit-guard`）
-+ **人工桌面 E3 验收 PASS（2026-08-13，xian）** + **Program GO（2026-08-13）** —— P0S 阶段完成
+总体状态：**P0S GO（PASS）**（run `20260813-100918-p0s-immediate-transaction-guard`）。上一轮独立 Reviewer 的三个问题（ISSUE-001 in-flight 保存污染、ISSUE-002 保存锁 await gap、ISSUE-003 缺专用 desktop lifecycle）已全部修复，独立 Reviewer 复核 **PASS**（375/375 单元 + 4/4 p0s desktop e2e），xian 二次人工确认（立即 A→B 不保存不写盘 + 立即 Cmd+S 落盘）通过，Program Owner **P0S 恢复 GO** → 允许进入 P1A。1S.10 完成。
 
 正式设计：[P0S：Legacy 零编辑写盘安全止血](../../design/phases/P0S-legacy-no-edit-save-guard.md)
 
@@ -32,8 +31,46 @@
 | Branch | Commit | Flags/settings | Run ID |
 | --- | --- | --- | --- |
 | `test/issue-255-lossless-byte-contract` | ad59b21（P0S start；实现尚未提交） | legacy + autosave=true / interval=10000 | `20260813-031727-p0s-legacy-no-edit-guard` |
+| `test/issue-255-lossless-byte-contract` | 9884790（纠偏 start HEAD；实现工作树，详见新 RUN manifest） | legacy + autosave=true / interval=10000 | `20260813-100918-p0s-immediate-transaction-guard` |
 
-## AI Coding 验证
+## 纠偏复核与修复（2026-08-13）
+
+独立 Reviewer 对首轮 P0S 给出 NO-GO，核心复现为：WYSIWYG 输入后 `<400ms` 立即 Cmd+S、A→B 或关闭时，`onUpdate` 的 `dirty-check` 尚未执行，revision/dirty 仍为 clean；保存会 `skipped`，切换/关闭会无提示继续，延迟任务还可能污染下一个文档。另发现 `SaveResult` 字符串的 truthy 判断会把 `skipped`/`failed` 当成保存成功。
+
+纠偏实现：
+
+- `onTransaction` 在 ProseMirror dispatch 同一调用栈内分类 doc-changing transaction，并同步 bump revision/dirty；
+- hydration、reload、mode sync 与 image asset-resolution 在同一 transaction 上携带 origin meta；未知 doc-changing transaction 按用户编辑保守处理；
+- debounce 只保留 `editor:update` 等非权威 UI 刷新，旧 `dirty-check` 被取消；
+- close 使用 revision 真相；A→B 选择保存时仅 `saved` 允许继续；
+- 新回归覆盖：立即保存、立即 A→B、立即 close gate、保存过程中继续输入、`saved/skipped/failed` 三态与跨文档隔离。
+
+AI gate：`npm test` 32 files / 373 tests、targeted 72/72、characterization 9/9、byte contract、TypeScript、Rust 126/126 均 PASS；标准 `npm run test:e2e` 在真实 WebKit 605.1.15 上 5/5 PASS。该 smoke 使用 `autosave=false`，只能证明基础 UI，不满足专用 P0S lifecycle。编辑后 L1 serializer byte loss 仍保持 characterization，不在 P0S 宣称修复。
+
+人工纠偏验收：xian 于 2026-08-13 确认已完成并通过输入后不等待的三项操作：立即 Cmd+S、立即 A→B（取消后仍停留 A 且内容保留）、立即关闭（取消后窗口与内容保留）。记录见 `validation/manual-acceptance-p0s-checklist.md` Section 6。该结果有效，但不覆盖 Reviewer 新发现的“保存已 in-flight 后 discard-switch B”竞态。
+
+### 二次纠偏（2026-08-13）— 修复 ISSUE-001/002/003
+
+上一轮 Reviewer 的 NO-GO 三个问题在本轮修复：
+
+- **ISSUE-001（P0）in-flight 保存污染**：`saveActiveDocument` 保存启动捕获 `documentGeneration`（`getDocumentGeneration()`），异步完成后 `setLastReadStats`/`markDocumentPersisted`/`setMarkdown(prepared)` 全部带 generation 守卫；不匹配时保留新文档状态，仅记 debug 日志。`resetDocumentRevision()` 每次 hydration/reload bump generation，打开 B 必然 bump。补单元测试精确命中竞态。
+- **ISSUE-002（P1）保存锁 await gap**：`savingInProgress = true` 移到任何 await 之前，整个函数体 `try/finally`，所有 return 路径均释放锁。顺带修复 `confirmDocumentTransition` 的 `saved === 'saved'`（原来 `skipped`/`failed` 字符串 truthy 会放行切换）。
+- **ISSUE-003（P1）专用 desktop lifecycle**：新增 `e2e/specs/p0s/` suite（`npm run test:e2e:p0s`，autosave=true interval=2000ms，预置 byte-contract fixtures），4 个测试：零编辑双 tick 字节不变、立即 Cmd+S 保存 X、立即 A→B discard 不污染、干净 Cmd+S 不写盘。e2e-only（`import.meta.env.MODE === 'e2e'`）暴露 `window.__markflowEditor`/`__markflowStore` 供测试 dispatch 真实 ProseMirror transaction 与断言 active/dirty。
+
+修复后 gate：`npm test` 375/375、fileops 15/15、characterization 9/9、byte-contract、tsc、build、cargo 全过；`npm run test:e2e:p0s` 4/4（真实 WebKit 605.1.15）；标准 `npm run test:e2e` smoke 5/5 未破坏。
+
+独立复核：fresh-context Reviewer **PASS**（Addendum 见 `evidence/P0S/20260813-100918-p0s-immediate-transaction-guard/REVIEW.md`）。P0/P1 findings 无；P2 × 1（`saveActiveDocumentAsNewFile` 另存为路径缺 generation 守卫，既有缺口，非本次范围）；P3 × 3（测试命名/覆盖度细节）。红线全过。
+
+### 二次人工确认（2026-08-13）— 完成
+
+xian 于桌面 E3 二次人工确认 `p0s-reverify-20260813/` 隔离副本：
+
+- **立即 A→B（不保存 → A 不写盘）**：选「不保存」后切到 B，诊断日志 `result=discard`、零 `Saved active`；A 文件 hash/length/mtime 与基线一致，**未被写盘**。切回 A 重新加载磁盘原始内容（「不保存」丢弃未保存编辑为预期语义，非数据丢失）。
+- **立即 Cmd+S**：输入字符后不等待立即 `Cmd+S`，`Saved active document`（`interactive:true`），文件含输入字符（如 `BodyX paragraph`），保存成功未 skipped。
+
+Program Owner（xian）：**P0S 恢复 GO** → 允许进入 P1A。
+
+## AI Coding 验证（首轮历史 run）
 
 - [x] Unit/typecheck/build/Rust/OpenSpec gates（run C01–C10 全 exit 0）
 - [x] `setContent`/hydration 不增加 user revision（rev(open/settle)=0/0，10 fixtures）
@@ -50,7 +87,7 @@
 - [x] P0 编辑后 L1 failing characterization 仍被如实记录，未误标为已修复（`pm-tail-newline` 保持红色）
 - [x] 新 RUN 链接不可变的 P0 failing/corrective evidence（RUN.md Identity/关联历史 run）
 
-## 人工验证记录
+## 人工验证记录（首轮历史）
 
 - 验收人/日期/设备：xian / 2026-08-13 / macOS Darwin 25.5.0（Tauri dev build，DEBUG；WKWebView）
 - fixture/hash：7 个 byte-contract fixture 副本于 `/Users/xian/markflow-test/p0s-acceptance-20260813/`
@@ -68,7 +105,7 @@
 
 人工结论：**ACCEPTED（PASS）** — 零编辑写盘安全验证通过；编辑后 L1 byte fidelity 边界如实记录待 P1B
 
-## Reviewer 与决定
+## Reviewer 与决定（首轮历史；已被 corrective gate supersede）
 
 - [x] Reviewer 静态检查没有接受 serializer 输出作为 baseline（`lastPersistedMarkdown` 只写不读；dirty 全部 `hasUnpersistedUserChanges()`）
 - [x] Reviewer 确认没有扩大 trailing metadata 或全局关闭 autosave（`trailingNewlines` scope 与 P0 相同；`DEFAULT_SETTINGS.autosave=true` 保持）
@@ -80,9 +117,9 @@
 - 复核后针对性改动确认：**PASS**（Addendum 确认 `setMarkdown` 接入 `markProgrammaticContent('hydration')` 为语义等价重构，消解 P2-1；原结论不变）
 - P0/P1 findings：无
 - P2 观察：`lastPersistedMarkdown` 注释已更新为事实描述；`markProgrammaticContent`/`TransactionOrigin` 已由 hydration 接入消费（消解）。均可后续清理
-- Open blocking issues：无
-- Program Go/No-Go：**GO（2026-08-13，Program Owner=xian）** —— 人工桌面 E3 验收 PASS、
-  验收人同意记录 P0S GO；P0S 止血完成，可进入 P1A（架构前置，另行独立 checkpoint 后推进）
+- Corrective Reviewer：**NO-GO**，报告见 `evidence/P0S/20260813-100918-p0s-immediate-transaction-guard/REVIEW.md`
+- Open blocking issues：`ISSUE-001` in-flight 跨文档污染（P0）、`ISSUE-002` save-lock await gap（P1）、`ISSUE-003` 专用 desktop lifecycle 缺失（P1）
+- Program Go/No-Go：**NO-GO → P1A**；首轮 GO 保留为历史结论，不再代表当前候选。1S.10 保持未完成
 
 ## 人工验收交接（自动化 gate 完成后）
 
@@ -95,4 +132,5 @@
 - 干净 Ctrl+S：不写盘、不弹「已保存」。
 - 只读→可写与 A/B 切换：不标脏。
 - 全新副本输入一个字符：仍 dirty/save。
+- 纠偏候选还必须执行清单 Section 6：输入后不等待，立即 Cmd+S、A→B、close。
 - 验收记录必须明确：P0S 只修复「零编辑错误写盘」，不解决编辑后 byte-to-byte（最终在 P1B）。

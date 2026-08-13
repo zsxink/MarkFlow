@@ -28,11 +28,11 @@ import {
 import {
   setEditor,
   getEditor,
-  getDocumentState,
   getActiveDocPath,
   assetToOriginalMap,
   bumpRevision,
   hasUnpersistedUserChanges,
+  isUserContentTransaction,
 } from './editor.state';
 import { store } from './store';
 import { scheduler } from './taskScheduler';
@@ -99,19 +99,16 @@ export async function initEditor() {
       }),
     ],
     content: '',
+    onTransaction: ({ transaction }) => {
+      // Data-safety state is updated in the same dispatch turn as the document
+      // change. Save/switch/close must never observe a 400ms stale revision.
+      if (!isUserContentTransaction(transaction)) return;
+      bumpRevision();
+      store.setState({ dirty: hasUnpersistedUserChanges() });
+    },
     onUpdate: () => {
-      // P0S: dirty is revision-driven. A real user edit increments
-      // userRevision; programmatic hydration / read-only sync / setEditable
-      // updates never do. We no longer serialize current content here — that
-      // made a clean doc dirty by comparing the PM serializer output to the
-      // input Markdown (soft breaks → spaces).
-      scheduler.schedule('dirty-check', 400, () => {
-        if (!getDocumentState().programmaticUpdate) {
-          bumpRevision();
-          store.setState({ dirty: hasUnpersistedUserChanges() });
-        }
-      });
-
+      // Debounce only non-authoritative UI refresh work. Dirty/revision is
+      // intentionally handled synchronously in `onTransaction` above.
       scheduler.schedule('editor-update', 80, () => {
         store.emit({ type: 'editor:update' });
       });
@@ -121,6 +118,15 @@ export async function initEditor() {
       store.emit({ type: 'editor:update' });
     },
   }));
+
+  // Expose the editor + store to e2e tests so they can dispatch real ProseMirror
+  // transactions (typing via WebDriver keys does not fire beforeinput in WebKit)
+  // and assert the active document / dirty state. Test-only globals: set only
+  // when built with the `e2e` feature (import.meta.env.MODE === 'e2e'), never in prod.
+  if (import.meta.env.MODE === 'e2e') {
+    (window as unknown as { __markflowEditor?: Editor }).__markflowEditor = getEditor()!;
+    (window as unknown as { __markflowStore?: unknown }).__markflowStore = store;
+  }
 
   // 编辑器创建后立即刷新状态栏，避免构造函数内统计函数因 editor 未赋值返回默认值
   store.emit({ type: 'editor:update' });

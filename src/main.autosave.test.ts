@@ -6,12 +6,16 @@ const mocks = vi.hoisted(() => ({
   hasUnpersistedUserChanges: vi.fn(),
   getActiveFilePath: vi.fn(),
   saveActiveDocument: vi.fn(),
+  showUnsavedDialog: vi.fn(),
+  invoke: vi.fn(),
+  getCurrentWebviewWindow: vi.fn(),
   store: { getState: vi.fn(), setState: vi.fn() },
 }));
 
 vi.mock('./lib/logger', () => ({ logDebug: vi.fn(), logInfo: vi.fn(), logException: vi.fn() }));
 vi.mock('./lib/store', () => ({ store: mocks.store }));
 vi.mock('./components/toast', () => ({ showToast: vi.fn() }));
+vi.mock('./components/unsavedDialog', () => ({ showUnsavedDialog: mocks.showUnsavedDialog }));
 vi.mock('./components/sidebar', () => ({
   initSidebar: vi.fn(),
   isSavingInProgress: mocks.isSavingInProgress,
@@ -28,11 +32,11 @@ vi.mock('./components/menu', () => ({ initMenu: vi.fn() }));
 vi.mock('./utils/keyboard', () => ({ initKeyboard: vi.fn() }));
 vi.mock('./lib/theme', () => ({ initTheme: vi.fn() }));
 vi.mock('./lib/storage', () => ({ getWorkspace: vi.fn(), loadSettings: vi.fn(), addRecentFile: vi.fn() }));
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
-vi.mock('@tauri-apps/api/webviewWindow', () => ({ getCurrentWebviewWindow: vi.fn() }));
+vi.mock('@tauri-apps/api/webviewWindow', () => ({ getCurrentWebviewWindow: mocks.getCurrentWebviewWindow }));
 
-import { runAutoSaveTick } from './main';
+import { handleCloseRequested, runAutoSaveTick } from './main';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -41,6 +45,29 @@ beforeEach(() => {
   mocks.hasUnpersistedUserChanges.mockReturnValue(false);
   mocks.getActiveFilePath.mockReturnValue(null);
   mocks.store.getState.mockReturnValue({ autosaveErrorCount: 0 });
+  mocks.getCurrentWebviewWindow.mockReturnValue({ label: 'main' });
+});
+
+describe('close request revision guard', () => {
+  it('prompts when a user revision exists even if UI dirty is stale', async () => {
+    mocks.isDocumentDirty.mockReturnValue(false);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
+
+    await handleCloseRequested('main');
+
+    expect(mocks.showUnsavedDialog).toHaveBeenCalledOnce();
+    expect(mocks.invoke).not.toHaveBeenCalledWith('confirm_window_close');
+  });
+
+  it('confirms close without prompting when revision state is clean', async () => {
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(false);
+
+    await handleCloseRequested('main');
+
+    expect(mocks.showUnsavedDialog).not.toHaveBeenCalled();
+    expect(mocks.invoke).toHaveBeenCalledWith('confirm_window_close');
+  });
 });
 
 describe('autosave tick', () => {

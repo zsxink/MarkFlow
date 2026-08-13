@@ -141,7 +141,7 @@ beforeEach(async () => {
   d.lastReadMtime = 0;
   d.lastReadSize = 0;
 
-  // Real editor with the real onUpdate / dirty-check chain.
+  // Real editor with synchronous transaction-origin/revision tracking.
   const area = document.createElement('div');
   area.id = 'editor-area';
   document.body.appendChild(area);
@@ -233,7 +233,7 @@ describe('P0S fix verification on the P0 corrective zero-edit lifecycle', () => 
       const dirtyAfterOpen = isDocumentDirty();
       const revisionAfterOpen = getRevision();
 
-      // Wait for the real dirty-check scheduler (onUpdate schedules 400ms).
+      // Allow non-authoritative UI refresh tasks to settle.
       await sleep(500);
       const dirtyAfterSettle = isDocumentDirty();
       const revisionAfterSettle = getRevision();
@@ -266,7 +266,7 @@ describe('P0S fix verification on the P0 corrective zero-edit lifecycle', () => 
       console.log(`\n[lifecycle] === ${id} ===`);
       console.log(`[lifecycle] original: length=${original.length} sha256=${origSha} mtime=${origMtime.toFixed(1)}`);
       console.log(`[lifecycle] dirty: afterOpen=${dirtyAfterOpen} afterSettle=${dirtyAfterSettle} afterTick1=${dirtyAfterTick1} afterTick2=${dirtyAfterTick2}`);
-      console.log(`[lifecycle] revision (onUpdate dirty-check): afterOpen=${revisionAfterOpen} afterSettle=${revisionAfterSettle}`);
+      console.log(`[lifecycle] revision (transaction-time): afterOpen=${revisionAfterOpen} afterSettle=${revisionAfterSettle}`);
       console.log(`[lifecycle] closePrompt: transitionOk=${transitionOk} dialogTitle=${JSON.stringify(promptTitle)}`);
       console.log(`[lifecycle] saveCount: tick1=${saveCountAfterTick1} tick2=${saveCountAfterTick2} writtenPaths=${JSON.stringify(state.writeLog)}`);
       console.log(`[lifecycle] saved: length=${saved.length} sha256=${savedSha} mtime=${savedMtime.toFixed(1)}`);
@@ -277,7 +277,7 @@ describe('P0S fix verification on the P0 corrective zero-edit lifecycle', () => 
 
       // ── P0S fix assertions: the historical violation is GONE ───────
       expect(dirtyAfterOpen, 'zero-edit open must stay clean (P0S)').toBe(false);
-      expect(dirtyAfterSettle, 'dirty-check settle must stay clean (P0S)').toBe(false);
+      expect(dirtyAfterSettle, 'UI task settle must stay clean (P0S)').toBe(false);
       expect(dirtyAfterTick1, 'autosave tick1 must stay clean (P0S)').toBe(false);
       expect(dirtyAfterTick2, 'autosave tick2 must stay clean (P0S)').toBe(false);
       expect(revisionAfterOpen, 'hydration must not bump userRevision (P0S)').toBe(0);

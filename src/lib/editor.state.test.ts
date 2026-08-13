@@ -1,4 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
+import { Schema } from '@tiptap/pm/model';
+import { EditorState } from '@tiptap/pm/state';
 import {
   setMode,
   getMode,
@@ -12,7 +14,9 @@ import {
   getDocumentState,
   bumpRevision,
   getRevision,
-  markProgrammaticContent,
+  setTransactionOrigin,
+  getTransactionOrigin,
+  isUserContentTransaction,
   resetDocumentRevision,
   markDocumentPersistedRevision,
   hasUnpersistedUserChanges,
@@ -193,13 +197,29 @@ describe('P0S revision model (userRevision / persistedRevision)', () => {
     expect(hasUnpersistedUserChanges()).toBe(false);
   });
 
-  it('markProgrammaticContent never increments userRevision', () => {
-    resetDocumentRevision();
-    markProgrammaticContent('hydration');
-    markProgrammaticContent('readOnlySync');
-    markProgrammaticContent('reloadSync');
-    expect(getRevision()).toBe(0);
-    expect(hasUnpersistedUserChanges()).toBe(false);
+  it('classifies explicit programmatic transaction origins without user intent', () => {
+    const schema = new Schema({ nodes: { doc: { content: 'text*' }, text: {} } });
+    const state = EditorState.create({ schema });
+    const transaction = setTransactionOrigin(state.tr.insertText('x'), 'hydration');
+
+    expect(getTransactionOrigin(transaction)).toBe('hydration');
+    expect(isUserContentTransaction(transaction)).toBe(false);
+  });
+
+  it('classifies an unlabelled doc-changing transaction as user intent', () => {
+    const schema = new Schema({ nodes: { doc: { content: 'text*' }, text: {} } });
+    const state = EditorState.create({ schema });
+
+    expect(getTransactionOrigin(state.tr.insertText('x'))).toBe('unknown');
+    expect(isUserContentTransaction(state.tr.insertText('x'))).toBe(true);
+  });
+
+  it('recognizes Tiptap preventUpdate as a programmatic setContent fallback', () => {
+    const schema = new Schema({ nodes: { doc: { content: 'text*' }, text: {} } });
+    const state = EditorState.create({ schema });
+    const transaction = state.tr.insertText('x').setMeta('preventUpdate', true);
+
+    expect(isUserContentTransaction(transaction)).toBe(false);
   });
 
   it('a user transaction followed by persisted-at-save clears dirty', () => {

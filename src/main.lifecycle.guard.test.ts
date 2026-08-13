@@ -31,7 +31,11 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 // ── Real-fs-backed invoke mock (Tauri IPC boundary only) ───────────────
-const state = vi.hoisted(() => ({ writeCount: 0, writeLog: [] as string[] }));
+const state = vi.hoisted(() => ({
+  writeCount: 0,
+  writeLog: [] as string[],
+  writeBarrier: null as Promise<void> | null,
+}));
 
 vi.mock('@tauri-apps/api/core', async () => {
   const nodeFsMod = await import('node:fs/promises');
@@ -44,6 +48,7 @@ vi.mock('@tauri-apps/api/core', async () => {
         case 'write_file': {
           state.writeCount += 1;
           state.writeLog.push(args.path);
+          if (state.writeBarrier) await state.writeBarrier;
           await nodeFsMod.writeFile(args.path, args.content, 'utf8');
           return null;
         }
@@ -109,6 +114,7 @@ afterAll(async () => {
 beforeEach(async () => {
   state.writeCount = 0;
   state.writeLog = [];
+  state.writeBarrier = null;
   scheduler.cancelAll();
   resetActiveImageDraftState();
   store.setState({
@@ -129,7 +135,7 @@ beforeEach(async () => {
   d.lastReadMtime = 0;
   d.lastReadSize = 0;
 
-  // Real editor with the real onUpdate / dirty-check chain.
+  // Real editor with synchronous transaction-origin/revision tracking.
   const area = document.createElement('div');
   area.id = 'editor-area';
   document.body.appendChild(area);
@@ -185,7 +191,7 @@ describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () 
       const dirtyAfterOpen = isDocumentDirty();
       const revisionAfterOpen = getRevision();
 
-      // Wait for the real dirty-check scheduler (onUpdate schedules 400ms).
+      // Allow non-authoritative UI refresh tasks to settle.
       await sleep(500);
       const dirtyAfterSettle = isDocumentDirty();
       const revisionAfterSettle = getRevision();
@@ -219,11 +225,11 @@ describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () 
 
       // ── P0S contract assertions ────────────────────────────────────
       expect(dirtyAfterOpen, 'zero-edit open must stay clean').toBe(false);
-      expect(dirtyAfterSettle, 'dirty-check settle must stay clean').toBe(false);
+      expect(dirtyAfterSettle, 'UI task settle must stay clean').toBe(false);
       expect(dirtyAfterTick1, 'autosave tick1 must stay clean').toBe(false);
       expect(dirtyAfterTick2, 'autosave tick2 must stay clean').toBe(false);
       expect(revisionAfterOpen, 'hydration must not bump userRevision').toBe(0);
-      expect(revisionAfterSettle, 'setEditable/onUpdate settle must not bump userRevision').toBe(0);
+      expect(revisionAfterSettle, 'setEditable/UI settle must not bump userRevision').toBe(0);
       expect(saveCountAfterTick1, 'autosave tick1 must not write').toBe(0);
       expect(saveCountAfterTick2, 'autosave tick2 must not write').toBe(0);
       expect(saved.equals(original), 'open alone must NOT rewrite the file bytes').toBe(true);
@@ -255,7 +261,7 @@ describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () 
     store.setState({ readOnly: false });
     getEd()!.setEditable(true, /* emitUpdate */ false);
     setSourceReadOnly(false);
-    // Wait for any scheduled dirty-check.
+    // Allow non-authoritative UI refresh tasks to settle.
     await sleep(500);
 
     expect(isDocumentDirty()).toBe(false);
@@ -285,6 +291,22 @@ describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () 
     expect((await nodeFs.readFile(destB)).equals(origB)).toBe(true);
     expect((await nodeFs.stat(destA)).mtimeMs).toBe(mtimeA);
     expect((await nodeFs.stat(destB)).mtimeMs).toBe(mtimeB);
+  });
+
+  it('an immediate A→B switch after a WYSIWYG edit is blocked before debounce time', async () => {
+    const { dest: destA } = await stageFixture('utf8-lf-tail2');
+    const { dest: destB } = await stageFixture('utf8-crlf-tail2');
+
+    await openFileInEditor(destA);
+    getEditor()!.commands.insertContentAt(0, 'X');
+
+    expect(getRevision()).toBe(1);
+    expect(isDocumentDirty()).toBe(true);
+    vi.mocked(dialog.showDialog).mockResolvedValueOnce('cancel');
+    await openFileInEditor(destB);
+
+    expect(store.getState().activeFilePath).toBe(destA);
+    expect(state.writeCount).toBe(0);
   });
 
   it('reload from disk keeps the reloaded doc clean', async () => {
@@ -341,10 +363,9 @@ describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () 
     expect(isDocumentDirty()).toBe(false);
     expect(getRevision()).toBe(0);
 
-    // Real user edit: insert a character at doc start (drives real onUpdate →
-    // 400ms dirty-check → bumpRevision → dirty=true).
+    // Real user edit: revision and dirty must update in the same transaction
+    // turn, before a Cmd+S / switch / close can run.
     getEditor()!.commands.insertContentAt(0, 'X');
-    await sleep(500); // let the real dirty-check scheduler settle
 
     const revisionAfterEdit = getRevision();
     expect(isDocumentDirty(), 'real user edit must set dirty').toBe(true);
@@ -371,6 +392,31 @@ describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () 
     // Legacy serializer loss (soft break → space) is EXPECTED here and must NOT
     // be presented as fixed: the P0 L1 failing characterization stays red in
     // `npm run test:characterization`.
+  });
+
+  it('an edit arriving during write stays dirty after the older revision is persisted', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openFileInEditor(dest);
+
+    getEditor()!.commands.insertContentAt(0, 'X');
+    expect(getRevision()).toBe(1);
+
+    let releaseWrite!: () => void;
+    state.writeBarrier = new Promise<void>((resolve) => { releaseWrite = resolve; });
+    const firstSave = saveActiveDocument({ interactive: true });
+    await vi.waitFor(() => expect(state.writeCount).toBe(1));
+
+    getEditor()!.commands.insertContentAt(1, 'Y');
+    expect(getRevision()).toBe(2);
+    expect(isDocumentDirty()).toBe(true);
+
+    releaseWrite();
+    state.writeBarrier = null;
+    await expect(firstSave).resolves.toBe('saved');
+    expect(isDocumentDirty(), 'newer edit must survive old save completion').toBe(true);
+
+    await expect(saveActiveDocument({ interactive: true })).resolves.toBe('saved');
+    expect(isDocumentDirty()).toBe(false);
   });
 
   it('P0S must not silently flip the L1 failing characterization to green', async () => {

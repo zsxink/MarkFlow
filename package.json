@@ -10,6 +10,7 @@
     "test:e2e:build": "tauri build --debug --features e2e --config src-tauri/tauri.e2e.conf.json",
     "test:e2e": "node e2e/run.mjs smoke",
     "test:e2e:regression": "node e2e/run.mjs regression",
+    "test:e2e:p0s": "node e2e/run.mjs p0s",
     "fixtures:generate": "node tests/byte-contract/generate-fixtures.mjs",
     "test:byte-contract": "node tests/byte-contract/generate-fixtures.mjs --verify && node tests/byte-contract/l0-harness.mjs --self-check && node tests/byte-contract/l1-harness.mjs --self-check",
     "test:characterization": "vitest run --config vitest.characterization.config.ts",

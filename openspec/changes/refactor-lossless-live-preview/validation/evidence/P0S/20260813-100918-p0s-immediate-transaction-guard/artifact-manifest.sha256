@@ -1,0 +1,27 @@
+# Corrective candidate worktree artifacts at AI gate completion.
+# RUN.md and this manifest are excluded to avoid self-referential hashes.
+363e7ee63db756e3c71843ad60d0521c976ea25177d71d69f4d6b4e96dbaa89d  ENVIRONMENT.md
+ab389a862777ae806732216ae2d45abc360f46e65ae3b71317b72978abc57678  ../../README.md
+e7eccc326bef2bc29c043d1a38e9d3f51195713347c6999b96ff88ac8efd8c75  ../../../../design/phases/P0S-legacy-no-edit-save-guard.md
+34ea72de1fbd6b50db7fc632d9e4631b48832596a4ba9600354fe881e18519e4  ../../../../tasks.md
+b5f164a78c2bc5c6a0ff0bbfede464057f6caa0419cea52cfba23d37bef2b1bd  ../../../manual-acceptance-p0s-checklist.md
+9fff74618099a66ddee6374c20ac265c805e04e0a4af884b66bddf6ca1696cba  ../../../phases/P0.md
+68f7b2c8aac1f940ce6ac73f558cc0691beb138182eda9fc394783c6bf39f19e  ../../../phases/P0S.md
+34058e3f9bd2f0fc1eb39aac4f6ffeff682a21fa1dca305f49720cd2efa95a35  ../../../README.md
+844db3a679353560568f24649babc6a00887482ddac376fcfad67a367f08a8c9  ../../../issues/README.md
+ecfa4868a9a2437f5764f68c7140ca6e6c01777d134ebcad4db9534b126c6230  ../../../issues/ISSUE-001-inflight-save-cross-document-contamination.md
+720d5ddf7cc08f40de6c9959fdf791050fe88aeba54e90b14982c2dede1acac4  ../../../issues/ISSUE-002-save-lock-await-gap.md
+df6ebaac58530678a8921969ccd031e828435c2311cfa7fad5cb4de4c740d3fc  ../../../issues/ISSUE-003-p0s-desktop-lifecycle-gap.md
+a5857a52189a56e3d15a9ab9976f78ab3eed5cce2f1ba2a3b5fc1d0c6c221612  gate_e2e.log
+3539ac1504decfe477f8651dda41d8983ad15c1f2a6f2f7d061f9764f424ed2d  REVIEW.md
+93ed0f3ec6b4f31abc9d879a03a1fb4b2f64e8ce08cec90f3d10dca61ab629e9  ../../../../../../../src/components/sidebar.fileops.test.ts
+75c2ac7aaa63d406d8fd684ac9b50ee0a99cee801a9d350f3251136b715a18a8  ../../../../../../../src/components/sidebar.fileops.ts
+16c27a4d3435287a44c872dc51a19f4252bce928ba0f342c27023688574e122f  ../../../../../../../src/lib/editor.image.resolver.ts
+a40a11a03fab4694ba5394c7749e13f5ec6ca7e289b307b5ef503130a8b4563c  ../../../../../../../src/lib/editor.init.ts
+b6196ec3d3af6e46dcdfbdf736c34595abca99eb7373d07133b1d985cdca15fc  ../../../../../../../src/lib/editor.state.test.ts
+21198f47710f4790a8ddf8c53981241538637a39e124a7ee9c6ecf0e5a0d4179  ../../../../../../../src/lib/editor.state.ts
+385074c0cabb38eb7c73e7b3e313bfe631ce81b0b6bab7efc68b5f75ecde02c7  ../../../../../../../src/lib/editor.ts
+34b6fd7baa7bb574a9173449c1a02f4b6fd1edca332238c9191576e979eb85b7  ../../../../../../../src/main.autosave.test.ts
+07d2fb031d71419804872092db235f12b297f0b2a17107e8b3f57897168eba6f  ../../../../../../../src/main.lifecycle.guard.test.ts
+2e8f02b54cb29c0348db4a146a2be102ed1e09ac6becfde98c32f96abc8584aa  ../../../../../../../src/main.ts
+6c742370bb3f53bc1b3371efc1b734df9e37d79291421aeb91b6c6fedb5f4f49  ../../../../../../../tests/byte-contract/legacy-open-autosave.characterization.test.ts

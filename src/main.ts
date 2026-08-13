@@ -160,22 +160,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   // which prevents the native close and emits a custom "close-requested" event.
   // Uses a per-window permission pattern: 1st close → prevent + emit, 2nd close → let through via confirm.
   listen<{ windowLabel: string }>('close-requested', async (event) => {
-    // Ignore events targeted at a different window (defense in depth)
-    if (event.payload.windowLabel !== getCurrentWebviewWindow().label) {
-      return;
-    }
-    if (!isDocumentDirty()) {
-      await invoke('confirm_window_close');
-      return;
-    }
-    showUnsavedDialog(async () => {
-      await invoke('confirm_window_close');
-    });
+    await handleCloseRequested(event.payload.windowLabel);
   });
 
   startAutoSave();
   document.getElementById('app')?.setAttribute('data-app-ready', 'true');
 });
+
+/**
+ * Handle the Rust-side close interception. The revision model is authoritative:
+ * a just-dispatched edit must block closing even before any debounced UI work,
+ * while a stale UI dirty flag cannot make a clean document prompt.
+ */
+export async function handleCloseRequested(windowLabel: string): Promise<void> {
+  // Ignore events targeted at a different window (defense in depth).
+  if (windowLabel !== getCurrentWebviewWindow().label) return;
+
+  if (!hasUnpersistedUserChanges()) {
+    await invoke('confirm_window_close');
+    return;
+  }
+
+  await showUnsavedDialog(async () => {
+    await invoke('confirm_window_close');
+  });
+}
 
 async function restoreWorkspace() {
   try {

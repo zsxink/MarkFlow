@@ -1,6 +1,7 @@
 # Evidence 目录
 
-状态：EMPTY
+状态：ACTIVE。P0S 已有首轮 run `20260813-031727-p0s-legacy-no-edit-guard` 与纠偏 run
+`20260813-100918-p0s-immediate-transaction-guard`；历史 run 不回写，纠偏结果使用新 run-id。
 
 目录格式：`evidence/<phase>/<run-id>/`。
 

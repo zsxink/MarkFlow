@@ -13,3 +13,4 @@
 
 ## 踩坑记录
 - [tiptap-markdown 序列化器限制](troubleshooting-tiptap-markdown-serializer.md) — HTMLNode fallback 陷阱 + defense-in-depth 策略
+- [P0S 保存安全守卫架构](architecture-p0s-save-guard.md) — revision 模型、save lock 前置、generation 身份守卫、P0S e2e 要点

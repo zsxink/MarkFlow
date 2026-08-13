@@ -1,0 +1,46 @@
+Command: npm run test:e2e
+Date: 2026-08-13
+Exit code: 0
+
+> markflow@0.0.6 test:e2e
+> node e2e/run.mjs smoke
+
+> markflow@0.0.6 test:e2e:build
+> tauri build --debug --features e2e --config src-tauri/tauri.e2e.conf.json
+
+TypeScript/Vite e2e build: PASS (2491 modules transformed; existing chunk warnings only)
+Rust/Tauri e2e build: PASS
+Built application: src-tauri/target/debug/markflow
+
+Execution of 6 workers started at 2026-08-13T02:25:16.907Z
+
+[0-0] RUNNING in undefined - file:///e2e/specs/smoke/all-smoke.e2e.mjs
+[0-0] PASSED in undefined - file:///e2e/specs/smoke/all-smoke.e2e.mjs
+
+"spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: e4846671-c13a-479f-a02e-790913b0716a
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » e2e/specs/smoke/all-smoke.e2e.mjs
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: launch
+[webkit 605.1.15 macos #0-0]    ✓ starts a real Tauri window with an isolated workspace
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: file open
+[webkit 605.1.15 macos #0-0]    ✓ opens welcome.md and displays structured content in WYSIWYG editor
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: editor mode
+[webkit 605.1.15 macos #0-0]    ✓ edits content and preserves it across WYSIWYG and source modes
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: edit save reload
+[webkit 605.1.15 macos #0-0]    ✓ edits content, saves to disk, and persists
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: settings panel
+[webkit 605.1.15 macos #0-0]    ✓ opens settings, switches tabs, toggles theme, and persists state on reopen
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 5 passing (1.3s)
+
+Spec Files: 1 passed, 5 skipped, 6 total (100% completed) in 00:00:04
+
+Scope note: e2e/run.mjs configures autosave=false. This PASS is a real WebKit UI smoke only;
+it is not evidence for the P0S autosave=true two-tick or immediate/in-flight lifecycle contract.

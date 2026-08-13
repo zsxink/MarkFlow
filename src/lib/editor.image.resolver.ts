@@ -1,7 +1,7 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { Transaction } from '@tiptap/pm/state';
 import { Extension } from '@tiptap/core';
-import { assetToOriginalMap, getActiveDocPath } from './editor.state';
+import { assetToOriginalMap, getActiveDocPath, setTransactionOrigin } from './editor.state';
 import { resolveImagePath } from './pathUtils';
 import { imagePathToSrc } from './imageUtils';
 
@@ -39,7 +39,9 @@ export function imageSrcResolverPlugin(): Extension {
               const newSrc = imagePathToSrc(absolutePath, null);
               if (newSrc !== src) {
                 assetToOriginalMap.set(newSrc, src);
-                if (!imageTr) imageTr = newState.tr;
+                if (!imageTr) {
+                  imageTr = setTransactionOrigin(newState.tr, 'assetResolution');
+                }
                 imageTr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc });
               }
             });

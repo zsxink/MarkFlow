@@ -4,19 +4,19 @@
 
 ## 1. Slice 0 — 现状刻画与字节合同
 
-- [ ] 1.1 使用现有 Issue #254/#255、当前分支与现有 changes，记录 `feat-v0.1.0` 基线 SHA、支持平台、feature flags、日志目录和当前编辑链路调用图
-- [ ] 1.2 建立 canonical byte fixtures：UTF-8/BOM、LF/CRLF/CR/Mixed、文末 0/1/2/3 换行、文中空行、Unicode、列表/fence/frontmatter、图片与 malformed Markdown
-- [ ] 1.3 实现 byte fixture hash/golden harness，可分别验证无编辑 L0 与局部编辑 L1 的 prefix/suffix/存活 span 保真
-- [ ] 1.4 添加当前 ProseMirror 路径回归测试，稳定复现“修改正文后文末空行丢失”，证明 #189 元数据方案不满足 L1
-- [ ] 1.5 冻结 ADR：UTF-16↔UTF-8/source bytes 坐标、唯一 EOL inheritance/显式 paste provenance、按操作 identity matrix、macOS/Windows/Linux 的 CAS/atomic-exchange/backup-preserving-replace capability 与无能力时 Save Copy 降级、无效 UTF-8 行为与 Save As 格式策略
-- [ ] 1.6 为当前 `read_file/write_file` 与未来 Core commands 建立真实 Tauri dispatcher contract harness，禁止仅 mock `invoke`
-- [ ] 1.7 运行当前 `npm test`、`npx tsc --noEmit`、`npm run build`、Tauri/Rust tests 和 desktop smoke，保存基线证据
-- [ ] 1.8 派独立 reviewer 检查 fixtures、失败复现和 ADR；L0/L1 合同未能机器验证则 Slice 0 No-Go
-- [ ] 1.9 以固定 SHA 保存 Muya/Vditor 行为矩阵，覆盖 block closure、marker reveal、selection、Enter/Backspace、paste、History，并将“可借鉴机制/禁止移植机制”冻结进 ADR
-- [ ] 1.10 对用户指定的 ChatGPT Desktop 26.803.61601 建立黑盒行为矩阵，记录版本、合成输入、selection/Enter/Backspace/paste/Undo/Redo/marker/export 观察，并把 Observed/Official/Inference 分开；无公开源码时禁止推断内部编辑器或 byte-to-byte 架构
-- [ ] 1.11 补真实 legacy 生命周期 characterization：autosave 开启，完整驱动 open→editable/onUpdate→dirty scheduler→autosave→write，零编辑等待至少两个 tick
-- [ ] 1.12 分项记录 dirty/close prompt/save count/mtime/hash/length 与 soft-break/EOL/tail diff；禁止用 standalone Editor、oracle self-check 或 `autosave=false` smoke 代替
-- [ ] 1.13 为人工新发现建立 corrective evidence run，保持历史 run 不可变；完成新的独立 Reviewer、正文单字符编辑、重开、ADR 人工审阅和 Program Owner 决定
+- [x] 1.1 使用现有 Issue #254/#255、当前分支与现有 changes，记录 `feat-v0.1.0` 基线 SHA、支持平台、feature flags、日志目录和当前编辑链路调用图
+- [x] 1.2 建立 canonical byte fixtures：UTF-8/BOM、LF/CRLF/CR/Mixed、文末 0/1/2/3 换行、文中空行、Unicode、列表/fence/frontmatter、图片与 malformed Markdown
+- [x] 1.3 实现 byte fixture hash/golden harness，可分别验证无编辑 L0 与局部编辑 L1 的 prefix/suffix/存活 span 保真
+- [x] 1.4 添加当前 ProseMirror 路径回归测试，稳定复现“修改正文后文末空行丢失”，证明 #189 元数据方案不满足 L1
+- [x] 1.5 冻结 ADR：UTF-16↔UTF-8/source bytes 坐标、唯一 EOL inheritance/显式 paste provenance、按操作 identity matrix、macOS/Windows/Linux 的 CAS/atomic-exchange/backup-preserving-replace capability 与无能力时 Save Copy 降级、无效 UTF-8 行为与 Save As 格式策略
+- [x] 1.6 为当前 `read_file/write_file` 与未来 Core commands 建立真实 Tauri dispatcher contract harness，禁止仅 mock `invoke`
+- [x] 1.7 运行当前 `npm test`、`npx tsc --noEmit`、`npm run build`、Tauri/Rust tests 和 desktop smoke，保存基线证据
+- [x] 1.8 派独立 reviewer 检查 fixtures、失败复现和 ADR；L0/L1 合同未能机器验证则 Slice 0 No-Go
+- [x] 1.9 以固定 SHA 保存 Muya/Vditor 行为矩阵，覆盖 block closure、marker reveal、selection、Enter/Backspace、paste、History，并将“可借鉴机制/禁止移植机制”冻结进 ADR
+- [x] 1.10 对用户指定的 ChatGPT Desktop 26.803.61601 建立黑盒行为矩阵，记录版本、合成输入、selection/Enter/Backspace/paste/Undo/Redo/marker/export 观察，并把 Observed/Official/Inference 分开；无公开源码时禁止推断内部编辑器或 byte-to-byte 架构
+- [x] 1.11 补真实 legacy 生命周期 characterization：autosave 开启，完整驱动 open→editable/onUpdate→dirty scheduler→autosave→write，零编辑等待至少两个 tick
+- [x] 1.12 分项记录 dirty/close prompt/save count/mtime/hash/length 与 soft-break/EOL/tail diff；禁止用 standalone Editor、oracle self-check 或 `autosave=false` smoke 代替
+- [x] 1.13 为人工新发现建立 corrective evidence run，保持历史 run 不可变；完成新的独立 Reviewer、正文单字符编辑、重开、ADR 人工审阅和 Program Owner 决定
 
 ## 1S. Slice 0S — Legacy 零编辑写盘安全止血
 
@@ -27,6 +27,9 @@
 - [x] 1S.5 将 P0 零编辑 failing lifecycle 转为默认绿色 integration/desktop regression，覆盖 LF/CRLF/CR/Mixed/BOM/tail0-3、两个 autosave tick、关闭提示与 mtime/hash
 - [x] 1S.6 验证一个真实用户 transaction 仍进入 dirty/保存；继续记录 legacy 编辑后 L1 失败，禁止宣称 byte-to-byte 已修复
 - [x] 1S.7 运行全 gate，派独立 Reviewer 检查没有接受 serializer 输出、扩大 trailing metadata 或全局关闭 autosave；完成人工验收与 Program Owner Go
+- [x] 1S.8 纠正 Reviewer 发现的 `<400ms` 数据丢失窗口：WYSIWYG user revision/dirty 在 transaction dispatch 同步更新，programmatic origin 使用同一 transaction meta，取消 dirty debounce 的权威职责
+- [x] 1S.9 补立即 Cmd+S、A→B、close、save in-flight 新编辑、跨文档隔离和 `SaveResult` 三态自动化；重跑默认/characterization/byte/Rust gate
+- [x] 1S.10 对纠偏候选执行新的独立 Reviewer desktop lifecycle 与人工立即 Save/切换/关闭验收；两者通过并由 Program Owner 重新确认后，P0S 才恢复 GO 并允许进入 P1A
 
 ## 2. Slice 1A — 最小 Lossless Core
 

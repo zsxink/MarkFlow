@@ -1,10 +1,10 @@
 # P1A 验证记录：最小 Lossless Core
 
-总体状态：**技术验收 PASS；Program Owner 决定待确认**。此前的
+总体状态：**P1A GO（Program Owner 2026-08-14 决定启动 P1B）**。此前的
 `20260813-p1a-core-0967a06` 为不可改写的历史证据，不能覆盖随后发现的 P1A
 缺陷。修复候选 `9ad0513` 已通过新的独立 evidence run、独立 Reviewer 和 AI Core
 contract acceptance；P1A 无产品 UI，按 Program Owner 的 2026-08-14 授权不要求 xian
-执行技术清单。最终是否启动 P1B 仍由 Program Owner 明确确认。
+执行技术清单。Program Owner 已明确 Go 并批准启动 P1B（2026-08-14）。
 
 正式设计：[P1A：最小 Lossless Core](../../design/phases/P1A-lossless-core.md)
 
@@ -78,8 +78,7 @@ AI acceptance 结论：**PASS**。详见
 
 > 下列 `2026-08-13` reviewer 结论只适用于历史 candidate。对 corrective candidate `9ad0513`
 > 的独立复核已于 2026-08-14 完成：**两个独立 Reviewer 均判 PASS**（见上方 Corrective 独立复核节）。
-> 非 UI Core acceptance 已由 AI 完成；Program Owner Go/No-Go 仍为 **PENDING**，不得在
-> 收到用户启动 P1B 的明确决定前按任何 Reviewer 结论勾选 P1A 完成。
+> 非 UI Core acceptance 已由 AI 完成；**Program Owner 已于 2026-08-14 明确 Go 并批准启动 P1B**。
 
 ### 历史 candidate（2026-08-13，已 superseded 供参考）
 
@@ -89,14 +88,14 @@ AI acceptance 结论：**PASS**。详见
 - [x] Reviewer 对照 spec 检查 EOL 继承顺序与 DTO（CONDITIONAL PASS，§3.5 已冻结）
 - Reviewer：fresh-context 独立 Reviewer → **CONDITIONAL PASS**（历史 candidate `648e9a3`）
 - Open blocking issues：NONE（reviewer 5 项观察已处置：#1 已提交、#2 已冻结、#3 文档、#4 P1B 观察、#5 环境）
-- Program Go/No-Go：NOT STARTED（待用户明确决定是否启动 P1B）
+- Program Go/No-Go：GO（2026-08-14，xian；历史 candidate 已由 corrective superseded）
 
 ### Corrective candidate（2026-08-14）— 当前有效
 
 - Reviewer：**两个独立 Reviewer → PASS / Reviewer GO**（候选 `9ad0513`）
 - Open blocking issues：NONE（唯一 Open finding 为 P2 transaction-id 保留窗口，非 P1A 阻塞，P1B 处理）
 - Core contract acceptance：**AI PASS**（`20260814-161034-p1a-ai-contract-9ad0513`）
-- Program Go/No-Go：**NOT STARTED**（待用户明确决定是否启动 P1B）
+- Program Go/No-Go：**GO**（2026-08-14，xian 决定启动 P1B）
 
 ### Reviewer 发现与处置（2026-08-13）
 

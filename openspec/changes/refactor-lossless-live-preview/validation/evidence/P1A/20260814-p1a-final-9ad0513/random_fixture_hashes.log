@@ -1,0 +1,9 @@
+{"id":"utf8-lf-tail2","bytes":68,"expectedSha256":"bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0","actualSha256":"bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0","pass":true}
+{"id":"syntax-table-reference-footnote","bytes":127,"expectedSha256":"a0d1b76f9a4d3811f5960379ea61d61f84cd89abc24c21bfb9f5b9960813405f","actualSha256":"a0d1b76f9a4d3811f5960379ea61d61f84cd89abc24c21bfb9f5b9960813405f","pass":true}
+{"id":"spaces-only","bytes":6,"expectedSha256":"52d8194d6705aedb21ccffe6965db6913d277d3d259ad5f071f38034e8aa7f52","actualSha256":"52d8194d6705aedb21ccffe6965db6913d277d3d259ad5f071f38034e8aa7f52","pass":true}
+{"id":"utf8-mixed-tail2","bytes":91,"expectedSha256":"0a892d540a04d1b306768be51e56b90f89dce7d649f76d0fe87712a9053e3f85","actualSha256":"0a892d540a04d1b306768be51e56b90f89dce7d649f76d0fe87712a9053e3f85","pass":true}
+{"id":"utf8-crlf-tail1","bytes":71,"expectedSha256":"262aa53ae6984dc1299336bdcd0137ef4f616f022fc9fe63f280c32368aebd5c","actualSha256":"262aa53ae6984dc1299336bdcd0137ef4f616f022fc9fe63f280c32368aebd5c","pass":true}
+{"id":"syntax-image-blanklines","bytes":40,"expectedSha256":"1405f11cd7dd713510577201d95c99b2f6cebbebfba4472c5fe80966857d4ac0","actualSha256":"1405f11cd7dd713510577201d95c99b2f6cebbebfba4472c5fe80966857d4ac0","pass":true}
+{"id":"utf8-lf-tail3","bytes":69,"expectedSha256":"201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1","actualSha256":"201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1","pass":true}
+{"sampleCount":7,"failed":0}
+exit_code=0

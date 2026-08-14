@@ -1,0 +1,9 @@
+   Compiling p1a-final-independent-harness v0.1.0 (<repo>/openspec/changes/refactor-lossless-live-preview/validation/evidence/P1A/20260814-p1a-final-9ad0513/harness)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running `openspec/changes/refactor-lossless-live-preview/validation/evidence/P1A/20260814-p1a-final-9ad0513/cargo-target/debug/p1a-final-independent-harness`
+PASS open/reload clean and delayed old-generation patch rejection
+PASS multi-change inheritance resolved from immutable base snapshot
+PASS all PositionMap public conversions reject mismatched geometry without panic
+PASS injected overlapping-change failure is atomic
+OBSERVED P2 transaction id can be reused with a different payload after 256 retained entries
+exit_code=0

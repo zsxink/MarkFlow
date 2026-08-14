@@ -1,0 +1,9 @@
+[package]
+name = "p1a-final-independent-harness"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+markflow-core = { path = "../../../../../../../../markflow-core" }
+
+[workspace]

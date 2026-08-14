@@ -1,0 +1,9 @@
+candidate=9ad05131fd3bebd938cf2700a30169889f3dac86
+expected=9ad05131fd3bebd938cf2700a30169889f3dac86
+candidate_vs_worktree_product_diff_exit=0
+## test/issue-255-lossless-byte-contract...origin/test/issue-255-lossless-byte-contract [ahead 9]
+ M openspec/changes/refactor-lossless-live-preview/tasks.md
+ M openspec/changes/refactor-lossless-live-preview/validation/phases/P1A.md
+?? openspec/changes/refactor-lossless-live-preview/validation/evidence/P1A/20260814-p1a-corrective-core/
+?? openspec/changes/refactor-lossless-live-preview/validation/evidence/P1A/20260814-p1a-final-9ad0513/
+exit_code=0

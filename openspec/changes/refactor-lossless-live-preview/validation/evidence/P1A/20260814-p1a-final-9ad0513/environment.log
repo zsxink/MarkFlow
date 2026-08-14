@@ -1,0 +1,19 @@
+2026-08-14T16:06:35+08:00
+ProductName:		macOS
+ProductVersion:		26.5.2
+BuildVersion:		25F84
+arm64
+rustc 1.96.0 (ac68faa20 2026-05-25)
+binary: rustc
+commit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96
+commit-date: 2026-05-25
+host: aarch64-apple-darwin
+release: 1.96.0
+LLVM version: 22.1.2
+cargo 1.96.0 (30a34c682 2026-05-25)
+v24.17.0
+11.13.0
+1.6.0
+git version 2.50.1 (Apple Git-155)
+cwd=<repo>
+exit_code=0

@@ -1,0 +1,54 @@
+markflow-core/src/snapshot.rs:155:                let ch = text[i..].chars().next().expect("valid UTF-8 char");
+markflow-core/src/snapshot.rs:225:        let s = OriginalSnapshot::from_bytes(b"", LineEndingKind::Lf).unwrap();
+markflow-core/src/snapshot.rs:232:        let s = OriginalSnapshot::from_bytes(UTF8_BOM, LineEndingKind::Lf).unwrap();
+markflow-core/src/snapshot.rs:243:        let s = OriginalSnapshot::from_bytes(bytes, LineEndingKind::Crlf).unwrap();
+markflow-core/src/snapshot.rs:252:        let s = OriginalSnapshot::from_bytes(bytes, LineEndingKind::Crlf).unwrap();
+markflow-core/src/snapshot.rs:259:        let s = OriginalSnapshot::from_bytes(b"a\r\n\r\n\r\n", LineEndingKind::Lf).unwrap();
+markflow-core/src/line_ending.rs:163:            serde_json::to_string(&NewlineEnding::ExplicitCrlf).unwrap(),
+markflow-core/src/line_ending.rs:167:            serde_json::to_string(&NewlineEnding::Inherit).unwrap(),
+markflow-core/src/line_ending.rs:170:        let back: NewlineEnding = serde_json::from_str("\"cr\"").unwrap();
+markflow-core/src/identity.rs:134:        let json = serde_json::to_string(&h).unwrap();
+markflow-core/src/identity.rs:136:        let back: ContentHash = serde_json::from_str(&json).unwrap();
+markflow-core/src/position_map.rs:84:            let ch = logical[byte..].chars().next().expect("valid boundary");
+markflow-core/src/position_map.rs:106:            let ch = logical[byte..].chars().next().expect("valid UTF-8");
+markflow-core/src/position_map.rs:208:        let snap = OriginalSnapshot::from_bytes(bytes, LineEndingKind::Lf).unwrap();
+markflow-core/src/position_map.rs:209:        TextBuffer::from_source_bytes(bytes, snap.bom, snap.dominant_line_ending()).unwrap()
+markflow-core/src/position_map.rs:222:                .unwrap()
+markflow-core/src/position_map.rs:228:                .unwrap()
+markflow-core/src/position_map.rs:234:                .unwrap()
+markflow-core/src/position_map.rs:240:                .unwrap()
+markflow-core/src/position_map.rs:246:                .unwrap()
+markflow-core/src/position_map.rs:253:                .unwrap()
+markflow-core/src/position_map.rs:259:                .unwrap()
+markflow-core/src/position_map.rs:265:                .unwrap()
+markflow-core/src/position_map.rs:271:                .unwrap()
+markflow-core/src/position_map.rs:277:                .unwrap()
+markflow-core/src/position_map.rs:303:                .unwrap()
+markflow-core/src/position_map.rs:310:                .unwrap()
+markflow-core/src/position_map.rs:316:                .unwrap()
+markflow-core/src/position_map.rs:322:                .unwrap()
+markflow-core/src/position_map.rs:330:                .unwrap()
+markflow-core/src/position_map.rs:336:                .unwrap()
+markflow-core/src/position_map.rs:350:                .unwrap()
+markflow-core/src/position_map.rs:365:                .unwrap()
+markflow-core/src/position_map.rs:385:                .unwrap()
+markflow-core/src/lib.rs:24://! Non-test code contains exactly two `.expect()` calls, both in
+markflow-core/src/types.rs:120:        let json = serde_json::to_string(&range).unwrap();
+markflow-core/src/types.rs:121:        let back: SourceRange<LogicalByteOffset> = serde_json::from_str(&json).unwrap();
+markflow-core/src/session.rs:443:            .unwrap()
+markflow-core/src/session.rs:482:            .unwrap();
+markflow-core/src/session.rs:493:        let first = s.apply_patch(p.clone()).unwrap();
+markflow-core/src/session.rs:494:        let second = s.apply_patch(p).unwrap();
+markflow-core/src/session.rs:504:        s.apply_patch(p1).unwrap();
+markflow-core/src/session.rs:556:        let payload = s.prepare_save(Revision(0), &identity).unwrap();
+markflow-core/src/session.rs:583:        s.mark_persisted(Revision(0), None).unwrap();
+markflow-core/src/session.rs:586:            .unwrap();
+markflow-core/src/session.rs:588:        s.mark_persisted(Revision(1), None).unwrap();
+markflow-core/src/session.rs:609:            .unwrap();
+markflow-core/src/session.rs:610:        s.mark_persisted(Revision(1), None).unwrap();
+markflow-core/src/session.rs:611:        s.reload(b"fresh\ncontent", LineEndingKind::Lf).unwrap();
+markflow-core/src/session.rs:624:        s.reload(b"after", LineEndingKind::Lf).unwrap();
+markflow-core/src/session.rs:668:        let outcome = s.apply_patch(p).unwrap();
+markflow-core/src/session.rs:670:        let sel = outcome.selection_after.unwrap();
+markflow-core/src/session.rs:681:            s.apply_patch(p).unwrap();
+exit_code=0

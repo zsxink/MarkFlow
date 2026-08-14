@@ -1,0 +1,38 @@
+
+> markflow@0.0.6 test:byte-contract
+> node tests/byte-contract/generate-fixtures.mjs --verify && node tests/byte-contract/l0-harness.mjs --self-check && node tests/byte-contract/l1-harness.mjs --self-check
+
+{
+  "verified": true,
+  "stable": true,
+  "changed": []
+}
+{
+  "positive": {
+    "pass": true,
+    "count": 24,
+    "failed": []
+  },
+  "negative": {
+    "pass": true,
+    "count": 23,
+    "missed": []
+  },
+  "ok": true,
+  "fixturesDir": "<repo>/tests/fixtures/byte-contract/fixtures"
+}
+{
+  "positive": {
+    "pass": true,
+    "count": 95,
+    "failed": []
+  },
+  "negative": {
+    "pass": true,
+    "count": 93,
+    "missed": []
+  },
+  "ok": true,
+  "fixturesRoot": "<repo>/tests/fixtures/byte-contract"
+}
+exit_code=0

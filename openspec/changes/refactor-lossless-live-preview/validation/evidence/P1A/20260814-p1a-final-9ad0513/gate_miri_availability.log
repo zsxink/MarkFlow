@@ -1,0 +1,2 @@
+error: the 'miri' component which provides the command 'cargo-miri' is not available for the 'stable-aarch64-apple-darwin' toolchain
+exit_code=1

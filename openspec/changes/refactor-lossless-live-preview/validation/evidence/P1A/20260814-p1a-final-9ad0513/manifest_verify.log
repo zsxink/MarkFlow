@@ -1,0 +1,22 @@
+ENVIRONMENT.md: OK
+REVIEW.md: OK
+RUN.md: OK
+candidate_identity.log: OK
+core_panic_unwrap_audit.log: OK
+environment.log: OK
+gate_archive_sync.log: OK
+gate_bytecontract_p0.log: OK
+gate_core_clippy.log: OK
+gate_core_fmt.log: OK
+gate_core_test.log: OK
+gate_miri_availability.log: OK
+gate_npm_test.log: OK
+gate_openspec_all.log: OK
+gate_openspec_strict.log: OK
+gate_tsc.log: OK
+harness/Cargo.lock: OK
+harness/Cargo.toml: OK
+harness/src/main.rs: OK
+independent_harness.log: OK
+random_fixture_hashes.log: OK
+pre_final_manifest_exit_code=0

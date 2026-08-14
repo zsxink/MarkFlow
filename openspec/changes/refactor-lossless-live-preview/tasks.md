@@ -41,7 +41,12 @@
 - [x] 2.6 实现 `LosslessDocumentSession` 的 open/apply/snapshot/prepare-save/mark-persisted/reload/close 状态机
 - [x] 2.7 添加 Core golden/property tests，覆盖全部 byte fixtures、Unicode boundary、Mixed EOL replacement 与正文编辑保留尾部空行
 - [x] 2.7.1 对每个 fixture 证明 open 后零 patch 的 `prepare_save` 返回原始 bytes，重复 clean prepare 不改变 revision/hash；显式 clean save payload 不能来自 parser/serializer
-- [x] 2.8 运行 Core fmt/clippy/test；独立 reviewer 对 byte contract、panic、安全边界与 draft 移植差异做专项复核（reviewer CONDITIONAL PASS，条件已解决；人工验收待 Program Owner）
+- [x] 2.8 corrective run `20260814-p1a-corrective-core` 已完成自动化修复与 Core/P0/TS/OpenSpec
+  gate；**两个独立 Reviewer 均对候选 `9ad0513` 判 PASS**（`20260814-p1a-corrective-core/REVIEW.md` 与
+  `20260814-p1a-final-9ad0513/REVIEW.md`；后者 Reviewer GO）。唯一 Open finding 为 **P2**（transaction-id
+  保留窗口 256 条后失效，非 P1A 阻塞，须在 P1B 协议冻结或解决）。**人工验收**和 **Program Owner Go/No-Go**
+  仍为 PENDING，自动化通过与 Reviewer PASS 不得将 Slice 1A 或 P1A 标记 Go。
+  三项均为 PENDING，自动化通过不得将 Slice 1A 或 P1A 标记 Go。
 
 ## 3. Slice 1B — Bridge、同步管线与无损 Source 闭环
 

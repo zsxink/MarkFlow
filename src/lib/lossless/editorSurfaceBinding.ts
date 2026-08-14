@@ -194,10 +194,16 @@ export class EditorSurfaceBinding {
 
   // ── Dirty / status ──────────────────────────────────────────────────
 
-  /** Dirty = pending edits OR confirmed != persisted (design 02 §5). */
+  /** Dirty = pending edits OR in-flight patch OR confirmed != persisted
+   *  (design 02 §5). An in-flight patch that has not yet acked must count as
+   *  dirty so close/switch can never silently drop it (P1 reviewer finding). */
   isDirty(): boolean {
     if (this.disposed) return false;
-    return this.controller.pending > 0 || this.controller.revision !== this.persistedRevision;
+    return (
+      this.controller.pending > 0 ||
+      this.controller.isInFlight() ||
+      this.controller.revision !== this.persistedRevision
+    );
   }
 
   get pipelineState(): string {
@@ -310,6 +316,7 @@ export class EditorSurfaceBinding {
             documentId: this.documentId,
             persistedRevision: prepared.revision,
             newFileIdentity: newIdentity,
+            saveOperationId,
           },
         });
         // Bind the post-write identity for the next guarded write.
@@ -330,6 +337,7 @@ export class EditorSurfaceBinding {
   }
 
   private async reconcileOutcomeUnknown(opId: string | null, revision: number | null): Promise<void> {
+    const operationId = opId;
     if (!opId || revision === null) return;
     try {
       const reconciled = await invoke<ReconcileResponse>('reconcile_document_save', {
@@ -346,6 +354,7 @@ export class EditorSurfaceBinding {
             documentId: this.documentId,
             persistedRevision: revision,
             newFileIdentity: reconciled.newFileIdentity,
+            saveOperationId: operationId,
           },
         });
         this.fileIdentity = reconciled.newFileIdentity;
@@ -366,6 +375,8 @@ export class EditorSurfaceBinding {
     if (this.saving) return 'skipped';
     if (this.disposed) return 'failed';
     this.saving = true;
+    let opId: string | null = null;
+    let preparedRevision: number | null = null;
     try {
       const flush = await this.controller.flush();
       if (flush.status !== 'flushed') return 'failed';
@@ -377,6 +388,7 @@ export class EditorSurfaceBinding {
       }
 
       const saveOperationId = crypto.randomUUID();
+      opId = saveOperationId;
       const prepared = await invoke<PrepareSaveResponse>('prepare_document_save', {
         req: {
           sessionId: this.sessionId,
@@ -388,6 +400,7 @@ export class EditorSurfaceBinding {
           path: targetPath,
         },
       });
+      preparedRevision = prepared.revision;
       const written = await invoke<GuardedWriteResponse>('guarded_atomic_write', {
         req: {
           path: targetPath,
@@ -405,6 +418,7 @@ export class EditorSurfaceBinding {
           documentId: this.documentId,
           persistedRevision: prepared.revision,
           newFileIdentity: written.newFileIdentity,
+          saveOperationId,
         },
       });
       // Rebind the session to the new path + identity for future saves.
@@ -414,6 +428,8 @@ export class EditorSurfaceBinding {
       this.syncDirty();
       return 'saved';
     } catch {
+      // Lost response after a Save As write: reconcile the new target's receipt.
+      await this.reconcileOutcomeUnknown(opId, preparedRevision);
       return 'failed';
     } finally {
       this.saving = false;

@@ -166,6 +166,11 @@ export class SourceSyncController {
     return this.pendingCount;
   }
 
+  /** True while a patch is sent but not yet acked (in-flight dirty hole, P1). */
+  isInFlight(): boolean {
+    return this.inFlight !== null;
+  }
+
   isBlocked(): boolean {
     return this.state === 'blocked';
   }

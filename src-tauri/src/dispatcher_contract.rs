@@ -456,6 +456,7 @@ fn bridge_commit_marks_persisted_revision_and_close_removes_session() {
             document_id: markflow_core::DocumentId(document_id),
             persisted_revision: 1,
             new_file_identity: new_identity,
+            save_operation_id: None,
         },
         st,
     )

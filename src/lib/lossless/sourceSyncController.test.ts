@@ -172,6 +172,26 @@ describe('SourceSyncController', () => {
     expect(controller.revision).toBe(0);
   });
 
+  it('isInFlight() is true while a patch awaits its ack (in-flight dirty hole)', async () => {
+    let releaseAck!: (r: any) => void;
+    const applyPatch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          releaseAck = resolve;
+        }),
+    );
+    const { controller } = makeController({ applyPatch: applyPatch as any });
+    controller.onUserEdit();
+    await tick();
+    // pending is 0 (frame consumed) but the patch is in flight — must NOT look clean.
+    expect(controller.pending).toBe(0);
+    expect(controller.isInFlight()).toBe(true);
+    releaseAck({ revision: 1, confirmedHash: 'h1' });
+    await tick(20);
+    expect(controller.isInFlight()).toBe(false);
+    expect(controller.pipelineState).toBe('idle');
+  });
+
   it('does not send while in flight; queues edits until the ack lands', async () => {
     let releaseAck!: (r: any) => void;
     const applyPatch = vi.fn(

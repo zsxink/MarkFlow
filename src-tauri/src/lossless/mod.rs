@@ -386,6 +386,11 @@ pub fn commit_document_save(
                 .map_err(LosslessError::from)
         })
         .ok_or_else(|| LosslessError::session_missing(format!("session {session_id:?} not found")))??;
+    // Advance the durable receipt to Committed (design 04 §3): the operation is
+    // now fully persisted; startup reconcile skips it from now on.
+    if let Some(op_id) = &req.save_operation_id {
+        let _ = guarded_write::mark_committed(op_id);
+    }
     Ok(())
 }
 

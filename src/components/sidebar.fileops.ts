@@ -148,9 +148,11 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     }
     if (losslessResult === 'skipped') return 'skipped';
     if (losslessResult === 'conflict') {
-      // Guarded write surfaced a conflict — never silently overwrite.
+      // Guarded write surfaced a conflict — never silently overwrite. In the
+      // rare displaced-mismatch race the displaced bytes are preserved as a
+      // recovery copy on disk.
       if (interactive) {
-        showToast('文件已被外部修改，未覆盖磁盘内容');
+        showToast('检测到外部修改，原文件已保留为恢复副本，未覆盖');
       }
       return 'failed';
     }

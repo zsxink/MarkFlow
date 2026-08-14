@@ -436,25 +436,37 @@ fn update_receipt(
     write_receipt_atomically(&receipt_path, &receipt)
 }
 
+/// Advance a receipt to `Committed` after a successful commit. Best-effort: a
+/// missing receipt (e.g. the op id was never recorded) is not an error.
+pub fn mark_committed(save_operation_id: &str) -> Result<(), LosslessError> {
+    let receipt_path = receipt_path_for(save_operation_id);
+    if read_receipt(&receipt_path)?.is_none() {
+        return Ok(());
+    }
+    update_receipt(save_operation_id, |r| r.state = ReceiptState::Committed)
+}
+
 pub fn receipts_dir() -> PathBuf {
-    // Test override: isolates all receipt I/O from the real app config dir.
-    if let Ok(guard) = RECEIPTS_DIR_OVERRIDE.lock() {
-        if let Some(dir) = guard.clone() {
-            return dir;
-        }
+    // Thread-local test override: each `cargo test` thread isolates its own
+    // receipts dir, so parallel tests never race a shared override (and never
+    // write to the developer's real app config dir).
+    if let Some(dir) = RECEIPTS_DIR_OVERRIDE.with(|c| c.borrow().clone()) {
+        return dir;
     }
     app_config_dir().join(RECEIPTS_DIR_NAME)
 }
 
-/// Test-only override so `cargo test` never writes receipts to the developer's
-/// real app config directory (a P1A reviewer P2 finding).
+/// Test-only override (thread-local) so `cargo test` never writes receipts to
+/// the developer's real app config directory (a P1A reviewer P2 finding).
 #[cfg(test)]
 pub fn set_receipts_dir_override(dir: Option<PathBuf>) {
-    *RECEIPTS_DIR_OVERRIDE.lock().unwrap() = dir;
+    RECEIPTS_DIR_OVERRIDE.with(|c| *c.borrow_mut() = dir);
 }
 
-static RECEIPTS_DIR_OVERRIDE: std::sync::Mutex<Option<PathBuf>> =
-    std::sync::Mutex::new(None);
+thread_local! {
+    static RECEIPTS_DIR_OVERRIDE: std::cell::RefCell<Option<PathBuf>> =
+        std::cell::RefCell::new(None);
+}
 
 fn receipt_path_for(save_operation_id: &str) -> PathBuf {
     receipts_dir().join(format!("{save_operation_id}.json"))

@@ -144,6 +144,9 @@ pub struct CommitSaveRequest {
     pub document_id: DocumentId,
     pub persisted_revision: u64,
     pub new_file_identity: FileIdentity,
+    /// The save operation whose durable receipt should advance to `Committed`
+    /// after this commit (design 04 §3). Optional for callers without one.
+    pub save_operation_id: Option<String>,
 }
 
 /// `reload_lossless_document`

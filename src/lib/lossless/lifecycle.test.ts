@@ -25,6 +25,9 @@ const state = vi.hoisted(() => ({
   nextDocument: 1,
   writeCount: 0,
   writes: [] as Array<{ path: string; payloadSha256: string }>,
+  receipts: new Map<string, { state: 'written' | 'committed' | 'conflict'; payloadSha256: string; path: string }>(),
+  /** Test hook: when true, the NEXT commit_document_save call fails (lost response). */
+  failCommitOnce: false,
 }));
 
 vi.mock('@tauri-apps/api/core', async () => {
@@ -153,6 +156,11 @@ vi.mock('@tauri-apps/api/core', async () => {
           sessionState.writeCount += 1;
           sessionState.writes.push({ path: req.path, payloadSha256: sha256hex(payload) });
           await nodeFsMod.writeFile(req.path, payload, 'utf8');
+          sessionState.receipts.set(req.saveOperationId, {
+            state: 'written',
+            payloadSha256: sha256hex(payload),
+            path: req.path,
+          });
           return {
             saveOperationId: req.saveOperationId,
             outcome: 'written',
@@ -166,7 +174,32 @@ vi.mock('@tauri-apps/api/core', async () => {
             receiptState: 'written',
           };
         }
+        case 'reconcile_document_save': {
+          const receipt = sessionState.receipts.get(req.saveOperationId ?? req);
+          if (!receipt) throw { code: 'save-outcome-unknown', message: 'no receipt' };
+          const disk = await nodeFsMod.readFile(receipt.path, 'utf8');
+          const diskHash = sha256hex(disk);
+          if (receipt.state === 'written' && diskHash === receipt.payloadSha256) {
+            // Written + disk matches prepared payload → commit is safe (mirrors
+            // the real Rust `reconcile_document_save` returning the new identity).
+            return {
+              saveOperationId: receipt.path,
+              state: 'written-and-commit-pending',
+              newFileIdentity: {
+                canonicalPath: receipt.path,
+                size: Buffer.byteLength(disk, 'utf8'),
+                mtime: Date.now(),
+                contentHash: diskHash,
+              },
+            };
+          }
+          return { saveOperationId: receipt.path, state: 'conflict', newFileIdentity: null };
+        }
         case 'commit_document_save': {
+          if (sessionState.failCommitOnce) {
+            sessionState.failCommitOnce = false;
+            throw { code: 'io', message: 'commit response lost' };
+          }
           const session = sessionState.sessions.get(req.sessionId);
           if (!session) throw { code: 'session-missing', message: 'missing' };
           session.persistedRevision = req.persistedRevision;
@@ -248,6 +281,8 @@ beforeEach(async () => {
   state.nextDocument = 1;
   state.writeCount = 0;
   state.writes = [];
+  state.receipts.clear();
+  state.failCommitOnce = false;
   setLosslessCoreSessionEnabled(true);
   setActiveLosslessBinding(null);
   store.setState({ dirty: false, activeFilePath: null, mode: 'source' });
@@ -385,6 +420,25 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     expect(state.writeCount).toBe(0);
     const aAfter = await nodeFs.readFile(destA);
     expect(aAfter.equals(origA)).toBe(true);
+  });
+
+  it('lost commit response → reconcile confirms the write and commits idempotently', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+
+    binding.typeAtCursor('R');
+    await sleep(80);
+    expect(binding.isDirty()).toBe(true);
+
+    // The write lands, but the commit RESPONSE is lost.
+    state.failCommitOnce = true;
+    const result = await saveLosslessActiveDocument({ interactive: false });
+    // Save surfaced a failure, but the durable receipt reconcile must have
+    // committed the corresponding persisted revision — the doc is now clean.
+    expect(result).toBe('failed');
+    expect(state.writeCount).toBe(1);
+    expect(binding.isDirty()).toBe(false);
   });
 });
 

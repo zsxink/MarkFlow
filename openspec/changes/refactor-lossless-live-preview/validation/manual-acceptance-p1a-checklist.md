@@ -5,11 +5,16 @@
 AI gate：run `20260813-p1a-core-0967a06`（candidate `648e9a3`，含 reviewer 纠偏 + §3.5 冻结测试）
 本清单用途：P1A 无产品 UI，人工验收为**审阅 Core API / byte diff / 零 patch prepare-save 报告**。
 
+> **执行方式（一键脚本）**：运行 `bash scripts/p1a-acceptance.sh`。
+> 脚本自动跑全部机器 gate，然后逐项打印证据路径并等待输入 `y`（通过）/ `n`（不通过），
+> 最后把验收记录写入 evidence run 的 `HUMAN-ACCEPTANCE.md`。
+> 本清单是脚本背后的人工核对项，供逐项理解；脚本已覆盖以下所有项目。
+
 ---
 
 ## 0. 前置：干净环境
 
-- [ ] 确认当前分支为 `test/issue-255-lossless-byte-contract`，candidate = `648e9a3`。
+- [ ] 确认当前分支为 `test/issue-255-lossless-byte-contract`，code candidate = `648e9a3`。
 - [ ] 确认 Core 未接入任何产品入口（`src-tauri/` 与前端无 lossless flag 变更）。
 - [ ] 记录：验收人 / 日期 / 设备 / OS。
       → 待填写

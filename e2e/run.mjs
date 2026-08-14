@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const suite = process.argv[2] ?? 'smoke';
-if (!['smoke', 'regression', 'p0s'].includes(suite)) {
+if (!['smoke', 'regression', 'p0s', 'lossless'].includes(suite)) {
   throw new Error(`Unknown E2E suite: ${suite}`);
 }
 
@@ -17,7 +17,7 @@ const artifactsRoot = path.join(e2eDir, 'artifacts');
 // configuration. A short interval makes the two-tick wait deterministic in CI;
 // the product default 10000ms interval is covered by the manual desktop E3 and
 // the lifecycle integration tests (main.lifecycle.guard.test.ts).
-const autosaveEnabled = suite === 'p0s';
+const autosaveEnabled = suite === 'p0s' || suite === 'lossless';
 
 const defaultSettings = (workspace) => ({
   version: 1,
@@ -130,7 +130,17 @@ try {
   // ── P0S lifecycle fixtures (byte-contract copies, autosave ENABLED) ──
   if (autosaveEnabled) {
     const fixturesDir = path.join(projectRoot, 'tests/fixtures/byte-contract/fixtures');
-    for (const name of ['utf8-lf-tail2.md', 'utf8-lf-tail3.md', 'utf8-crlf-tail2.md', 'utf8-crlf-tail3.md', 'utf8-cr-tail1.md', 'utf8-mixed-tail2.md', 'utf8-bom-lf-tail2.md']) {
+    const names = suite === 'lossless'
+      ? [
+          // Lossless vertical slice: every canonical EOL/BOM/tail boundary +
+          // CJK/emoji and structure fixtures for the edit-save path.
+          'utf8-lf-tail0.md', 'utf8-lf-tail1.md', 'utf8-lf-tail2.md', 'utf8-lf-tail3.md',
+          'utf8-crlf-tail1.md', 'utf8-crlf-tail2.md', 'utf8-crlf-tail3.md',
+          'utf8-cr-tail1.md', 'utf8-mixed-tail2.md', 'utf8-bom-lf-tail2.md',
+          'unicode-cjk.md', 'unicode-emoji.md', 'syntax-lists.md',
+        ]
+      : ['utf8-lf-tail2.md', 'utf8-lf-tail3.md', 'utf8-crlf-tail2.md', 'utf8-crlf-tail3.md', 'utf8-cr-tail1.md', 'utf8-mixed-tail2.md', 'utf8-bom-lf-tail2.md'];
+    for (const name of names) {
       await cp(path.join(fixturesDir, name), path.join(workspace, name));
     }
   }

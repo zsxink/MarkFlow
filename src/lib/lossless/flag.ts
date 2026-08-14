@@ -20,3 +20,9 @@ export function setLosslessCoreSessionEnabled(value: boolean): void {
 export function isLosslessCoreSessionEnabled(): boolean {
   return enabled;
 }
+
+// E2E-only hook: the desktop E2E (WebDriver) enables the flag on the real app.
+if (import.meta.env.MODE === 'e2e') {
+  (window as unknown as { __setLosslessCoreSession?: (v: boolean) => void }).__setLosslessCoreSession =
+    setLosslessCoreSessionEnabled;
+}

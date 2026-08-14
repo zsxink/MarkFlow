@@ -237,6 +237,13 @@ export class EditorSurfaceBinding {
     await this.flushNow();
   }
 
+  /** Insert `text` at the current cursor (E2E driver hook). */
+  typeAtCursor(text: string): void {
+    const { view } = this.editor;
+    const pos = view.state.selection.main.head;
+    view.dispatch({ changes: { from: pos, to: pos, insert: text } });
+  }
+
   // ── Save lifecycle (design 04 §2) ───────────────────────────────────
 
   async save(options: { interactive?: boolean } = {}): Promise<LosslessSaveResult> {

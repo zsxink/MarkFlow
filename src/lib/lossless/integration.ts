@@ -165,3 +165,23 @@ export function getLosslessSnapshotHash(): string | null {
   const binding = getActiveLosslessBinding();
   return binding ? binding.hash : null;
 }
+
+// E2E-only hooks for the desktop WebDriver suite: enable the flag, dispatch real
+// CodeMirror transactions, and assert binding state. Not present in prod builds.
+if (import.meta.env.MODE === 'e2e') {
+  const hooks = {
+    isActive: () => getActiveLosslessBinding() !== null,
+    isDirty: () => getActiveLosslessBinding()?.isDirty() ?? false,
+    pipelineState: () => getActiveLosslessBinding()?.pipelineState ?? 'none',
+    hash: () => getActiveLosslessBinding()?.hash ?? null,
+    save: (interactive: boolean) => saveLosslessActiveDocument({ interactive }),
+    close: () => closeLosslessActiveDocument(),
+    type: (text: string) => {
+      const binding = getActiveLosslessBinding();
+      if (!binding) return 'no-binding';
+      binding.typeAtCursor(text);
+      return 'typed';
+    },
+  };
+  (window as unknown as { __markflowLossless?: typeof hooks }).__markflowLossless = hooks;
+}

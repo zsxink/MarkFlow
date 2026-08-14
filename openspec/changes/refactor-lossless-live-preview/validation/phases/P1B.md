@@ -53,11 +53,7 @@
 - [x] guarded-write 替换点复核与 outcome reconcile
 - [x] 真实 dispatcher 非 mock-only
 - Reviewer：AI 独立 Reviewer（fresh context，目标 `fb8729f`）
-  - P0：0 / P1：1 / P2：5
-  - P1 in-flight dirty 空洞 → 已修复（`isDirty()` 纳入 `isInFlight()` + 回归测试）
-  - P2 receipt 永不进入 Committed → 已修复（commit 传 saveOperationId，`mark_committed`）
-  - P2 displaced-identity toast 文案 → 已修复
-  - P2 saveAs 丢失响应不 reconcile → 已修复
-  - P2 dispatcher 测试写真实配置目录 → 已修复（thread-local receipts override 隔离）
-  - P2 图片迁移 localPatches 基于乐观文档计算（低概率偏移过期）→ 记录为 P1B 后 corrective 待办
-- Program Go/No-Go：NOT STARTED（待人工验收 + 复评）
+  - 首轮：P0 0 / P1 1 / P2 5；P1 in-flight dirty 空洞 → NO-GO（条件性）
+  - 复评（`21aa39a`+`e23314d`）：P1/P2 修复逐项 PASS；**从 NO-GO（条件性）转为
+    GO（待 Program Owner 人工验收）**；无剩余 P0/P1
+- Program Go/No-Go：NOT STARTED（待人工验收 + Program Owner 决定）

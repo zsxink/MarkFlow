@@ -44,7 +44,21 @@
 
 ## 复评状态
 
-复评派给同一 Reviewer（保留上下文）验证上述修复；结论待回传后记录。
+同一 Reviewer 复评（目标 `21aa39a`+`e23314d`）：
+
+| # | 修复项 | 结论 |
+| --- | --- | --- |
+| 1 | P1 in-flight dirty 空洞 | PASS |
+| 2 | P2 receipt 进入 Committed | PASS |
+| 3 | P2 saveAs 丢失响应 reconcile | PASS |
+| 4 | P2 dispatcher 测试 receipts 目录隔离 | PASS |
+| 5 | P2 displaced-identity toast 文案 | PASS |
+
+总体结论：**可转为 GO（仍保留 Program Owner 人工验收）**。原 NO-GO 的唯一阻断项
+（P1 in-flight dirty 空洞）已闭合，close/switch 路径经 `isDirty()` →
+`hasUnpersistedUserChanges()` / `isDocumentDirty()` 全链路验证可阻止静默丢弃。
+无剩余 P0/P1。唯一 P2 待办（图片迁移 localPatches 乐观偏移）记录为 P1B 后
+corrective，不阻塞 P1B。
 
 ## 修复后 gate 状态
 

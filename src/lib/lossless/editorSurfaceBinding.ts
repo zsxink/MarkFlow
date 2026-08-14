@@ -24,6 +24,7 @@ import type {
   OriginalSnapshot,
   PatchOutcome,
   PrepareSaveResponse,
+  ReconcileResponse,
 } from './types';
 import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
@@ -251,6 +252,8 @@ export class EditorSurfaceBinding {
     if (this.saving) return 'skipped';
     if (this.disposed) return 'failed';
     this.saving = true;
+    let opId: string | null = null;
+    let preparedRevision: number | null = null;
     try {
       // ── Flush barrier: all local edits must be confirmed before save ──
       const flush = await this.controller.flush();
@@ -272,6 +275,7 @@ export class EditorSurfaceBinding {
 
       // ── Prepare → guarded write → commit ─────────────────────────────
       const saveOperationId = crypto.randomUUID();
+      opId = saveOperationId;
       const prepared = await invoke<PrepareSaveResponse>('prepare_document_save', {
         req: {
           sessionId: this.sessionId,
@@ -282,6 +286,7 @@ export class EditorSurfaceBinding {
           path: this.path,
         },
       });
+      preparedRevision = prepared.revision;
 
       const written = await invoke<GuardedWriteResponse>('guarded_atomic_write', {
         req: {
@@ -314,8 +319,9 @@ export class EditorSurfaceBinding {
       this.syncDirty();
       return 'saved';
     } catch (err) {
-      // Outcome unknown after a lost write response → reconcile, never blind-rewrite.
-      void this.reconcileOutcomeUnknown();
+      // Outcome unknown after a lost write/commit response → reconcile the
+      // durable receipt, never blind-rewrite (design 04 §10).
+      await this.reconcileOutcomeUnknown(opId, preparedRevision);
       if (interactive) store.setState({ autosaveErrorCount: store.getState().autosaveErrorCount + 1 });
       return 'failed';
     } finally {
@@ -323,9 +329,33 @@ export class EditorSurfaceBinding {
     }
   }
 
-  private async reconcileOutcomeUnknown(): Promise<void> {
-    // Best-effort: mark dirty stays; the next save re-prepares with a fresh
-    // operation id, which is safe because guarded writes are per-operation.
+  private async reconcileOutcomeUnknown(opId: string | null, revision: number | null): Promise<void> {
+    if (!opId || revision === null) return;
+    try {
+      const reconciled = await invoke<ReconcileResponse>('reconcile_document_save', {
+        saveOperationId: opId,
+      });
+      if (
+        (reconciled.state === 'written-and-commit-pending' || reconciled.state === 'committed') &&
+        reconciled.newFileIdentity
+      ) {
+        // The write actually landed; commit the corresponding persisted revision.
+        await invoke('commit_document_save', {
+          req: {
+            sessionId: this.sessionId,
+            documentId: this.documentId,
+            persistedRevision: revision,
+            newFileIdentity: reconciled.newFileIdentity,
+          },
+        });
+        this.fileIdentity = reconciled.newFileIdentity;
+        this.persistedRevision = revision;
+        this.syncDirty();
+      }
+    } catch {
+      // Reconciliation failed (e.g. receipt gone): keep dirty; the next save
+      // re-prepares with a fresh operation id (guarded writes are per-operation).
+    }
   }
 
   /**

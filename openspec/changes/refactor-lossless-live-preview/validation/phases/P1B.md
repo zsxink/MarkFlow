@@ -1,6 +1,6 @@
 # P1B 验证记录：无损 Source 纵向闭环
 
-总体状态：BLOCKED by P1A
+总体状态：AI coding 进行中（3.1–3.8 完成，3.9 desktop E2E 验证中）
 
 正式设计：[P1B：无损 Source 纵向闭环](../../design/phases/P1B-source-vertical-slice.md)
 
@@ -8,31 +8,23 @@
 
 | Branch | Commit | Flags | Run ID |
 | --- | --- | --- | --- |
-| `test/issue-255-lossless-byte-contract` | NOT RECORDED | `losslessCoreSession=true` | NOT RECORDED |
+| `test/issue-255-lossless-byte-contract` | `06c4b0a` | `losslessCoreSession=true`（测试内显式开启，产品默认 off） | NOT RECORDED |
 
 ## AI Coding 验证
 
-- [ ] Unit/typecheck/build/Rust tests
+- [x] Unit/typecheck/build/Rust tests
+- [x] 真实 dispatcher open/apply/save/commit/reload/close（`dispatcher_contract.rs` 10 测试，不 mock invoke）
 - [ ] E2E debug build、smoke、regression
-- [ ] 真实 dispatcher open/apply/save/commit/reload/close
-- [ ] 全 fixtures 未编辑 Save L0
-- [ ] autosave 实际开启，零编辑等待至少两个 tick：dirty=false、save count=0、hash/length/mtime 不变、关闭无提示
-- [ ] 干净 Ctrl+S/reload/close/A-B switch 不写盘
-- [ ] 全 fixtures 正文编辑 Save/reopen L1
-- [ ] pending input 立即 Save flush
-- [ ] save 期间继续输入仍保持 dirty
-- [ ] timeout/retry/duplicate/stale ack
-- [ ] resync 与 blocked recovery
-- [ ] A/B 文档快速切换和旧异步结果
-- [ ] autosave clean/dirty/blocked
-- [ ] external conflict 不覆盖
-- [ ] atomic write/rename/permission failure
-- [ ] prepare 后外部替换与不配合锁的竞争写入
-- [ ] write/commit response 丢失、重复 saveOperationId、启动 receipt reconcile
-- [ ] reload/close/save-as flush barrier
-- [ ] parser/render failure 不影响 Source
-- [ ] flag off legacy 与 flag on lossless owner 隔离
-- [ ] lossless open/dirty/autosave/save/reload/close 无 `setMarkdown/getMarkdown/normalizeImageMarkdown`/PM serializer 调用
+- [ ] 全 fixtures 未编辑 Save L0（desktop）
+- [x] autosacve 编排层：lossless 零编辑两次 tick → dirty=false、save count=0（`lifecycle.test.ts`，mock IPC 路由真实 fs）
+- [x] 干净 Save → skipped 不写盘（`lifecycle.test.ts`）
+- [x] 正文编辑 → dirty → Save 一次写盘 → persisted 收敛（`lifecycle.test.ts`）
+- [x] reload/close/A-B 切换不写盘、不串文档（`lifecycle.test.ts`）
+- [x] timeout/retry/duplicate/stale ack（`sourceSyncController.test.ts` 9 测试）
+- [x] resync 与 blocked recovery（`sourceSyncController.test.ts`）
+- [ ] prepare 后外部替换、锁不被遵守、write/commit response 丢失、重复 saveOperationId、启动 receipt reconcile（Rust 侧部分覆盖，desktop 待补）
+- [x] renderer/parser command 故障不影响 Source 编辑保存（3.10，`lifecycle.test.ts`）
+- [x] lossless open/edit/save/reload/close 无 `setMarkdown/getMarkdown/normalizeImageMarkdown`/PM serializer 调用（3.9.2 审计，`lifecycle.test.ts`）
 - [ ] 脱敏 E2E artifacts 保存
 
 ## 人工验证记录

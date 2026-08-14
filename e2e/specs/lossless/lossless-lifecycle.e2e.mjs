@@ -146,7 +146,19 @@ describe('P1B lossless desktop lifecycle (flag ON, autosave ENABLED)', () => {
     await typeInLosslessSource('Y');
     await browser.waitUntil(async () => (await losslessDirty()) === true, { timeout: 5_000 });
 
-    await openFileAndWaitActive('utf8-mixed-tail2.md');
+    // Switching to B with A dirty shows the unsaved-changes dialog → discard.
+    await openFileInTree('utf8-mixed-tail2.md');
+    await browser.waitUntil(async () => {
+      const dialogs = await $$('[role="dialog"]');
+      return dialogs.length > 0;
+    }, { timeout: 5_000, timeoutMsg: 'Expected unsaved-changes dialog on A→B switch' });
+    const discardBtn = await $('[data-dialog-value="discard"]');
+    await discardBtn.click();
+
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => window.__markflowStore?.getState()?.activeFilePath ?? null);
+      return state != null && state.endsWith('/utf8-mixed-tail2.md');
+    }, { timeout: 10_000, timeoutMsg: 'Expected B to become active after discard' });
     const bDirty = await losslessDirty();
     expect(bDirty).toBe(false);
     const aAfter = await readFileBytes(aName);

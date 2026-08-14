@@ -1,0 +1,9 @@
+✓ 2497 modules transformed.
+✓ built in 3.48s
+[webkit 605.1.15 macos #0-0]    ✓ starts a real Tauri window with an isolated workspace
+[webkit 605.1.15 macos #0-0]    ✓ opens welcome.md and displays structured content in WYSIWYG editor
+[webkit 605.1.15 macos #0-0]    ✓ edits content and preserves it across WYSIWYG and source modes
+[webkit 605.1.15 macos #0-0]    ✓ edits content, saves to disk, and persists
+[webkit 605.1.15 macos #0-0]    ✓ opens settings, switches tabs, toggles theme, and persists state on reopen
+[webkit 605.1.15 macos #0-0] 5 passing (2s)
+Spec Files:	 1 passed, 5 skipped, 6 total (100% completed) in 00:00:07  

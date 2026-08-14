@@ -1,0 +1,7 @@
+# npm run test:byte-contract
+    "count": 93,
+    "missed": []
+  },
+  "ok": true,
+  "fixturesRoot": "/Users/xian/Project/book/MarkFlow/tests/fixtures/byte-contract"
+}

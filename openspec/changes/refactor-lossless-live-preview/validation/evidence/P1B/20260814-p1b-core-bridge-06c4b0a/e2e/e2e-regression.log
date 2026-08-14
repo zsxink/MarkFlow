@@ -1,0 +1,5 @@
+✓ 2497 modules transformed.
+✓ built in 3.47s
+[webkit 605.1.15 macos #0-0]    ✓ exports two valid, complete PDFs through the real Tauri backend
+[webkit 605.1.15 macos #0-0] 1 passing (539ms)
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:01  

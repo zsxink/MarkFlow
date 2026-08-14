@@ -1,0 +1,14 @@
+[dispatcher] read_missing_file_returns_error ok (error mapped, no panic)
+[dispatcher] read_oversized_file_returns_error ok (100MB guard enforced)
+[dispatcher] bridge_apply_patch_and_snapshot_round_trip ok
+[dispatcher] bridge_stale_patch_rejected_and_old_generation_rejected_after_reload ok
+[dispatcher] bridge_open_returns_clean_session ok session=1 logical_len=29
+[dispatcher] bridge_commit_marks_persisted_revision_and_close_removes_session ok
+[dispatcher] read_write_roundtrip_preserves_bom ok (bom_preserved=true)
+[dispatcher] read_write_roundtrip_preserves_bytes ok
+[dispatcher]   command=write_file arg=path,content payload_sha256=8875a0251d787e4dfacd169124c13df6070c7962d03a6a627ad0513b4e12453a
+[dispatcher]   command=read_file  arg=path           payload_sha256=8875a0251d787e4dfacd169124c13df6070c7962d03a6a627ad0513b4e12453a
+[dispatcher] bridge_guarded_write_conflicts_on_mismatched_expected_identity ok
+[dispatcher] bridge_prepare_save_zero_patch_and_guarded_write ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 122 filtered out; finished in 0.14s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

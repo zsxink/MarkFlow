@@ -66,29 +66,36 @@ async function losslessDirty() {
 
 export function registerLosslessLifecycleTests() {
 describe('P1B lossless desktop lifecycle (flag ON, autosave ENABLED)', () => {
-  it('zero-edit open → two autosave ticks → bytes/mtime unchanged, no write', async () => {
-    await waitForLosslessAppReady();
-    await enableLossless();
-    expect(WORKSPACE).toBeTruthy();
+  const ZERO_EDIT_FIXTURES_A = [
+    'utf8-lf-tail0.md', 'utf8-lf-tail1.md', 'utf8-lf-tail2.md', 'utf8-lf-tail3.md',
+    'utf8-crlf-tail1.md', 'utf8-crlf-tail2.md',
+  ];
+  const ZERO_EDIT_FIXTURES_B = [
+    'utf8-crlf-tail3.md', 'utf8-cr-tail1.md', 'utf8-mixed-tail2.md',
+    'utf8-bom-lf-tail2.md', 'unicode-cjk.md', 'unicode-emoji.md', 'syntax-lists.md',
+  ];
 
-    const fixtures = [
-      'utf8-lf-tail2.md', 'utf8-lf-tail3.md', 'utf8-crlf-tail2.md',
-      'utf8-cr-tail1.md', 'utf8-mixed-tail2.md', 'utf8-bom-lf-tail2.md',
-    ];
-    const before = new Map();
-    for (const name of fixtures) {
-      before.set(name, await readFileBytes(name));
-    }
+  for (const fixtures of [ZERO_EDIT_FIXTURES_A, ZERO_EDIT_FIXTURES_B]) {
+    it(`zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (${fixtures.length} fixtures)`, async () => {
+      await waitForLosslessAppReady();
+      await enableLossless();
+      expect(WORKSPACE).toBeTruthy();
 
-    for (const name of fixtures) {
-      await openFileAndWaitActive(name);
-      expect(await losslessDirty()).toBe(false);
-      // Two autosave ticks at the product 2000ms interval.
-      await browser.pause(4500);
-      const after = await readFileBytes(name);
-      expect(after.equals(before.get(name))).toBe(true);
-    }
-  });
+      const before = new Map();
+      for (const name of fixtures) {
+        before.set(name, await readFileBytes(name));
+      }
+
+      for (const name of fixtures) {
+        await openFileAndWaitActive(name);
+        expect(await losslessDirty()).toBe(false);
+        // Two autosave ticks at the product 2000ms interval.
+        await browser.pause(4500);
+        const after = await readFileBytes(name);
+        expect(after.equals(before.get(name))).toBe(true);
+      }
+    });
+  }
 
   it('clean Cmd+S does not write; bytes/hash/mtime unchanged', async () => {
     await waitForLosslessAppReady();
@@ -134,6 +141,37 @@ describe('P1B lossless desktop lifecycle (flag ON, autosave ENABLED)', () => {
     await browser.pause(800);
     const reopenedHash = await browser.execute(() => window.__markflowLossless?.hash?.() ?? null);
     expect(reopenedHash).toBe(savedHash);
+  });
+
+  it('CRLF + BOM fixtures survive a real body edit: EOL/BOM bytes preserved, reopen hash matches', async () => {
+    await waitForLosslessAppReady();
+    await enableLossless();
+
+    for (const name of ['utf8-crlf-tail2.md', 'utf8-bom-lf-tail2.md']) {
+      await openFileAndWaitActive(name);
+      const original = await readFileBytes(name);
+
+      await typeInLosslessSource('X');
+      await browser.waitUntil(async () => (await losslessDirty()) === true, { timeout: 5_000 });
+      await (await app.save()).click();
+      await browser.pause(1000);
+
+      const saved = await readFileBytes(name);
+      const savedHash = sha256(saved);
+      if (name.includes('crlf')) {
+        expect(saved.includes('\r\n')).toBe(true);
+      }
+      if (name.includes('bom')) {
+        expect(saved[0]).toBe(0xef);
+        expect(saved[1]).toBe(0xbb);
+        expect(saved[2]).toBe(0xbf);
+      }
+      // Reopen and compare confirmed hash to the saved bytes.
+      await openFileAndWaitActive(name);
+      await browser.pause(800);
+      const reopenedHash = await browser.execute(() => window.__markflowLossless?.hash?.() ?? null);
+      expect(reopenedHash).toBe(savedHash);
+    }
   });
 
   it('A→B switch does not write A and leaves B clean', async () => {

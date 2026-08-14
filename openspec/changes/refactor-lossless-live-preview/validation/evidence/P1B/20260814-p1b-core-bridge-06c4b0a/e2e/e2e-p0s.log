@@ -1,0 +1,8 @@
+✓ 2497 modules transformed.
+✓ built in 3.42s
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → close: bytes unchanged, no write, no dirty prompt
+[webkit 605.1.15 macos #0-0]    ✓ immediate Cmd+S after typing persists content (no skipped save)
+[webkit 605.1.15 macos #0-0]    ✓ immediate A→B switch with discard keeps A content and does not contaminate B
+[webkit 605.1.15 macos #0-0]    ✓ clean Cmd+S on an unedited document does not write
+[webkit 605.1.15 macos #0-0] 4 passing (36.8s)
+Spec Files:	 1 passed, 1 skipped, 2 total (100% completed) in 00:00:38  

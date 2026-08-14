@@ -1,0 +1,10 @@
+✓ 2497 modules transformed.
+✓ built in 3.49s
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (6 fixtures)
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (7 fixtures)
+[webkit 605.1.15 macos #0-0]    ✓ clean Cmd+S does not write; bytes/hash/mtime unchanged
+[webkit 605.1.15 macos #0-0]    ✓ Source edit → dirty → Save persists; reopen hash matches
+[webkit 605.1.15 macos #0-0]    ✓ CRLF + BOM fixtures survive a real body edit: EOL/BOM bytes preserved, reopen hash matches
+[webkit 605.1.15 macos #0-0]    ✓ A→B switch does not write A and leaves B clean
+[webkit 605.1.15 macos #0-0] 6 passing (1m 13s)
+Spec Files:	 1 passed, 1 skipped, 2 total (100% completed) in 00:01:14  

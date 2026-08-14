@@ -24,6 +24,9 @@ fn change(start: usize, end: usize, inserted: &str, eols: &[NewlineEnding]) -> T
 
 fn patch(s: &LosslessDocumentSession, txn: u64, changes: Vec<TextChange>) -> TextPatch {
     TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
         transaction_id: TransactionId(txn),
         base_revision: s.revision(),
         changes,
@@ -35,6 +38,9 @@ fn patch(s: &LosslessDocumentSession, txn: u64, changes: Vec<TextChange>) -> Tex
 fn stale_revision_rejected() {
     let mut s = session(b"hello");
     let stale = TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
         transaction_id: TransactionId(1),
         base_revision: markflow_core::Revision(5),
         changes: vec![change(0, 0, "X", &[])],
@@ -47,6 +53,20 @@ fn stale_revision_rejected() {
             actual: markflow_core::Revision(5)
         })
     );
+    assert_eq!(s.revision().0, 0);
+    assert_eq!(s.text().logical_text(), "hello");
+}
+
+#[test]
+fn patch_with_wrong_session_or_document_identity_is_rejected() {
+    let mut s = session(b"hello");
+    let mut wrong_session = patch(&s, 1, vec![change(0, 0, "X", &[])]);
+    wrong_session.session_id = SessionId(2);
+    assert_eq!(s.apply_patch(wrong_session), Err(CoreError::WrongIdentity));
+
+    let mut wrong_document = patch(&s, 2, vec![change(0, 0, "X", &[])]);
+    wrong_document.document_id = markflow_core::DocumentId(2);
+    assert_eq!(s.apply_patch(wrong_document), Err(CoreError::WrongIdentity));
     assert_eq!(s.revision().0, 0);
     assert_eq!(s.text().logical_text(), "hello");
 }
@@ -207,6 +227,9 @@ fn failure_leaves_session_unchanged() {
     let mut s = session(b"hello");
     let before_hash = s.confirmed_hash();
     let bad = TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
         transaction_id: TransactionId(1),
         base_revision: s.revision(),
         changes: vec![change(0, 0, "X", &[])],

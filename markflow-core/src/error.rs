@@ -57,6 +57,11 @@ pub enum CoreError {
     },
     /// Same transaction id replayed with a different payload.
     TransactionConflict,
+    /// A patch belongs to another binding, session, or document.
+    WrongIdentity,
+    /// A public PositionMap was used with text other than the geometry from
+    /// which it was built.
+    PositionMapMismatch,
     /// Operation attempted on a closed session.
     SessionClosed,
     /// Internal invariant violated (a programming error, not user input).
@@ -84,6 +89,8 @@ impl CoreError {
             | CoreError::InvalidUtf16Boundary
             | CoreError::InvalidSourceOffset { .. } => "invalid-boundary",
             CoreError::TransactionConflict => "duplicate-mismatch",
+            CoreError::WrongIdentity => "wrong-identity",
+            CoreError::PositionMapMismatch => "position-map-mismatch",
             CoreError::SessionClosed => "session-missing",
             CoreError::InternalInvariant(_) => "internal-invariant",
             CoreError::Io(_) => "io",
@@ -120,6 +127,10 @@ impl fmt::Display for CoreError {
             }
             CoreError::TransactionConflict => {
                 write!(f, "transaction id reused with a different payload")
+            }
+            CoreError::WrongIdentity => write!(f, "patch identity does not match session binding"),
+            CoreError::PositionMapMismatch => {
+                write!(f, "position map does not match supplied text geometry")
             }
             CoreError::SessionClosed => write!(f, "session is closed"),
             CoreError::InternalInvariant(msg) => write!(f, "internal invariant: {msg}"),
@@ -176,6 +187,8 @@ mod tests {
                 "invalid-boundary",
             ),
             (CoreError::TransactionConflict, "duplicate-mismatch"),
+            (CoreError::WrongIdentity, "wrong-identity"),
+            (CoreError::PositionMapMismatch, "position-map-mismatch"),
             (CoreError::SessionClosed, "session-missing"),
             (CoreError::InternalInvariant("x"), "internal-invariant"),
             (CoreError::Io("x".into()), "io"),

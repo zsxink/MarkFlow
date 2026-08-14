@@ -22,6 +22,10 @@ pub struct PositionMap {
     source_len: usize,
     /// Number of lines.
     line_count: usize,
+    /// Exact text/EOL geometry identity accepted by this map. PositionMap is
+    /// public, so callers can otherwise accidentally pair it with a different
+    /// TextBuffer and trigger unchecked line-index access.
+    geometry_id: u64,
 }
 
 impl PositionMap {
@@ -57,6 +61,7 @@ impl PositionMap {
             bom,
             source_len: source_offset,
             line_count,
+            geometry_id: text.geometry_id(),
         }
     }
 
@@ -70,6 +75,7 @@ impl PositionMap {
         text: &TextBuffer,
         offset: LogicalByteOffset,
     ) -> CoreResult<Utf16Offset> {
+        self.validate_geometry(text)?;
         validate_logical(text, offset)?;
         let logical = text.logical_text();
         let mut utf16 = 0usize;
@@ -87,6 +93,7 @@ impl PositionMap {
         text: &TextBuffer,
         offset: Utf16Offset,
     ) -> CoreResult<LogicalByteOffset> {
+        self.validate_geometry(text)?;
         let logical = text.logical_text();
         let mut utf16 = 0usize;
         let mut byte = 0usize;
@@ -119,6 +126,7 @@ impl PositionMap {
         text: &TextBuffer,
         offset: LogicalByteOffset,
     ) -> CoreResult<SourceByteOffset> {
+        self.validate_geometry(text)?;
         text.source_byte_for_logical(self.bom, offset.as_usize())
     }
 
@@ -127,6 +135,7 @@ impl PositionMap {
         text: &TextBuffer,
         offset: SourceByteOffset,
     ) -> CoreResult<LogicalByteOffset> {
+        self.validate_geometry(text)?;
         if offset.as_usize() < self.bom.width() {
             return Err(invalid_source(offset, SourceOffsetError::InsideBom));
         }
@@ -165,6 +174,13 @@ impl PositionMap {
 
         // Falls inside the CRLF pair: the extra `\r` byte of a CRLF.
         Err(invalid_source(offset, SourceOffsetError::InsideCrlf))
+    }
+
+    fn validate_geometry(&self, text: &TextBuffer) -> CoreResult<()> {
+        if self.geometry_id != text.geometry_id() {
+            return Err(CoreError::PositionMapMismatch);
+        }
+        Ok(())
     }
 }
 

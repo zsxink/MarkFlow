@@ -24,6 +24,12 @@ pub struct SessionId(pub u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct DocumentId(pub u64);
 
+/// Generation of the UI binding which owns a document session. Reloading a
+/// document advances this value so delayed work from the previous binding
+/// cannot be accepted by the new document contents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct BindingGeneration(pub u64);
+
 /// Revision of the confirmed logical text. Starts at 0 on open; every applied
 /// patch increments it by exactly 1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]

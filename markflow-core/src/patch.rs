@@ -39,6 +39,12 @@ pub struct TextChange {
 /// An atomic, revision-bound text patch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextPatch {
+    /// UI binding generation for the document image from which this patch was
+    /// produced. Required to reject delayed pre-reload work.
+    pub binding_generation: crate::types::BindingGeneration,
+    /// Session and document identity of the binding that produced the patch.
+    pub session_id: crate::types::SessionId,
+    pub document_id: crate::types::DocumentId,
     pub transaction_id: TransactionId,
     pub base_revision: Revision,
     pub changes: Vec<TextChange>,
@@ -57,6 +63,12 @@ impl TextPatch {
     ) -> CoreResult<Vec<TextChange>> {
         if session.is_closed() {
             return Err(CoreError::SessionClosed);
+        }
+        if self.binding_generation != session.binding_generation()
+            || self.session_id != session.session_id
+            || self.document_id != session.document_id
+        {
+            return Err(CoreError::WrongIdentity);
         }
         if self.base_revision != session.revision() {
             return Err(CoreError::StaleRevision {
@@ -156,6 +168,9 @@ impl TextPatch {
     /// duplicate mismatch (rejected, never blindly re-applied).
     pub(crate) fn fingerprint(&self) -> u128 {
         let mut f = Fingerprint::new();
+        f.write_u64(self.binding_generation.0);
+        f.write_u64(self.session_id.0);
+        f.write_u64(self.document_id.0);
         f.write_u64(self.base_revision.0);
         f.write_u64(self.transaction_id.0);
         let mut changes = self.changes.clone();
@@ -260,6 +275,7 @@ impl Fingerprint {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{BindingGeneration, DocumentId, SessionId};
 
     fn sel(anchor: usize, head: usize, revision: u64) -> Selection {
         Selection {
@@ -281,12 +297,18 @@ mod tests {
     #[test]
     fn fingerprint_orders_changes() {
         let a = TextPatch {
+            binding_generation: BindingGeneration(0),
+            session_id: SessionId(1),
+            document_id: DocumentId(1),
             transaction_id: TransactionId(1),
             base_revision: Revision(0),
             changes: vec![change(5, 6, "x"), change(0, 1, "y")],
             selection_after: None,
         };
         let b = TextPatch {
+            binding_generation: BindingGeneration(0),
+            session_id: SessionId(1),
+            document_id: DocumentId(1),
             transaction_id: TransactionId(1),
             base_revision: Revision(0),
             changes: vec![change(0, 1, "y"), change(5, 6, "x")],
@@ -298,12 +320,18 @@ mod tests {
     #[test]
     fn fingerprint_differs_for_different_payload() {
         let a = TextPatch {
+            binding_generation: BindingGeneration(0),
+            session_id: SessionId(1),
+            document_id: DocumentId(1),
             transaction_id: TransactionId(1),
             base_revision: Revision(0),
             changes: vec![change(0, 1, "x")],
             selection_after: None,
         };
         let b = TextPatch {
+            binding_generation: BindingGeneration(0),
+            session_id: SessionId(1),
+            document_id: DocumentId(1),
             transaction_id: TransactionId(1),
             base_revision: Revision(0),
             changes: vec![change(0, 1, "y")],

@@ -7,8 +7,8 @@ mod common;
 
 use common::*;
 use markflow_core::{
-    DocumentId, LineEndingKind, LogicalByteOffset, LosslessDocumentSession, SessionId,
-    SourceByteOffset, Utf16Offset,
+    BomKind, CoreError, DocumentId, LineEndingKind, LogicalByteOffset, LosslessDocumentSession,
+    PositionMap, SessionId, SourceByteOffset, TextBuffer, Utf16Offset,
 };
 
 /// For every char boundary in every fixture, utf16↔byte round-trips.
@@ -194,6 +194,9 @@ fn generated_lf_documents_replay_stable() {
 
     // A small edit keeps the replay internally consistent.
     let patch = markflow_core::TextPatch {
+        binding_generation: session.binding_generation(),
+        session_id: session.session_id,
+        document_id: session.document_id,
         transaction_id: markflow_core::TransactionId(1),
         base_revision: session.revision(),
         changes: vec![markflow_core::TextChange {
@@ -246,4 +249,25 @@ fn invalid_source_offsets_are_stable_errors() {
     )
     .unwrap();
     assert!(s3.byte_for_utf16(Utf16Offset(1)).is_err());
+}
+
+/// A public PositionMap is bound to the source geometry used to build it. A
+/// caller pairing it with arbitrary text receives a stable error instead of a
+/// line-index panic, even when line count and EOL widths both differ.
+#[test]
+fn position_map_rejects_mismatched_text_geometry_without_panicking() {
+    let base = TextBuffer::from_logical_text("a\nb", LineEndingKind::Crlf).unwrap();
+    let different = TextBuffer::from_logical_text("x\ny\nz", LineEndingKind::Lf).unwrap();
+    let map = PositionMap::new(&base, BomKind::None);
+
+    let utf16 = std::panic::catch_unwind(|| map.utf16_for_byte(&different, LogicalByteOffset(0)));
+    assert_eq!(utf16.unwrap(), Err(CoreError::PositionMapMismatch));
+    let byte = std::panic::catch_unwind(|| map.byte_for_utf16(&different, Utf16Offset(0)));
+    assert_eq!(byte.unwrap(), Err(CoreError::PositionMapMismatch));
+    let source =
+        std::panic::catch_unwind(|| map.source_byte_for_byte(&different, LogicalByteOffset(0)));
+    assert_eq!(source.unwrap(), Err(CoreError::PositionMapMismatch));
+    let logical =
+        std::panic::catch_unwind(|| map.byte_for_source_byte(&different, SourceByteOffset(0)));
+    assert_eq!(logical.unwrap(), Err(CoreError::PositionMapMismatch));
 }

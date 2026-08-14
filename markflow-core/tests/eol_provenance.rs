@@ -24,6 +24,9 @@ fn one_change(
     eols: &[NewlineEnding],
 ) -> TextPatch {
     TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
         transaction_id: TransactionId(txn),
         base_revision: s.revision(),
         changes: vec![TextChange {
@@ -316,4 +319,62 @@ fn inherit_overflow_right_differs_from_dominant() {
     // Replaced "b"; overflow chain consumed sequentially:
     // #1 → right (CRLF), #2 → left (LF). Result: X CRLF Y LF Z.
     assert_eq!(out, b"a\nX\r\nY\nZ\r\nc");
+}
+
+/// All EOL inheritance in a multi-change patch is resolved against the same
+/// base snapshot. A later reverse-applied replacement must not become the
+/// earlier insertion's apparent right neighbor.
+#[test]
+fn multi_change_inherit_uses_base_snapshot_not_reverse_mutation() {
+    let mut s = session(b"A\nB");
+    let p = TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
+        transaction_id: TransactionId(1),
+        base_revision: s.revision(),
+        changes: vec![
+            TextChange {
+                range: SourceRange::new(LogicalByteOffset(0), LogicalByteOffset(0)),
+                inserted_logical_text: "X\n".to_string(),
+                inserted_line_endings: vec![NewlineEnding::Inherit],
+            },
+            TextChange {
+                range: SourceRange::new(LogicalByteOffset(1), LogicalByteOffset(2)),
+                inserted_logical_text: "\n".to_string(),
+                inserted_line_endings: vec![NewlineEnding::ExplicitCrlf],
+            },
+        ],
+        selection_after: None,
+    };
+    let out = apply_and_replay(&mut s, p);
+    assert_eq!(out, b"X\nA\r\nB");
+}
+
+/// Adjacent ranges and a mixed-EOL base use their own base-snapshot neighbors.
+#[test]
+fn adjacent_multi_change_mixed_eol_golden() {
+    let mut s = session(b"A\r\nB\nC\rD");
+    let p = TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
+        transaction_id: TransactionId(1),
+        base_revision: s.revision(),
+        changes: vec![
+            TextChange {
+                range: SourceRange::new(LogicalByteOffset(0), LogicalByteOffset(1)),
+                inserted_logical_text: "X\n".to_string(),
+                inserted_line_endings: vec![NewlineEnding::Inherit],
+            },
+            TextChange {
+                range: SourceRange::new(LogicalByteOffset(1), LogicalByteOffset(2)),
+                inserted_logical_text: "\n".to_string(),
+                inserted_line_endings: vec![NewlineEnding::ExplicitCr],
+            },
+        ],
+        selection_after: None,
+    };
+    let out = apply_and_replay(&mut s, p);
+    assert_eq!(out, b"X\r\n\rB\nC\rD");
 }

@@ -104,6 +104,9 @@ fn zero_change_patch_preserves_bytes() {
         LosslessDocumentSession::open_bytes(SessionId(1), DocumentId(1), bytes, LineEndingKind::Lf)
             .unwrap();
     let noop = TextPatch {
+        binding_generation: session.binding_generation(),
+        session_id: session.session_id,
+        document_id: session.document_id,
         transaction_id: TransactionId(1),
         base_revision: session.revision(),
         changes: vec![markflow_core::TextChange {

@@ -49,8 +49,8 @@ pub use session::{DocumentSnapshot, LosslessDocumentSession, SavePayload};
 pub use snapshot::{BomKind, EncodingKind, OriginalSnapshot, UTF8_BOM};
 pub use text_buffer::TextBuffer;
 pub use types::{
-    DocumentId, LogicalByteOffset, Revision, SessionId, SourceByteOffset, SourceRange,
-    TransactionId, Utf16Offset,
+    BindingGeneration, DocumentId, LogicalByteOffset, Revision, SessionId, SourceByteOffset,
+    SourceRange, TransactionId, Utf16Offset,
 };
 
 /// Capacity of the idempotent-retry ledger.

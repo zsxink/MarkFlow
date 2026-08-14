@@ -23,6 +23,9 @@ fn one_change(
     eols: &[NewlineEnding],
 ) -> TextPatch {
     TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
         transaction_id: TransactionId(txn),
         base_revision: s.revision(),
         changes: vec![TextChange {
@@ -157,6 +160,9 @@ fn reviewer_surrogate_and_continuation() {
 fn reviewer_multi_change_atomic_eol() {
     let mut s = session(b"hello\nworld");
     let bad = TextPatch {
+        binding_generation: s.binding_generation(),
+        session_id: s.session_id,
+        document_id: s.document_id,
         transaction_id: TransactionId(1),
         base_revision: s.revision(),
         changes: vec![

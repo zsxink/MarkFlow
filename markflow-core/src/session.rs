@@ -22,7 +22,9 @@ use crate::patch::{PatchOutcome, TextPatch};
 use crate::position_map::PositionMap;
 use crate::snapshot::{BomKind, OriginalSnapshot};
 use crate::text_buffer::TextBuffer;
-use crate::types::{DocumentId, LogicalByteOffset, Revision, SessionId, TransactionId};
+use crate::types::{
+    BindingGeneration, DocumentId, LogicalByteOffset, Revision, SessionId, TransactionId,
+};
 
 /// How many applied-transaction entries are retained for idempotent retry
 /// before the oldest is evicted.
@@ -85,6 +87,7 @@ struct AppliedTransaction {
 pub struct LosslessDocumentSession {
     pub session_id: SessionId,
     pub document_id: DocumentId,
+    binding_generation: BindingGeneration,
     revision: Revision,
     original: OriginalSnapshot,
     text: TextBuffer,
@@ -100,6 +103,7 @@ impl Clone for LosslessDocumentSession {
         Self {
             session_id: self.session_id,
             document_id: self.document_id,
+            binding_generation: self.binding_generation,
             revision: self.revision,
             original: self.original.clone(),
             text: self.text.clone(),
@@ -152,13 +156,17 @@ impl LosslessDocumentSession {
         Self {
             session_id,
             document_id,
+            binding_generation: BindingGeneration(0),
             revision,
             original,
             text,
             position_map,
             applied_transactions: HashMap::new(),
             transaction_order: VecDeque::new(),
-            persisted_revision: None,
+            // Opening raw bytes establishes both confirmed and persisted
+            // revision zero. A fresh session therefore cannot autosave until a
+            // confirmed edit changes the revision.
+            persisted_revision: Some(revision),
             closed: false,
         }
     }
@@ -178,8 +186,8 @@ impl LosslessDocumentSession {
     }
 
     /// Reload the session from new disk bytes (same session/document identity).
-    /// The retry ledger and edit history are reset; the persisted revision is
-    /// cleared because the disk content has changed.
+    /// The retry ledger and edit history are reset and the binding generation
+    /// advances, invalidating delayed patches for the former document image.
     pub fn reload(&mut self, bytes: &[u8], default_eol: LineEndingKind) -> CoreResult<()> {
         if self.closed {
             return Err(CoreError::SessionClosed);
@@ -187,13 +195,22 @@ impl LosslessDocumentSession {
         let original = OriginalSnapshot::from_bytes(bytes, default_eol)?;
         let text =
             TextBuffer::from_source_bytes(bytes, original.bom, original.dominant_line_ending())?;
+        let next_binding_generation = self
+            .binding_generation
+            .0
+            .checked_add(1)
+            .ok_or(CoreError::InternalInvariant("binding generation exhausted"))?;
         self.original = original;
         self.text = text;
         self.revision = Revision(0);
+        self.binding_generation = BindingGeneration(next_binding_generation);
         self.position_map = PositionMap::new(&self.text, self.original.bom);
         self.applied_transactions.clear();
         self.transaction_order.clear();
-        self.persisted_revision = None;
+        // Reloaded bytes are the confirmed on-disk state, so the session is
+        // clean immediately. Clearing this value made a zero-edit reload look
+        // dirty and allowed callers to enter autosave unnecessarily.
+        self.persisted_revision = Some(self.revision);
         Ok(())
     }
 
@@ -201,6 +218,11 @@ impl LosslessDocumentSession {
 
     pub fn revision(&self) -> Revision {
         self.revision
+    }
+
+    /// Current binding generation. Every TextPatch must carry this value.
+    pub fn binding_generation(&self) -> BindingGeneration {
+        self.binding_generation
     }
 
     pub fn text(&self) -> &TextBuffer {
@@ -423,6 +445,9 @@ mod tests {
 
     fn patch(session: &LosslessDocumentSession, txn: u64, changes: Vec<TextChange>) -> TextPatch {
         TextPatch {
+            binding_generation: session.binding_generation(),
+            session_id: session.session_id,
+            document_id: session.document_id,
             transaction_id: TransactionId(txn),
             base_revision: session.revision(),
             changes,
@@ -444,7 +469,8 @@ mod tests {
         let s = session(b"# T\n\nbody\n");
         assert_eq!(s.revision(), Revision(0));
         assert!(!s.is_closed());
-        assert!(s.is_dirty()); // never persisted yet
+        assert!(!s.is_dirty());
+        assert_eq!(s.persisted_revision(), Some(Revision(0)));
         assert_eq!(s.snapshot().revision, Revision(0));
     }
 
@@ -487,6 +513,9 @@ mod tests {
     fn stale_revision_rejected_atomically() {
         let mut s = session(b"hello");
         let stale = TextPatch {
+            binding_generation: s.binding_generation(),
+            session_id: s.session_id,
+            document_id: s.document_id,
             transaction_id: TransactionId(9),
             base_revision: Revision(5),
             changes: vec![change(0, 5, "nope")],
@@ -582,8 +611,23 @@ mod tests {
         s.reload(b"fresh\ncontent", LineEndingKind::Lf).unwrap();
         assert_eq!(s.revision(), Revision(0));
         assert_eq!(s.text().logical_text(), "fresh\ncontent");
-        assert!(s.persisted_revision().is_none());
-        assert!(s.is_dirty());
+        assert_eq!(s.persisted_revision(), Some(Revision(0)));
+        assert!(!s.is_dirty());
+    }
+
+    #[test]
+    fn reload_rejects_delayed_patch_from_previous_binding_generation() {
+        let mut s = session(b"before");
+        let delayed = patch(&s, 7, vec![change(0, 0, "stale-")]);
+        let before_generation = s.binding_generation();
+
+        s.reload(b"after", LineEndingKind::Lf).unwrap();
+
+        assert_ne!(s.binding_generation(), before_generation);
+        assert_eq!(s.apply_patch(delayed), Err(CoreError::WrongIdentity));
+        assert_eq!(s.revision(), Revision(0));
+        assert_eq!(s.text().logical_text(), "after");
+        assert!(!s.is_dirty());
     }
 
     #[test]
@@ -591,6 +635,9 @@ mod tests {
         let mut s = session(b"hello");
         // Overlapping changes must fail and leave the session at revision 0.
         let bad = TextPatch {
+            binding_generation: s.binding_generation(),
+            session_id: s.session_id,
+            document_id: s.document_id,
             transaction_id: TransactionId(3),
             base_revision: Revision(0),
             changes: vec![change(0, 3, "X"), change(2, 5, "Y")],
@@ -606,6 +653,9 @@ mod tests {
     fn selection_after_is_committed_with_next_revision() {
         let mut s = session(b"hello");
         let p = TextPatch {
+            binding_generation: s.binding_generation(),
+            session_id: s.session_id,
+            document_id: s.document_id,
             transaction_id: TransactionId(4),
             base_revision: Revision(0),
             changes: vec![change(0, 0, "A")],

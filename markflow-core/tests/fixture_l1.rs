@@ -65,6 +65,9 @@ fn every_l1_intent_matches_oracle() {
             let (logical_inserted, provenance) = provenance_from_inserted(&intent.inserted);
 
             let patch = TextPatch {
+                binding_generation: session.binding_generation(),
+                session_id: session.session_id,
+                document_id: session.document_id,
                 transaction_id: TransactionId(1),
                 base_revision: session.revision(),
                 changes: vec![TextChange {
@@ -133,6 +136,9 @@ fn body_edit_preserves_trailing_boundaries() {
         // Insert a body character at the first body position (after any BOM
         // and heading marker) via a logical offset of 0.
         let patch = TextPatch {
+            binding_generation: session.binding_generation(),
+            session_id: session.session_id,
+            document_id: session.document_id,
             transaction_id: TransactionId(1),
             base_revision: session.revision(),
             changes: vec![TextChange {

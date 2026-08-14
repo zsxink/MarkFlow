@@ -5,6 +5,7 @@
 //! via explicit paste provenance or the fixed inherit order.
 
 use std::ops::Range;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::error::{CoreError, CoreResult};
 use crate::line_ending::{LineEndingKind, LineEndingMap, NewlineEnding};
@@ -17,6 +18,10 @@ use crate::types::{LogicalByteOffset, SourceByteOffset};
 pub struct TextBuffer {
     logical_text: String,
     line_endings: LineEndingMap,
+    /// O(1) identity of this exact text/EOL geometry. It lets public
+    /// PositionMap reject a mismatched TextBuffer without turning every
+    /// coordinate conversion into a full-document hash.
+    geometry_id: u64,
     /// Frozen at open (design 01 §3.6/§3.7); used only as the final inherit
     /// fallback, never as a compensation mechanism.
     dominant: LineEndingKind,
@@ -36,6 +41,7 @@ impl TextBuffer {
         Ok(Self {
             logical_text,
             line_endings: LineEndingMap::from_kinds(endings),
+            geometry_id: next_geometry_id(),
             dominant,
         })
     }
@@ -59,6 +65,7 @@ impl TextBuffer {
         Ok(Self {
             logical_text,
             line_endings,
+            geometry_id: next_geometry_id(),
             dominant,
         })
     }
@@ -92,6 +99,10 @@ impl TextBuffer {
         self.line_endings.len()
     }
 
+    pub(crate) fn geometry_id(&self) -> u64 {
+        self.geometry_id
+    }
+
     /// Is `offset` a char boundary of the logical text?
     pub(crate) fn is_char_boundary(&self, offset: usize) -> bool {
         self.logical_text.is_char_boundary(offset)
@@ -114,23 +125,43 @@ impl TextBuffer {
         &mut self,
         changes: &[(Range<LogicalByteOffset>, String, Vec<NewlineEnding>)],
     ) -> CoreResult<()> {
-        for (range, replacement, provenance) in changes.iter().rev() {
-            self.replace(
+        // Resolve all inherited EOLs against the immutable base snapshot
+        // before applying any change. Resolving inside the reverse-mutation
+        // loop makes an earlier change observe EOL boundaries inserted or
+        // replaced by a later one in the same atomic patch.
+        let resolved: Vec<_> = changes
+            .iter()
+            .map(|(range, replacement, provenance)| {
+                (
+                    range.clone(),
+                    replacement.clone(),
+                    self.resolve_replacement_endings(
+                        count_newlines_before(&self.logical_text, range.start.as_usize()),
+                        count_newlines_before(&self.logical_text, range.end.as_usize()),
+                        provenance,
+                    ),
+                )
+            })
+            .collect();
+
+        for (range, replacement, endings) in resolved.iter().rev() {
+            self.replace_resolved(
                 range.start.as_usize()..range.end.as_usize(),
                 replacement,
-                provenance,
+                endings,
             )?;
+        }
+        if !changes.is_empty() {
+            self.geometry_id = next_geometry_id();
         }
         Ok(())
     }
 
-    /// Replace one logical range. `provenance` supplies one `NewlineEnding` per
-    /// `\n` in `replacement` (length already validated by the patch layer).
-    fn replace(
+    fn replace_resolved(
         &mut self,
         range: Range<usize>,
         replacement: &str,
-        provenance: &[NewlineEnding],
+        replacement_endings: &[LineEndingKind],
     ) -> CoreResult<()> {
         self.validate_range(&range)?;
         if replacement.contains('\r') {
@@ -139,20 +170,14 @@ impl TextBuffer {
         let start_boundary = count_newlines_before(&self.logical_text, range.start);
         let end_boundary = count_newlines_before(&self.logical_text, range.end);
         let replacement_eol_count = replacement.bytes().filter(|b| *b == b'\n').count();
-        if provenance.len() != replacement_eol_count {
-            return Err(CoreError::InvalidEolProvenance {
-                expected: replacement_eol_count,
-                actual: provenance.len(),
-            });
+        if replacement_endings.len() != replacement_eol_count {
+            return Err(CoreError::InternalInvariant("resolved EOL count mismatch"));
         }
-
-        let replacement_endings =
-            self.resolve_replacement_endings(start_boundary, end_boundary, provenance);
 
         self.logical_text.replace_range(range, replacement);
         self.line_endings =
             self.line_endings
-                .replace_range(start_boundary, end_boundary, &replacement_endings);
+                .replace_range(start_boundary, end_boundary, replacement_endings);
         Ok(())
     }
 
@@ -269,6 +294,15 @@ impl TextBuffer {
         }
         Ok(SourceByteOffset(source))
     }
+}
+
+static NEXT_GEOMETRY_ID: AtomicU64 = AtomicU64::new(1);
+
+fn next_geometry_id() -> u64 {
+    // A wrapped value is still safe because a map only coexists with a tiny
+    // number of current buffers. Zero has no sentinel meaning; this avoids a
+    // fallible allocation path in Core coordinate conversion.
+    NEXT_GEOMETRY_ID.fetch_add(1, Ordering::Relaxed)
 }
 
 pub(crate) fn strip_bom(bytes: &[u8], bom: BomKind) -> &[u8] {

@@ -38,6 +38,9 @@ fn main() {
         let t2 = Instant::now();
         let mid = len / 2;
         let p = TextPatch {
+            binding_generation: session.binding_generation(),
+            session_id: session.session_id,
+            document_id: session.document_id,
             transaction_id: TransactionId(1),
             base_revision: session.revision(),
             changes: vec![TextChange {

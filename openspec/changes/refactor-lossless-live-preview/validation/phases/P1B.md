@@ -45,12 +45,19 @@
 
 ## Reviewer 与决定
 
-- [ ] 保存路径无 serializer/normalize/PM source
-- [ ] autosave coordinator 与最终 write 入口均有 clean-session guard
-- [ ] dirty 为 revision/pending
-- [ ] async identity 与 lifecycle cleanup
-- [ ] 按操作 identity matrix；保存变更 file identity 不误拒绝 N+1 patch
-- [ ] guarded-write 替换点复核与 outcome reconcile
-- [ ] 真实 dispatcher 非 mock-only
-- Reviewer：NOT RECORDED
-- Program Go/No-Go：NOT STARTED
+- [x] 保存路径无 serializer/normalize/PM source
+- [x] autosave coordinator 与最终 write 入口均有 clean-session guard
+- [x] dirty 为 revision/pending（并纳入 in-flight，修复 reviewer P1）
+- [x] async identity 与 lifecycle cleanup
+- [x] 按操作 identity matrix；保存变更 file identity 不误拒绝 N+1 patch
+- [x] guarded-write 替换点复核与 outcome reconcile
+- [x] 真实 dispatcher 非 mock-only
+- Reviewer：AI 独立 Reviewer（fresh context，目标 `fb8729f`）
+  - P0：0 / P1：1 / P2：5
+  - P1 in-flight dirty 空洞 → 已修复（`isDirty()` 纳入 `isInFlight()` + 回归测试）
+  - P2 receipt 永不进入 Committed → 已修复（commit 传 saveOperationId，`mark_committed`）
+  - P2 displaced-identity toast 文案 → 已修复
+  - P2 saveAs 丢失响应不 reconcile → 已修复
+  - P2 dispatcher 测试写真实配置目录 → 已修复（thread-local receipts override 隔离）
+  - P2 图片迁移 localPatches 基于乐观文档计算（低概率偏移过期）→ 记录为 P1B 后 corrective 待办
+- Program Go/No-Go：NOT STARTED（待人工验收 + 复评）

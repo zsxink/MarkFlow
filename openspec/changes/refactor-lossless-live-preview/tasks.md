@@ -50,18 +50,18 @@
 
 ## 3. Slice 1B — Bridge、同步管线与无损 Source 闭环
 
-- [ ] 3.1 在 Tauri Runtime 注册 session registry，并实现 open/apply-patch/get-snapshot/prepare-save/commit/reload/close commands 与稳定错误码
-- [ ] 3.2 实现前端 `EditorSurfaceBinding` 最小版，挂接当前 CodeMirror transaction、document/session identity 和 confirmed/persisted revision
-- [ ] 3.3 实现单 in-flight patch controller：frame batch、bounded queue、retry、ack、flush、blocked 和 resync，所有 timer/request 可取消
-- [ ] 3.4 以 `losslessCoreSession` flag 接入文件打开，Source 模式直接使用 Core logical text，不调用 `setMarkdown()` 或 serializer
-- [ ] 3.5 接入 dirty/autosave：pending 或 confirmed≠persisted 为 dirty；blocked、saving、conflict 时禁止旧 snapshot 写盘
-- [ ] 3.6 实现 Core confirmed bytes → Host guarded atomic write：携带 expected file identity 与幂等 saveOperationId，在替换点复核并返回 durable receipt，保存后只提交对应 persisted revision
-- [ ] 3.7 把 save、save-as、new file、reload、close 与外部修改冲突接入 flush/prepare/commit 生命周期
-- [ ] 3.8 改造图片 pending-save 流程，使路径迁移返回显式局部 Markdown patch，不在保存前全文 `normalizeImageMarkdown()`
-- [ ] 3.9 添加 Bridge integration 与 desktop E2E：打开—正文编辑—保存—重开，逐 fixture 比较完整 bytes/hash/mtime；覆盖 write/commit response 丢失、重复 operation、竞争外部替换、崩溃后 receipt reconcile
-- [ ] 3.9.1 继承 P0S lifecycle：autosave 开启，零编辑等待两个 tick、Ctrl+S、关闭、reload、A/B 切换均证明 dirty=false、save count=0、hash/length/mtime 不变
-- [ ] 3.9.2 对 lossless flag 做调用审计/spy，证明打开、dirty、autosave、手动保存、reload 和 close 不调用 `setMarkdown/getMarkdown/normalizeImageMarkdown` 或 PM serializer
-- [ ] 3.10 证明 render/parser 不可用时 Source 仍能编辑保存；任何 byte fixture 失败则 lossless flag 保持 default-off
+- [x] 3.1 在 Tauri Runtime 注册 session registry，并实现 open/apply-patch/get-snapshot/prepare-save/commit/reload/close commands 与稳定错误码
+- [x] 3.2 实现前端 `EditorSurfaceBinding` 最小版，挂接当前 CodeMirror transaction、document/session identity 和 confirmed/persisted revision
+- [x] 3.3 实现单 in-flight patch controller：frame batch、bounded queue、retry、ack、flush、blocked 和 resync，所有 timer/request 可取消
+- [x] 3.4 以 `losslessCoreSession` flag 接入文件打开，Source 模式直接使用 Core logical text，不调用 `setMarkdown()` 或 serializer
+- [x] 3.5 接入 dirty/autosave：pending 或 confirmed≠persisted 为 dirty；blocked、saving、conflict 时禁止旧 snapshot 写盘
+- [x] 3.6 实现 Core confirmed bytes → Host guarded atomic write：携带 expected file identity 与幂等 saveOperationId，在替换点复核并返回 durable receipt，保存后只提交对应 persisted revision
+- [x] 3.7 把 save、save-as、new file、reload、close 与外部修改冲突接入 flush/prepare/commit 生命周期
+- [x] 3.8 改造图片 pending-save 流程，使路径迁移返回显式局部 Markdown patch，不在保存前全文 `normalizeImageMarkdown()`
+- [x] 3.9 添加 Bridge integration 与 desktop E2E：打开—正文编辑—保存—重开，逐 fixture 比较完整 bytes/hash/mtime；覆盖 write/commit response 丢失、重复 operation、竞争外部替换、崩溃后 receipt reconcile
+- [x] 3.9.1 继承 P0S lifecycle：autosave 开启，零编辑等待两个 tick、Ctrl+S、关闭、reload、A/B 切换均证明 dirty=false、save count=0、hash/length/mtime 不变
+- [x] 3.9.2 对 lossless flag 做调用审计/spy，证明打开、dirty、autosave、手动保存、reload 和 close 不调用 `setMarkdown/getMarkdown/normalizeImageMarkdown` 或 PM serializer
+- [x] 3.10 证明 render/parser 不可用时 Source 仍能编辑保存；任何 byte fixture 失败则 lossless flag 保持 default-off
 - [ ] 3.11 运行 TS/build、Core/Tauri、E2E 全 gate并派独立 reviewer；通过并经人工验收后记录 Slice 1B Go checkpoint，不归档 umbrella change
 
 ## 4. Slice 2 — 单一 CodeMirror Surface 与基础 Live Preview

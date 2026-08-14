@@ -11,6 +11,19 @@
 
 let enabled = false;
 
+/**
+ * Dev/test-only manual opt-in: `localStorage['markflow.losslessCoreSession']==='1'`
+ * enables the flag at boot. Production default stays OFF; nothing in the product
+ * sets this key. Used for the P1B manual desktop acceptance.
+ */
+try {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('markflow.losslessCoreSession') === '1') {
+    enabled = true;
+  }
+} catch {
+  // localStorage unavailable (SSR/test) — keep default off.
+}
+
 /** Enable/disable the lossless Core session path (tests/E2E only). */
 export function setLosslessCoreSessionEnabled(value: boolean): void {
   enabled = value;

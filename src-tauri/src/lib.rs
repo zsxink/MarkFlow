@@ -4,6 +4,7 @@ mod error;
 mod fs;
 mod http;
 mod logger;
+mod lossless;
 mod paths;
 mod state;
 
@@ -381,6 +382,16 @@ pub fn run() {
             files_meta::fetch_page_title,
             files_image::download_image,
             files_image::download_image_to_storage,
+            lossless::open_lossless_document,
+            lossless::apply_document_patch,
+            lossless::get_document_snapshot,
+            lossless::flush_document_session,
+            lossless::prepare_document_save,
+            lossless::commit_document_save,
+            lossless::reload_lossless_document,
+            lossless::close_lossless_document,
+            lossless::guarded_write::guarded_atomic_write,
+            lossless::guarded_write::reconcile_document_save,
             confirm_window_close,
             settings::load_settings,
             settings::save_settings,
@@ -402,6 +413,30 @@ pub fn run() {
             // Clean up stale temp files from previous crashed writes
             files::cleanup_stale_temp_files(&paths::app_config_dir());
             files_image::cleanup_expired_pending_images_on_startup();
+
+            // P1B 3.9: scan unfinished lossless-save receipts before any related
+            // path may enter autosave. Unfinished operations are reconciled
+            // (`reconcile_document_save`) before the document re-enters autosave.
+            {
+                use lossless::guarded_write::scan_unfinished_receipts;
+                let unfinished = scan_unfinished_receipts();
+                for (op_id, receipt) in &unfinished {
+                    tracing::warn!(
+                        target: "backend.lossless",
+                        save_operation_id = %op_id,
+                        path = %paths::normalize_path(&PathBuf::from(&receipt.path)),
+                        state = ?receipt.state,
+                        "Unfinished lossless save receipt found on startup — reconcile before autosave"
+                    );
+                }
+                if !unfinished.is_empty() {
+                    tracing::info!(
+                        target: "backend.lossless",
+                        count = unfinished.len(),
+                        "Scanned unfinished lossless save receipts"
+                    );
+                }
+            }
 
             let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
 

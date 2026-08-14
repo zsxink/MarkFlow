@@ -2341,6 +2341,7 @@ dependencies = [
  "dirs",
  "futures",
  "libc",
+ "markflow-core",
  "notify",
  "objc2",
  "objc2-app-kit",
@@ -2363,6 +2364,14 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "markflow-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sha2",
 ]
 
 [[package]]

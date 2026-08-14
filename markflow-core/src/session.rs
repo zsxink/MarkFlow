@@ -31,7 +31,8 @@ use crate::types::{
 pub const TRANSACTION_RETRY_WINDOW_CAPACITY: usize = 256;
 
 /// A confirmed snapshot of the session (used for resync, export, flush barrier).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DocumentSnapshot {
     pub revision: Revision,
     pub logical_text: String,
@@ -94,6 +95,12 @@ pub struct LosslessDocumentSession {
     position_map: PositionMap,
     applied_transactions: HashMap<TransactionId, AppliedTransaction>,
     transaction_order: VecDeque<TransactionId>,
+    /// P1B P2 freeze (design P1B §10): monotonic high-water mark of accepted
+    /// transaction ids. Never evicted; enforces session-lifetime transaction-id
+    /// uniqueness even after the bounded retry ledger evicts the oldest entry.
+    /// A request whose id is at or below this mark and not in the ledger is a
+    /// stale duplicate and must never be re-applied.
+    max_transaction_id: Option<u64>,
     persisted_revision: Option<Revision>,
     closed: bool,
 }
@@ -110,6 +117,7 @@ impl Clone for LosslessDocumentSession {
             position_map: self.position_map.clone(),
             applied_transactions: self.applied_transactions.clone(),
             transaction_order: self.transaction_order.clone(),
+            max_transaction_id: self.max_transaction_id,
             persisted_revision: self.persisted_revision,
             closed: self.closed,
         }
@@ -167,6 +175,7 @@ impl LosslessDocumentSession {
             // revision zero. A fresh session therefore cannot autosave until a
             // confirmed edit changes the revision.
             persisted_revision: Some(revision),
+            max_transaction_id: None,
             closed: false,
         }
     }
@@ -183,6 +192,7 @@ impl LosslessDocumentSession {
         self.closed = true;
         self.applied_transactions.clear();
         self.transaction_order.clear();
+        self.max_transaction_id = None;
     }
 
     /// Reload the session from new disk bytes (same session/document identity).
@@ -195,6 +205,35 @@ impl LosslessDocumentSession {
         let original = OriginalSnapshot::from_bytes(bytes, default_eol)?;
         let text =
             TextBuffer::from_source_bytes(bytes, original.bom, original.dominant_line_ending())?;
+        self.replace_state(original, text)?;
+        Ok(())
+    }
+
+    /// Reload with a caller-provided disk identity (P1B bridge: the reloaded
+    /// bytes freeze the new file identity for future guarded writes).
+    pub fn reload_with_identity(
+        &mut self,
+        bytes: &[u8],
+        default_eol: LineEndingKind,
+        file_identity: FileIdentity,
+    ) -> CoreResult<()> {
+        if self.closed {
+            return Err(CoreError::SessionClosed);
+        }
+        let original =
+            OriginalSnapshot::from_bytes_with_identity(bytes, default_eol, file_identity)?;
+        let text =
+            TextBuffer::from_source_bytes(bytes, original.bom, original.dominant_line_ending())?;
+        self.replace_state(original, text)?;
+        Ok(())
+    }
+
+    /// Shared reload body: swap original/text, reset revision + ledger + ids.
+    fn replace_state(
+        &mut self,
+        original: OriginalSnapshot,
+        text: TextBuffer,
+    ) -> CoreResult<()> {
         let next_binding_generation = self
             .binding_generation
             .0
@@ -211,6 +250,9 @@ impl LosslessDocumentSession {
         // clean immediately. Clearing this value made a zero-edit reload look
         // dirty and allowed callers to enter autosave unnecessarily.
         self.persisted_revision = Some(self.revision);
+        // New binding generation → fresh transaction-id space. The high-water
+        // mark resets so the new binding starts from id 0.
+        self.max_transaction_id = None;
         Ok(())
     }
 
@@ -269,6 +311,11 @@ impl LosslessDocumentSession {
         self.applied_transactions.len()
     }
 
+    /// Current high-water mark of accepted transaction ids (P1B P2 freeze).
+    pub fn max_transaction_id(&self) -> Option<u64> {
+        self.max_transaction_id
+    }
+
     // -- coordinate mapping (facade over PositionMap) ------------------------
 
     pub fn utf16_for_byte(
@@ -302,7 +349,10 @@ impl LosslessDocumentSession {
     // -- patching -----------------------------------------------------------
 
     /// Apply a patch atomically. Idempotent for the same transaction id +
-    /// payload; a reused id with a different payload is rejected.
+    /// payload; a reused id with a different payload is rejected. P1B P2 freeze:
+    /// a transaction id at or below the session's high-water mark that is no
+    /// longer in the retry ledger is a stale duplicate and is rejected, never
+    /// re-applied.
     pub fn apply_patch(&mut self, patch: TextPatch) -> CoreResult<PatchOutcome> {
         if self.closed {
             return Err(CoreError::SessionClosed);
@@ -314,6 +364,14 @@ impl LosslessDocumentSession {
                 return Ok(applied.outcome.clone());
             }
             return Err(CoreError::TransactionConflict);
+        }
+        // P2 freeze: not in the retry ledger but at/below the high-water mark →
+        // the id was accepted before and its ledger entry was evicted. It must
+        // not be re-applied (the frontend treats this as a resync signal).
+        if let Some(max_id) = self.max_transaction_id {
+            if patch.transaction_id.0 <= max_id {
+                return Err(CoreError::TransactionConflict);
+            }
         }
 
         // Validate against current state; no mutation happens here.
@@ -368,6 +426,14 @@ impl LosslessDocumentSession {
                 fingerprint,
                 outcome,
             },
+        );
+        // P2 freeze: monotonically advance the session high-water mark. The mark
+        // is never evicted, so a later reuse of this id is rejected even after
+        // its ledger entry is evicted.
+        self.max_transaction_id = Some(
+            self.max_transaction_id
+                .map(|max| max.max(transaction_id.0))
+                .unwrap_or(transaction_id.0),
         );
     }
 
@@ -684,14 +750,36 @@ mod tests {
             s.retained_transaction_count(),
             TRANSACTION_RETRY_WINDOW_CAPACITY
         );
-        // Oldest (1000) evicted; newest (1000+cap+9) retained.
+        // P1B P2 freeze: the oldest id (1000) is evicted from the ledger but
+        // still at/below the high-water mark — reuse is REJECTED, never
+        // re-applied (the previous P2 behavior accepted it).
+        assert_eq!(s.max_transaction_id(), Some((1000 + TRANSACTION_RETRY_WINDOW_CAPACITY + 9) as u64));
         let evicted = patch(&s, 1000, vec![change(0, 0, "a")]);
-        assert!(s.apply_patch(evicted).is_ok());
+        assert_eq!(s.apply_patch(evicted), Err(CoreError::TransactionConflict));
+        // Same for a DIFFERENT payload: still a stale duplicate, not a new txn.
+        let evicted_diff = patch(&s, 1000, vec![change(0, 0, "zz")]);
+        assert_eq!(s.apply_patch(evicted_diff), Err(CoreError::TransactionConflict));
+        // An id within the window with the same fingerprint remains idempotent.
         let newest = patch(
             &s,
             (1000 + TRANSACTION_RETRY_WINDOW_CAPACITY + 9) as u64,
             vec![change(0, 0, "a")],
         );
+        // Same id but current base_revision differs → fingerprint differs → conflict.
         assert!(s.apply_patch(newest).is_err()); // TransactionConflict — still in window
+    }
+
+    #[test]
+    fn high_water_mark_resets_on_reload() {
+        let mut s = session(b"x");
+        let p = patch(&s, 7, vec![change(0, 0, "a")]);
+        s.apply_patch(p).unwrap();
+        assert_eq!(s.max_transaction_id(), Some(7));
+        s.reload(b"y\n", LineEndingKind::Lf).unwrap();
+        // New binding generation → fresh transaction-id space.
+        assert_eq!(s.max_transaction_id(), None);
+        let q = patch(&s, 1, vec![change(0, 0, "b")]);
+        assert!(s.apply_patch(q).is_ok());
+        assert_eq!(s.max_transaction_id(), Some(1));
     }
 }

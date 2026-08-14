@@ -14,6 +14,7 @@ tauri-build = { version = "2", features = [] }
 e2e = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]
 
 [dependencies]
+markflow-core = { path = "../markflow-core" }
 tauri = { version = "~2.11.0", features = ["protocol-asset"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"

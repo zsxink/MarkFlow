@@ -103,3 +103,38 @@ No-Go：任何 serializer 保存；旧 snapshot 写盘；数据串文档；flag 
 ## 9. 回滚
 
 保持 `losslessCoreSession=false` 为发布默认。回滚关闭 flag 并确认新 session 走 legacy；已在 lossless session 打开的文档先安全 flush/close，不执行 owner 热切换。
+
+## 10. P2 遗留冻结协议（transaction-id 唯一性）
+
+P1A 遗留：`LosslessDocumentSession` 的幂等重试账本 `TRANSACTION_RETRY_WINDOW_CAPACITY=256`
+只保留最近 256 条已接受事务；淘汰后，同一 transaction-id 可被不同 payload 复用并被接受，
+破坏幂等重试安全（P1A evidence `.../20260814-p1a-final-9ad0513/harness` 已复现）。
+
+### 10.1 冻结决定：monotonic high-water mark + 有界重试窗口
+
+**采用「解决」**：Core 增加每个 session 的 monotonic high-water mark（一个 `u64`，O(1) 内存，
+永不淘汰），并用它冻结 session-lifetime transaction-id 唯一性：
+
+- 新事务必须满足 `transaction_id > session.max_transaction_id`；
+- `transaction_id <= max_transaction_id` 且不在重试账本中的请求一律返回
+  `duplicate-mismatch`（`TransactionConflict`），**绝不重新应用**；
+- 仍在账本内（最近 256 条）的请求维持幂等重试语义：同 fingerprint 返回原结果，
+  不同 fingerprint 返回 `duplicate-mismatch`；
+- `reload`（binding generation 前进）与 `close` 时 high-water mark 与账本一起重置，
+  新 binding 从零开始；同一 session 生命周期内 id 严格单调递增。
+
+前端契约（P1B `SourceSyncController` 必须遵守）：
+
+- transaction-id 按 session 单调递增，永不复用；
+- timeout 重试使用同一 transaction-id，但只在 256 窗口内有效；窗口外的重试
+  （ack 丢失且账本已淘汰）返回 `duplicate-mismatch`，前端必须进入 resync 而非盲目重发，
+  resync 采用新 transaction-id（设计 02 §7）；
+- 前端不得依赖「账本淘汰后可复用 id」的任何语义。
+
+### 10.2 测试要求
+
+- Core 单元测试：填满并越过 256 窗口后，被淘汰 id 复用（无论同/不同 payload）返回
+  `duplicate-mismatch` 且不改变 revision/text/hash/dirty；
+- 在窗口内的同 id 同 fingerprint 重试仍幂等返回原 outcome；
+- `reload` 后 high-water mark 重置，新 binding 可从低 id 重新开始；
+- P1A 的 P2 复现 harness 断言更新为「被淘汰 id 复用被拒绝」。

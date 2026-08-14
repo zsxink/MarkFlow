@@ -3,6 +3,7 @@ use crate::error::{lock_mutex, AppError};
 use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
+use crate::lossless::LosslessSessionRegistry;
 use crate::paths::normalize_path;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -27,6 +28,8 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     /// Limits concurrent outbound HTTP requests (default: 3).
     pub http_semaphore: Semaphore,
+    /// Host-side registry of lossless Core sessions (P1B task 3.1).
+    pub lossless_registry: LosslessSessionRegistry,
 }
 
 impl AppState {
@@ -51,6 +54,7 @@ impl AppState {
             image_download_semaphore: Semaphore::new(4),
             http_client,
             http_semaphore: Semaphore::new(3),
+            lossless_registry: LosslessSessionRegistry::new(),
         })
     }
 

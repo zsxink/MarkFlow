@@ -8,9 +8,11 @@
 use crate::error::{CoreError, CoreResult};
 use crate::line_ending::NewlineEnding;
 use crate::types::{LogicalByteOffset, Revision, SourceRange, TransactionId};
+use serde::{Deserialize, Serialize};
 
 /// Selection expressed in logical byte offsets at a given revision.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Selection {
     pub anchor: LogicalByteOffset,
     pub head: LogicalByteOffset,
@@ -18,7 +20,8 @@ pub struct Selection {
 }
 
 /// Result of an applied patch.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PatchOutcome {
     pub revision: crate::types::Revision,
     pub confirmed_hash: crate::identity::ContentHash,
@@ -26,7 +29,8 @@ pub struct PatchOutcome {
 }
 
 /// One local change in the base revision's coordinates.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TextChange {
     /// Range in base-revision logical byte offsets.
     pub range: SourceRange<LogicalByteOffset>,
@@ -37,7 +41,8 @@ pub struct TextChange {
 }
 
 /// An atomic, revision-bound text patch.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TextPatch {
     /// UI binding generation for the document image from which this patch was
     /// produced. Required to reject delayed pre-reload work.

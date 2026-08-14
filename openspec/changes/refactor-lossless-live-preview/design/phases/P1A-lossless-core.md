@@ -55,9 +55,14 @@ Reviewer 必须：
 - 随机抽取至少五个 fixture 重跑 hash；
 - 使用故障注入证明失败不改变 session revision/text。
 
-## 6. 人工验证
+## 6. Core contract acceptance（AI 执行；无需产品 UI 人工验收）
 
-此阶段无产品 UI，但人工仍需：
+P1A 尚未接入产品编辑器，因而没有可供最终用户体验的界面行为。Program Owner 已明确
+将这类非 UI 的 Core/byte-contract 复核授权给 AI；AI 必须以独立 Reviewer 报告、可复跑的
+byte/hash/benchmark 证据完成下列验收。用户只在后续已接入产品界面的阶段负责真实界面
+编辑与效果验收。
+
+AI 必须：
 
 1. 审阅 Core API 是否严格小于 draft 范围；
 2. 查看五组代表性 byte diff 报告；
@@ -65,7 +70,7 @@ Reviewer 必须：
 4. 确认 LF/CRLF/Mixed/BOM/尾部空行行为符合产品预期；
 5. 确认无效 UTF-8 的只读/拒绝提示文案方案；
 6. 审阅 benchmark，确认进入 P1B 不会明显阻塞打开/输入；
-7. 签署 byte contract，不把 parser/renderer 需求塞入 Core 保存主链。
+7. 记录 Core contract acceptance，不把 parser/renderer 需求塞入 Core 保存主链。
 
 ## 7. 必须证据
 

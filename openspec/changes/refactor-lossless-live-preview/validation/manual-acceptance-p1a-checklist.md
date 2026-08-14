@@ -1,14 +1,18 @@
-# P1A 人工验收清单 — 最小 Lossless Core
+# P1A Core Contract Acceptance 清单 — 最小 Lossless Core
 
 阶段：P1A（Slice 1A）
 关联：Issue #254 / umbrella change `refactor-lossless-live-preview`
 AI gate：run `20260813-p1a-core-0967a06`（candidate `648e9a3`，含 reviewer 纠偏 + §3.5 冻结测试）
-本清单用途：P1A 无产品 UI，人工验收为**审阅 Core API / byte diff / 零 patch prepare-save 报告**。
+本清单用途：P1A 无产品 UI，验收为**审阅 Core API / byte diff / 零 patch prepare-save 报告**。
+
+> **治理决定（2026-08-14）**：Program Owner 已将 P1A 这类非 UI 的 Core contract
+> acceptance 授权给 Codex AI 执行；xian 不需要填写本清单。AI 的实际验收记录位于
+> `validation/evidence/P1A/20260814-161034-p1a-ai-contract-9ad0513/AI-ACCEPTANCE.md`。
+> xian 只在后续已接入产品界面的阶段执行最终界面编辑/效果验收。
 
 > **执行方式（一键脚本）**：运行 `bash scripts/p1a-acceptance.sh`。
-> 脚本自动跑全部机器 gate，然后逐项打印证据路径并等待输入 `y`（通过）/ `n`（不通过），
-> 最后把验收记录写入 evidence run 的 `HUMAN-ACCEPTANCE.md`。
-> 本清单是脚本背后的人工核对项，供逐项理解；脚本已覆盖以下所有项目。
+> 脚本可自动跑全部机器 gate，并逐项打印证据路径供 Core contract reviewer 核对。
+> 本清单是脚本背后的验收项；AI 不能把它伪造为 xian 的人工签字。
 
 ---
 

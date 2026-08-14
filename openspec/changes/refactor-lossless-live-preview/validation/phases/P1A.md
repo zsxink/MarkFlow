@@ -1,10 +1,10 @@
 # P1A 验证记录：最小 Lossless Core
 
-总体状态：**CORRECTIVE 独立复核 PASS（两个独立 Reviewer）**。此前的
+总体状态：**技术验收 PASS；Program Owner 决定待确认**。此前的
 `20260813-p1a-core-0967a06` 为不可改写的历史证据，不能覆盖随后发现的 P1A
-缺陷。corrective candidate `9ad0513` 的自动化 gate 与独立复核均 PASS，
-但**人工验收和 Program Owner Go/No-Go 尚未完成**——在此之前 P1A 为
-**NO-GO / 不具备 Go 资格**。
+缺陷。修复候选 `9ad0513` 已通过新的独立 evidence run、独立 Reviewer 和 AI Core
+contract acceptance；P1A 无产品 UI，按 Program Owner 的 2026-08-14 授权不要求 xian
+执行技术清单。最终是否启动 P1B 仍由 Program Owner 明确确认。
 
 正式设计：[P1A：最小 Lossless Core](../../design/phases/P1A-lossless-core.md)
 
@@ -22,7 +22,8 @@
 
 本轮修复覆盖 fresh open/reload clean revision、reload 前 delayed patch identity、
 multi-change base-snapshot EOL inheritance，以及 PositionMap/text geometry mismatch。
-它不构成对历史 Reviewer、人类验收或 Program Owner Go 的替代或追认。
+独立 Reviewer 报告见 `validation/evidence/P1A/20260814-p1a-final-9ad0513/REVIEW.md`；
+AI acceptance 见 `validation/evidence/P1A/20260814-161034-p1a-ai-contract-9ad0513/`。
 
 ### Corrective 独立复核（2026-08-14）
 
@@ -63,24 +64,22 @@ multi-change base-snapshot EOL inheritance，以及 PositionMap/text geometry mi
 
 Miri/sanitizer：stable toolchain 无 `cargo-miri` 组件，**不可用已如实记录**（P1A §4 不允许伪报通过）。
 
-## 人工验证记录
+## Core contract acceptance
 
-- 验收人：NOT RECORDED（等待 Reviewer 后交 xian）
-- [ ] 审阅五组代表性 byte diff
-- [ ] 审阅零 patch open/prepare-save 的原始 bytes 回放报告
-- [ ] 审阅 Mixed EOL 新增换行行为
-- [ ] 审阅 invalid UTF-8 产品行为
-- [ ] 审阅 Core scope 未包含 parser/DOM/History
-- [ ] 审阅 benchmark 可进入 P1B
-- [ ] 签署 byte contract
+- 验收方式：Codex AI Core contract acceptance（Program Owner 授权；P1A 无产品 UI）
+- [x] 审阅五组代表性 byte diff、零 patch source replay 与 L0/L1 byte contract
+- [x] 审阅 Mixed EOL 新增换行、invalid UTF-8、Core scope 和 benchmark
+- [x] 记录 parser/renderer 不参与 Core 保存主链
 
-人工结论：NOT STARTED
+AI acceptance 结论：**PASS**。详见
+`validation/evidence/P1A/20260814-161034-p1a-ai-contract-9ad0513/AI-ACCEPTANCE.md`。
 
 ## Reviewer 与决定
 
 > 下列 `2026-08-13` reviewer 结论只适用于历史 candidate。对 corrective candidate `9ad0513`
 > 的独立复核已于 2026-08-14 完成：**两个独立 Reviewer 均判 PASS**（见上方 Corrective 独立复核节）。
-> **人工验收和 Program Owner Go/No-Go 仍为 PENDING**，不得按任何 Reviewer 结论勾选 P1A 完成。
+> 非 UI Core acceptance 已由 AI 完成；Program Owner Go/No-Go 仍为 **PENDING**，不得在
+> 收到用户启动 P1B 的明确决定前按任何 Reviewer 结论勾选 P1A 完成。
 
 ### 历史 candidate（2026-08-13，已 superseded 供参考）
 
@@ -90,14 +89,14 @@ Miri/sanitizer：stable toolchain 无 `cargo-miri` 组件，**不可用已如实
 - [x] Reviewer 对照 spec 检查 EOL 继承顺序与 DTO（CONDITIONAL PASS，§3.5 已冻结）
 - Reviewer：fresh-context 独立 Reviewer → **CONDITIONAL PASS**（历史 candidate `648e9a3`）
 - Open blocking issues：NONE（reviewer 5 项观察已处置：#1 已提交、#2 已冻结、#3 文档、#4 P1B 观察、#5 环境）
-- Program Go/No-Go：NOT STARTED（待人工验收）
+- Program Go/No-Go：NOT STARTED（待用户明确决定是否启动 P1B）
 
 ### Corrective candidate（2026-08-14）— 当前有效
 
 - Reviewer：**两个独立 Reviewer → PASS / Reviewer GO**（候选 `9ad0513`）
 - Open blocking issues：NONE（唯一 Open finding 为 P2 transaction-id 保留窗口，非 P1A 阻塞，P1B 处理）
-- 人工验收：**PENDING**（按 `validation/manual-acceptance-p1a-checklist.md`，一键脚本 `bash scripts/p1a-acceptance.sh`）
-- Program Go/No-Go：**NOT STARTED**（待人工验收后）
+- Core contract acceptance：**AI PASS**（`20260814-161034-p1a-ai-contract-9ad0513`）
+- Program Go/No-Go：**NOT STARTED**（待用户明确决定是否启动 P1B）
 
 ### Reviewer 发现与处置（2026-08-13）
 

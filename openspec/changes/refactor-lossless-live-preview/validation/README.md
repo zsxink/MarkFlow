@@ -72,8 +72,8 @@ Byte fidelity、错误写盘、安全、跨文档污染和规范 MUST 项不得 
 | --- | --- | --- | --- | --- |
 | P0 | CORRECTIVE AI GATE PASS + 完整人工验收完成 | historical + corrective PASS | ACCEPTED（表征准确，byte fidelity 未通过） | GO → P0S |
 | P0S | AI GATE PASS（final run `20260813-1715-p0s-final-d74a79d`，C01–C13 全 exit 0，manifest 16/16 0 mismatch） | **PASS**（final gate：证据链完整性 + ISSUE closure + 状态一致 + 功能复核 + 红线全过） | ACCEPTED（xian 2026-08-13；适用候选 d74a79d 确认） | **GO**（2026-08-13） |
-| P1A | NOT STARTED（P0S 已 GO，可启动） | NOT STARTED | NOT STARTED | NOT STARTED |
-| P1B | BLOCKED by P1A | NOT STARTED | NOT STARTED | NOT STARTED |
+| P1A | PASS（Core 92 tests；L0 24/24；L1 95/95） | **GO**（candidate `9ad0513`） | N/A（无产品 UI；AI contract acceptance PASS） | PENDING（待 Program Owner 决定是否启动 P1B） |
+| P1B | READY after P1A Program Go | NOT STARTED | NOT STARTED | NOT STARTED |
 | P2 | BLOCKED by P1B | NOT STARTED | NOT STARTED | NOT STARTED |
 | P3 | BLOCKED by P2 | NOT STARTED | NOT STARTED | NOT STARTED |
 | P4A | BLOCKED by P3 | NOT STARTED | NOT STARTED | NOT STARTED |

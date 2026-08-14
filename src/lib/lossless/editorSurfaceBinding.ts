@@ -25,7 +25,7 @@ import type {
   PatchOutcome,
   PrepareSaveResponse,
 } from './types';
-import { SourceSyncController, type LocalChange } from './sourceSyncController';
+import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
 
 export type LosslessSaveResult = 'saved' | 'skipped' | 'failed' | 'conflict';
@@ -207,8 +207,34 @@ export class EditorSurfaceBinding {
     return this.controller.hash;
   }
 
+  /** The current optimistic logical text (CodeMirror doc). */
+  get logicalText(): string {
+    return this.editor.doc();
+  }
+
   isBlocked(): boolean {
     return this.controller.isBlocked();
+  }
+
+  /** Flush the pipeline and update confirmed revision/hash. */
+  async flushNow(): Promise<FlushOutcome> {
+    const flush = await this.controller.flush();
+    if (flush.status === 'flushed') {
+      this.confirmedRevision = flush.revision;
+      this.confirmedHash = flush.confirmedHash;
+    }
+    return flush;
+  }
+
+  /**
+   * Apply an explicit local image-migration patch as a real doc transaction and
+   * flush it to the confirmed revision (design 04 §6: images are migrated as a
+   * local patch, never a full-text rewrite before save).
+   */
+  async applyImagePatches(patches: LocalChange[]): Promise<void> {
+    if (this.disposed || patches.length === 0) return;
+    this.editor.view.dispatch({ changes: patches });
+    await this.flushNow();
   }
 
   // ── Save lifecycle (design 04 §2) ───────────────────────────────────

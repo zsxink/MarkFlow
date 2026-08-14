@@ -270,14 +270,33 @@ export async function handleNetworkImage(
   return referenceStoredImage(downloaded.path, docPath, settings.referenceStyle);
 }
 
+/** One explicit local Markdown patch: replace `[from, to)` with `insert`. */
+export interface ImageMigrationPatch {
+  from: number;
+  to: number;
+  insert: string;
+}
+
 export interface PreparedImageMigration {
   markdown: string;
   draftId: string | null;
+  /**
+   * Explicit local Markdown patches (URL-range replacements in the ORIGINAL
+   * markdown's UTF-16 coordinates). The lossless Core save applies these as a
+   * CodeMirror transaction instead of a full-text rewrite (design 04 §6).
+   */
+  localPatches: ImageMigrationPatch[];
 }
 
 /**
  * Copy staged images and return Markdown with final references. This does not
  * clean the draft; the caller must do that only after the Markdown write wins.
+ *
+ * The returned `localPatches` are the explicit, non-overlapping URL-range
+ * replacements that turn the input `markdown` into the returned `markdown`.
+ * Callers that can apply local edits (the lossless Core binding) MUST use
+ * `localPatches` rather than substituting the whole rewritten `markdown`, so
+ * untouched bytes are never rewritten (design 04 §6).
  */
 export async function preparePendingImagesForSave(
   markdown: string,
@@ -298,24 +317,76 @@ export async function preparePendingImagesForSave(
     await writesBeforeSave;
     if (!capturedDraft.draftId && capturedDraft.immediateAbsoluteReferences.size === 0) {
       releasePendingImagesSave();
-      return { markdown, draftId: null };
+      return { markdown, draftId: null, localPatches: [] };
     }
     const resolvedSettings = settings ?? await getImageSettings();
-    let updated = rewriteImmediateAbsoluteReferences(markdown, documentPath, resolvedSettings);
-    const draftId = capturedDraft.draftId;
-    if (!draftId) return { markdown: updated, draftId: null };
-
-    const migration = await migratePendingImages(draftId, documentPath);
-    for (const mapping of migration.mappings) {
-      const finalReference = getReferencePath(mapping.to, documentPath, resolvedSettings.referenceStyle);
-      updated = replaceLiteral(updated, mapping.from, finalReference);
-      updated = replaceLiteral(updated, mapping.from.replace(/\\/g, '/'), finalReference);
+    const replacements: Array<{ from: string; to: string }> = [];
+    for (const absolutePath of capturedDraft.immediateAbsoluteReferences) {
+      const reference = getReferencePath(absolutePath, documentPath, resolvedSettings.referenceStyle);
+      replacements.push({ from: absolutePath, to: reference });
     }
-    return { markdown: updated, draftId };
+    const draftId = capturedDraft.draftId;
+    if (draftId) {
+      const migration = await migratePendingImages(draftId, documentPath);
+      for (const mapping of migration.mappings) {
+        const finalReference = getReferencePath(mapping.to, documentPath, resolvedSettings.referenceStyle);
+        replacements.push({ from: mapping.from, to: finalReference });
+        // Backslash ↔ forward-slash variants resolve to the same file. Skip when
+        // the variant is identical (macOS paths rarely contain backslashes) to
+        // avoid double-matching the same literal.
+        const slashFrom = mapping.from.replace(/\\/g, '/');
+        if (slashFrom !== mapping.from) {
+          replacements.push({ from: slashFrom, to: finalReference });
+        }
+      }
+    }
+    const applied = applyImageReplacements(markdown, replacements);
+    return { markdown: applied.markdown, draftId, localPatches: applied.patches };
   } catch (error) {
     releasePendingImagesSave();
     throw error;
   }
+}
+
+/**
+ * Apply a set of `{ from → to }` literal replacements, returning the final
+ * markdown AND the explicit non-overlapping patches (in the original UTF-16
+ * coordinates) that produced it. Replacements are matched left-to-right, never
+ * inside a prior replacement.
+ */
+function applyImageReplacements(
+  markdown: string,
+  replacements: Array<{ from: string; to: string }>,
+): { markdown: string; patches: ImageMigrationPatch[] } {
+  // Collect every non-overlapping occurrence in the ORIGINAL coordinates.
+  const patches: ImageMigrationPatch[] = [];
+  for (const { from, to } of replacements) {
+    if (!from) continue;
+    let idx = markdown.indexOf(from);
+    while (idx !== -1) {
+      patches.push({ from: idx, to: idx + from.length, insert: to });
+      idx = markdown.indexOf(from, idx + from.length);
+    }
+  }
+  // Dedupe identical patches (same source literal matched twice) so applying
+  // them cannot double-replace a region.
+  const seen = new Set<string>();
+  const unique: ImageMigrationPatch[] = [];
+  for (const p of patches) {
+    const key = `${p.from}:${p.to}:${p.insert}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(p);
+    }
+  }
+  // Apply right-to-left so earlier offsets stay valid.
+  unique.sort((a, b) => a.from - b.from);
+  let result = markdown;
+  for (let i = unique.length - 1; i >= 0; i--) {
+    const p = unique[i];
+    result = result.slice(0, p.from) + p.insert + result.slice(p.to);
+  }
+  return { markdown: result, patches: unique };
 }
 
 /** Clean a migrated draft only after its Markdown file was written successfully. */
@@ -414,19 +485,6 @@ function releasePendingImagesSave(): void {
   releasePendingSaveBarrier = null;
   pendingSaveBarrier = null;
   release?.();
-}
-
-function rewriteImmediateAbsoluteReferences(
-  markdown: string,
-  documentPath: string,
-  settings: ImageSettings,
-): string {
-  let updated = markdown;
-  for (const absolutePath of activeImageDraft.immediateAbsoluteReferences) {
-    const reference = getReferencePath(absolutePath, documentPath, settings.referenceStyle);
-    updated = replaceLiteral(updated, absolutePath, reference);
-  }
-  return updated;
 }
 
 function getReferencePath(destPath: string, docPath: string | null, style: string): string {
@@ -531,6 +589,3 @@ function getUrlExtension(url: string): string | null {
   return SUPPORTED_EXTENSIONS.has(extension) ? extension : null;
 }
 
-function replaceLiteral(value: string, search: string, replacement: string): string {
-  return search ? value.split(search).join(replacement) : value;
-}

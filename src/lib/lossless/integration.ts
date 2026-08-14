@@ -79,13 +79,43 @@ export async function openLosslessDocument(
   }
 }
 
-/** Save the active lossless document, or return null when not a lossless doc. */
+/**
+ * Save the active lossless document, or return null when not a lossless doc.
+ * Images are migrated as an explicit local patch before the confirmed bytes are
+ * prepared (design 04 §6): never a full-text rewrite before save.
+ */
 export async function saveLosslessActiveDocument(options: {
   interactive?: boolean;
 } = {}): Promise<LosslessSaveResult | null> {
   const binding = getActiveLosslessBinding();
   if (!binding) return null;
-  return binding.save(options);
+
+  // 1. Confirm every local edit (flush barrier) before touching the doc for
+  //    image migration.
+  const flush = await binding.flushNow();
+  if (flush.status === 'blocked') return 'failed';
+  if (flush.status === 'disposed') return 'failed';
+
+  // 2. Migrate staged images → explicit local URL-range patches.
+  const { preparePendingImagesForSave, completePendingImagesSave, abortPendingImagesSave } =
+    await import('../imageUtils');
+  const prepared = await preparePendingImagesForSave(binding.logicalText, binding.path).catch(
+    () => ({ markdown: '', draftId: null, localPatches: [] }),
+  );
+
+  // 3. Apply the local patch through the controller and re-confirm.
+  if (prepared.localPatches && prepared.localPatches.length > 0) {
+    await binding.applyImagePatches(prepared.localPatches);
+  }
+
+  // 4. Save the Core-confirmed bytes (guarded atomic write).
+  const result = await binding.save(options);
+  if (result === 'saved' && prepared.draftId) {
+    await completePendingImagesSave(prepared.draftId).catch(() => undefined);
+  } else if (result !== 'saved') {
+    abortPendingImagesSave();
+  }
+  return result;
 }
 
 /** Reload the active lossless document from disk (force). */

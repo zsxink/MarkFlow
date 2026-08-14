@@ -262,6 +262,18 @@ describe('first-save image transaction', () => {
     expect(prepared.markdown).toBe('![image](guide-images/img.png)');
     expect(cleanupPendingImages).not.toHaveBeenCalled();
 
+    // P1B 3.8: the migration returns an EXPLICIT local patch (URL-range
+    // replacement in original coordinates), not a full-text rewrite.
+    expect(prepared.localPatches).toHaveLength(1);
+    const patch = prepared.localPatches[0];
+    const source = `![image](${pending})`;
+    expect(source.slice(patch.from, patch.to)).toBe(pending);
+    expect(patch.insert).toBe('guide-images/img.png');
+    // Applying the local patch reproduces the migrated markdown exactly.
+    expect(
+      source.slice(0, patch.from) + patch.insert + source.slice(patch.to),
+    ).toBe('![image](guide-images/img.png)');
+
     await completePendingImagesSave(prepared.draftId);
     expect(cleanupPendingImages).toHaveBeenCalledWith('draft-1');
     expect(getActiveImageDraftId()).toBeNull();

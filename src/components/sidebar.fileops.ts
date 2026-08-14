@@ -19,6 +19,15 @@ import {
   discardActiveImageDraft,
   preparePendingImagesForSave,
 } from '../lib/imageUtils';
+import {
+  closeLosslessActiveDocument,
+  isLosslessActiveDoc,
+  openLosslessDocument,
+  reloadLosslessActiveDocument,
+  saveLosslessActiveDocument,
+  saveLosslessActiveDocumentAsNewFile,
+} from '../lib/lossless/integration';
+import { isLosslessCoreSessionEnabled } from '../lib/lossless/flag';
 
 // ── Serial save guard ────────────────────────────────────────────────
 
@@ -68,6 +77,30 @@ export async function saveActiveDocumentAsNewFile() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
+  // ── Lossless Core path (P1B 3.7) ──────────────────────────────────
+  if (isLosslessActiveDoc(filePath)) {
+    const targetPath = await save({
+      title: '另存为',
+      defaultPath: getConflictSavePath(filePath),
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (!targetPath) return false;
+    if (targetPath === filePath) {
+      showToast('请另选一个新文件名');
+      return false;
+    }
+    const ok = await saveLosslessActiveDocumentAsNewFile(targetPath);
+    if (ok) {
+      setActiveFilePath(targetPath);
+      await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
+      refreshOutline();
+      showToast('已另存为新文件');
+      return true;
+    }
+    showToast('另存为失败');
+    return false;
+  }
+
   const currentContent = getMarkdown();
   const targetPath = await save({
     title: '另存为',
@@ -105,6 +138,24 @@ export type SaveResult = 'saved' | 'skipped' | 'failed';
 
 export async function saveActiveDocument(options: { interactive?: boolean } = {}): Promise<SaveResult> {
   const { interactive = true } = options;
+
+  // ── Lossless Core path (P1B 3.6) ───────────────────────────────────
+  const losslessResult = await saveLosslessActiveDocument({ interactive });
+  if (losslessResult !== null) {
+    if (losslessResult === 'saved') {
+      if (interactive) showToast('已保存');
+      return 'saved';
+    }
+    if (losslessResult === 'skipped') return 'skipped';
+    if (losslessResult === 'conflict') {
+      // Guarded write surfaced a conflict — never silently overwrite.
+      if (interactive) {
+        showToast('文件已被外部修改，未覆盖磁盘内容');
+      }
+      return 'failed';
+    }
+    return 'failed';
+  }
 
   // ── Serial guard: skip if a save is already in progress ──────────
   if (savingInProgress) {
@@ -264,6 +315,16 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
   if (!force && isDocumentDirty()) return false;
   if (!force && hasExternalModification()) return false;
 
+  // ── Lossless Core path (P1B 3.7) ──────────────────────────────────
+  if (isLosslessActiveDoc(filePath)) {
+    const ok = await reloadLosslessActiveDocument(filePath);
+    if (ok) {
+      refreshOutline();
+      return true;
+    }
+    return false;
+  }
+
   try {
     const content = await readFile(filePath);
     setMarkdown(content, 'reloadSync');
@@ -288,6 +349,24 @@ export async function openFileInEditor(path: string) {
     return;
   }
   if (!(await confirmDocumentTransition())) return;
+
+  // ── Lossless Core path (P1B 3.4) ──────────────────────────────────
+  // Source mode uses Core logical text directly; `setMarkdown` / serializer are
+  // never called for the lossless session (owner isolation).
+  if (isLosslessCoreSessionEnabled()) {
+    await prepareImageLifecycleForOpenedDocument(path);
+    const opened = await openLosslessDocument(path);
+    if (opened) {
+      setActiveFilePath(path);
+      resetEditorScroll();
+      refreshOutline();
+      showToast('已打开文件');
+      return;
+    }
+    // Lossless open failed → dispose any stale binding, then fall through to
+    // legacy so the file still opens.
+    await closeLosslessActiveDocument();
+  }
 
   try {
     // Read metadata for tier classification

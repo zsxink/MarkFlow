@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/core';
 import type { Transaction } from '@tiptap/pm/state';
 import { getFileName } from './pathUtils';
 import { store } from './store';
+import { activeLosslessDirty, isActiveLosslessPath } from './lossless/registry';
 
 // ── Module-level state (editor-internal, not in global Store) ────────
 
@@ -219,6 +220,12 @@ export function markDocumentPersistedRevision(persistedAtSave: number): boolean 
 
 /** True when the document has confirmed user changes not yet persisted. */
 export function hasUnpersistedUserChanges(): boolean {
+  // Lossless Core path: dirty is revision-driven on the active binding.
+  const activePath = getActiveDocPath();
+  if (isActiveLosslessPath(activePath ?? '')) {
+    return activeLosslessDirty(activePath);
+  }
+  // Legacy path: userRevision vs persistedRevision.
   return documentState.userRevision > documentState.persistedRevision;
 }
 

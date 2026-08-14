@@ -168,21 +168,102 @@ pub fn open_lossless_document(
 }
 
 /// Apply an atomic text patch. Carries the full identity matrix (design 02 §2):
-/// bindingGeneration, sessionId, documentId, baseRevision, transactionId.
+/// bindingGeneration, sessionId, documentId, baseRevision, transactionId. The
+/// request is in CodeMirror UTF-16 coordinates; the bridge converts to logical
+/// byte offsets via the session's PositionMap before applying.
 #[tauri::command]
 pub fn apply_document_patch(
     req: PatchRequest,
     state: State<AppState>,
 ) -> Result<PatchOutcome, LosslessError> {
+    use markflow_core::NewlineEnding;
+
     let registry = &state.lossless_registry;
-    let session_id = req.patch.session_id;
+    let bridge = req.patch;
+    let session_id = markflow_core::SessionId(bridge.session_id);
     if !registry.contains(session_id) {
         return Err(LosslessError::session_missing(format!(
             "session {session_id:?} not found"
         )));
     }
     let outcome = registry
-        .update(session_id, |session| session.apply_patch(req.patch))
+        .update(session_id, |session| {
+            // Validate the identity matrix and base revision BEFORE converting
+            // coordinates, so a stale patch can never be converted against the
+            // wrong text geometry.
+            if session.binding_generation().0 != bridge.binding_generation
+                || session.document_id.0 != bridge.document_id
+            {
+                return Err(LosslessError::wrong_identity(format!(
+                    "patch identity does not match session (binding {:?}/{:?}, doc {:?}/{:?})",
+                    session.binding_generation().0,
+                    bridge.binding_generation,
+                    session.document_id.0,
+                    bridge.document_id,
+                )));
+            }
+            if session.revision().0 != bridge.base_revision {
+                return Err(LosslessError::new(
+                    "stale-revision",
+                    format!("stale revision: expected {:?}, actual {:?}", session.revision().0, bridge.base_revision),
+                ));
+            }
+            // UTF-16 → logical byte conversion (PositionMap is geometry-validated).
+            let mut changes = Vec::with_capacity(bridge.changes.len());
+            for change in &bridge.changes {
+                let start = session
+                    .byte_for_utf16(markflow_core::Utf16Offset(change.from_utf16 as usize))
+                    .map_err(LosslessError::from)?;
+                let end = session
+                    .byte_for_utf16(markflow_core::Utf16Offset(change.to_utf16 as usize))
+                    .map_err(LosslessError::from)?;
+                let line_endings = change
+                    .inserted_line_endings
+                    .iter()
+                    .map(|e| match e.as_str() {
+                        "inherit" => Ok(NewlineEnding::Inherit),
+                        "lf" => Ok(NewlineEnding::ExplicitLf),
+                        "crlf" => Ok(NewlineEnding::ExplicitCrlf),
+                        "cr" => Ok(NewlineEnding::ExplicitCr),
+                        other => Err(LosslessError::invalid_encoding(format!(
+                            "未知 line ending provenance: {other}"
+                        ))),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                changes.push(markflow_core::TextChange {
+                    range: markflow_core::SourceRange::new(start, end),
+                    inserted_logical_text: change.inserted_logical_text.clone(),
+                    inserted_line_endings: line_endings,
+                });
+            }
+            let selection_after = bridge
+                .selection_after
+                .as_ref()
+                .map(|sel| -> Result<markflow_core::Selection, LosslessError> {
+                    let anchor = session
+                        .byte_for_utf16(markflow_core::Utf16Offset(sel.anchor_utf16 as usize))
+                        .map_err(LosslessError::from)?;
+                    let head = session
+                        .byte_for_utf16(markflow_core::Utf16Offset(sel.head_utf16 as usize))
+                        .map_err(LosslessError::from)?;
+                    Ok(markflow_core::Selection {
+                        anchor,
+                        head,
+                        revision: markflow_core::Revision(bridge.base_revision),
+                    })
+                })
+                .transpose()?;
+            let patch = markflow_core::TextPatch {
+                binding_generation: markflow_core::BindingGeneration(bridge.binding_generation),
+                session_id,
+                document_id: markflow_core::DocumentId(bridge.document_id),
+                transaction_id: markflow_core::TransactionId(bridge.transaction_id),
+                base_revision: markflow_core::Revision(bridge.base_revision),
+                changes,
+                selection_after,
+            };
+            session.apply_patch(patch).map_err(LosslessError::from)
+        })
         .ok_or_else(|| LosslessError::session_missing(format!("session {session_id:?} not found")))??;
     Ok(outcome)
 }

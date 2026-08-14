@@ -5,7 +5,7 @@
 //! stable `code`, never on an English message.
 
 use markflow_core::{
-    DocumentId, FileIdentity, LosslessDocumentSession, OriginalSnapshot, SessionId, TextPatch,
+    DocumentId, FileIdentity, LosslessDocumentSession, OriginalSnapshot, SessionId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -68,11 +68,48 @@ pub struct OpenDocumentRequest {
     pub default_eol: String,
 }
 
-/// `apply_document_patch`
+/// `apply_document_patch` — UTF-16 bridge patch (design 02 §3).
+///
+/// The frontend sends CodeMirror-native UTF-16 offsets (`fromUtf16`/`toUtf16`);
+/// the Rust bridge converts them to logical byte offsets via the session's
+/// PositionMap before calling Core (design 01 §4 — the bridge carries the
+/// explicit coordinate system in the field name).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchRequest {
-    pub patch: TextPatch,
+    pub patch: BridgeTextPatch,
+}
+
+/// One change in the base revision's UTF-16 coordinates.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeTextChange {
+    pub from_utf16: u64,
+    pub to_utf16: u64,
+    pub inserted_logical_text: String,
+    pub inserted_line_endings: Vec<String>,
+}
+
+/// Selection-after in UTF-16 coordinates (CodeMirror native).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeSelectionAfter {
+    pub anchor_utf16: u64,
+    pub head_utf16: u64,
+}
+
+/// The full identity matrix (design 02 §2): bindingGeneration, sessionId,
+/// documentId, baseRevision, transactionId.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeTextPatch {
+    pub binding_generation: u64,
+    pub session_id: u64,
+    pub document_id: u64,
+    pub transaction_id: u64,
+    pub base_revision: u64,
+    pub changes: Vec<BridgeTextChange>,
+    pub selection_after: Option<BridgeSelectionAfter>,
 }
 
 /// `get_document_snapshot` / `flush_document_session` / `close_lossless_document`

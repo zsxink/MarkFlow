@@ -125,21 +125,21 @@ fn read_oversized_file_returns_error() {
 // layer is the only mocked part. No frontend `invoke` is mocked.
 
 use crate::lossless::dto::{
-    CommitSaveRequest, OpenDocumentRequest, PatchRequest, PrepareSaveRequest, ReloadDocumentRequest,
-    SessionRequest,
+    BridgeTextChange, BridgeTextPatch, CommitSaveRequest, OpenDocumentRequest, PatchRequest,
+    PrepareSaveRequest, ReloadDocumentRequest, SessionRequest,
 };
 use crate::lossless::guarded_write::{guarded_atomic_write, reconcile_document_save, GuardedWriteRequest};
 use crate::lossless::{
     apply_document_patch, close_lossless_document, commit_document_save, flush_document_session,
     get_document_snapshot, open_lossless_document, prepare_document_save, reload_lossless_document,
 };
-use markflow_core::{LogicalByteOffset, NewlineEnding, SourceRange, TextChange, TextPatch, TransactionId};
 
-fn lf_change(start: usize, end: usize, inserted: &str) -> TextChange {
-    TextChange {
-        range: SourceRange::new(LogicalByteOffset(start), LogicalByteOffset(end)),
+fn lf_change(from_utf16: usize, to_utf16: usize, inserted: &str) -> BridgeTextChange {
+    BridgeTextChange {
+        from_utf16: from_utf16 as u64,
+        to_utf16: to_utf16 as u64,
         inserted_logical_text: inserted.to_owned(),
-        inserted_line_endings: vec![NewlineEnding::Inherit; inserted.matches('\n').count()],
+        inserted_line_endings: vec!["inherit".to_string(); inserted.matches('\n').count()],
     }
 }
 
@@ -149,14 +149,14 @@ fn bridge_patch(
     binding_generation: u64,
     transaction_id: u64,
     base_revision: u64,
-    changes: Vec<TextChange>,
-) -> TextPatch {
-    TextPatch {
-        binding_generation: markflow_core::BindingGeneration(binding_generation),
-        session_id: markflow_core::SessionId(session_id),
-        document_id: markflow_core::DocumentId(document_id),
-        transaction_id: TransactionId(transaction_id),
-        base_revision: markflow_core::Revision(base_revision),
+    changes: Vec<BridgeTextChange>,
+) -> BridgeTextPatch {
+    BridgeTextPatch {
+        binding_generation,
+        session_id,
+        document_id,
+        transaction_id,
+        base_revision,
         changes,
         selection_after: None,
     }

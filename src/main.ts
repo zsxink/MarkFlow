@@ -9,6 +9,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
+import { closeLosslessActiveDocument, isActiveLosslessPath, markLosslessExternalModification } from './lib/lossless/integration';
+import { isLosslessCoreSessionEnabled } from './lib/lossless/flag';
 import { showToast } from './components/toast';
 import { setToastReporter } from './lib/error';
 import { store } from './lib/store';
@@ -107,6 +109,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const { path, kind } of changes) {
       const activePath = getActiveFilePath();
       if (activePath && path === activePath && kind === 'modify') {
+        // ── Lossless Core path: guarded write detects the conflict at the
+        // replace point; do NOT auto-reload the Core session (owner isolation).
+        if (isLosslessCoreSessionEnabled() && isActiveLosslessPath(activePath)) {
+          markLosslessExternalModification(activePath);
+          showToast('文件已被外部修改，保存时将提示冲突');
+          continue;
+        }
         const result = await handleActiveDocumentExternalModification();
         if (result === 'reloaded') showToast('文件已从磁盘重新加载');
         else if (result === 'kept') showToast('已保留当前内容，自动保存已暂停');
@@ -177,11 +186,14 @@ export async function handleCloseRequested(windowLabel: string): Promise<void> {
   if (windowLabel !== getCurrentWebviewWindow().label) return;
 
   if (!hasUnpersistedUserChanges()) {
+    // Clean: flush + close any lossless session, then confirm the native close.
+    await closeLosslessActiveDocument();
     await invoke('confirm_window_close');
     return;
   }
 
   await showUnsavedDialog(async () => {
+    await closeLosslessActiveDocument();
     await invoke('confirm_window_close');
   });
 }

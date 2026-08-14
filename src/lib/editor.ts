@@ -38,6 +38,7 @@ import {
   getSourceContent,
   setSourceContent,
 } from './editor.source';
+import { getActiveLosslessBinding } from './lossless/registry';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -163,6 +164,16 @@ export function setMarkdown(
 // ── Mode switching ────────────────────────────────────────────────────
 
 export function switchToSource() {
+  // Lossless Core docs are already in Source mode with Core logical text; never
+  // rebuild a PM-backed source (owner isolation, design P1B §5).
+  if (getActiveLosslessBinding()) {
+    const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
+    if (wrapper) wrapper.hidden = false;
+    const wysiwygEditor = document.getElementById('wysiwyg-editor');
+    if (wysiwygEditor) wysiwygEditor.hidden = true;
+    setMode('source');
+    return;
+  }
   const ed = getEditor();
   if (!ed) return;
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
@@ -214,6 +225,13 @@ export function switchToSource() {
 }
 
 export function switchToWysiwyg() {
+  // Lossless Core docs stay in Source mode (P1B vertical slice); switching would
+  // require populating ProseMirror from a serializer, which the lossless session
+  // never touches. Block the switch so PM is never made the owner.
+  if (getActiveLosslessBinding()) {
+    showToast('Lossless 模式当前仅支持源码编辑');
+    return;
+  }
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
   if (!wysiwygEditor || !wrapper) return;

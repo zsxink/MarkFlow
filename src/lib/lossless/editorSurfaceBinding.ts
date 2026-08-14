@@ -437,7 +437,14 @@ export class EditorSurfaceBinding {
     this.confirmedRevision = reloaded.revision;
     this.confirmedHash = reloaded.confirmedHash;
     this.persistedRevision = reloaded.persistedRevision;
-    this.editor.replaceDoc(reloaded.logicalText);
+    // replaceDoc fires the editor updateListener (docChanged) — suppress it so
+    // the reload content is never re-queued as a user edit.
+    this.programmaticDispatch = true;
+    try {
+      this.editor.replaceDoc(reloaded.logicalText);
+    } finally {
+      this.programmaticDispatch = false;
+    }
     this.controller = new SourceSyncController({
       sessionId: reloaded.sessionId,
       documentId: reloaded.documentId,

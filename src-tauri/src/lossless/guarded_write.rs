@@ -437,8 +437,24 @@ fn update_receipt(
 }
 
 pub fn receipts_dir() -> PathBuf {
+    // Test override: isolates all receipt I/O from the real app config dir.
+    if let Ok(guard) = RECEIPTS_DIR_OVERRIDE.lock() {
+        if let Some(dir) = guard.clone() {
+            return dir;
+        }
+    }
     app_config_dir().join(RECEIPTS_DIR_NAME)
 }
+
+/// Test-only override so `cargo test` never writes receipts to the developer's
+/// real app config directory (a P1A reviewer P2 finding).
+#[cfg(test)]
+pub fn set_receipts_dir_override(dir: Option<PathBuf>) {
+    *RECEIPTS_DIR_OVERRIDE.lock().unwrap() = dir;
+}
+
+static RECEIPTS_DIR_OVERRIDE: std::sync::Mutex<Option<PathBuf>> =
+    std::sync::Mutex::new(None);
 
 fn receipt_path_for(save_operation_id: &str) -> PathBuf {
     receipts_dir().join(format!("{save_operation_id}.json"))
@@ -637,5 +653,61 @@ fn create_if_absent(_tmp: &Path, _target: &Path) -> std::io::Result<bool> {
         Ok(()) => Ok(true),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
         Err(e) => Err(e),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use markflow_core::ContentHash;
+
+    fn temp_receipts_dir() -> PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static C: AtomicUsize = AtomicUsize::new(0);
+        let n = C.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!("markflow_rec_{}_{}", std::process::id(), n))
+    }
+
+    fn isolate_receipts() -> PathBuf {
+        let dir = temp_receipts_dir();
+        set_receipts_dir_override(Some(dir.clone()));
+        dir
+    }
+
+    #[test]
+    fn record_prepared_is_idempotent_and_rejects_different_payload() {
+        let _dir = isolate_receipts();
+        let path = "/tmp/doc.md";
+        let identity = FileIdentity::from_bytes(b"original");
+        let hash = ContentHash::of(b"payload");
+        // Direct receipt write under the real config dir is isolated per run id.
+        let op = format!("scan-op-{}", std::process::id());
+        record_prepared(&op, path, &Some(identity.clone()), &hash).unwrap();
+        // Same op + same payload → idempotent.
+        record_prepared(&op, path, &Some(identity.clone()), &hash).unwrap();
+        // Same op + different payload → rejected.
+        let err = record_prepared(&op, path, &Some(identity), &ContentHash::of(b"other")).unwrap_err();
+        assert_eq!(err.code, "duplicate-mismatch");
+        // Cleanup: the receipt lives under the real config receipts dir.
+        let _ = std::fs::remove_file(receipt_path_for(&op));
+    }
+
+    #[test]
+    fn scan_unfinished_receipts_finds_non_committed() {
+        let _dir = isolate_receipts();
+        let op_prepared = format!("scan-p-{}", std::process::id());
+        let op_committed = format!("scan-c-{}", std::process::id());
+        let identity = FileIdentity::from_bytes(b"x");
+        record_prepared(&op_prepared, "/tmp/a.md", &Some(identity.clone()), &ContentHash::of(b"a")).unwrap();
+        record_prepared(&op_committed, "/tmp/b.md", &Some(identity.clone()), &ContentHash::of(b"b")).unwrap();
+        // Mark one committed so scan excludes it.
+        update_receipt(&op_committed, |r| r.state = ReceiptState::Committed).unwrap();
+
+        let unfinished = scan_unfinished_receipts();
+        assert!(unfinished.contains_key(&op_prepared));
+        assert!(!unfinished.contains_key(&op_committed));
+
+        let _ = std::fs::remove_file(receipt_path_for(&op_prepared));
+        let _ = std::fs::remove_file(receipt_path_for(&op_committed));
     }
 }

@@ -47,6 +47,17 @@ fn sha256_hex(s: &str) -> String {
 }
 
 fn build_app() -> tauri::App<tauri::test::MockRuntime> {
+    // Isolate durable-save receipts from the real app config dir (P1A reviewer
+    // P2 finding): each test writes receipts to its own temp dir.
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static RECEIPT_COUNTER: AtomicUsize = AtomicUsize::new(0);
+    let receipts_dir = std::env::temp_dir().join(format!(
+        "markflow_dispatch_receipts_{}_{}",
+        std::process::id(),
+        RECEIPT_COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir_all(&receipts_dir).expect("create temp receipts dir");
+    crate::lossless::guarded_write::set_receipts_dir_override(Some(receipts_dir));
     let state = AppState::new().expect("AppState::new must construct in test env");
     tauri::test::mock_builder()
         .manage(state)

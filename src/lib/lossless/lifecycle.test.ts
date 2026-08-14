@@ -101,7 +101,17 @@ vi.mock('@tauri-apps/api/core', async () => {
           }
           // Apply UTF-16 changes to the logical text (test double, not Core).
           let text = session.logicalText;
-          const changes = [...patch.changes].sort((a, b) => b.fromUtf16 - a.fromUtf16);
+          const changes = [...patch.changes];
+          for (const c of changes) {
+            // Validate the bridge DTO shape so a malformed patch is caught here.
+            if (typeof c.fromUtf16 !== 'number' || typeof c.toUtf16 !== 'number') {
+              throw { code: 'invalid-dto', message: `patch change missing UTF-16 coords: ${JSON.stringify(c)}` };
+            }
+            if (c.insertedLineEndings.length !== (c.insertedLogicalText.match(/\n/g) ?? []).length) {
+              throw { code: 'invalid-eol-provenance', message: 'line-ending count mismatch' };
+            }
+          }
+          changes.sort((a, b) => b.fromUtf16 - a.fromUtf16);
           for (const c of changes) {
             text = text.slice(0, c.fromUtf16) + c.insertedLogicalText + text.slice(c.toUtf16);
           }

@@ -229,7 +229,13 @@ export class SourceSyncController {
       documentId: this.deps.documentId,
       transactionId: txnId,
       baseRevision: this.confirmedRevision,
-      changes,
+      // Bridge DTO: UTF-16 coordinates + explicit line-ending provenance.
+      changes: changes.map((c) => ({
+        fromUtf16: c.from,
+        toUtf16: c.to,
+        insertedLogicalText: c.insert,
+        insertedLineEndings: Array(c.insert.split('\n').length - 1).fill('inherit'),
+      })),
     };
     this.pendingCount = 0;
     this.inFlight = { patch, txnId, retries: 0, timer: null };

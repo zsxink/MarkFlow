@@ -63,6 +63,13 @@ describe('SourceSyncController', () => {
     await tick();
     await tick();
     expect(applyPatch).toHaveBeenCalledTimes(1);
+    // Bridge DTO shape: every change carries UTF-16 coords + provenance.
+    const sent = (applyPatch.mock.calls[0][0] as any).changes;
+    expect(sent).toHaveLength(1);
+    expect(sent[0].fromUtf16).toBeTypeOf('number');
+    expect(sent[0].toUtf16).toBeTypeOf('number');
+    expect(sent[0].insertedLogicalText).toBeTypeOf('string');
+    expect(Array.isArray(sent[0].insertedLineEndings)).toBe(true);
     expect(state.patchCalls[0].transactionId).toBe(1);
     expect(state.patchCalls[0].baseRevision).toBe(0);
     expect(controller.revision).toBe(1);

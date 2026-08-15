@@ -415,8 +415,10 @@ pub fn run() {
             files_image::cleanup_expired_pending_images_on_startup();
 
             // P1B 3.9: scan unfinished lossless-save receipts before any related
-            // path may enter autosave. Unfinished operations are reconciled
-            // (`reconcile_document_save`) before the document re-enters autosave.
+            // path may enter autosave. NOTE: this scan only records + warns about
+            // unfinished receipts; it does NOT call `reconcile_document_save`.
+            // The frontend reconciles on its own lost-response / outcome-unknown
+            // paths. Startup auto-reconcile is deferred to a P2/corrective decision.
             {
                 use lossless::guarded_write::scan_unfinished_receipts;
                 let unfinished = scan_unfinished_receipts();

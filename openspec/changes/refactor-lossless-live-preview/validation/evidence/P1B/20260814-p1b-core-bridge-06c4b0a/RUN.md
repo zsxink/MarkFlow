@@ -19,7 +19,7 @@
 | Bridge identity matrix | stale-revision / wrong-identity / duplicate-mismatch rejection | PASS |
 | Guarded atomic write | L0 clean-save bytes preserved; conflict on mismatched identity; duplicate operation rejected; reconcile | PASS |
 | SourceSyncController | 9 unit tests: batch/retry/resync/blocked/flush/dispose/late-ack-drop | PASS |
-| Lossless lifecycle (frontend) | 15 integration tests: open→edit→dirty→save→persist→reload→close, A/B, audit, reconcile, 3.10 | PASS |
+| Lossless lifecycle (frontend) | lifecycle.test.ts 6 + sourceSyncController.test.ts 10 integration tests: open→edit→dirty→save→persist→reload→close, A/B, audit, reconcile, 3.10 | PASS |
 | 3.9.2 audit | lossless open/dirty/autosave/save/reload/close never call setMarkdown/getMarkdown/normalizeImageMarkdown/PM serializer | PASS |
 | 3.10 renderer/parser isolation | renderer/parser command failure does not block lossless open/edit/save | PASS |
 | Desktop E2E (lossless) | real Tauri WebKit: zero-edit lifecycle, clean Cmd+S, edit→save→reopen hash, A/B switch, CRLF/BOM survival | PASS |

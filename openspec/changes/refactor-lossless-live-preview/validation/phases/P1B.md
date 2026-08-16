@@ -20,7 +20,7 @@
 - [x] 干净 Save → skipped 不写盘（`lifecycle.test.ts`）
 - [x] 正文编辑 → dirty → Save 一次写盘 → persisted 收敛（`lifecycle.test.ts`）
 - [x] reload/close/A-B 切换不写盘、不串文档（`lifecycle.test.ts`）
-- [x] timeout/retry/duplicate/stale ack（`sourceSyncController.test.ts` 9 测试）
+- [x] timeout/retry/duplicate/stale ack（`sourceSyncController.test.ts` 10 测试）
 - [x] resync 与 blocked recovery（`sourceSyncController.test.ts`）
 - [ ] prepare 后外部替换、锁不被遵守、write/commit response 丢失、重复 saveOperationId、启动 receipt reconcile（Rust 侧部分覆盖，desktop 待补）
 - [x] renderer/parser command 故障不影响 Source 编辑保存（3.10，`lifecycle.test.ts`）

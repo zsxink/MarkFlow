@@ -39,6 +39,12 @@ export function getActiveLosslessPath(): string | null {
   return activePath;
 }
 
+/** Update ownership after a verified Save As reconciliation/rebind. */
+export function rebindActiveLosslessPath(binding: EditorSurfaceBinding, path: string): void {
+  if (activeBinding !== binding) return;
+  activePath = path;
+}
+
 /** Dispose the active binding (document close/switch). */
 export async function disposeActiveLosslessBinding(): Promise<void> {
   const binding = activeBinding;

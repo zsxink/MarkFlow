@@ -120,16 +120,20 @@ pub struct SessionRequest {
 }
 
 /// `prepare_document_save` — carries the save identity matrix (design 02 §2):
-/// sessionId, documentId, expectedRevision, expectedFileIdentity,
-/// saveOperationId. New input at a higher optimistic revision is NOT a stale
-/// condition for a save; the expected revision is the one being persisted.
-/// `expected_file_identity` is `None` for Save As / New File (target expected
-/// absent); the payload is still derived from the confirmed Core revision.
+/// sessionId, documentId, bindingGeneration, expectedRevision,
+/// expectedFileIdentity, saveOperationId. New input at a higher optimistic
+/// revision is NOT a stale condition for a save; the expected revision is the
+/// one being persisted. `expected_file_identity` is `None` for Save As / New
+/// File (target expected absent); the payload is still derived from the
+/// confirmed Core revision. `binding_generation` freezes the document image the
+/// payload belongs to, so a reload/close invalidates the operation (P1B
+/// corrective P0-3).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrepareSaveRequest {
     pub session_id: SessionId,
     pub document_id: DocumentId,
+    pub binding_generation: u64,
     pub expected_revision: u64,
     pub expected_file_identity: Option<FileIdentity>,
     pub save_operation_id: String,
@@ -144,9 +148,12 @@ pub struct CommitSaveRequest {
     pub document_id: DocumentId,
     pub persisted_revision: u64,
     pub new_file_identity: FileIdentity,
-    /// The save operation whose durable receipt should advance to `Committed`
-    /// after this commit (design 04 §3). Optional for callers without one.
-    pub save_operation_id: Option<String>,
+    /// REQUIRED: the save operation whose durable `Written` receipt (with the
+    /// matching new identity) authorizes this commit. A commit without a
+    /// matching durable receipt is rejected — it can never mark Core text
+    /// persisted without evidence that the bytes reached disk (P1B corrective
+    /// P0-1).
+    pub save_operation_id: String,
 }
 
 /// `reload_lossless_document`
@@ -209,11 +216,29 @@ pub struct PrepareSaveResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SaveReceipt {
     pub save_operation_id: String,
+    /// The Core session/document/revision whose confirmed bytes were prepared.
+    /// These fields make a durable receipt an authority for one exact save,
+    /// rather than a reusable payload token.
+    pub session_id: u64,
+    pub document_id: u64,
+    /// The binding generation whose confirmed image produced this payload. A
+    /// reload/close advances the session generation, so a late write/commit for
+    /// this receipt can be rejected (P1B corrective P0-3).
+    pub binding_generation: u64,
+    pub revision: u64,
+    /// Canonical (or, for an absent Save As target, normalized absolute) target
+    /// path. The raw request path is retained only for diagnostics.
     pub path: String,
+    pub canonical_target_path: String,
     pub path_hash: String,
     /// `Some` → replace an existing target; `None` → target expected absent.
     pub expected_file_identity: Option<FileIdentity>,
     pub payload_sha256: String,
+    /// Persisted immediately after the guarded replace so a lost write or
+    /// commit response can return the exact identity that was written.
+    pub new_file_identity: Option<FileIdentity>,
+    /// A displaced external version kept after an exchange-time conflict.
+    pub recovery_path: Option<String>,
     pub state: ReceiptState,
 }
 

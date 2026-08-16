@@ -134,7 +134,8 @@ export async function saveActiveDocumentAsNewFile() {
   }
 }
 
-export type SaveResult = 'saved' | 'skipped' | 'failed';
+/** `blocked` and `conflict` preserve user data and are not write failures. */
+export type SaveResult = 'saved' | 'skipped' | 'blocked' | 'conflict' | 'failed';
 
 export async function saveActiveDocument(options: { interactive?: boolean } = {}): Promise<SaveResult> {
   const { interactive = true } = options;
@@ -154,7 +155,11 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       if (interactive) {
         showToast('检测到外部修改，原文件已保留为恢复副本，未覆盖');
       }
-      return 'failed';
+      return 'conflict';
+    }
+    if (losslessResult === 'blocked') {
+      if (interactive) showToast('同步尚未恢复，未写入磁盘；请先恢复或另存副本');
+      return 'blocked';
     }
     return 'failed';
   }
@@ -319,7 +324,7 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
 
   // ── Lossless Core path (P1B 3.7) ──────────────────────────────────
   if (isLosslessActiveDoc(filePath)) {
-    const ok = await reloadLosslessActiveDocument(filePath);
+    const ok = await reloadLosslessActiveDocument(filePath, 'lf', { discard: force });
     if (ok) {
       refreshOutline();
       return true;

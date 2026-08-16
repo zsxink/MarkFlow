@@ -28,6 +28,12 @@ const state = vi.hoisted(() => ({
   receipts: new Map<string, { state: 'written' | 'committed' | 'conflict'; payloadSha256: string; path: string }>(),
   /** Test hook: when true, the NEXT commit_document_save call fails (lost response). */
   failCommitOnce: false,
+  /** Backend mutates state first, then only the response is lost. */
+  loseCommitResponseAfterMutationOnce: false,
+  loseWriteResponseAfterMutationOnce: false,
+  /** Reject next patch before mutating Core, forcing controller resync. */
+  rejectPatchStaleOnce: false,
+  rejectPatchIoAlways: false,
 }));
 
 vi.mock('@tauri-apps/api/core', async () => {
@@ -102,6 +108,14 @@ vi.mock('@tauri-apps/api/core', async () => {
           if (session.revision !== patch.baseRevision) {
             throw { code: 'stale-revision', message: 'stale' };
           }
+          session.lastPatch = patch;
+          if (sessionState.rejectPatchStaleOnce) {
+            sessionState.rejectPatchStaleOnce = false;
+            throw { code: 'stale-revision', message: 'injected stale' };
+          }
+          if (sessionState.rejectPatchIoAlways) {
+            throw { code: 'io', message: 'injected bridge outage' };
+          }
           // Apply UTF-16 changes to the logical text (test double, not Core).
           let text = session.logicalText;
           const changes = [...patch.changes];
@@ -161,6 +175,10 @@ vi.mock('@tauri-apps/api/core', async () => {
             payloadSha256: sha256hex(payload),
             path: req.path,
           });
+          if (sessionState.loseWriteResponseAfterMutationOnce) {
+            sessionState.loseWriteResponseAfterMutationOnce = false;
+            throw { code: 'io', message: 'write response lost after mutation' };
+          }
           return {
             saveOperationId: req.saveOperationId,
             outcome: 'written',
@@ -179,12 +197,12 @@ vi.mock('@tauri-apps/api/core', async () => {
           if (!receipt) throw { code: 'save-outcome-unknown', message: 'no receipt' };
           const disk = await nodeFsMod.readFile(receipt.path, 'utf8');
           const diskHash = sha256hex(disk);
-          if (receipt.state === 'written' && diskHash === receipt.payloadSha256) {
+          if ((receipt.state === 'written' || receipt.state === 'committed') && diskHash === receipt.payloadSha256) {
             // Written + disk matches prepared payload → commit is safe (mirrors
             // the real Rust `reconcile_document_save` returning the new identity).
             return {
               saveOperationId: receipt.path,
-              state: 'written-and-commit-pending',
+              state: receipt.state === 'committed' ? 'committed' : 'written-and-commit-pending',
               newFileIdentity: {
                 canonicalPath: receipt.path,
                 size: Buffer.byteLength(disk, 'utf8'),
@@ -196,14 +214,17 @@ vi.mock('@tauri-apps/api/core', async () => {
           return { saveOperationId: receipt.path, state: 'conflict', newFileIdentity: null };
         }
         case 'commit_document_save': {
-          if (sessionState.failCommitOnce) {
-            sessionState.failCommitOnce = false;
-            throw { code: 'io', message: 'commit response lost' };
-          }
           const session = sessionState.sessions.get(req.sessionId);
           if (!session) throw { code: 'session-missing', message: 'missing' };
           session.persistedRevision = req.persistedRevision;
           session.fileIdentity = req.newFileIdentity;
+          const receipt = sessionState.receipts.get(req.saveOperationId);
+          if (receipt) receipt.state = 'committed';
+          if (sessionState.failCommitOnce || sessionState.loseCommitResponseAfterMutationOnce) {
+            sessionState.failCommitOnce = false;
+            sessionState.loseCommitResponseAfterMutationOnce = false;
+            throw { code: 'io', message: 'commit response lost after mutation' };
+          }
           return null;
         }
         case 'reload_lossless_document': {
@@ -283,6 +304,10 @@ beforeEach(async () => {
   state.writes = [];
   state.receipts.clear();
   state.failCommitOnce = false;
+  state.loseCommitResponseAfterMutationOnce = false;
+  state.loseWriteResponseAfterMutationOnce = false;
+  state.rejectPatchStaleOnce = false;
+  state.rejectPatchIoAlways = false;
   setLosslessCoreSessionEnabled(true);
   setActiveLosslessBinding(null);
   store.setState({ dirty: false, activeFilePath: null, mode: 'source' });
@@ -394,7 +419,7 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     await sleep(80);
     expect(binding.isDirty()).toBe(true);
 
-    const reloaded = await reloadLosslessActiveDocument(dest);
+    const reloaded = await reloadLosslessActiveDocument(dest, 'lf', { discard: true });
     expect(reloaded).toBe(true);
     expect(getActiveLosslessBinding()!.isDirty()).toBe(false);
     expect(state.writeCount).toBe(0);
@@ -432,13 +457,85 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     expect(binding.isDirty()).toBe(true);
 
     // The write lands, but the commit RESPONSE is lost.
-    state.failCommitOnce = true;
+    state.loseCommitResponseAfterMutationOnce = true;
     const result = await saveLosslessActiveDocument({ interactive: false });
-    // Save surfaced a failure, but the durable receipt reconcile must have
-    // committed the corresponding persisted revision — the doc is now clean.
-    expect(result).toBe('failed');
+    // A commit response can be lost after the backend mutation. Reconcile must
+    // return the receipt's durable identity and surface a successful save.
+    expect(result).toBe('saved');
     expect(state.writeCount).toBe(1);
     expect(binding.isDirty()).toBe(false);
+  });
+
+  it('lost guarded-write response after the backend mutation reconciles without rewriting', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    binding.typeAtCursor('W');
+    await sleep(80);
+    state.loseWriteResponseAfterMutationOnce = true;
+    expect(await saveLosslessActiveDocument({ interactive: false })).toBe('saved');
+    expect(state.writeCount).toBe(1);
+    expect(binding.isDirty()).toBe(false);
+  });
+
+  it('Save As response loss reconciles and rebinds the active path', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    const target = nodePath.join(tempRoot, 'response-loss-save-as.md');
+    await nodeFs.rm(target, { force: true });
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    binding.typeAtCursor('S');
+    await sleep(80);
+    state.loseWriteResponseAfterMutationOnce = true;
+    const { saveLosslessActiveDocumentAsNewFile } = await import('./integration');
+    expect(await saveLosslessActiveDocumentAsNewFile(target)).toBe(true);
+    expect(binding.path).toBe(target);
+    expect(getActiveLosslessBinding()).toBe(binding);
+  });
+
+  it('real CodeMirror stale resync retains one optimistic edit (never XX duplication)', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    const before = binding.logicalText;
+    state.rejectPatchStaleOnce = true;
+    binding.typeAtCursor('X');
+    await sleep(120);
+    expect(binding.logicalText).toBe(`X${before}`);
+    expect(state.sessions.get(binding.sessionId).logicalText).toBe(`X${before}`);
+    expect(binding.pipelineState).toBe('idle');
+  });
+
+  it('blocked real CodeMirror optimistic edit remains dirty and cannot reload without explicit discard', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    const controller = (binding as any).controller;
+    controller.maxRetries = 0;
+    state.rejectPatchIoAlways = true;
+    binding.typeAtCursor('unresolved');
+    await sleep(90);
+    expect(binding.pipelineState).toBe('blocked');
+    expect(binding.isDirty()).toBe(true);
+    expect(store.getState().dirty).toBe(true);
+    expect(await reloadLosslessActiveDocument(dest)).toBe(false);
+    expect(binding.logicalText).toContain('unresolved');
+  });
+
+  it.each([
+    ['LF', 'a\nb', ['lf']],
+    ['CRLF', 'a\r\nb', ['crlf']],
+    ['CR', 'a\rb', ['cr']],
+    ['mixed CJK/emoji', '中\r\n😀\r尾\n', ['crlf', 'cr', 'lf']],
+  ])('captures explicit %s paste EOL provenance before CodeMirror normalizes it', async (_name, raw, expected) => {
+    const { dest } = await stageFixture('utf8-mixed-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    binding.pasteRawAtCursor(raw);
+    await sleep(90);
+    const patch = state.sessions.get(binding.sessionId).lastPatch;
+    expect(patch.changes[0].insertedLogicalText).toBe(raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+    expect(patch.changes[0].insertedLineEndings).toEqual(expected);
   });
 });
 

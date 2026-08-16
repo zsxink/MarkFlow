@@ -145,6 +145,9 @@ pub fn open_lossless_document(
     req: OpenDocumentRequest,
     state: State<AppState>,
 ) -> Result<LosslessOpenResponse, LosslessError> {
+    // A crash/lost response must not allow a newly opened session to autosave
+    // over the target before its old durable receipt is classified.
+    guarded_write::ensure_target_reconciled(&req.path, None)?;
     let registry = &state.lossless_registry;
     let path = PathBuf::from(&req.path);
     let bytes = read_bytes(&path)?;
@@ -205,7 +208,11 @@ pub fn apply_document_patch(
             if session.revision().0 != bridge.base_revision {
                 return Err(LosslessError::new(
                     "stale-revision",
-                    format!("stale revision: expected {:?}, actual {:?}", session.revision().0, bridge.base_revision),
+                    format!(
+                        "stale revision: expected {:?}, actual {:?}",
+                        session.revision().0,
+                        bridge.base_revision
+                    ),
                 ));
             }
             // UTF-16 → logical byte conversion (PositionMap is geometry-validated).
@@ -264,7 +271,9 @@ pub fn apply_document_patch(
             };
             session.apply_patch(patch).map_err(LosslessError::from)
         })
-        .ok_or_else(|| LosslessError::session_missing(format!("session {session_id:?} not found")))??;
+        .ok_or_else(|| {
+            LosslessError::session_missing(format!("session {session_id:?} not found"))
+        })??;
     Ok(outcome)
 }
 
@@ -276,9 +285,9 @@ pub fn get_document_snapshot(
     state: State<AppState>,
 ) -> Result<markflow_core::DocumentSnapshot, LosslessError> {
     let registry = &state.lossless_registry;
-    let session = registry
-        .get(req.session_id)
-        .ok_or_else(|| LosslessError::session_missing(format!("session {:?} not found", req.session_id)))?;
+    let session = registry.get(req.session_id).ok_or_else(|| {
+        LosslessError::session_missing(format!("session {:?} not found", req.session_id))
+    })?;
     Ok(session.snapshot())
 }
 
@@ -292,9 +301,9 @@ pub fn flush_document_session(
     state: State<AppState>,
 ) -> Result<FlushResult, LosslessError> {
     let registry = &state.lossless_registry;
-    let session = registry
-        .get(req.session_id)
-        .ok_or_else(|| LosslessError::session_missing(format!("session {:?} not found", req.session_id)))?;
+    let session = registry.get(req.session_id).ok_or_else(|| {
+        LosslessError::session_missing(format!("session {:?} not found", req.session_id))
+    })?;
     Ok(FlushResult {
         revision: session.revision().0,
         confirmed_hash: session.confirmed_hash().hex(),
@@ -312,11 +321,14 @@ pub fn prepare_document_save(
     req: PrepareSaveRequest,
     state: State<AppState>,
 ) -> Result<PrepareSaveResponse, LosslessError> {
+    // Re-run the durable startup gate at the final Host save entrance. A
+    // frontend autosave scheduler cannot safely emulate this check.
+    guarded_write::ensure_target_reconciled(&req.path, Some(&req.save_operation_id))?;
     let registry = &state.lossless_registry;
     let session_id = req.session_id;
-    let session = registry
-        .get(session_id)
-        .ok_or_else(|| LosslessError::session_missing(format!("session {session_id:?} not found")))?;
+    let session = registry.get(session_id).ok_or_else(|| {
+        LosslessError::session_missing(format!("session {session_id:?} not found"))
+    })?;
     if session.document_id != req.document_id {
         return Err(LosslessError::wrong_identity(format!(
             "document id mismatch: session expects {:?}, request {:?}",
@@ -325,6 +337,16 @@ pub fn prepare_document_save(
     }
 
     let expected_revision = markflow_core::Revision(req.expected_revision);
+    // The binding generation is frozen into the durable receipt so a
+    // reload/close (which advances the generation) invalidates a late
+    // write/commit for this payload (P1B corrective P0-3).
+    let binding_generation = session.binding_generation().0;
+    if req.binding_generation != binding_generation {
+        return Err(LosslessError::wrong_identity(format!(
+            "prepare 的 binding generation 与 session 不一致 ({:?} vs {:?})",
+            req.binding_generation, binding_generation
+        )));
+    }
     // Save As / New File carries `None`; the payload is still the confirmed Core
     // bytes. A `Some` identity must match the session's frozen identity.
     let expected_identity = req
@@ -344,6 +366,10 @@ pub fn prepare_document_save(
         &req.path,
         &req.expected_file_identity,
         &payload_hash,
+        session_id.0,
+        req.document_id.0,
+        binding_generation,
+        expected_revision.0,
     )?;
 
     Ok(PrepareSaveResponse {
@@ -370,6 +396,34 @@ pub fn commit_document_save(
             "session {session_id:?} not found"
         )));
     }
+    let session_before_commit = registry.get(session_id).ok_or_else(|| {
+        LosslessError::session_missing(format!("session {session_id:?} not found"))
+    })?;
+    if session_before_commit.document_id != req.document_id {
+        return Err(LosslessError::wrong_identity(
+            "commit document id 与 session 不匹配",
+        ));
+    }
+    if req.persisted_revision > session_before_commit.revision().0 {
+        return Err(LosslessError::new(
+            "stale-revision",
+            "commit persisted revision 高于当前 confirmed revision",
+        ));
+    }
+    // The durable `Written` receipt is the ONLY authority for advancing the
+    // Core persisted revision. A commit is rejected when the receipt is absent
+    // or its session/document/generation/revision/new-identity do not match
+    // this commit — otherwise unsaved Core text could be marked persisted with
+    // no disk write (P1B corrective P0-1), or a pre-reload payload could mark
+    // the reloaded generation persisted (P1B corrective P0-3).
+    guarded_write::mark_committed(
+        &req.save_operation_id,
+        session_id.0,
+        req.document_id.0,
+        session_before_commit.binding_generation().0,
+        req.persisted_revision,
+        &req.new_file_identity,
+    )?;
     registry
         .update(session_id, |session| {
             if session.document_id != req.document_id {
@@ -385,12 +439,9 @@ pub fn commit_document_save(
                 )
                 .map_err(LosslessError::from)
         })
-        .ok_or_else(|| LosslessError::session_missing(format!("session {session_id:?} not found")))??;
-    // Advance the durable receipt to Committed (design 04 §3): the operation is
-    // now fully persisted; startup reconcile skips it from now on.
-    if let Some(op_id) = &req.save_operation_id {
-        let _ = guarded_write::mark_committed(op_id);
-    }
+        .ok_or_else(|| {
+            LosslessError::session_missing(format!("session {session_id:?} not found"))
+        })??;
     Ok(())
 }
 
@@ -420,7 +471,9 @@ pub fn reload_lossless_document(
                 .map_err(LosslessError::from)?;
             Ok::<LosslessOpenResponse, LosslessError>(LosslessOpenResponse::from_session(session))
         })
-        .ok_or_else(|| LosslessError::session_missing(format!("session {session_id:?} not found")))??;
+        .ok_or_else(|| {
+            LosslessError::session_missing(format!("session {session_id:?} not found"))
+        })??;
     Ok(response)
 }
 

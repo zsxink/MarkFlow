@@ -29,7 +29,8 @@ import type {
 import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
 
-export type LosslessSaveResult = 'saved' | 'skipped' | 'failed' | 'conflict';
+/** `blocked`/`conflict` are safe, explainable skips — never write failures. */
+export type LosslessSaveResult = 'saved' | 'skipped' | 'blocked' | 'failed' | 'conflict';
 
 /**
  * Bind a lossless Core session to a CodeMirror Source editor in `container`.
@@ -49,6 +50,7 @@ export class EditorSurfaceBinding {
   private editor: LosslessSourceEditorHandle;
   private controller: SourceSyncController;
   private pendingChangeSets: ChangeSet[] = [];
+  private pendingPasteProvenance: Array<{ logicalText: string; endings: Array<'lf' | 'crlf' | 'cr'> }> = [];
   private programmaticDispatch = false;
   private saving = false;
   private disposed = false;
@@ -98,6 +100,7 @@ export class EditorSurfaceBinding {
       readOnly: false,
       onTransaction: (transactions) => binding?.handleTransactions(transactions),
       onDocChanged: () => store.emit({ type: 'editor:update' }),
+      onRawPasteText: (text) => binding?.recordRawPaste(text),
     });
 
     const controller = new SourceSyncController({
@@ -110,7 +113,7 @@ export class EditorSurfaceBinding {
       getSnapshot: () => binding!.getSnapshot(),
       composePending: () => binding!.composePending(),
       currentDoc: () => binding!.editor.doc(),
-      applyLocalChanges: (changes) => binding!.applyLocalChanges(changes),
+      discardPending: () => binding!.discardPendingChanges(),
       onStateChange: (state) => {
         binding?.syncDirty();
         onStateChange?.(state);
@@ -162,17 +165,41 @@ export class EditorSurfaceBinding {
     composed.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
       changes.push({ from: fromA, to: toA, insert: inserted.toString() });
     });
+    // Attach raw clipboard EOLs to their normalized logical insertion. A paste
+    // may batch with adjacent typing, so annotate the exact contained slice
+    // rather than assuming the whole ChangeSet is clipboard data.
+    for (const provenance of this.pendingPasteProvenance) {
+      for (const change of changes) {
+        const at = change.insert.indexOf(provenance.logicalText);
+        if (at < 0) continue;
+        const logicalBreaksBefore = (change.insert.slice(0, at).match(/\n/g) ?? []).length;
+        const totalBreaks = (change.insert.match(/\n/g) ?? []).length;
+        const endings = Array<'inherit' | 'lf' | 'crlf' | 'cr'>(totalBreaks).fill('inherit');
+        endings.splice(logicalBreaksBefore, provenance.endings.length, ...provenance.endings);
+        change.insertedLineEndings = endings;
+        break;
+      }
+    }
+    this.pendingPasteProvenance = [];
     return changes;
   }
 
-  private applyLocalChanges(changes: LocalChange[]): void {
-    // Resync replay: programmatic, must not re-enter the user pipeline.
-    this.programmaticDispatch = true;
-    try {
-      this.editor.view.dispatch({ changes });
-    } finally {
-      this.programmaticDispatch = false;
+  private recordRawPaste(rawText: string): void {
+    const endings: Array<'lf' | 'crlf' | 'cr'> = [];
+    for (const eol of rawText.match(/\r\n|\r|\n/g) ?? []) {
+      endings.push(eol === '\r\n' ? 'crlf' : eol === '\r' ? 'cr' : 'lf');
     }
+    if (endings.length === 0) return;
+    this.pendingPasteProvenance.push({
+      logicalText: rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n'),
+      endings,
+    });
+  }
+
+  private discardPendingChanges(): void {
+    // The controller's confirmed→optimistic rebase already incorporates every
+    // queued CodeMirror change. Keeping their ChangeSets would replay them.
+    this.pendingChangeSets = [];
   }
 
   /** Called by the CM editor on every doc-changing transaction. */
@@ -202,6 +229,7 @@ export class EditorSurfaceBinding {
     return (
       this.controller.pending > 0 ||
       this.controller.isInFlight() ||
+      this.controller.hasUnresolvedOptimisticChanges() ||
       this.controller.revision !== this.persistedRevision
     );
   }
@@ -251,6 +279,12 @@ export class EditorSurfaceBinding {
     view.dispatch({ changes: { from: pos, to: pos, insert: text } });
   }
 
+  /** E2E/desktop automation hook: follows the same raw-paste provenance path. */
+  pasteRawAtCursor(rawText: string): void {
+    this.recordRawPaste(rawText);
+    this.typeAtCursor(rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+  }
+
   // ── Save lifecycle (design 04 §2) ───────────────────────────────────
 
   async save(options: { interactive?: boolean } = {}): Promise<LosslessSaveResult> {
@@ -260,19 +294,25 @@ export class EditorSurfaceBinding {
     this.saving = true;
     let opId: string | null = null;
     let preparedRevision: number | null = null;
+    // P0-3: a reload/close advances the binding generation. If it changes while
+    // this save is in flight, the prepare/write/commit belongs to a discarded
+    // document image and must be aborted locally (the Host additionally rejects
+    // the write/commit by receipt generation).
+    const saveGen = this.bindingGeneration;
+    const generationAlive = () => !this.disposed && saveGen === this.bindingGeneration;
     try {
       // ── Flush barrier: all local edits must be confirmed before save ──
       const flush = await this.controller.flush();
       if (flush.status === 'disposed') return 'failed';
       if (flush.status === 'blocked') {
-        if (interactive) store.setState({ autosaveErrorCount: store.getState().autosaveErrorCount + 1 });
-        return 'failed';
+        return 'blocked';
       }
       if (flush.status === 'cancelled-by-user') return 'skipped';
       if (flush.status === 'flushed') {
         this.confirmedRevision = flush.revision;
         this.confirmedHash = flush.confirmedHash;
       }
+      if (!generationAlive()) return 'failed';
 
       // ── Clean-session guard: no confirmed-vs-persisted difference → no write ──
       if (this.confirmedRevision === this.persistedRevision) {
@@ -286,6 +326,7 @@ export class EditorSurfaceBinding {
         req: {
           sessionId: this.sessionId,
           documentId: this.documentId,
+          bindingGeneration: this.bindingGeneration,
           expectedRevision: this.confirmedRevision,
           expectedFileIdentity: this.fileIdentity,
           saveOperationId,
@@ -293,6 +334,7 @@ export class EditorSurfaceBinding {
         },
       });
       preparedRevision = prepared.revision;
+      if (!generationAlive()) return 'failed';
 
       const written = await invoke<GuardedWriteResponse>('guarded_atomic_write', {
         req: {
@@ -302,9 +344,9 @@ export class EditorSurfaceBinding {
           saveOperationId,
         },
       });
+      if (!generationAlive()) return 'failed';
 
       if (written.outcome === 'conflict') {
-        if (interactive) store.setState({ autosaveErrorCount: store.getState().autosaveErrorCount + 1 });
         return 'conflict';
       }
 
@@ -326,9 +368,12 @@ export class EditorSurfaceBinding {
       this.syncDirty();
       return 'saved';
     } catch (err) {
+      if (!generationAlive()) return 'failed';
       // Outcome unknown after a lost write/commit response → reconcile the
       // durable receipt, never blind-rewrite (design 04 §10).
-      await this.reconcileOutcomeUnknown(opId, preparedRevision);
+      const outcome = await this.reconcileOutcomeUnknown(opId, preparedRevision);
+      if (outcome === 'persisted') return 'saved';
+      if (outcome === 'conflict') return 'conflict';
       if (interactive) store.setState({ autosaveErrorCount: store.getState().autosaveErrorCount + 1 });
       return 'failed';
     } finally {
@@ -336,9 +381,13 @@ export class EditorSurfaceBinding {
     }
   }
 
-  private async reconcileOutcomeUnknown(opId: string | null, revision: number | null): Promise<void> {
+  private async reconcileOutcomeUnknown(
+    opId: string | null,
+    revision: number | null,
+    saveAsTargetPath?: string,
+  ): Promise<'persisted' | 'not-written' | 'conflict' | 'unknown'> {
     const operationId = opId;
-    if (!opId || revision === null) return;
+    if (!opId || revision === null) return 'unknown';
     try {
       const reconciled = await invoke<ReconcileResponse>('reconcile_document_save', {
         saveOperationId: opId,
@@ -359,11 +408,17 @@ export class EditorSurfaceBinding {
         });
         this.fileIdentity = reconciled.newFileIdentity;
         this.persistedRevision = revision;
+        if (saveAsTargetPath) this.path = saveAsTargetPath;
         this.syncDirty();
+        return 'persisted';
       }
+      if (reconciled.state === 'not-written') return 'not-written';
+      if (reconciled.state === 'conflict') return 'conflict';
+      return 'unknown';
     } catch {
       // Reconciliation failed (e.g. receipt gone): keep dirty; the next save
       // re-prepares with a fresh operation id (guarded writes are per-operation).
+      return 'unknown';
     }
   }
 
@@ -377,11 +432,14 @@ export class EditorSurfaceBinding {
     this.saving = true;
     let opId: string | null = null;
     let preparedRevision: number | null = null;
+    const saveGen = this.bindingGeneration;
+    const generationAlive = () => !this.disposed && saveGen === this.bindingGeneration;
     try {
       const flush = await this.controller.flush();
       if (flush.status !== 'flushed') return 'failed';
       this.confirmedRevision = flush.revision;
       this.confirmedHash = flush.confirmedHash;
+      if (!generationAlive()) return 'failed';
 
       if (this.confirmedRevision === this.persistedRevision && this.path === targetPath) {
         return 'skipped';
@@ -393,6 +451,7 @@ export class EditorSurfaceBinding {
         req: {
           sessionId: this.sessionId,
           documentId: this.documentId,
+          bindingGeneration: this.bindingGeneration,
           expectedRevision: this.confirmedRevision,
           // Save As: target is expected to be ABSENT.
           expectedFileIdentity: null,
@@ -401,6 +460,7 @@ export class EditorSurfaceBinding {
         },
       });
       preparedRevision = prepared.revision;
+      if (!generationAlive()) return 'failed';
       const written = await invoke<GuardedWriteResponse>('guarded_atomic_write', {
         req: {
           path: targetPath,
@@ -409,6 +469,7 @@ export class EditorSurfaceBinding {
           saveOperationId,
         },
       });
+      if (!generationAlive()) return 'failed';
       if (written.outcome === 'conflict' || !written.newFileIdentity) {
         return 'conflict';
       }
@@ -428,9 +489,11 @@ export class EditorSurfaceBinding {
       this.syncDirty();
       return 'saved';
     } catch {
+      if (!generationAlive()) return 'failed';
       // Lost response after a Save As write: reconcile the new target's receipt.
-      await this.reconcileOutcomeUnknown(opId, preparedRevision);
-      return 'failed';
+      const outcome = await this.reconcileOutcomeUnknown(opId, preparedRevision, targetPath);
+      if (outcome === 'persisted') return 'saved';
+      return outcome === 'conflict' ? 'conflict' : 'failed';
     } finally {
       this.saving = false;
     }
@@ -443,6 +506,7 @@ export class EditorSurfaceBinding {
     // Pause the pipeline; the reload resets confirmed/persisted to revision 0.
     this.controller.dispose();
     this.pendingChangeSets = [];
+    this.pendingPasteProvenance = [];
     const reloaded = await invoke<LosslessOpenResponse>('reload_lossless_document', {
       req: { sessionId: this.sessionId, path, defaultEol },
     });
@@ -471,7 +535,7 @@ export class EditorSurfaceBinding {
       getSnapshot: () => this.getSnapshot(),
       composePending: () => this.composePending(),
       currentDoc: () => this.editor.doc(),
-      applyLocalChanges: (changes) => this.applyLocalChanges(changes),
+      discardPending: () => this.discardPendingChanges(),
     });
   }
 

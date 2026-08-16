@@ -63,6 +63,8 @@ export interface LosslessSourceEditorOptions {
   onTransaction?: (transactions: readonly Transaction[]) => void;
   /** Called for non-authoritative UI refresh after doc changes. */
   onDocChanged?: () => void;
+  /** Raw text from the browser paste event, captured before CM normalizes EOLs. */
+  onRawPasteText?: (text: string) => void;
 }
 
 export interface LosslessSourceEditorHandle {
@@ -166,6 +168,16 @@ export function createLosslessSourceEditor(
           if (options.onTransaction) options.onTransaction(update.transactions);
           if (options.onDocChanged) options.onDocChanged();
         }
+      }),
+      EditorView.domEventHandlers({
+        paste(event: ClipboardEvent) {
+          // CodeMirror's document is logical LF text. Read the OS clipboard
+          // first so the bridge can retain explicit CRLF/CR provenance instead
+          // of silently inheriting the surrounding document's EOL style.
+          const text = event.clipboardData?.getData('text/plain');
+          if (text !== undefined && text !== '') options.onRawPasteText?.(text);
+          return false; // let CodeMirror perform its normal single transaction
+        },
       }),
       highlightLimitPlugin,
       readOnlyCompartment.of(EditorView.editable.of(!(options.readOnly ?? false))),

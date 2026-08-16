@@ -34,7 +34,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use markflow_core::{ContentHash, FileIdentity};
+use markflow_core::{ContentHash, FileIdentity, SessionId};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -88,99 +88,222 @@ pub struct ReconcileResponse {
     /// "not-written" | "written-and-commit-pending" | "committed" | "conflict"
     pub state: String,
     pub new_file_identity: Option<FileIdentity>,
+    pub session_id: u64,
+    pub document_id: u64,
+    pub revision: u64,
+}
+
+/// One unresolved durable save operation surfaced to the product on startup.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupRecoveryItem {
+    pub save_operation_id: String,
+    pub path: String,
+    pub state: String,
+    pub session_id: u64,
+    pub document_id: u64,
+    pub revision: u64,
+    pub payload_sha256: String,
+    /// The displaced recovery copy (bytes preserved at exchange time), when the
+    /// host retained one (P1B corrective P1-1).
+    pub recovery_path: Option<String>,
+}
+
+/// `resolve_startup_recovery` request.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolveStartupRecoveryRequest {
+    pub save_operation_id: String,
+    /// "accept-written" | "discard-recovery"
+    pub action: String,
+}
+
+/// `list_startup_recovery`
+#[tauri::command]
+pub fn list_startup_recovery(_state: State<AppState>) -> Vec<StartupRecoveryItem> {
+    let mut items = Vec::new();
+    for receipt in scan_unfinished_receipts().into_values() {
+        // Re-classify against current disk so the listed state is truthful
+        // (a crash may have moved the target since the receipt was written).
+        let state = classify_startup_receipt(&receipt).unwrap_or_else(|e| e.code);
+        items.push(StartupRecoveryItem {
+            save_operation_id: receipt.save_operation_id,
+            path: receipt.canonical_target_path,
+            state,
+            session_id: receipt.session_id,
+            document_id: receipt.document_id,
+            revision: receipt.revision,
+            payload_sha256: receipt.payload_sha256,
+            recovery_path: receipt.recovery_path,
+        });
+    }
+    items
+}
+
+/// `resolve_startup_recovery` — record a terminal recovery decision durably.
+///
+/// The startup Host gate stays active until a terminal decision is durably
+/// persisted: only a receipt advanced to `Committed` is skipped by
+/// `ensure_target_reconciled` / `scan_unfinished_receipts` (P1B corrective
+/// P2-1). Actions:
+///
+/// - `accept-written`: the user confirmed the disk holds the payload this
+///   operation wrote (written-and-commit-pending on disk) — commit the receipt.
+/// - `discard-recovery`: the user chose to discard the displaced recovery copy
+///   and keep the current disk state — commit the receipt and delete the
+///   recovery file.
+#[tauri::command]
+pub fn resolve_startup_recovery(
+    req: ResolveStartupRecoveryRequest,
+    _state: State<AppState>,
+) -> Result<(), LosslessError> {
+    validate_operation_id(&req.save_operation_id)?;
+    let receipt_path = receipt_path_for(&req.save_operation_id);
+    let Some(receipt) = read_receipt(&receipt_path)? else {
+        return Err(LosslessError::new(
+            "operation-not-prepared",
+            "找不到该 saveOperationId 的 durable receipt",
+        ));
+    };
+    if receipt.state == ReceiptState::Committed {
+        return Ok(()); // already terminal
+    }
+    match req.action.as_str() {
+        "accept-written" => {
+            // Only safe when the disk actually holds the written payload.
+            let target = PathBuf::from(&receipt.canonical_target_path);
+            let ok = match std::fs::read(&target) {
+                Ok(bytes) => {
+                    ContentHash::of(&bytes).hex() == receipt.payload_sha256
+                        && receipt.new_file_identity.as_ref().is_some_and(|identity| {
+                            target_identity_matches(
+                                identity,
+                                &current_file_identity(&target, &bytes),
+                            )
+                        })
+                }
+                Err(_) => false,
+            };
+            if !ok {
+                return Err(LosslessError::new(
+                    "save-outcome-unknown",
+                    "磁盘内容与该操作写入的 payload 不一致，不能接受为已写入",
+                ));
+            }
+            finalize_receipt(&req.save_operation_id, &receipt)?;
+            Ok(())
+        }
+        "discard-recovery" => {
+            finalize_receipt(&req.save_operation_id, &receipt)?;
+            Ok(())
+        }
+        other => Err(LosslessError::new(
+            "invalid-action",
+            format!("未知 recovery 决策: {other}"),
+        )),
+    }
+}
+
+/// Advance a receipt to `Committed` (durably, with recovery finalization) after
+/// a terminal user decision. The Host gate lifts because committed receipts are
+/// skipped by the startup/path gate.
+fn finalize_receipt(save_operation_id: &str, receipt: &SaveReceipt) -> Result<(), LosslessError> {
+    let recovery = receipt.recovery_path.clone();
+    update_receipt(save_operation_id, |r| {
+        r.state = ReceiptState::Committed;
+        r.recovery_path = None;
+    })?;
+    if let Some(path) = recovery {
+        let _ = std::fs::remove_file(path);
+    }
+    Ok(())
 }
 
 #[tauri::command]
 pub fn guarded_atomic_write(
     req: GuardedWriteRequest,
-    _state: State<AppState>,
+    state: State<AppState>,
 ) -> Result<GuardedWriteResponse, LosslessError> {
     let op_id = req.save_operation_id.clone();
+    validate_operation_id(&op_id)?;
     let payload = decode_base64(&req.payload_base64)?;
     let payload_hash = ContentHash::of(&payload);
-    let path = PathBuf::from(&req.path);
 
-    // ── Idempotency + source-enforcement via the prepared receipt ────
+    // A Prepared receipt, not the frontend request, is the capability to
+    // write. In particular, a payload hash alone must never authorize a write
+    // to another target or at another revision.
     let receipt_path = receipt_path_for(&op_id);
-    let existing = read_receipt(&receipt_path)?;
-    if let Some(r) = existing {
-        if r.payload_sha256 != payload_hash.hex() {
-            return Err(LosslessError::new(
-                "duplicate-mismatch",
-                "同一 saveOperationId 携带不同 payload，已拒绝",
-            ));
-        }
-        match r.state {
-            ReceiptState::Committed => {
-                return Ok(GuardedWriteResponse {
-                    save_operation_id: op_id.clone(),
-                    outcome: WriteOutcome::Written,
-                    new_file_identity: Some(current_file_identity(&path, &payload)),
-                    displaced_identity_matched: true,
-                    receipt_state: "committed".into(),
-                });
-            }
-            ReceiptState::Written => {
-                // Retry after a lost write response: confirm the disk still holds
-                // the written bytes, then return the same result idempotently.
-                if let Ok(disk) = std::fs::read(&path) {
-                    if ContentHash::of(&disk) == payload_hash {
-                        return Ok(GuardedWriteResponse {
-                            save_operation_id: op_id.clone(),
-                            outcome: WriteOutcome::Written,
-                            new_file_identity: Some(current_file_identity(&path, &payload)),
-                            displaced_identity_matched: true,
-                            receipt_state: "written".into(),
-                        });
-                    }
-                }
-                // Disk moved away → external race; classify as conflict.
-                update_receipt(
-                    &op_id,
-                    |r| r.state = ReceiptState::Conflict,
-                )?;
-                return Ok(GuardedWriteResponse {
-                    save_operation_id: op_id.clone(),
-                    outcome: WriteOutcome::Conflict,
-                    new_file_identity: None,
-                    displaced_identity_matched: false,
-                    receipt_state: "conflict".into(),
-                });
-            }
-            ReceiptState::Prepared => { /* fall through to write */ }
-            ReceiptState::Conflict => {
-                return Err(LosslessError::new(
-                    "external-conflict",
-                    "该操作已进入冲突状态，需要人工解决后再保存",
-                ));
-            }
-        }
-    } else {
-        // No prepared receipt: the payload cannot be tied to a Core confirmed
-        // revision, so a guarded write is refused.
-        return Err(LosslessError::new(
+    let receipt = read_receipt(&receipt_path)?.ok_or_else(|| {
+        LosslessError::new(
             "operation-not-prepared",
             "saveOperationId 未经过 prepare_document_save，拒绝写入",
-        ));
+        )
+    })?;
+    validate_write_request_against_receipt(&req, &receipt, &payload_hash)?;
+    // P0-3: a reload/close advances the session's binding generation. A save
+    // prepared against an older document image must not write bytes the user
+    // explicitly discarded by reloading — refuse the write (the receipt stays
+    // Prepared, reconcile reports not-written).
+    validate_receipt_generation(&state, &receipt)?;
+    let path = PathBuf::from(&receipt.canonical_target_path);
+
+    match receipt.state {
+        ReceiptState::Committed => {
+            return Ok(GuardedWriteResponse {
+                save_operation_id: op_id.clone(),
+                outcome: WriteOutcome::Written,
+                new_file_identity: receipt.new_file_identity,
+                displaced_identity_matched: true,
+                receipt_state: "committed".into(),
+            });
+        }
+        ReceiptState::Written => {
+            // Retry after a lost write response: confirm the disk still holds
+            // the written bytes, then return the same result idempotently.
+            if let Ok(disk) = std::fs::read(&path) {
+                if ContentHash::of(&disk) == payload_hash {
+                    return Ok(GuardedWriteResponse {
+                        save_operation_id: op_id.clone(),
+                        outcome: WriteOutcome::Written,
+                        new_file_identity: receipt.new_file_identity,
+                        displaced_identity_matched: true,
+                        receipt_state: "written".into(),
+                    });
+                }
+            }
+            // Disk moved away → external race; classify as conflict.
+            update_receipt(&op_id, |r| r.state = ReceiptState::Conflict)?;
+            return Ok(GuardedWriteResponse {
+                save_operation_id: op_id.clone(),
+                outcome: WriteOutcome::Conflict,
+                new_file_identity: None,
+                displaced_identity_matched: false,
+                receipt_state: "conflict".into(),
+            });
+        }
+        ReceiptState::Prepared => { /* fall through to write */ }
+        ReceiptState::Conflict => {
+            return Err(LosslessError::new(
+                "external-conflict",
+                "该操作已进入冲突状态，需要人工解决后再保存",
+            ));
+        }
     }
 
     // ── Expected-identity re-check at the replace point ──────────────
     let target_exists = path.exists();
-    match &req.expected_file_identity {
+    match &receipt.expected_file_identity {
         Some(expected) => {
             if !target_exists {
-                update_receipt(
-                    &op_id,
-                    |r| r.state = ReceiptState::Conflict,
-                )?;
+                update_receipt(&op_id, |r| r.state = ReceiptState::Conflict)?;
                 return Ok(conflict_response(&op_id));
             }
-            let current = current_file_identity(&path, &std::fs::read(&path).map_err(|e| LosslessError::io(e.to_string()))?);
+            let current = current_file_identity(
+                &path,
+                &std::fs::read(&path).map_err(|e| LosslessError::io(e.to_string()))?,
+            );
             if !identity_matches(expected, &current) {
-                update_receipt(
-                    &op_id,
-                    |r| r.state = ReceiptState::Conflict,
-                )?;
+                update_receipt(&op_id, |r| r.state = ReceiptState::Conflict)?;
                 return Ok(conflict_response(&op_id));
             }
         }
@@ -188,10 +311,7 @@ pub fn guarded_atomic_write(
             if target_exists {
                 // Save As / New File: a path created before the replace point is
                 // a conflict, never treated as a replaceable old file.
-                update_receipt(
-                    &op_id,
-                    |r| r.state = ReceiptState::Conflict,
-                )?;
+                update_receipt(&op_id, |r| r.state = ReceiptState::Conflict)?;
                 return Ok(conflict_response(&op_id));
             }
         }
@@ -207,7 +327,7 @@ pub fn guarded_atomic_write(
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "doc.md".into());
-    let tmp = parent.join(format!(".{file_name}.{}.mf-tmp", req.save_operation_id));
+    let tmp = parent.join(format!(".{file_name}.{}.mf-tmp", path_hash(&op_id)));
 
     let write_result = (|| -> Result<GuardedWriteResponse, LosslessError> {
         {
@@ -220,7 +340,7 @@ pub fn guarded_atomic_write(
                 .map_err(|e| LosslessError::io(format!("同步临时文件失败: {e}")))?;
         }
 
-        match &req.expected_file_identity {
+        match &receipt.expected_file_identity {
             Some(_) => {
                 // Backup-preserving atomic exchange: swap temp ↔ target. After
                 // the swap, `tmp` holds the displaced target bytes.
@@ -236,7 +356,7 @@ pub fn guarded_atomic_write(
                 let displaced_hash = ContentHash::of(&displaced);
                 // The displaced bytes are the pre-replacement target; they must
                 // match the identity the caller expected to be there.
-                let displaced_ok = req
+                let displaced_ok = receipt
                     .expected_file_identity
                     .as_ref()
                     .map(|expected| expected.content_hash == displaced_hash)
@@ -244,35 +364,53 @@ pub fn guarded_atomic_write(
                 if !displaced_ok {
                     // External race won at the swap instant: keep the displaced
                     // bytes as recovery at `tmp`; do NOT delete.
-                    update_receipt(
-                        &op_id,
-                        |r| r.state = ReceiptState::Conflict,
-                    )?;
+                    update_receipt(&op_id, |r| {
+                        r.state = ReceiptState::Conflict;
+                        r.recovery_path = Some(tmp.to_string_lossy().to_string());
+                    })?;
                     return Ok(conflict_response(&op_id));
                 }
-                // Displaced bytes matched expected identity → safe to remove.
-                let _ = std::fs::remove_file(&tmp);
+                // P1-1: the displaced bytes stay at `tmp` until the Written
+                // receipt (with the recovery path + new identity) is durable.
+                // The recovery file is NOT deleted here — the commit finalizes
+                // it. A crash or receipt-write failure therefore always leaves
+                // the displaced original discoverable.
             }
             None => {
-                // Create-if-absent (no replace). On macOS: RENAME_EXCL.
+                // Create-if-absent (no replace) — platform no-replace primitive.
                 if !create_if_absent(&tmp, &path).map_err(|e| {
                     let _ = std::fs::remove_file(&tmp);
-                    LosslessError::io(format!("创建新文件失败: {e}"))
+                    if e.kind() == std::io::ErrorKind::Unsupported {
+                        LosslessError::new(
+                            "unsupported-platform",
+                            format!("当前平台不支持无覆盖保存，另存为已拒绝（请使用另存副本）: {e}"),
+                        )
+                    } else {
+                        LosslessError::io(format!("创建新文件失败: {e}"))
+                    }
                 })? {
-                    update_receipt(
-                        &op_id,
-                        |r| r.state = ReceiptState::Conflict,
-                    )?;
+                    update_receipt(&op_id, |r| r.state = ReceiptState::Conflict)?;
                     return Ok(conflict_response(&op_id));
                 }
             }
         }
 
         let new_identity = current_file_identity(&path, &payload);
-        update_receipt(
-            &req.save_operation_id,
-            |r| r.state = ReceiptState::Written,
-        )?;
+        update_receipt(&op_id, |r| {
+            r.state = ReceiptState::Written;
+            r.new_file_identity = Some(new_identity.clone());
+            // P1-1: the displaced original is retained as a recoverable copy
+            // until the operation commits. For a replace, `tmp` holds it; for
+            // a create the path never had a prior version so there is none.
+            if receipt.expected_file_identity.is_some() {
+                r.recovery_path = Some(tmp.to_string_lossy().to_string());
+            }
+        })?;
+        // P1-1: the target directory entry itself (exchange/create) must be
+        // durable — fsync the target's parent directory before acknowledging.
+        fsync_parent_dir(&path).map_err(|e| {
+            LosslessError::io(format!("同步目标目录失败: {e}"))
+        })?;
         Ok(GuardedWriteResponse {
             save_operation_id: op_id.clone(),
             outcome: WriteOutcome::Written,
@@ -298,6 +436,7 @@ pub fn reconcile_document_save(
     save_operation_id: String,
     _state: State<AppState>,
 ) -> Result<ReconcileResponse, LosslessError> {
+    validate_operation_id(&save_operation_id)?;
     let receipt_path = receipt_path_for(&save_operation_id);
     let Some(receipt) = read_receipt(&receipt_path)? else {
         return Err(LosslessError::new(
@@ -305,7 +444,15 @@ pub fn reconcile_document_save(
             "找不到该 saveOperationId 的 durable receipt",
         ));
     };
-    let path = PathBuf::from(&receipt.path);
+    let path = PathBuf::from(&receipt.canonical_target_path);
+    let response = |state: &str, new_file_identity: Option<FileIdentity>| ReconcileResponse {
+        save_operation_id: save_operation_id.clone(),
+        state: state.into(),
+        new_file_identity,
+        session_id: receipt.session_id,
+        document_id: receipt.document_id,
+        revision: receipt.revision,
+    };
 
     match receipt.state {
         ReceiptState::Prepared => {
@@ -314,39 +461,19 @@ pub fn reconcile_document_save(
             match std::fs::read(&path) {
                 Ok(disk) => {
                     let disk_identity = current_file_identity(&path, &disk);
-                    if receipt
-                        .expected_file_identity
-                        .as_ref()
-                        .map(|expected| identity_matches(expected, &disk_identity))
-                        .unwrap_or(true)
-                    {
-                        Ok(ReconcileResponse {
-                            save_operation_id,
-                            state: "not-written".into(),
-                            new_file_identity: None,
-                        })
+                    if expected_identity_still_matches(&receipt, &disk_identity) {
+                        Ok(response("not-written", None))
                     } else {
-                        update_receipt(
-                            &save_operation_id,
-                            |r| r.state = ReceiptState::Conflict,
-                        )?;
-                        Ok(ReconcileResponse {
-                            save_operation_id,
-                            state: "conflict".into(),
-                            new_file_identity: None,
-                        })
+                        update_receipt(&save_operation_id, |r| r.state = ReceiptState::Conflict)?;
+                        Ok(response("conflict", None))
                     }
                 }
+                Err(_) if receipt.expected_file_identity.is_none() => {
+                    Ok(response("not-written", None))
+                }
                 Err(_) => {
-                    update_receipt(
-                        &save_operation_id,
-                        |r| r.state = ReceiptState::Conflict,
-                    )?;
-                    Ok(ReconcileResponse {
-                        save_operation_id,
-                        state: "conflict".into(),
-                        new_file_identity: None,
-                    })
+                    update_receipt(&save_operation_id, |r| r.state = ReceiptState::Conflict)?;
+                    Ok(response("conflict", None))
                 }
             }
         }
@@ -354,45 +481,29 @@ pub fn reconcile_document_save(
             Ok(disk) => {
                 if ContentHash::of(&disk).hex() == receipt.payload_sha256 {
                     // Disk holds the prepared payload → commit is safe.
-                    Ok(ReconcileResponse {
-                        save_operation_id,
-                        state: "written-and-commit-pending".into(),
-                        new_file_identity: Some(current_file_identity(&path, &disk)),
-                    })
+                    let identity = current_file_identity(&path, &disk);
+                    if receipt
+                        .new_file_identity
+                        .as_ref()
+                        .is_some_and(|stored| target_identity_matches(stored, &identity))
+                    {
+                        Ok(response("written-and-commit-pending", Some(identity)))
+                    } else {
+                        update_receipt(&save_operation_id, |r| r.state = ReceiptState::Conflict)?;
+                        Ok(response("conflict", None))
+                    }
                 } else {
-                    update_receipt(
-                        &save_operation_id,
-                        |r| r.state = ReceiptState::Conflict,
-                    )?;
-                    Ok(ReconcileResponse {
-                        save_operation_id,
-                        state: "conflict".into(),
-                        new_file_identity: None,
-                    })
+                    update_receipt(&save_operation_id, |r| r.state = ReceiptState::Conflict)?;
+                    Ok(response("conflict", None))
                 }
             }
             Err(_) => {
-                update_receipt(
-                    &save_operation_id,
-                    |r| r.state = ReceiptState::Conflict,
-                )?;
-                Ok(ReconcileResponse {
-                    save_operation_id,
-                    state: "conflict".into(),
-                    new_file_identity: None,
-                })
+                update_receipt(&save_operation_id, |r| r.state = ReceiptState::Conflict)?;
+                Ok(response("conflict", None))
             }
         },
-        ReceiptState::Committed => Ok(ReconcileResponse {
-            save_operation_id,
-            state: "committed".into(),
-            new_file_identity: None,
-        }),
-        ReceiptState::Conflict => Ok(ReconcileResponse {
-            save_operation_id,
-            state: "conflict".into(),
-            new_file_identity: None,
-        }),
+        ReceiptState::Committed => Ok(response("committed", receipt.new_file_identity)),
+        ReceiptState::Conflict => Ok(response("conflict", None)),
     }
 }
 
@@ -403,23 +514,43 @@ pub fn record_prepared(
     path: &str,
     expected_file_identity: &Option<FileIdentity>,
     payload_sha256: &ContentHash,
+    session_id: u64,
+    document_id: u64,
+    binding_generation: u64,
+    revision: u64,
 ) -> Result<(), LosslessError> {
+    validate_operation_id(save_operation_id)?;
+    let canonical_target_path = canonical_target_path(path)?;
     let receipt_path = receipt_path_for(save_operation_id);
     if let Some(existing) = read_receipt(&receipt_path)? {
-        if existing.payload_sha256 != payload_sha256.hex() {
+        if existing.payload_sha256 != payload_sha256.hex()
+            || existing.canonical_target_path != canonical_target_path
+            || existing.expected_file_identity != *expected_file_identity
+            || existing.session_id != session_id
+            || existing.document_id != document_id
+            || existing.binding_generation != binding_generation
+            || existing.revision != revision
+        {
             return Err(LosslessError::new(
                 "duplicate-mismatch",
-                "同一 saveOperationId 已绑定不同 payload，已拒绝",
+                "同一 saveOperationId 已绑定不同保存身份，已拒绝",
             ));
         }
         return Ok(()); // idempotent prepare
     }
     let receipt = SaveReceipt {
         save_operation_id: save_operation_id.to_string(),
+        session_id,
+        document_id,
+        binding_generation,
+        revision,
         path: path.to_string(),
-        path_hash: path_hash(path),
+        path_hash: path_hash(&canonical_target_path),
+        canonical_target_path,
         expected_file_identity: expected_file_identity.clone(),
         payload_sha256: payload_sha256.hex(),
+        new_file_identity: None,
+        recovery_path: None,
         state: ReceiptState::Prepared,
     };
     write_receipt_atomically(&receipt_path, &receipt)
@@ -436,14 +567,301 @@ fn update_receipt(
     write_receipt_atomically(&receipt_path, &receipt)
 }
 
-/// Advance a receipt to `Committed` after a successful commit. Best-effort: a
-/// missing receipt (e.g. the op id was never recorded) is not an error.
-pub fn mark_committed(save_operation_id: &str) -> Result<(), LosslessError> {
+/// Advance a receipt to `Committed` after a successful commit. A missing
+/// receipt, a mismatched identity, a Prepared (not-yet-written) receipt, or a
+/// receipt from an older binding generation is an error (P1B corrective P0-1 /
+/// P0-3).
+pub fn mark_committed(
+    save_operation_id: &str,
+    session_id: u64,
+    document_id: u64,
+    binding_generation: u64,
+    revision: u64,
+    new_file_identity: &FileIdentity,
+) -> Result<(), LosslessError> {
+    validate_operation_id(save_operation_id)?;
     let receipt_path = receipt_path_for(save_operation_id);
-    if read_receipt(&receipt_path)?.is_none() {
-        return Ok(());
+    let receipt = read_receipt(&receipt_path)?.ok_or_else(|| {
+        LosslessError::new("operation-not-prepared", "commit 对应的 receipt 缺失")
+    })?;
+    if receipt.session_id != session_id
+        || receipt.document_id != document_id
+        || receipt.binding_generation != binding_generation
+        || receipt.revision != revision
+    {
+        return Err(LosslessError::new(
+            "wrong-identity",
+            "commit 身份与 durable receipt 不匹配",
+        ));
     }
-    update_receipt(save_operation_id, |r| r.state = ReceiptState::Committed)
+    match receipt.state {
+        ReceiptState::Written | ReceiptState::Committed => {
+            if !receipt
+                .new_file_identity
+                .as_ref()
+                .is_some_and(|stored| target_identity_matches(stored, new_file_identity))
+            {
+                return Err(LosslessError::new(
+                    "wrong-identity",
+                    "commit 身份与 durable receipt 不匹配",
+                ));
+            }
+            let recovery = receipt.recovery_path.clone();
+            update_receipt(save_operation_id, |r| {
+                r.state = ReceiptState::Committed;
+                r.recovery_path = None;
+            })?;
+            // P1-1: the displaced recovery copy is only finalized AFTER the
+            // Committed receipt is durable. A crash before this point always
+            // leaves the recovery discoverable from the Written receipt.
+            if let Some(path) = recovery {
+                let _ = std::fs::remove_file(path);
+            }
+            Ok(())
+        }
+        ReceiptState::Prepared => Err(LosslessError::new(
+            "save-outcome-unknown",
+            "尚未确认写盘，不能 commit persisted revision",
+        )),
+        ReceiptState::Conflict => Err(LosslessError::new(
+            "external-conflict",
+            "冲突 receipt 不能 commit persisted revision",
+        )),
+    }
+}
+
+/// Refuse a new open/prepare/write for a target that has an unresolved durable
+/// outcome. `Prepared` is reconciled synchronously: if it can be proven not to
+/// have written, it is safe to proceed; `Written` needs the original session's
+/// commit and `Conflict` needs an explicit user decision, so both remain gated.
+pub fn ensure_target_reconciled(
+    path: &str,
+    allowed_operation_id: Option<&str>,
+) -> Result<(), LosslessError> {
+    // A receipt written by an older/incomplete schema cannot prove its target
+    // or revision binding. Never silently ignore it and resume autosave.
+    if receipt_store_has_corruption() {
+        return Err(LosslessError::new(
+            "save-outcome-unknown",
+            "发现无法验证的 durable receipt，已阻止自动保存直到人工恢复",
+        ));
+    }
+    let canonical = canonical_target_path(path)?;
+    for receipt in scan_unfinished_receipts().into_values() {
+        if receipt.canonical_target_path != canonical
+            || allowed_operation_id.is_some_and(|id| id == receipt.save_operation_id)
+        {
+            continue;
+        }
+        let target = PathBuf::from(&receipt.canonical_target_path);
+        match receipt.state {
+            ReceiptState::Prepared => {
+                let safe_not_written = match std::fs::read(&target) {
+                    Ok(bytes) => expected_identity_still_matches(
+                        &receipt,
+                        &current_file_identity(&target, &bytes),
+                    ),
+                    Err(_) => receipt.expected_file_identity.is_none(),
+                };
+                if safe_not_written {
+                    continue;
+                }
+                update_receipt(&receipt.save_operation_id, |r| {
+                    r.state = ReceiptState::Conflict
+                })?;
+                return Err(LosslessError::new(
+                    "external-conflict",
+                    "启动时发现无法证明未写入的保存操作，已阻止该文件写入",
+                ));
+            }
+            ReceiptState::Written => {
+                return Err(LosslessError::new(
+                    "save-outcome-unknown",
+                    "启动时发现已写入但未提交的保存操作，完成 reconcile 前已阻止该文件写入",
+                ));
+            }
+            ReceiptState::Conflict => {
+                return Err(LosslessError::new(
+                    "external-conflict",
+                    "该文件存在未解决的保存冲突，已阻止自动保存",
+                ));
+            }
+            ReceiptState::Committed => {}
+        }
+    }
+    Ok(())
+}
+
+/// Startup classification is intentionally side-effect-light: it proves and
+/// reports Prepared receipts, while Written/Conflict receipts remain durable
+/// path gates until their owning session is reconciled or the user resolves the
+/// conflict. The same check is repeated at open/prepare/write, so a process
+/// restart cannot bypass it.
+pub fn reconcile_startup_receipts() -> HashMap<String, String> {
+    let mut results = HashMap::new();
+    for receipt in scan_unfinished_receipts().into_values() {
+        let result = classify_startup_receipt(&receipt).unwrap_or_else(|error| error.code);
+        results.insert(receipt.save_operation_id, result);
+    }
+    results
+}
+
+pub fn receipt_store_has_corruption() -> bool {
+    let dir = receipts_dir();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries
+        .flatten()
+        .filter(|entry| entry.file_name().to_string_lossy().ends_with(".json"))
+        .any(|entry| read_receipt(&entry.path()).is_err())
+}
+
+fn classify_startup_receipt(receipt: &SaveReceipt) -> Result<String, LosslessError> {
+    let target = PathBuf::from(&receipt.canonical_target_path);
+    match receipt.state {
+        ReceiptState::Prepared => {
+            let not_written = match std::fs::read(&target) {
+                Ok(bytes) => expected_identity_still_matches(
+                    receipt,
+                    &current_file_identity(&target, &bytes),
+                ),
+                Err(_) => receipt.expected_file_identity.is_none(),
+            };
+            if not_written {
+                Ok("not-written".to_owned())
+            } else {
+                update_receipt(&receipt.save_operation_id, |r| {
+                    r.state = ReceiptState::Conflict
+                })?;
+                Ok("conflict".to_owned())
+            }
+        }
+        ReceiptState::Written => match std::fs::read(&target) {
+            Ok(bytes)
+                if ContentHash::of(&bytes).hex() == receipt.payload_sha256
+                    && receipt.new_file_identity.as_ref().is_some_and(|identity| {
+                        target_identity_matches(identity, &current_file_identity(&target, &bytes))
+                    }) =>
+            {
+                Ok("written-and-commit-pending".to_owned())
+            }
+            _ => {
+                update_receipt(&receipt.save_operation_id, |r| {
+                    r.state = ReceiptState::Conflict
+                })?;
+                Ok("conflict".to_owned())
+            }
+        },
+        ReceiptState::Conflict => Ok("conflict".to_owned()),
+        ReceiptState::Committed => Ok("committed".to_owned()),
+    }
+}
+
+fn validate_write_request_against_receipt(
+    req: &GuardedWriteRequest,
+    receipt: &SaveReceipt,
+    payload_hash: &ContentHash,
+) -> Result<(), LosslessError> {
+    let canonical = canonical_target_path(&req.path)?;
+    if receipt.payload_sha256 != payload_hash.hex() {
+        return Err(LosslessError::new(
+            "duplicate-mismatch",
+            "同一 saveOperationId 携带不同 payload，已拒绝",
+        ));
+    }
+    if receipt.save_operation_id != req.save_operation_id
+        || receipt.canonical_target_path != canonical
+        || receipt.path_hash != path_hash(&canonical)
+        || receipt.expected_file_identity != req.expected_file_identity
+        || receipt.session_id == 0
+        || receipt.document_id == 0
+    {
+        return Err(LosslessError::new(
+            "wrong-identity",
+            "guarded write 请求与 prepared receipt 不匹配",
+        ));
+    }
+    Ok(())
+}
+
+/// P1B corrective P0-3: a write is only valid for the exact document image that
+/// prepared it. If the owning session was reloaded (binding generation
+/// advanced) or closed since prepare, the write is refused so a discarded
+/// generation's payload can never reach disk. A missing session means the
+/// document was closed — also refuse.
+fn validate_receipt_generation(
+    state: &State<AppState>,
+    receipt: &SaveReceipt,
+) -> Result<(), LosslessError> {
+    let registry = &state.lossless_registry;
+    let Some(session) = registry.get(SessionId(receipt.session_id)) else {
+        return Err(LosslessError::new(
+            "session-missing",
+            "save 所属 session 已关闭，拒绝写入",
+        ));
+    };
+    if session.binding_generation().0 != receipt.binding_generation {
+        return Err(LosslessError::wrong_identity(
+            "save 已因 reload/close 失效（binding generation 不匹配），拒绝写入",
+        ));
+    }
+    Ok(())
+}
+
+fn expected_identity_still_matches(receipt: &SaveReceipt, actual: &FileIdentity) -> bool {
+    receipt
+        .expected_file_identity
+        .as_ref()
+        .is_some_and(|expected| target_identity_matches(expected, actual))
+}
+
+fn target_identity_matches(expected: &FileIdentity, actual: &FileIdentity) -> bool {
+    expected.canonical_path == actual.canonical_path && identity_matches(expected, actual)
+}
+
+fn validate_operation_id(operation_id: &str) -> Result<(), LosslessError> {
+    let bytes = operation_id.as_bytes();
+    let is_uuid = bytes.len() == 36
+        && bytes.iter().enumerate().all(|(i, byte)| match i {
+            8 | 13 | 18 | 23 => *byte == b'-',
+            _ => byte.is_ascii_hexdigit(),
+        });
+    if is_uuid {
+        Ok(())
+    } else {
+        Err(LosslessError::new(
+            "invalid-operation-id",
+            "saveOperationId 必须是 UUID，拒绝不安全的路径片段",
+        ))
+    }
+}
+
+fn canonical_target_path(path: &str) -> Result<String, LosslessError> {
+    let target = PathBuf::from(path);
+    let absolute = if target.is_absolute() {
+        target
+    } else {
+        std::env::current_dir()
+            .map_err(|e| LosslessError::io(format!("读取当前目录失败: {e}")))?
+            .join(target)
+    };
+    if let Ok(canonical) = absolute.canonicalize() {
+        return Ok(canonical.to_string_lossy().to_string());
+    }
+    let parent = absolute
+        .parent()
+        .ok_or_else(|| LosslessError::new("io", "无法确定父目录"))?;
+    let file_name = absolute
+        .file_name()
+        .ok_or_else(|| LosslessError::new("io", "保存路径缺少文件名"))?;
+    if let Ok(canonical_parent) = parent.canonicalize() {
+        return Ok(canonical_parent
+            .join(file_name)
+            .to_string_lossy()
+            .to_string());
+    }
+    Ok(absolute.to_string_lossy().to_string())
 }
 
 pub fn receipts_dir() -> PathBuf {
@@ -466,10 +884,32 @@ pub fn set_receipts_dir_override(dir: Option<PathBuf>) {
 thread_local! {
     static RECEIPTS_DIR_OVERRIDE: std::cell::RefCell<Option<PathBuf>> =
         std::cell::RefCell::new(None);
+    /// Test-only: fail the NEXT durable receipt write (P1B corrective P1-1
+    /// crash/durability injection).
+    static INJECT_RECEIPT_WRITE_FAILURE: std::cell::RefCell<bool> =
+        std::cell::RefCell::new(false);
 }
 
-fn receipt_path_for(save_operation_id: &str) -> PathBuf {
-    receipts_dir().join(format!("{save_operation_id}.json"))
+/// Test-only hook: the next `write_receipt_atomically` call fails, simulating
+/// a receipt persistence failure or crash right after the atomic target swap.
+#[cfg(test)]
+pub fn inject_receipt_write_failure_once() {
+    INJECT_RECEIPT_WRITE_FAILURE.with(|c| *c.borrow_mut() = true);
+}
+
+fn receipt_write_failure_injected() -> bool {
+    INJECT_RECEIPT_WRITE_FAILURE.with(|c| {
+        let mut flag = c.borrow_mut();
+        let fired = *flag;
+        *flag = false;
+        fired
+    })
+}
+
+pub(crate) fn receipt_path_for(save_operation_id: &str) -> PathBuf {
+    // Even if a caller somehow bypasses validation, the filesystem name is a
+    // fixed SHA-256 hex digest and can never escape the receipts directory.
+    receipts_dir().join(format!("{}.json", path_hash(save_operation_id)))
 }
 
 fn read_receipt(path: &Path) -> Result<Option<SaveReceipt>, LosslessError> {
@@ -482,11 +922,18 @@ fn read_receipt(path: &Path) -> Result<Option<SaveReceipt>, LosslessError> {
         .map_err(|e| LosslessError::new("io", format!("receipt 损坏: {e}")))
 }
 
-/// Atomically write a receipt (temp + fsync + rename).
-fn write_receipt_atomically(
-    path: &Path,
-    receipt: &SaveReceipt,
-) -> Result<(), LosslessError> {
+/// Atomically write a receipt (temp + fsync + rename + parent-dir fsync).
+///
+/// The parent-directory fsync makes the rename durable: without it a power
+/// loss could reorder the directory entry and lose the receipt name even
+/// though the file bytes were fsynced (P1B corrective P1-1).
+fn write_receipt_atomically(path: &Path, receipt: &SaveReceipt) -> Result<(), LosslessError> {
+    // P1B corrective P1-1: test-only crash/durability injection.
+    if receipt_write_failure_injected() {
+        return Err(LosslessError::io(
+            "injected receipt write failure (crash after target swap)",
+        ));
+    }
     let parent = path
         .parent()
         .ok_or_else(|| LosslessError::new("io", "无法确定 receipt 目录"))?;
@@ -494,15 +941,18 @@ fn write_receipt_atomically(
         .map_err(|e| LosslessError::io(format!("创建 receipt 目录失败: {e}")))?;
     let tmp = parent.join(format!(
         ".{}.{}.tmp",
-        path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+        path.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default(),
         std::process::id()
     ));
     {
         use std::io::Write;
         let mut f = std::fs::File::create(&tmp)
             .map_err(|e| LosslessError::io(format!("创建 receipt 临时文件失败: {e}")))?;
-        let json = serde_json::to_vec(receipt)
-            .map_err(|e| LosslessError::new("internal-invariant", format!("序列化 receipt 失败: {e}")))?;
+        let json = serde_json::to_vec(receipt).map_err(|e| {
+            LosslessError::new("internal-invariant", format!("序列化 receipt 失败: {e}"))
+        })?;
         f.write_all(&json)
             .map_err(|e| LosslessError::io(format!("写入 receipt 失败: {e}")))?;
         f.sync_all()
@@ -510,7 +960,28 @@ fn write_receipt_atomically(
     }
     std::fs::rename(&tmp, path)
         .map_err(|e| LosslessError::io(format!("提交 receipt 失败: {e}")))?;
+    fsync_parent_dir(path)
+        .map_err(|e| LosslessError::io(format!("同步 receipt 目录失败: {e}")))?;
     Ok(())
+}
+
+/// Fsync a file's parent directory so the directory entry (a rename or create)
+/// is durable. On Unix this opens the directory and calls fsync; on Windows the
+/// NTFS journal provides directory-entry durability for MoveFileEx without an
+/// explicit directory fsync, so the operation is a no-op there.
+fn fsync_parent_dir(path: &Path) -> std::io::Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "路径缺少父目录"))?;
+    #[cfg(unix)]
+    {
+        std::fs::File::open(parent)?.sync_all()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = parent;
+        Ok(())
+    }
 }
 
 /// Scan unfinished receipts on startup. Returns the set of paths that have a
@@ -657,15 +1128,94 @@ fn atomic_exchange(_tmp: &Path, _target: &Path) -> std::io::Result<()> {
     ))
 }
 
-#[cfg(not(target_os = "macos"))]
-fn create_if_absent(_tmp: &Path, _target: &Path) -> std::io::Result<bool> {
-    // Portable fallback: rename is atomic when the target does not exist on
-    // POSIX (EEXIST on Windows). Use it only for the create-if-absent path.
-    match std::fs::rename(_tmp, _target) {
-        Ok(()) => Ok(true),
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
-        Err(e) => Err(e),
+#[cfg(target_os = "linux")]
+fn create_if_absent(tmp: &Path, target: &Path) -> std::io::Result<bool> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let tmp_c = CString::new(tmp.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "tmp path"))?;
+    let target_c = CString::new(target.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "target path"))?;
+    // renameat2(RENAME_NOREPLACE) fails with EEXIST when the destination
+    // exists at the replace instant. Plain rename(2) would silently REPLACE an
+    // externally-created target (P1B corrective P0-2), so it is never used.
+    let rc = unsafe {
+        libc::syscall(
+            libc::SYS_renameat2,
+            libc::AT_FDCWD,
+            tmp_c.as_ptr(),
+            libc::AT_FDCWD,
+            target_c.as_ptr(),
+            libc::RENAME_NOREPLACE as libc::c_uint,
+        )
+    };
+    if rc == 0 {
+        Ok(true)
+    } else {
+        let err = std::io::Error::last_os_error();
+        match err.raw_os_error() {
+            Some(libc::EEXIST) => Ok(false), // target appeared → conflict
+            // Kernel/filesystem without RENAME_NOREPLACE support: refuse rather
+            // than silently degrade to overwrite-rename. The caller reports the
+            // unsupported platform and Save As falls back to Save Copy.
+            Some(libc::ENOSYS) | Some(libc::EINVAL) => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "filesystem does not support RENAME_NOREPLACE; no-replace save refused",
+            )),
+            _ => Err(err),
+        }
     }
+}
+
+#[cfg(target_os = "windows")]
+fn create_if_absent(tmp: &Path, target: &Path) -> std::io::Result<bool> {
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn MoveFileExW(
+            lp_existing_file_name: *const u16,
+            lp_new_file_name: *const u16,
+            dw_flags: u32,
+        ) -> i32;
+    }
+    // MOVEFILE_WRITE_THROUGH alone: WITHOUT MOVEFILE_REPLACE_EXISTING the move
+    // fails when the destination exists (ERROR_ALREADY_EXISTS / ERROR_FILE_EXISTS),
+    // which is the no-replace semantic required for Save As.
+    const MOVEFILE_WRITE_THROUGH: u32 = 0x0000_0008;
+    let from: Vec<u16> = tmp
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let to: Vec<u16> = target
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let rc = unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), MOVEFILE_WRITE_THROUGH) };
+    if rc != 0 {
+        Ok(true)
+    } else {
+        let err = std::io::Error::last_os_error();
+        match err.raw_os_error() {
+            // ERROR_FILE_EXISTS (80) / ERROR_ALREADY_EXISTS (183): target appeared.
+            Some(80) | Some(183) => Ok(false),
+            _ => Err(err),
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+fn create_if_absent(_tmp: &Path, _target: &Path) -> std::io::Result<bool> {
+    // No create-if-absent/no-replace primitive proven on this platform: refuse
+    // rather than use plain rename(2), which would silently overwrite a target
+    // created at the replace instant. Save As degrades to Save Copy.
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "no no-replace rename primitive on this platform; Save As refused",
+    ))
 }
 
 #[cfg(test)]
@@ -686,6 +1236,10 @@ mod tests {
         dir
     }
 
+    fn operation_id(n: u8) -> String {
+        format!("00000000-0000-4000-8000-{:012x}", n)
+    }
+
     #[test]
     fn record_prepared_is_idempotent_and_rejects_different_payload() {
         let _dir = isolate_receipts();
@@ -693,12 +1247,22 @@ mod tests {
         let identity = FileIdentity::from_bytes(b"original");
         let hash = ContentHash::of(b"payload");
         // Direct receipt write under the real config dir is isolated per run id.
-        let op = format!("scan-op-{}", std::process::id());
-        record_prepared(&op, path, &Some(identity.clone()), &hash).unwrap();
+        let op = operation_id(1);
+        record_prepared(&op, path, &Some(identity.clone()), &hash, 1, 2, 0, 3).unwrap();
         // Same op + same payload → idempotent.
-        record_prepared(&op, path, &Some(identity.clone()), &hash).unwrap();
+        record_prepared(&op, path, &Some(identity.clone()), &hash, 1, 2, 0, 3).unwrap();
         // Same op + different payload → rejected.
-        let err = record_prepared(&op, path, &Some(identity), &ContentHash::of(b"other")).unwrap_err();
+        let err = record_prepared(
+            &op,
+            path,
+            &Some(identity),
+            &ContentHash::of(b"other"),
+            1,
+            2,
+            0,
+            3,
+        )
+        .unwrap_err();
         assert_eq!(err.code, "duplicate-mismatch");
         // Cleanup: the receipt lives under the real config receipts dir.
         let _ = std::fs::remove_file(receipt_path_for(&op));
@@ -707,11 +1271,31 @@ mod tests {
     #[test]
     fn scan_unfinished_receipts_finds_non_committed() {
         let _dir = isolate_receipts();
-        let op_prepared = format!("scan-p-{}", std::process::id());
-        let op_committed = format!("scan-c-{}", std::process::id());
+        let op_prepared = operation_id(2);
+        let op_committed = operation_id(3);
         let identity = FileIdentity::from_bytes(b"x");
-        record_prepared(&op_prepared, "/tmp/a.md", &Some(identity.clone()), &ContentHash::of(b"a")).unwrap();
-        record_prepared(&op_committed, "/tmp/b.md", &Some(identity.clone()), &ContentHash::of(b"b")).unwrap();
+        record_prepared(
+            &op_prepared,
+            "/tmp/a.md",
+            &Some(identity.clone()),
+            &ContentHash::of(b"a"),
+            1,
+            2,
+            0,
+            3,
+        )
+        .unwrap();
+        record_prepared(
+            &op_committed,
+            "/tmp/b.md",
+            &Some(identity.clone()),
+            &ContentHash::of(b"b"),
+            4,
+            5,
+            0,
+            6,
+        )
+        .unwrap();
         // Mark one committed so scan excludes it.
         update_receipt(&op_committed, |r| r.state = ReceiptState::Committed).unwrap();
 
@@ -721,5 +1305,134 @@ mod tests {
 
         let _ = std::fs::remove_file(receipt_path_for(&op_prepared));
         let _ = std::fs::remove_file(receipt_path_for(&op_committed));
+    }
+
+    #[test]
+    fn startup_reconcile_classifies_prepared_written_and_conflict_receipts() {
+        let receipts = isolate_receipts();
+        let target_dir = receipts.join("targets");
+        std::fs::create_dir_all(&target_dir).unwrap();
+
+        let prepared_target = target_dir.join("prepared.md");
+        std::fs::write(&prepared_target, b"original").unwrap();
+        let prepared_identity = current_file_identity(&prepared_target, b"original");
+        let prepared_op = operation_id(21);
+        record_prepared(
+            &prepared_op,
+            &prepared_target.to_string_lossy(),
+            &Some(prepared_identity),
+            &ContentHash::of(b"next"),
+            1,
+            2,
+            0,
+            3,
+        )
+        .unwrap();
+
+        let written_target = target_dir.join("written.md");
+        std::fs::write(&written_target, b"written").unwrap();
+        let written_identity = current_file_identity(&written_target, b"written");
+        let written_op = operation_id(22);
+        record_prepared(
+            &written_op,
+            &written_target.to_string_lossy(),
+            &None,
+            &ContentHash::of(b"written"),
+            4,
+            5,
+            0,
+            6,
+        )
+        .unwrap();
+        update_receipt(&written_op, |receipt| {
+            receipt.state = ReceiptState::Written;
+            receipt.new_file_identity = Some(written_identity);
+        })
+        .unwrap();
+
+        let conflict_target = target_dir.join("conflict.md");
+        std::fs::write(&conflict_target, b"external").unwrap();
+        let conflict_op = operation_id(23);
+        record_prepared(
+            &conflict_op,
+            &conflict_target.to_string_lossy(),
+            &None,
+            &ContentHash::of(b"payload"),
+            7,
+            8,
+            0,
+            9,
+        )
+        .unwrap();
+        update_receipt(&conflict_op, |receipt| {
+            receipt.state = ReceiptState::Conflict
+        })
+        .unwrap();
+
+        let results = reconcile_startup_receipts();
+        assert_eq!(
+            results.get(&prepared_op).map(String::as_str),
+            Some("not-written")
+        );
+        assert_eq!(
+            results.get(&written_op).map(String::as_str),
+            Some("written-and-commit-pending")
+        );
+        assert_eq!(
+            results.get(&conflict_op).map(String::as_str),
+            Some("conflict")
+        );
+    }
+
+    #[test]
+    fn unreadable_receipt_blocks_save_instead_of_being_silently_ignored() {
+        let receipts = isolate_receipts();
+        std::fs::create_dir_all(&receipts).unwrap();
+        std::fs::write(receipts.join("legacy-or-corrupt.json"), b"not a receipt").unwrap();
+        assert!(receipt_store_has_corruption());
+        let error = ensure_target_reconciled("/tmp/any.md", None).unwrap_err();
+        assert_eq!(error.code, "save-outcome-unknown");
+    }
+
+    #[test]
+    fn create_if_absent_refuses_an_existing_target_on_this_platform() {
+        // P0-2: the platform no-replace primitive must NEVER overwrite a target
+        // that exists at the replace instant. This runs on the host OS and
+        // exercises the cfg-gated primitive (macOS RENAME_EXCL here; Linux
+        // renameat2(RENAME_NOREPLACE) / Windows MoveFileExW on those hosts).
+        let dir = isolate_receipts();
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("existing.md");
+        let tmp = dir.join("tmp-new.md");
+        std::fs::write(&target, b"external bytes that must survive").unwrap();
+        std::fs::write(&tmp, b"app payload").unwrap();
+
+        let result = create_if_absent(&tmp, &target).expect("no-replace primitive must run");
+        assert!(
+            !result,
+            "create-if-absent must report the target exists (conflict), never replace it"
+        );
+        // The external target is byte-identical; the app payload stays in tmp.
+        assert_eq!(
+            std::fs::read(&target).unwrap(),
+            b"external bytes that must survive"
+        );
+        assert_eq!(std::fs::read(&tmp).unwrap(), b"app payload");
+        std::fs::remove_file(&target).ok();
+        std::fs::remove_file(&tmp).ok();
+    }
+
+    #[test]
+    fn create_if_absent_moves_an_absent_target_on_this_platform() {
+        let dir = isolate_receipts();
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("absent.md");
+        let tmp = dir.join("tmp-absent.md");
+        std::fs::write(&tmp, b"app payload").unwrap();
+
+        let result = create_if_absent(&tmp, &target).expect("no-replace primitive must run");
+        assert!(result, "absent target must be creatable");
+        assert_eq!(std::fs::read(&target).unwrap(), b"app payload");
+        std::fs::remove_file(&target).ok();
     }
 }

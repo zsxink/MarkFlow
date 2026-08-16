@@ -12,6 +12,7 @@ import {
   disposeActiveLosslessBinding,
   getActiveLosslessBinding,
   isActiveLosslessPath,
+  rebindActiveLosslessPath,
   setActiveLosslessBinding,
 } from './registry';
 import { isLosslessCoreSessionEnabled } from './flag';
@@ -36,6 +37,37 @@ function showSourceForLossless(): void {
   if (wrapper) wrapper.hidden = false;
   if (wysiwyg) wysiwyg.hidden = true;
   setMode('source');
+  syncModeUI('source');
+}
+
+/** Keep toolbar buttons + mode indicator consistent with the actual view.
+ *  The legacy click handlers only run on manual clicks; lossless opens and
+ *  failure rollbacks change the view without a click, so they must sync too. */
+function syncModeUI(mode: 'source' | 'wysiwyg'): void {
+  const sourceBtn = document.getElementById('btn-source');
+  const wysiwygBtn = document.getElementById('btn-wysiwyg');
+  if (sourceBtn) {
+    sourceBtn.classList.toggle('active', mode === 'source');
+    sourceBtn.setAttribute('aria-pressed', String(mode === 'source'));
+  }
+  if (wysiwygBtn) {
+    wysiwygBtn.classList.toggle('active', mode === 'wysiwyg');
+    wysiwygBtn.setAttribute('aria-pressed', String(mode === 'wysiwyg'));
+  }
+  const indicator = document.getElementById('mode-indicator');
+  if (indicator) indicator.textContent = mode === 'wysiwyg' ? '所见即所得' : '源码';
+}
+
+/** Roll the view back to the legacy WYSIWYG surface after a lossless open
+ *  failure, so the legacy fallback open never shows a hidden WYSIWYG plus an
+ *  empty source wrapper. */
+function restoreWysiwygView(): void {
+  const wrapper = sourceWrapper();
+  const wysiwyg = wysiwygEditor();
+  if (wrapper) wrapper.hidden = true;
+  if (wysiwyg) wysiwyg.hidden = false;
+  setMode('wysiwyg');
+  syncModeUI('wysiwyg');
 }
 
 /** Whether the active document is a lossless Core document. */
@@ -60,12 +92,10 @@ export async function openLosslessDocument(
     if (!container) return false;
     showSourceForLossless();
 
-    const binding = await EditorSurfaceBinding.open(path, container, defaultEol, (state) => {
+    const binding = await EditorSurfaceBinding.open(path, container, defaultEol, (_state) => {
       store.emit({ type: 'editor:update' });
-      if (state === 'blocked') {
-        // UI hint only; no old snapshot may be written (design 02 §6).
-        store.setState({ autosaveErrorCount: store.getState().autosaveErrorCount + 1 });
-      }
+      // `blocked` is a persistent recovery state, not a write failure. The
+      // autosave coordinator records real I/O errors only (spec 3.5).
     });
     setActiveLosslessBinding(binding, path);
     // Lossless dirty is authoritative on the binding; keep the store in sync.
@@ -74,6 +104,9 @@ export async function openLosslessDocument(
     return true;
   } catch (err) {
     await disposeActiveLosslessBinding();
+    // Lossless open failed → restore the WYSIWYG surface so the caller's
+    // legacy fallback shows the document instead of an empty source wrapper.
+    restoreWysiwygView();
     store.setState({ dirty: false });
     return false;
   }
@@ -93,7 +126,7 @@ export async function saveLosslessActiveDocument(options: {
   // 1. Confirm every local edit (flush barrier) before touching the doc for
   //    image migration.
   const flush = await binding.flushNow();
-  if (flush.status === 'blocked') return 'failed';
+  if (flush.status === 'blocked') return 'blocked';
   if (flush.status === 'disposed') return 'failed';
 
   // 2. Migrate staged images → explicit local URL-range patches.
@@ -122,9 +155,13 @@ export async function saveLosslessActiveDocument(options: {
 export async function reloadLosslessActiveDocument(
   path: string,
   defaultEol = 'lf',
+  options: { discard?: boolean } = {},
 ): Promise<boolean> {
   const binding = getActiveLosslessBinding();
   if (!binding || !isActiveLosslessPath(path)) return false;
+  // Reload is destructive to the optimistic CM mirror. A caller must have
+  // completed an explicit discard/replace decision before it may proceed.
+  if (binding.isDirty() && !options.discard) return false;
   try {
     await binding.reload(path, defaultEol);
     store.setState({ dirty: false });
@@ -145,6 +182,7 @@ export async function saveLosslessActiveDocumentAsNewFile(targetPath: string): P
   if (!binding) return false;
   try {
     const saved = await binding.saveAs(targetPath);
+    if (saved === 'saved') rebindActiveLosslessPath(binding, targetPath);
     return saved === 'saved';
   } catch {
     return false;

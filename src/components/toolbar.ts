@@ -13,6 +13,7 @@ import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
 import { showContextMenuStatic } from './ui/contextMenu';
 import { getSourceView } from '../lib/editor.source';
+import { getActiveLosslessBinding } from '../lib/lossless/registry';
 
 export function initToolbar() {
   initAriaAttributes();
@@ -133,6 +134,13 @@ function bindToolbarEvents() {
   bind('btn-image', () => showImageInsertDialog());
 
   bind('btn-wysiwyg', () => {
+    if (getActiveLosslessBinding()) {
+      // Lossless docs are Source-only (spec: 不得切换到 PM owner). The switch
+      // is blocked with a toast; keep the button + indicator consistent rather
+      // than flipping them to a "所见即所得" state that has no rendered content.
+      switchToWysiwyg();
+      return;
+    }
     switchToWysiwyg();
     setActive('btn-wysiwyg');
     setActive('btn-source', false);

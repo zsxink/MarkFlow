@@ -45,6 +45,8 @@ export interface LocalChange {
   from: number;
   to: number;
   insert: string;
+  /** One entry per inserted logical LF. Raw paste/drop may make these explicit. */
+  insertedLineEndings?: Array<'inherit' | 'lf' | 'crlf' | 'cr'>;
 }
 
 export interface SyncControllerDeps {
@@ -61,17 +63,20 @@ export interface SyncControllerDeps {
   composePending(): LocalChange[];
   /** Current optimistic document text (CodeMirror doc). */
   currentDoc(): string;
-  /** Apply changes to the CodeMirror editor (resync replay), returns new doc. */
-  applyLocalChanges(changes: LocalChange[]): void;
+  /** Drop locally queued changes after resync has captured the optimistic doc. */
+  discardPending?(): void;
   onStateChange?(state: PipelineState, detail?: unknown): void;
   batchWindowMs?: number;
   maxRetries?: number;
   pendingChangeCap?: number;
+  /** Maximum duration for one bridge attempt. A deadline retries the same transaction. */
+  attemptTimeoutMs?: number;
 }
 
 const DEFAULT_BATCH_WINDOW_MS = 20;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_PENDING_CHANGE_CAP = 200;
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 2_000;
 
 export class SourceSyncController {
   private deps: SyncControllerDeps;
@@ -82,12 +87,16 @@ export class SourceSyncController {
   private pendingChangeCap: number;
   private batchWindowMs: number;
   private maxRetries: number;
+  private attemptTimeoutMs: number;
+  /** True until every optimistic edit is proven reflected in Core. */
+  private unresolvedOptimistic = false;
 
   private inFlight: {
     patch: unknown;
     txnId: number;
     retries: number;
-    timer: ReturnType<typeof setTimeout> | null;
+    retryTimer: ReturnType<typeof setTimeout> | null;
+    attemptGeneration: number;
   } | null = null;
 
   private batchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -104,6 +113,7 @@ export class SourceSyncController {
     this.pendingChangeCap = deps.pendingChangeCap ?? DEFAULT_PENDING_CHANGE_CAP;
     this.batchWindowMs = deps.batchWindowMs ?? DEFAULT_BATCH_WINDOW_MS;
     this.maxRetries = deps.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.attemptTimeoutMs = deps.attemptTimeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS;
     // Transaction ids are strictly increasing per session (P1B P2 freeze).
     this.nextTxnId = deps.confirmedRevision + 1;
   }
@@ -112,10 +122,27 @@ export class SourceSyncController {
 
   /** Called by the binding when a real user CodeMirror transaction changed the doc. */
   onUserEdit(): void {
-    if (this.disposed || this.state === 'blocked') return;
+    if (this.disposed) return;
+    // This is deliberately independent from queue/in-flight handles: once an
+    // optimistic CM transaction exists it must keep close/switch/reload dirty
+    // until Core confirms it or an explicit recovery/discard flow handles it.
+    this.unresolvedOptimistic = true;
+    if (this.state === 'blocked') {
+      this.pendingCount++;
+      this.deps.onStateChange?.(this.state);
+      return;
+    }
     this.pendingCount++;
     if (this.state === 'idle') this.scheduleBatch();
-    else if (this.pendingCount >= this.pendingChangeCap) this.forceFlushNow();
+    else if (this.pendingCount >= this.pendingChangeCap) {
+      if (this.inFlight) {
+        // A hung bridge must not let the unbounded optimistic mirror grow. Do
+        // not drop user text: preserve it in blocked recovery state instead.
+        this.block(new Error('pending-change-cap-exceeded'));
+      } else {
+        this.forceFlushNow();
+      }
+    }
   }
 
   /**
@@ -173,6 +200,11 @@ export class SourceSyncController {
 
   isBlocked(): boolean {
     return this.state === 'blocked';
+  }
+
+  /** Includes a retry-exhausted/blocked first edit whose frame was consumed. */
+  hasUnresolvedOptimisticChanges(): boolean {
+    return this.unresolvedOptimistic;
   }
 
   /** Cancel all timers/requests and reject any pending flush. */
@@ -239,11 +271,12 @@ export class SourceSyncController {
         fromUtf16: c.from,
         toUtf16: c.to,
         insertedLogicalText: c.insert,
-        insertedLineEndings: Array(c.insert.split('\n').length - 1).fill('inherit'),
+        insertedLineEndings: c.insertedLineEndings
+          ?? Array(c.insert.split('\n').length - 1).fill('inherit'),
       })),
     };
     this.pendingCount = 0;
-    this.inFlight = { patch, txnId, retries: 0, timer: null };
+    this.inFlight = { patch, txnId, retries: 0, retryTimer: null, attemptGeneration: 0 };
     this.setState('sending');
     void this.sendWithRetry();
   }
@@ -255,7 +288,7 @@ export class SourceSyncController {
     this.setState('awaitingAck');
 
     try {
-      const outcome = await this.deps.applyPatch(inFlight.patch);
+      const outcome = await this.withAttemptDeadline(inFlight);
       if (this.disposed || this.inFlight !== inFlight) return; // stale by identity
       this.confirmedRevision = outcome.revision;
       this.confirmedHash = outcome.confirmedHash;
@@ -265,6 +298,7 @@ export class SourceSyncController {
         this.setState('batching');
         void this.sendFrame();
       } else {
+        this.unresolvedOptimistic = false;
         this.setState('idle');
       }
     } catch (err) {
@@ -281,11 +315,11 @@ export class SourceSyncController {
         inFlight.retries++;
         this.setState('retrying', { txnId, attempt: inFlight.retries });
         const backoff = 50 * 2 ** (inFlight.retries - 1);
-        inFlight.timer = setTimeout(() => {
+        inFlight.retryTimer = setTimeout(() => {
           if (this.inFlight === inFlight) void this.sendWithRetry();
         }, backoff);
         this.disposers.push(() => {
-          if (inFlight.timer) clearTimeout(inFlight.timer);
+          if (inFlight.retryTimer) clearTimeout(inFlight.retryTimer);
         });
         return;
       }
@@ -309,21 +343,22 @@ export class SourceSyncController {
         this.confirmedHash = snapshot.confirmedHash as string;
         this.pendingCount = 0;
         this.inFlight = null;
+        this.unresolvedOptimistic = false;
         this.setState('idle');
         return;
       }
 
-      // Recompute the diff confirmed → optimistic and replay it with a fresh
-      // transaction id. If the diff cannot be applied (overlap / unbounded),
-      // preserve the optimistic text and enter blocked (no old snapshot write).
+      // Recompute confirmed → optimistic into a fresh Core patch. The CM editor
+      // already contains `optimistic`: applying this diff to it would duplicate
+      // the change (Xbase -> XXbase). Rebase controller bookkeeping only.
       const diff = diffText(confirmedText, optimistic);
       if (!diff) {
         this.block(new Error(`resync-cannot-rebase: ${reason}`));
         return;
       }
-      // Re-apply the diff on the CM editor; the editor state must NOT be reset
-      // to the confirmed snapshot — we only feed the confirmed→optimistic delta.
-      this.deps.applyLocalChanges(diff);
+      // All queued ChangeSets are represented by `diff`; leaving them queued
+      // would replay their mutations after this rebase.
+      this.deps.discardPending?.();
       const txnId = this.nextTxnId++;
       const patch = {
         bindingGeneration: this.deps.bindingGeneration,
@@ -335,13 +370,14 @@ export class SourceSyncController {
           fromUtf16: c.from,
           toUtf16: c.to,
           insertedLogicalText: c.insert,
-          insertedLineEndings: Array(c.insert.split('\n').length - 1).fill('inherit'),
+          insertedLineEndings: c.insertedLineEndings
+            ?? Array(c.insert.split('\n').length - 1).fill('inherit'),
         })),
       };
       this.confirmedRevision = snapshot.revision;
       this.confirmedHash = snapshot.confirmedHash as string;
       this.pendingCount = 0;
-      this.inFlight = { patch, txnId, retries: 0, timer: null };
+      this.inFlight = { patch, txnId, retries: 0, retryTimer: null, attemptGeneration: 0 };
       void this.sendWithRetry();
     } catch (err) {
       if (this.disposed || gen !== this.resyncGeneration) return;
@@ -350,6 +386,7 @@ export class SourceSyncController {
   }
 
   private block(error: Error): void {
+    if (this.inFlight?.retryTimer) clearTimeout(this.inFlight.retryTimer);
     this.inFlight = null;
     this.setState('blocked', { error: error.message });
   }
@@ -357,8 +394,35 @@ export class SourceSyncController {
   private cancelTimers(): void {
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;
-    if (this.inFlight?.timer) clearTimeout(this.inFlight.timer);
-    if (this.inFlight) this.inFlight.timer = null;
+    if (this.inFlight?.retryTimer) clearTimeout(this.inFlight.retryTimer);
+    if (this.inFlight) this.inFlight.retryTimer = null;
+  }
+
+  /**
+   * Gives every invoke attempt a real deadline. The unresolved bridge promise
+   * is deliberately left alone (Tauri invoke has no cancellation primitive),
+   * but its eventual ack is ignored because the race's generation is no longer
+   * current. A retry therefore uses the exact same transaction id safely.
+   */
+  private withAttemptDeadline(inFlight: NonNullable<SourceSyncController['inFlight']>): Promise<{ revision: number; confirmedHash: string }> {
+    const generation = ++inFlight.attemptGeneration;
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject({ code: 'attempt-timeout', message: `patch attempt exceeded ${this.attemptTimeoutMs}ms` });
+      }, this.attemptTimeoutMs);
+      void this.deps.applyPatch(inFlight.patch).then(
+        (outcome) => {
+          clearTimeout(timeout);
+          if (this.disposed || this.inFlight !== inFlight || inFlight.attemptGeneration !== generation) return;
+          resolve(outcome);
+        },
+        (error) => {
+          clearTimeout(timeout);
+          if (this.disposed || this.inFlight !== inFlight || inFlight.attemptGeneration !== generation) return;
+          reject(error);
+        },
+      );
+    });
   }
 
   private cleanupDisposer(): void {

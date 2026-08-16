@@ -29,7 +29,6 @@ function makeController(overrides: Partial<SyncControllerDeps> = {}) {
   }));
   const composePending = vi.fn(() => [{ from: 0, to: 0, insert: 'X' }]);
   const currentDoc = vi.fn(() => 'Xconfirmed');
-  const applyLocalChanges = vi.fn();
   const onStateChange = vi.fn();
 
   const controller = new SourceSyncController({
@@ -42,14 +41,13 @@ function makeController(overrides: Partial<SyncControllerDeps> = {}) {
     getSnapshot,
     composePending,
     currentDoc,
-    applyLocalChanges,
     onStateChange,
     batchWindowMs: 1,
     maxRetries: 2,
     ...overrides,
   });
 
-  return { controller, state, applyPatch, getSnapshot, composePending, currentDoc, applyLocalChanges, onStateChange };
+  return { controller, state, applyPatch, getSnapshot, composePending, currentDoc, onStateChange };
 }
 
 const tick = (ms = 10) => new Promise((r) => setTimeout(r, ms));
@@ -114,22 +112,85 @@ describe('SourceSyncController', () => {
       logicalText: 'confirmed',
       confirmedHash: 'h1',
     }));
-    const applyLocalChanges = vi.fn();
     const { controller } = makeController({
       applyPatch: applyPatch as any,
       getSnapshot,
-      applyLocalChanges,
     });
     // First send produces txn 1; it is rejected as stale → resync → fresh txn 2.
     controller.onUserEdit();
     await tick(50);
-    expect(applyLocalChanges).toHaveBeenCalled();
+    // The mutable editor already contains the optimistic X. Resync must build
+    // a fresh Core patch without dispatching X a second time into CodeMirror.
     expect(applyPatch).toHaveBeenCalledTimes(2);
     expect((applyPatch.mock.calls as any)[0][0].transactionId).toBe(1);
     expect((applyPatch.mock.calls as any)[1][0].transactionId).toBe(2);
     expect((applyPatch.mock.calls as any)[1][0].baseRevision).toBe(1);
     expect(controller.revision).toBe(2);
     expect(controller.pipelineState).toBe('idle');
+  });
+
+  it('never duplicates optimistic text during a mutable stale-resync', async () => {
+    let editorDoc = 'base';
+    let coreDoc = 'base';
+    let call = 0;
+    const applyPatch = vi.fn(async (patch: any) => {
+      call++;
+      if (call === 1) throw { code: 'stale-revision', message: 'stale' };
+      for (const change of [...patch.changes].sort((a, b) => b.fromUtf16 - a.fromUtf16)) {
+        coreDoc = coreDoc.slice(0, change.fromUtf16) + change.insertedLogicalText + coreDoc.slice(change.toUtf16);
+      }
+      return { revision: 2, confirmedHash: 'h2' };
+    });
+    const { controller } = makeController({
+      applyPatch: applyPatch as any,
+      getSnapshot: async () => ({ revision: 1, logicalText: 'base', confirmedHash: 'h1' }),
+      currentDoc: () => editorDoc,
+      composePending: () => [{ from: 0, to: 0, insert: 'X' }],
+    });
+    // Model a real CM transaction: it changes the optimistic mirror before the
+    // controller sees it.
+    editorDoc = 'Xbase';
+    controller.onUserEdit();
+    await tick(80);
+    expect(editorDoc).toBe('Xbase');
+    expect(coreDoc).toBe('Xbase');
+    expect((applyPatch.mock.calls[1][0] as any).changes[0].insertedLogicalText).toBe('X');
+    expect(controller.pipelineState).toBe('idle');
+  });
+
+  it('times out a hung attempt, retries the same transaction, and ignores its late ack', async () => {
+    const acks: Array<(value: { revision: number; confirmedHash: string }) => void> = [];
+    const applyPatch = vi.fn(() => new Promise<{ revision: number; confirmedHash: string }>((resolve) => {
+      acks.push(resolve);
+    }));
+    const { controller } = makeController({
+      applyPatch,
+      attemptTimeoutMs: 20,
+      maxRetries: 1,
+    });
+    controller.onUserEdit();
+    await tick(85);
+    expect(applyPatch).toHaveBeenCalledTimes(2);
+    const calls = applyPatch.mock.calls as unknown as Array<[any]>;
+    expect(calls[0]?.[0].transactionId)
+      .toBe(calls[1]?.[0].transactionId);
+    // Resolve the first (already-timed-out) request. Its stale completion must
+    // not settle the retry attempt.
+    acks[0]({ revision: 99, confirmedHash: 'late' });
+    await tick(80);
+    expect(controller.isBlocked()).toBe(true);
+    expect(controller.revision).toBe(0);
+  });
+
+  it('keeps retry-exhausted optimistic text dirty and blocks the in-flight queue cap', async () => {
+    const applyPatch = vi.fn(() => new Promise<{ revision: number; confirmedHash: string }>(() => {}));
+    const { controller } = makeController({ applyPatch, attemptTimeoutMs: 200, pendingChangeCap: 2 });
+    controller.onUserEdit();
+    await tick(10);
+    controller.onUserEdit();
+    controller.onUserEdit();
+    expect(controller.isBlocked()).toBe(true);
+    expect(controller.hasUnresolvedOptimisticChanges()).toBe(true);
   });
 
   it('flush() drains pending edits and returns Flushed with the confirmed revision', async () => {

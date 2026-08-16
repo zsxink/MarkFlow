@@ -392,6 +392,8 @@ pub fn run() {
             lossless::close_lossless_document,
             lossless::guarded_write::guarded_atomic_write,
             lossless::guarded_write::reconcile_document_save,
+            lossless::guarded_write::list_startup_recovery,
+            lossless::guarded_write::resolve_startup_recovery,
             confirm_window_close,
             settings::load_settings,
             settings::save_settings,
@@ -414,21 +416,30 @@ pub fn run() {
             files::cleanup_stale_temp_files(&paths::app_config_dir());
             files_image::cleanup_expired_pending_images_on_startup();
 
-            // P1B 3.9: scan unfinished lossless-save receipts before any related
-            // path may enter autosave. NOTE: this scan only records + warns about
-            // unfinished receipts; it does NOT call `reconcile_document_save`.
-            // The frontend reconciles on its own lost-response / outcome-unknown
-            // paths. Startup auto-reconcile is deferred to a P2/corrective decision.
+            // P1B corrective: classify durable receipts before related targets
+            // can open or autosave. Written/Conflict operations remain a
+            // persistent Host-side path gate; every open/prepare/write repeats
+            // the same check so this startup pass cannot be bypassed.
             {
-                use lossless::guarded_write::scan_unfinished_receipts;
+                use lossless::guarded_write::{
+                    receipt_store_has_corruption, reconcile_startup_receipts, scan_unfinished_receipts,
+                };
+                let results = reconcile_startup_receipts();
                 let unfinished = scan_unfinished_receipts();
+                if receipt_store_has_corruption() {
+                    tracing::error!(
+                        target: "backend.lossless",
+                        "Unreadable lossless save receipt found on startup — Host save gate active"
+                    );
+                }
                 for (op_id, receipt) in &unfinished {
                     tracing::warn!(
                         target: "backend.lossless",
                         save_operation_id = %op_id,
                         path = %paths::normalize_path(&PathBuf::from(&receipt.path)),
                         state = ?receipt.state,
-                        "Unfinished lossless save receipt found on startup — reconcile before autosave"
+                        startup_reconcile = ?results.get(op_id),
+                        "Unfinished lossless save receipt found on startup — Host path gate active"
                     );
                 }
                 if !unfinished.is_empty() {

@@ -1,0 +1,13 @@
+Command: PATH="/tmp/markflow-tauri-driver.3yjKwS/bin:$PATH" node e2e/run.mjs lossless
+Exit: 0
+
+[webkit 605.1.15 macos] P1B lossless desktop lifecycle (flag ON, autosave ENABLED)
+  PASS zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (6 fixtures)
+  PASS zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (7 fixtures)
+  PASS clean Cmd+S does not write; bytes/hash/mtime unchanged
+  PASS Source edit → dirty → Save persists; reopen hash matches
+  PASS CRLF + BOM fixtures survive a real body edit: EOL/BOM bytes preserved, reopen hash matches
+  PASS A→B switch does not write A and leaves B clean
+
+6 passing (1m 12.5s)
+Spec Files: 1 passed, 1 skipped, 2 total

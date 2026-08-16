@@ -1,0 +1,18 @@
+Command:
+npx vitest run --config openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260815-p1b-independent-review-935195d/harness/vitest.config.ts
+
+Exit: 1
+
+SourceSyncController adversarial invariants: 3 tests, 3 failed.
+
+1. blocked optimistic text must remain dirty
+   Expected bindingDirty=true; received false.
+
+2. resync must not apply confirmed-to-optimistic diff to the already optimistic editor
+   Expected editor document `Xbase`; received `XXbase`.
+
+3. a never-settling patch request must time out into retry or blocked
+   Expected pipeline `blocked`; received `awaitingAck` after 250 ms.
+
+The full assertion locations are preserved in
+`harness/source-sync-adversarial.test.ts`.

@@ -1,0 +1,11 @@
+Command:
+(cd openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260814-p1b-core-bridge-06c4b0a && shasum -a 256 -c artifact-manifest.sha256)
+
+Exit: 1
+
+All listed artifacts reported OK except:
+./RUN.md: FAILED
+shasum: WARNING: 1 computed checksum did NOT match
+
+Cause visible in git history: commit 935195d edited the historical RUN.md but
+did not update its manifest or create a new immutable run.

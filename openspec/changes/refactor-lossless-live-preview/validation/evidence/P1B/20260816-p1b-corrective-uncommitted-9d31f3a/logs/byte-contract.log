@@ -1,0 +1,8 @@
+Command: `npm run test:byte-contract`
+Exit: 0
+
+```text
+fixture verification: stable=true, changed=[]
+L0 positive: 24 pass; L0 negative: 23 pass
+L1 positive: 95 pass; L1 negative: 93 pass
+```

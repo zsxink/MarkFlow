@@ -1,0 +1,27 @@
+CASE receipt-bypass
+  CommitSaveRequest.save_operation_id is Option<String>.
+  commit_document_save validates the durable receipt only inside `if let Some`.
+  Existing dispatcher test invokes commit with None after a Core edit and without a guarded write; it passes and marks revision 1 persisted while the disk still contains the old bytes.
+
+CASE linux-save-as-race
+  cfg(not(target_os = "macos")) create_if_absent calls std::fs::rename.
+  On POSIX/Linux rename replaces an existing destination; it is not no-replace.
+  A target created after the line-180 existence precheck can therefore be overwritten.
+
+CASE stale-save-after-reload
+  Save receipt/commit identity has session, document and revision but no lifecycle epoch.
+  reload preserves session/document, resets revision to zero and does not wait for or invalidate `saving`.
+  A prepared old-generation operation can write after explicit discard/reload; if the new generation reaches the same revision, old payload commit can mark different current text persisted.
+
+CASE unicode-resync
+  direct output: diffText("😀", "😁") => [{"from":1,"to":2,"insert":"\\ude01"}]
+  from=1 is inside the UTF-16 surrogate pair and Core rejects the recovery patch as invalid-boundary.
+
+CASE paste-resync-provenance
+  normal compose attaches raw paste provenance by string search.
+  resync instead rebuilds a diff from two normalized strings; diffText has no explicit EOL provenance.
+  discardPendingChanges clears ChangeSets but leaves pendingPasteProvenance queued.
+
+CASE net-zero-batch
+  when composed changes are empty, sendFrame clears pendingCount and returns idle but does not clear unresolvedOptimistic.
+  type+delete within one batch can therefore remain dirty indefinitely despite editor text equalling Core.

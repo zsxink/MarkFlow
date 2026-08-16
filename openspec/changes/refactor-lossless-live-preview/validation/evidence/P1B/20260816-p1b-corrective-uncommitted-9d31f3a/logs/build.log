@@ -1,0 +1,6 @@
+Command: `npm run build`
+Exit: 0
+
+Result summary: Vite production build completed; 2496 modules transformed.
+The output contains existing Rollup dynamic-import and large-chunk warnings,
+not compilation failures.

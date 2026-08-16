@@ -1,0 +1,10 @@
+Command: `cargo test --manifest-path src-tauri/Cargo.toml`
+Exit: 0
+
+```text
+test result: ok. 139 passed; 0 failed
+```
+
+Includes guarded-write receipt authority, UUID/path traversal rejection,
+Committed response-loss reconciliation, Prepared/Written/Conflict startup
+classification, and corrupt receipt Host-gate coverage.

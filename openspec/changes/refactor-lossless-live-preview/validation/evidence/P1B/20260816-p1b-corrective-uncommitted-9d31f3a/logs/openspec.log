@@ -1,0 +1,13 @@
+Commands:
+
+```text
+npx openspec validate refactor-lossless-live-preview --strict
+npx openspec validate --all
+```
+
+Exit: 0
+
+```text
+Change 'refactor-lossless-live-preview' is valid
+Totals: 61 passed, 0 failed (61 items)
+```

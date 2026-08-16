@@ -1,0 +1,5 @@
+Command: `cargo test --manifest-path markflow-core/Cargo.toml`
+Exit: 0
+
+Result: PASS. Includes fixture L0/L1, EOL provenance, PositionMap, session
+identity/revision, and reviewer regression tests.

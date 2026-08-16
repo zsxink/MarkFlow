@@ -1,0 +1,12 @@
+Command: `npm test`
+Exit: 0
+
+Result summary:
+
+```text
+Test Files  34 passed (34)
+Tests  402 passed (402)
+```
+
+The test runner emitted pre-existing frontend logger warnings where a unit test
+has no Tauri invoke implementation; the command still exited successfully.

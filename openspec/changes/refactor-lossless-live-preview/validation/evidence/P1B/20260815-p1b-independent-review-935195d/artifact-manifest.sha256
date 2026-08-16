@@ -1,0 +1,8 @@
+e22f37a2ff927b3994536b64ee253113bcb37033ef42e95bdc31ce0d191cc766  ./ENVIRONMENT.md
+e77ac8db736523ed681758030cc22edfaaf6be75d3e2bcfdd24a517c7c12e2bb  ./REVIEW.md
+31e54dfd6453acee4b4af69d9efebf3a05fd7119c3a58a9f5610110a4f63d2bc  ./RUN.md
+6f44ddc7d5a2fd350114134b54be64ac5fe90847ae035d9aa95f6345b2fd1e2f  ./harness/source-sync-adversarial.test.ts
+df63d8d954a96e1ed851571eebc1d0eb32ed3afa3c9f42d47b89df7294cbef45  ./harness/vitest.config.ts
+58b6573da35c90f3123fb8e070f2e84b71a84fb98524ab9092119c4016a93e74  ./logs/adversarial-source-sync.log
+2e9815de3912c662257a36e5843ae29f65ec91df47f6de2cdaba83fbc2a9b18e  ./logs/gates.log
+99fd66f9fdba3508531fedd2b7e3c5c700fdaaa084b02a0d611a11b38392e133  ./logs/historical-manifest-check.log

@@ -1,0 +1,19 @@
+Commands:
+
+```text
+npm run test:e2e:build
+node e2e/run.mjs lossless
+```
+
+Result: **BLOCKED — do not treat as PASS.** The debug application build reached
+the desktop test launch, but WDIO could not start the Tauri driver because the
+required executable is absent from this machine's `PATH`.
+
+```text
+Tauri Driver: tauri-driver not found. Install it with: cargo install tauri-driver
+Or enable auto-installation by setting autoInstallTauriDriver: true in service options.
+```
+
+`command -v tauri-driver` produced no path. This run did not install tools or
+change test configuration. Stale test processes from this blocked attempt were
+terminated after the failure was identified.

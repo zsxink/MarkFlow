@@ -9,6 +9,7 @@
 | Branch | Commit | Flags | Run ID |
 | --- | --- | --- | --- |
 | `test/issue-255-lossless-byte-contract` | `06c4b0a` | `losslessCoreSession=true`（测试内显式开启，产品默认 off） | NOT RECORDED |
+| `test/issue-255-lossless-byte-contract` | `e4981e3` + 工作树未提交 corrective（17 文件，desktop E2E corrective run 已验证） | `losslessCoreSession`（localStorage 手动钩子，产品默认 off） | `20260816-p1b-human-acceptance-uncommitted-e4981e3`（人工验收目标） |
 
 ## AI Coding 验证
 
@@ -29,7 +30,9 @@
 
 ## 人工验证记录
 
-- 验收人/环境：NOT RECORDED
+- 验收人/环境：xian（Program Owner，只验收最终产品效果）/ macOS 26.5.2；基线已预录、清单就绪
+- 验收 run：`evidence/P1B/20260816-p1b-human-acceptance-uncommitted-e4981e3/`（HUMAN-ACCEPTANCE.md + verify-fixtures.sh）
+- 状态：RUNNING（清单已备好，待逐项执行）
 - [ ] LF/CRLF/BOM/尾部 2/3 line-break-boundary fixtures
 - [ ] 不编辑 dirty/mtime
 - [ ] 不编辑等待两个 autosave tick + 干净 Ctrl+S，记录 save count/hash/length/mtime/关闭提示
@@ -41,7 +44,7 @@
 - [ ] flag off legacy 可用
 - [ ] 错误提示清楚且无正文泄漏
 
-人工结论：NOT STARTED
+人工结论：NOT STARTED（清单已就绪）
 
 ## Reviewer 与决定
 

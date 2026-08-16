@@ -1,0 +1,12 @@
+PASS npm test: 34 test files, 391 tests
+PASS npx tsc --noEmit
+PASS npm run build: 2496 modules transformed
+PASS npm run test:byte-contract:
+  L0 positive 24, negative 23
+  L1 positive 95, negative 93
+PASS markflow-core cargo test: 93 tests
+PASS src-tauri cargo test: 134 tests
+PASS npm run test:e2e:build
+PASS node e2e/run.mjs lossless: 6 tests, 1m12.6s, WebKit 605.1.15
+PASS npx openspec validate refactor-lossless-live-preview --strict
+PASS npx openspec validate --all: 61 items

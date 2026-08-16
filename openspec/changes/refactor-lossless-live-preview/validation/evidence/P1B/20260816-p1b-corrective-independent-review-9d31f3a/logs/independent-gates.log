@@ -1,0 +1,15 @@
+candidate_base=935195dc8231931dec58d769439365d1f69636e8
+candidate_product_diff_sha256=9d31f3a307d35fd81fb5e4e23baeeb23843a57a68093a06a5cccb3042c3b9972
+frontend_critical=PASS files=3 tests=37
+frontend_full=PASS files=34 tests=402
+typecheck=PASS
+build=PASS modules=2496
+core=PASS tests=93
+tauri=PASS tests=139
+byte_contract=PASS L0_positive=24 L0_negative=23 L1_positive=95 L1_negative=93
+openspec_change_strict=PASS
+openspec_all=PASS items=61
+git_diff_check=PASS
+corrective_manifest=PASS entries=12
+desktop_manifest=PASS entries=3
+desktop_existing_run=PASS exact_diff=true scope=normal_lifecycle_only

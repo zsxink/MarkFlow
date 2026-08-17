@@ -1,0 +1,33 @@
+=== candidate ===
+a16e5751ab2af296c3fc2b77ed797e0076d9fd35
+=== product diff sha (vs 545692a) ===
+8acf35673cf04b4d16990a8bd3300a363cd92ed5c3a5a4c07527f5b55268f96b  -
+=== npm test ===
+      Tests  414 passed (414)
+   Start at  13:34:07
+   Duration  12.13s (transform 835ms, setup 0ms, collect 2.91s, tests 15.30s, environment 4.67s, prepare 1.18s)
+
+=== tsc ===
+=== cargo core ===
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== cargo tauri ===
+test result: ok. 151 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== dispatcher explicit ===
+test dispatcher_contract::bridge_old_schema_receipt_is_actionable_in_recovery_ui_and_quarantined_durably ... ok
+test dispatcher_contract::bridge_failed_reload_still_revokes_prepared_epoch_before_write_or_commit ... ok
+test dispatcher_contract::bridge_replacement_point_lifecycle_revocation_never_writes_discarded_payload ... ok
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 129 filtered out; finished in 0.31s
+=== byte-contract ===
+  "negative": {
+  "ok": true,
+  "fixturesRoot": "/Users/xian/Project/book/MarkFlow/tests/fixtures/byte-contract"
+=== openspec strict ===
+Change 'refactor-lossless-live-preview' is valid
+=== openspec all ===
+Totals: 61 passed, 0 failed (61 items)
+=== e2e suites ===
+(see task logs: lossless=6 smoke=5 regression=1 p0s=4 all passed)

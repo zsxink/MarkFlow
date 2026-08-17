@@ -1,6 +1,6 @@
 # P1B 验证记录：无损 Source 纵向闭环
 
-总体状态：AI coding 与桌面 E2E 完成，双轮独立复核 GO（条件性），待 Program Owner 人工验收
+总体状态：AI coding 与桌面 E2E 完成，三轮独立复核 GO（条件性），待 Program Owner 人工验收
 
 正式设计：[P1B：无损 Source 纵向闭环](../../design/phases/P1B-source-vertical-slice.md)
 
@@ -9,7 +9,7 @@
 | Branch | Commit | Flags | Run ID |
 | --- | --- | --- | --- |
 | `test/issue-255-lossless-byte-contract` | `06c4b0a` | `losslessCoreSession=true`（测试内显式开启，产品默认 off） | NOT RECORDED |
-| `test/issue-255-lossless-byte-contract` | `e4981e3` + 工作树未提交 corrective（17 文件，desktop E2E corrective run 已验证） | `losslessCoreSession`（localStorage 手动钩子，产品默认 off） | `20260816-p1b-human-acceptance-uncommitted-e4981e3`（人工验收目标） |
+| `test/issue-255-lossless-byte-contract` | `a16e575`（冻结候选，含此前 corrective） | `losslessCoreSession`（localStorage 手动钩子，产品默认 off） | `20260817-053048-independent-review-a16e575`（最新独立复核） |
 
 ## AI Coding 验证
 
@@ -65,6 +65,15 @@
     identity matrix + P2 冻结；真实 dispatcher；P2 修复项；evidence 真实性
   - 结论：P0 0 / P1 0 / P2 2（文档）+ 1 观察项；总体 **GO（条件性）**，与首轮 Reviewer 收敛一致
   - 运行验证：vitest lossless 16 passed、tsc PASS、cargo core 93、cargo tauri 134、manifest sha256 全通过
+- Reviewer：AI 独立 Reviewer #3（fresh context，2026-08-17，候选 `a16e575`）
+  - 复核 `a16e575` vs `545692a`：产品 diff SHA-256 `8acf356...` 与 corrective run 记录的
+    full-worktree diff 一致；两个 P1（paste EOL 边界 provenance、reload 失败存活）与两个
+    P0（replacement-point TOCTOU、commit 跨 reload）均由确定性 dispatcher/生命周期测试关闭
+  - 运行验证：npm test 414、tsc PASS、cargo core 93、cargo tauri 151、dispatcher_contract 22、
+    byte-contract、openspec --all 61、build、四条桌面 WebKit E2E（lossless=6 smoke=5
+    regression=1 p0s=4）全 PASS
+  - 结论：P0 0 / P1 0 / P2 1（文档）；总体 **GO（条件性）**，剩余仅 Program Owner 人工验收
+  - 证据：`evidence/P1B/20260817-053048-independent-review-a16e575/`
 - Program Go/No-Go：NOT STARTED（待人工验收 + Program Owner 决定）
 
 ## P1B 后 corrective 待办

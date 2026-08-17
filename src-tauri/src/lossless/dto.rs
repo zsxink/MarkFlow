@@ -225,6 +225,10 @@ pub struct SaveReceipt {
     /// reload/close advances the session generation, so a late write/commit for
     /// this receipt can be rejected (P1B corrective P0-3).
     pub binding_generation: u64,
+    /// The Host lifecycle epoch captured while preparing this receipt. It
+    /// closes the reload-started-but-generation-not-yet-installed window:
+    /// guarded write/commit can resume only this exact epoch.
+    pub save_epoch: u64,
     pub revision: u64,
     /// Canonical (or, for an absent Save As target, normalized absolute) target
     /// path. The raw request path is retained only for diagnostics.

@@ -263,6 +263,11 @@ pub fn write_file(path: String, content: String, state: State<AppState>) -> Resu
     // Document save — user-opened files may live outside the workspace.
     // Workspace boundary is enforced by file-tree commands, not by document save.
     let path = resolve_path(&path, &state)?;
+    // During the dual-editor migration, an unresolved lossless receipt is a
+    // path-level safety gate. Legacy writes must not become an escape hatch
+    // around the lossless open/prepare guards after a crash or lost response.
+    crate::lossless::guarded_write::ensure_target_reconciled(&path.to_string_lossy(), None)
+        .map_err(|error| format!("{}: {}", error.code, error.message))?;
     atomic_write(&path, &content)
 }
 

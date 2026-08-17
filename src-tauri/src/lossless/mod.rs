@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use markflow_core::{
     ContentHash, DocumentId, LineEndingKind, LosslessDocumentSession, PatchOutcome, SessionId,
@@ -51,14 +51,36 @@ pub use dto::{
 #[derive(Default)]
 pub struct LosslessSessionRegistry {
     sessions: Mutex<HashMap<SessionId, LosslessDocumentSession>>,
+    /// A lifecycle epoch is independent from the session mutex so a reload or
+    /// close can revoke an already-prepared save while that save is doing its
+    /// filesystem work. The writer validates it immediately before exchange.
+    save_epochs: Mutex<HashMap<SessionId, Arc<AtomicU64>>>,
+    /// Serializes the replacement/commit linearization point with reload and
+    /// close. Epoch validation alone has a check→syscall gap; this mutex makes
+    /// "validate lease + native replace/create" one Host-side critical section.
+    lifecycle_locks: Mutex<HashMap<SessionId, Arc<Mutex<()>>>>,
     next_session_id: AtomicU64,
     next_document_id: AtomicU64,
+}
+
+/// Capability held by a guarded save between prepare and the native replace
+/// point. It is invalidated synchronously when reload/close begins.
+#[derive(Clone)]
+pub struct SaveOperationLease {
+    session_id: SessionId,
+    document_id: DocumentId,
+    binding_generation: u64,
+    epoch: u64,
+    control: Arc<AtomicU64>,
+    lifecycle_lock: Arc<Mutex<()>>,
 }
 
 impl LosslessSessionRegistry {
     pub fn new() -> Self {
         Self {
             sessions: Mutex::new(HashMap::new()),
+            save_epochs: Mutex::new(HashMap::new()),
+            lifecycle_locks: Mutex::new(HashMap::new()),
             next_session_id: AtomicU64::new(1),
             next_document_id: AtomicU64::new(1),
         }
@@ -78,6 +100,12 @@ impl LosslessSessionRegistry {
         let session_id = session.session_id;
         if let Ok(mut sessions) = lock_mutex(&self.sessions) {
             sessions.insert(session_id, session);
+        }
+        if let Ok(mut epochs) = lock_mutex(&self.save_epochs) {
+            epochs.insert(session_id, Arc::new(AtomicU64::new(0)));
+        }
+        if let Ok(mut locks) = lock_mutex(&self.lifecycle_locks) {
+            locks.insert(session_id, Arc::new(Mutex::new(())));
         }
         session_id
     }
@@ -100,16 +128,162 @@ impl LosslessSessionRegistry {
         Some(f(session))
     }
 
-    pub fn remove(&self, session_id: SessionId) -> Option<LosslessDocumentSession> {
-        lock_mutex(&self.sessions)
-            .ok()
-            .and_then(|mut sessions| sessions.remove(&session_id))
-    }
-
     pub fn contains(&self, session_id: SessionId) -> bool {
         lock_mutex(&self.sessions)
             .map(|sessions| sessions.contains_key(&session_id))
             .unwrap_or(false)
+    }
+
+    /// Freeze the session/document/generation that a prepared receipt is
+    /// allowed to write. The lease does not hold the registry mutex across I/O;
+    /// reload/close can therefore revoke it instead of waiting behind a slow
+    /// disk operation.
+    /// Capture the epoch for a newly prepared durable receipt.
+    pub fn capture_save_lease(
+        &self,
+        session_id: SessionId,
+        document_id: DocumentId,
+        binding_generation: u64,
+    ) -> Result<SaveOperationLease, LosslessError> {
+        self.make_save_lease(session_id, document_id, binding_generation, None)
+    }
+
+    /// Resume only the exact epoch that a durable receipt captured at prepare.
+    /// Sampling the current epoch here would reopen a reload/close TOCTOU.
+    pub fn resume_save_lease(
+        &self,
+        session_id: SessionId,
+        document_id: DocumentId,
+        binding_generation: u64,
+        save_epoch: u64,
+    ) -> Result<SaveOperationLease, LosslessError> {
+        self.make_save_lease(
+            session_id,
+            document_id,
+            binding_generation,
+            Some(save_epoch),
+        )
+    }
+
+    fn make_save_lease(
+        &self,
+        session_id: SessionId,
+        document_id: DocumentId,
+        binding_generation: u64,
+        expected_epoch: Option<u64>,
+    ) -> Result<SaveOperationLease, LosslessError> {
+        let control = lock_mutex(&self.save_epochs)
+            .ok()
+            .and_then(|epochs| epochs.get(&session_id).cloned())
+            .ok_or_else(|| {
+                LosslessError::session_missing(format!("session {session_id:?} not found"))
+            })?;
+        let lifecycle_lock = lock_mutex(&self.lifecycle_locks)
+            .ok()
+            .and_then(|locks| locks.get(&session_id).cloned())
+            .ok_or_else(|| {
+                LosslessError::session_missing(format!("session {session_id:?} not found"))
+            })?;
+        // Capture (or resume) the lease under the same lifecycle lock used by
+        // reload/close. Without this, a reload could revoke, release the lock
+        // to read disk, and an old generation could incorrectly capture the
+        // *new* epoch before its binding generation was installed.
+        let _guard = lock_mutex(&lifecycle_lock)
+            .map_err(|error| LosslessError::io(format!("保存生命周期锁不可用: {error}")))?;
+        let epoch = control.load(Ordering::Acquire);
+        if expected_epoch.is_some_and(|expected| expected != epoch) {
+            return Err(LosslessError::wrong_identity(
+                "save receipt 已被 reload/close 丢弃，拒绝恢复旧 lease",
+            ));
+        }
+        self.validate_save_identity(session_id, document_id, binding_generation)?;
+        drop(_guard);
+        Ok(SaveOperationLease {
+            session_id,
+            document_id,
+            binding_generation,
+            epoch,
+            control,
+            lifecycle_lock,
+        })
+    }
+
+    fn validate_save_identity(
+        &self,
+        session_id: SessionId,
+        document_id: DocumentId,
+        binding_generation: u64,
+    ) -> Result<(), LosslessError> {
+        let session = self.get(session_id).ok_or_else(|| {
+            LosslessError::session_missing(format!("session {session_id:?} not found"))
+        })?;
+        if session.document_id != document_id
+            || session.binding_generation().0 != binding_generation
+        {
+            return Err(LosslessError::wrong_identity(
+                "save receipt 与当前 session/document/generation 不一致",
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn save_epoch(lease: &SaveOperationLease) -> u64 {
+        lease.epoch
+    }
+
+    /// Linearize a reload/close transition with a native replacement/create or
+    /// receipt+registry commit. The transition owns the lifecycle mutex while
+    /// it revokes every older lease and installs/removes the session image, so
+    /// no new save can capture the post-revocation epoch against old bytes.
+    pub fn with_lifecycle_transition<R>(
+        &self,
+        session_id: SessionId,
+        operation: impl FnOnce() -> Result<R, LosslessError>,
+    ) -> Result<R, LosslessError> {
+        let control = lock_mutex(&self.save_epochs)
+            .ok()
+            .and_then(|epochs| epochs.get(&session_id).cloned())
+            .ok_or_else(|| {
+                LosslessError::session_missing(format!("session {session_id:?} not found"))
+            })?;
+        let lifecycle_lock = lock_mutex(&self.lifecycle_locks)
+            .ok()
+            .and_then(|locks| locks.get(&session_id).cloned())
+            .ok_or_else(|| {
+                LosslessError::session_missing(format!("session {session_id:?} not found"))
+            })?;
+        let _guard = lock_mutex(&lifecycle_lock)
+            .map_err(|error| LosslessError::io(format!("保存生命周期锁不可用: {error}")))?;
+        control.fetch_add(1, Ordering::AcqRel);
+        operation()
+    }
+
+    /// Final guard immediately before the host's atomic exchange/create call.
+    pub fn validate_save_lease(&self, lease: &SaveOperationLease) -> Result<(), LosslessError> {
+        if lease.control.load(Ordering::Acquire) != lease.epoch {
+            return Err(LosslessError::wrong_identity(
+                "保存操作已被 reload/close 丢弃，拒绝在替换点写入",
+            ));
+        }
+        self.validate_save_identity(
+            lease.session_id,
+            lease.document_id,
+            lease.binding_generation,
+        )
+    }
+
+    /// Run an operation atomically with lifecycle revocation. Callers must put
+    /// the native replace/create syscall or the receipt+registry commit inside
+    /// this closure; validating outside it is intentionally forbidden.
+    pub fn with_save_lifecycle_lock<R>(
+        &self,
+        lease: &SaveOperationLease,
+        operation: impl FnOnce() -> Result<R, LosslessError>,
+    ) -> Result<R, LosslessError> {
+        let _guard = lock_mutex(&lease.lifecycle_lock)
+            .map_err(|error| LosslessError::io(format!("保存生命周期锁不可用: {error}")))?;
+        self.validate_save_lease(lease)?;
+        operation()
     }
 }
 
@@ -326,15 +500,16 @@ pub fn prepare_document_save(
     guarded_write::ensure_target_reconciled(&req.path, Some(&req.save_operation_id))?;
     let registry = &state.lossless_registry;
     let session_id = req.session_id;
-    let session = registry.get(session_id).ok_or_else(|| {
-        LosslessError::session_missing(format!("session {session_id:?} not found"))
+    let prepared_lease =
+        registry.capture_save_lease(session_id, req.document_id, req.binding_generation)?;
+    // Snapshot under the same lock that serializes a reload/close transition.
+    // The receipt retains this lease epoch, so a later transition invalidates
+    // it even if it begins while the durable receipt is being recorded.
+    let session = registry.with_save_lifecycle_lock(&prepared_lease, || {
+        registry.get(session_id).ok_or_else(|| {
+            LosslessError::session_missing(format!("session {session_id:?} not found"))
+        })
     })?;
-    if session.document_id != req.document_id {
-        return Err(LosslessError::wrong_identity(format!(
-            "document id mismatch: session expects {:?}, request {:?}",
-            session.document_id, req.document_id
-        )));
-    }
 
     let expected_revision = markflow_core::Revision(req.expected_revision);
     // The binding generation is frozen into the durable receipt so a
@@ -370,6 +545,7 @@ pub fn prepare_document_save(
         req.document_id.0,
         binding_generation,
         expected_revision.0,
+        LosslessSessionRegistry::save_epoch(&prepared_lease),
     )?;
 
     Ok(PrepareSaveResponse {
@@ -391,58 +567,89 @@ pub fn commit_document_save(
 ) -> Result<(), LosslessError> {
     let registry = &state.lossless_registry;
     let session_id = req.session_id;
-    if !registry.contains(session_id) {
-        return Err(LosslessError::session_missing(format!(
-            "session {session_id:?} not found"
-        )));
-    }
-    let session_before_commit = registry.get(session_id).ok_or_else(|| {
+    let prepared_session = registry.get(session_id).ok_or_else(|| {
         LosslessError::session_missing(format!("session {session_id:?} not found"))
     })?;
-    if session_before_commit.document_id != req.document_id {
+    if prepared_session.document_id != req.document_id {
         return Err(LosslessError::wrong_identity(
             "commit document id 与 session 不匹配",
         ));
     }
-    if req.persisted_revision > session_before_commit.revision().0 {
+    if req.persisted_revision > prepared_session.revision().0 {
         return Err(LosslessError::new(
             "stale-revision",
             "commit persisted revision 高于当前 confirmed revision",
         ));
     }
+    let receipt_epoch = guarded_write::receipt_save_epoch(
+        &req.save_operation_id,
+        session_id.0,
+        req.document_id.0,
+        prepared_session.binding_generation().0,
+        req.persisted_revision,
+    )?;
+    let lease = registry.resume_save_lease(
+        session_id,
+        req.document_id,
+        prepared_session.binding_generation().0,
+        receipt_epoch,
+    )?;
     // The durable `Written` receipt is the ONLY authority for advancing the
     // Core persisted revision. A commit is rejected when the receipt is absent
     // or its session/document/generation/revision/new-identity do not match
     // this commit — otherwise unsaved Core text could be marked persisted with
     // no disk write (P1B corrective P0-1), or a pre-reload payload could mark
     // the reloaded generation persisted (P1B corrective P0-3).
-    guarded_write::mark_committed(
-        &req.save_operation_id,
-        session_id.0,
-        req.document_id.0,
-        session_before_commit.binding_generation().0,
-        req.persisted_revision,
-        &req.new_file_identity,
-    )?;
-    registry
-        .update(session_id, |session| {
-            if session.document_id != req.document_id {
-                return Err(LosslessError::wrong_identity(format!(
-                    "document id mismatch: session expects {:?}, request {:?}",
-                    session.document_id, req.document_id
-                )));
-            }
-            session
-                .mark_persisted(
-                    markflow_core::Revision(req.persisted_revision),
-                    Some(req.new_file_identity),
-                )
-                .map_err(LosslessError::from)
-        })
-        .ok_or_else(|| {
+    registry.with_save_lifecycle_lock(&lease, || {
+        // Re-read under the same lifecycle lock that reload/close must take;
+        // a stale snapshot can no longer authorize receipt commit or mutate a
+        // newer binding generation.
+        let current = registry.get(session_id).ok_or_else(|| {
             LosslessError::session_missing(format!("session {session_id:?} not found"))
-        })??;
-    Ok(())
+        })?;
+        if current.document_id != req.document_id
+            || current.binding_generation().0 != lease.binding_generation
+        {
+            return Err(LosslessError::wrong_identity(
+                "commit 已不属于当前 document generation",
+            ));
+        }
+        if req.persisted_revision > current.revision().0 {
+            return Err(LosslessError::new(
+                "stale-revision",
+                "commit persisted revision 高于当前 confirmed revision",
+            ));
+        }
+        guarded_write::mark_committed(
+            &req.save_operation_id,
+            session_id.0,
+            req.document_id.0,
+            lease.binding_generation,
+            req.persisted_revision,
+            receipt_epoch,
+            &req.new_file_identity,
+        )?;
+        registry
+            .update(session_id, |session| {
+                if session.document_id != req.document_id
+                    || session.binding_generation().0 != lease.binding_generation
+                {
+                    return Err(LosslessError::wrong_identity(
+                        "commit registry 更新时 binding generation 已变化",
+                    ));
+                }
+                session
+                    .mark_persisted(
+                        markflow_core::Revision(req.persisted_revision),
+                        Some(req.new_file_identity),
+                    )
+                    .map_err(LosslessError::from)
+            })
+            .ok_or_else(|| {
+                LosslessError::session_missing(format!("session {session_id:?} not found"))
+            })??;
+        Ok(())
+    })
 }
 
 /// Reload a session from new disk bytes (same session/document identity, new
@@ -454,27 +661,24 @@ pub fn reload_lossless_document(
 ) -> Result<LosslessOpenResponse, LosslessError> {
     let registry = &state.lossless_registry;
     let session_id = req.session_id;
-    if !registry.contains(session_id) {
-        return Err(LosslessError::session_missing(format!(
-            "session {session_id:?} not found"
-        )));
-    }
-    let path = PathBuf::from(&req.path);
-    let bytes = read_bytes(&path)?;
-    let identity = current_file_identity(&path, &bytes);
-    let default_eol = parse_default_eol(&req.default_eol)?;
-
-    let response = registry
-        .update(session_id, |session| {
-            session
-                .reload_with_identity(&bytes, default_eol, identity)
-                .map_err(LosslessError::from)?;
-            Ok::<LosslessOpenResponse, LosslessError>(LosslessOpenResponse::from_session(session))
-        })
-        .ok_or_else(|| {
-            LosslessError::session_missing(format!("session {session_id:?} not found"))
-        })??;
-    Ok(response)
+    registry.with_lifecycle_transition(session_id, || {
+        let path = PathBuf::from(&req.path);
+        let bytes = read_bytes(&path)?;
+        let identity = current_file_identity(&path, &bytes);
+        let default_eol = parse_default_eol(&req.default_eol)?;
+        Ok(registry
+            .update(session_id, |session| {
+                session
+                    .reload_with_identity(&bytes, default_eol, identity)
+                    .map_err(LosslessError::from)?;
+                Ok::<LosslessOpenResponse, LosslessError>(LosslessOpenResponse::from_session(
+                    session,
+                ))
+            })
+            .ok_or_else(|| {
+                LosslessError::session_missing(format!("session {session_id:?} not found"))
+            })??)
+    })
 }
 
 /// Close a session and remove it from the registry. All timers/requests on the
@@ -485,13 +689,19 @@ pub fn close_lossless_document(
     state: State<AppState>,
 ) -> Result<(), LosslessError> {
     let registry = &state.lossless_registry;
-    if let Some(mut session) = registry.remove(req.session_id) {
-        session.close();
-        Ok(())
-    } else {
-        // Closing a missing session is idempotent (already closed/never opened).
-        Ok(())
+    // Closing a missing session is idempotent (already closed/never opened).
+    if !registry.contains(req.session_id) {
+        return Ok(());
     }
+    registry.with_lifecycle_transition(req.session_id, || {
+        if let Some(mut session) = lock_mutex(&registry.sessions)
+            .ok()
+            .and_then(|mut sessions| sessions.remove(&req.session_id))
+        {
+            session.close();
+        }
+        Ok(())
+    })
 }
 
 /// Result of `flush_document_session`.
@@ -506,4 +716,90 @@ pub struct FlushResult {
 fn base64_encode(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+#[cfg(test)]
+mod lifecycle_lock_tests {
+    use super::*;
+    use std::sync::{mpsc, Arc, Barrier};
+    use std::time::Duration;
+
+    fn registry_with_session() -> Arc<LosslessSessionRegistry> {
+        let registry = Arc::new(LosslessSessionRegistry::new());
+        let session = LosslessDocumentSession::open_bytes(
+            SessionId(41),
+            DocumentId(42),
+            b"old",
+            LineEndingKind::Lf,
+        )
+        .expect("test session");
+        registry.insert(session);
+        registry
+    }
+
+    #[test]
+    fn lifecycle_lock_linearizes_replace_point_with_reload_or_close_revoke() {
+        // A lifecycle transition that wins before the replacement point makes
+        // the lease unusable: no native syscall closure is entered.
+        let before = registry_with_session();
+        let before_lease = before
+            .capture_save_lease(SessionId(41), DocumentId(42), 0)
+            .expect("lease");
+        before
+            .with_lifecycle_transition(SessionId(41), || Ok::<_, LosslessError>(()))
+            .expect("reload/close transition");
+        assert_eq!(
+            before
+                .with_save_lifecycle_lock(&before_lease, || Ok::<_, LosslessError>(()))
+                .expect_err("revoke before replacement must win")
+                .code,
+            "wrong-identity"
+        );
+
+        // Conversely, once a replacement/commit has acquired the lifecycle
+        // lock, reload/close waits. The syscall closure therefore cannot have
+        // a revocation inserted between its validation and the syscall.
+        let after = registry_with_session();
+        let after_lease = after
+            .capture_save_lease(SessionId(41), DocumentId(42), 0)
+            .expect("lease");
+        let entered = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let writer_registry = Arc::clone(&after);
+        let writer_entered = Arc::clone(&entered);
+        let writer_release = Arc::clone(&release);
+        let writer = std::thread::spawn(move || {
+            writer_registry.with_save_lifecycle_lock(&after_lease, || {
+                writer_entered.wait(); // deterministic "immediately before syscall" barrier
+                writer_release.wait();
+                Ok::<_, LosslessError>(())
+            })
+        });
+        entered.wait();
+
+        let (revoked_tx, revoked_rx) = mpsc::channel();
+        let reloader_registry = Arc::clone(&after);
+        let reloader = std::thread::spawn(move || {
+            reloader_registry
+                .with_lifecycle_transition(SessionId(41), || Ok::<_, LosslessError>(()))
+                .expect("reload/close transition");
+            revoked_tx.send(()).expect("report revoke");
+        });
+        assert!(
+            matches!(
+                revoked_rx.recv_timeout(Duration::from_millis(80)),
+                Err(mpsc::RecvTimeoutError::Timeout)
+            ),
+            "reload/close revoke must wait while validated replacement closure owns the lock"
+        );
+        release.wait();
+        writer
+            .join()
+            .expect("writer thread")
+            .expect("replacement closure");
+        revoked_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("revoke completes after replacement linearizes");
+        reloader.join().expect("reloader thread");
+    }
 }

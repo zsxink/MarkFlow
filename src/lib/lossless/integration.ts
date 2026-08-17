@@ -5,9 +5,11 @@
 // opened through the lossless path. The legacy path is untouched when the flag
 // is off (owner isolation, design P1B §5).
 
+import { invoke } from '@tauri-apps/api/core';
 import { store } from '../store';
 import { setActiveDocumentPath, setMode, resetDocumentRevision } from '../editor.state';
 import { EditorSurfaceBinding, type LosslessSaveResult } from './editorSurfaceBinding';
+import type { LosslessError, StartupRecoveryItem } from './types';
 import {
   disposeActiveLosslessBinding,
   getActiveLosslessBinding,
@@ -22,6 +24,8 @@ export { isActiveLosslessPath } from './registry';
 
 const SOURCE_WRAPPER_ID = 'source-editor-wrapper';
 const WYSIWYG_ID = 'wysiwyg-editor';
+const RECOVERY_ERROR_CODES = new Set(['save-outcome-unknown', 'external-conflict']);
+let lastOpenSafetyError: LosslessError | null = null;
 
 function sourceWrapper(): HTMLElement | null {
   return document.getElementById(SOURCE_WRAPPER_ID);
@@ -70,6 +74,110 @@ function restoreWysiwygView(): void {
   syncModeUI('wysiwyg');
 }
 
+/** True only for an open failure that must not fall back to a writable legacy owner. */
+export function isLosslessOpenRecoveryBlocked(): boolean {
+  return lastOpenSafetyError !== null;
+}
+
+function asLosslessError(error: unknown): LosslessError {
+  const candidate = error as Partial<LosslessError> | null;
+  return {
+    code: typeof candidate?.code === 'string' ? candidate.code : 'io',
+    message: typeof candidate?.message === 'string' ? candidate.message : '无法安全打开无损文档',
+  };
+}
+
+/**
+ * A recovery gate deliberately owns the visible source surface. It offers only
+ * explicit durable receipt decisions; it never constructs a writable legacy
+ * editor, so a crash cannot turn into an unguarded `write_file` overwrite.
+ */
+async function showStartupRecoverySurface(path: string, error: LosslessError): Promise<void> {
+  const wrapper = sourceWrapper();
+  const wysiwyg = wysiwygEditor();
+  if (!wrapper) return;
+  wrapper.replaceChildren();
+  wrapper.hidden = false;
+  if (wysiwyg) wysiwyg.hidden = true;
+  setMode('source');
+  syncModeUI('source');
+
+  const panel = document.createElement('section');
+  panel.dataset.testid = 'lossless-startup-recovery';
+  panel.setAttribute('role', 'alert');
+  const title = document.createElement('h2');
+  title.textContent = '此文件需要先完成保存恢复';
+  const detail = document.createElement('p');
+  detail.textContent = `${error.code}: ${error.message}`;
+  const hint = document.createElement('p');
+  hint.textContent = '为避免覆盖未知磁盘内容，已阻止切换到可写旧编辑器。请选择下方明确恢复操作后重新打开文件。';
+  panel.append(title, detail, hint);
+  try {
+    const items = await invoke<StartupRecoveryItem[]>('list_startup_recovery');
+    // macOS may expose /var and /private/var spellings differently between
+    // the picker and canonical receipt path. If exact matching finds none,
+    // retain every structured recovery item rather than hiding the only
+    // available explicit action behind a path-spelling mismatch.
+    const matching = items.filter((entry) => entry.path === path);
+    for (const item of matching.length > 0 ? matching : items) {
+      const row = document.createElement('div');
+      row.dataset.recoveryOperationId = item.saveOperationId;
+      const text = document.createElement('p');
+      text.textContent = `状态：${item.state}${item.recoveryPath ? '；已保留恢复副本' : ''}`;
+      if (item.requiresQuarantine) {
+        const quarantine = document.createElement('button');
+        quarantine.type = 'button';
+        quarantine.textContent = '隔离不可读收据并继续';
+        quarantine.addEventListener('click', () => {
+          quarantine.disabled = true;
+          void invoke('resolve_startup_recovery', {
+            req: {
+              saveOperationId: item.saveOperationId,
+              action: 'quarantine-invalid-receipt',
+            },
+          }).then(
+            () => { text.textContent = '不可读收据已隔离保留。请重新打开文件。'; },
+            (resolveError) => {
+              text.textContent = `无法隔离不可读收据：${asLosslessError(resolveError).message}`;
+              quarantine.disabled = false;
+            },
+          );
+        });
+        row.append(text, quarantine);
+        panel.append(row);
+        continue;
+      }
+      const accept = document.createElement('button');
+      accept.type = 'button';
+      accept.textContent = '确认保留已写入版本';
+      const discard = document.createElement('button');
+      discard.type = 'button';
+      discard.textContent = '保留当前磁盘版本';
+      const resolve = async (action: 'accept-written' | 'discard-recovery') => {
+        accept.disabled = true;
+        discard.disabled = true;
+        try {
+          await invoke('resolve_startup_recovery', {
+            req: { saveOperationId: item.saveOperationId, action },
+          });
+          text.textContent = '恢复决定已记录。请重新打开文件。';
+        } catch (resolveError) {
+          text.textContent = `无法记录恢复决定：${asLosslessError(resolveError).message}`;
+          accept.disabled = false;
+          discard.disabled = false;
+        }
+      };
+      accept.addEventListener('click', () => void resolve('accept-written'));
+      discard.addEventListener('click', () => void resolve('discard-recovery'));
+      row.append(text, accept, discard);
+      panel.append(row);
+    }
+  } catch {
+    // The blocking message remains useful even if listing itself is unavailable.
+  }
+  wrapper.append(panel);
+}
+
 /** Whether the active document is a lossless Core document. */
 export function isLosslessActiveDoc(path: string | null): boolean {
   return isLosslessCoreSessionEnabled() && path !== null && isActiveLosslessPath(path);
@@ -85,6 +193,7 @@ export async function openLosslessDocument(
   defaultEol = 'lf',
 ): Promise<boolean> {
   if (!isLosslessCoreSessionEnabled()) return false;
+  lastOpenSafetyError = null;
   try {
     await disposeActiveLosslessBinding();
     setActiveDocumentPath(path);
@@ -104,9 +213,14 @@ export async function openLosslessDocument(
     return true;
   } catch (err) {
     await disposeActiveLosslessBinding();
-    // Lossless open failed → restore the WYSIWYG surface so the caller's
-    // legacy fallback shows the document instead of an empty source wrapper.
-    restoreWysiwygView();
+    const losslessError = asLosslessError(err);
+    if (RECOVERY_ERROR_CODES.has(losslessError.code)) {
+      lastOpenSafetyError = losslessError;
+      await showStartupRecoverySurface(path, losslessError);
+    } else {
+      // Ordinary unsupported/open failures preserve the legacy fallback.
+      restoreWysiwygView();
+    }
     store.setState({ dirty: false });
     return false;
   }

@@ -1,0 +1,5 @@
+c7f12c85ee2d9479a3d1b0aeec89f7c96953f6504995ba811d133a554e598308  ./ENVIRONMENT.md
+7d9292b9be5ca9b3af5296b5d27b0af8b4e405a22c1d3baeeb827a35792d7a88  ./REVIEW.md
+74ccd72b6854ba92a09d82f8c35c8af31d18c418ba5f9339f436841afe8424e9  ./RUN.md
+6c3a3aa6e0e0ea8919dab422cb0d44683aeff69c0604308dd00c6a7510f286d4  ./harness/source-sync-corrective.test.ts
+a7e194ca56d8f031bf74ffa74934b45d2a9b57ecc8cca6f9e5d5fbdd1d89da8e  ./harness/vitest.config.ts

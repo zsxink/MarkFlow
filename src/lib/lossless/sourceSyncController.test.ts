@@ -158,6 +158,38 @@ describe('SourceSyncController', () => {
     expect(controller.pipelineState).toBe('idle');
   });
 
+  it('resyncs astral replacement without emitting a surrogate-internal boundary', async () => {
+    let editorDoc = '😁';
+    const applyPatch = vi
+      .fn()
+      .mockRejectedValueOnce({ code: 'stale-revision', message: 'stale' })
+      .mockResolvedValueOnce({ revision: 2, confirmedHash: 'h2' });
+    const { controller } = makeController({
+      applyPatch: applyPatch as any,
+      getSnapshot: async () => ({ revision: 1, logicalText: '😀', confirmedHash: 'h1' }),
+      currentDoc: () => editorDoc,
+      composePending: () => [{ from: 0, to: 2, insert: '😁' }],
+    });
+    controller.onUserEdit();
+    await tick(80);
+    const rebase = (applyPatch.mock.calls[1][0] as any).changes[0];
+    expect(rebase).toMatchObject({ fromUtf16: 0, toUtf16: 2, insertedLogicalText: '😁' });
+    expect(controller.pipelineState).toBe('idle');
+  });
+
+  it('clears a net-zero composed batch only after Core confirms the same document', async () => {
+    const { controller, applyPatch, getSnapshot } = makeController({
+      composePending: () => [],
+      currentDoc: () => 'confirmed',
+    });
+    controller.onUserEdit();
+    await tick(40);
+    expect(getSnapshot).toHaveBeenCalledTimes(1);
+    expect(applyPatch).not.toHaveBeenCalled();
+    expect(controller.hasUnresolvedOptimisticChanges()).toBe(false);
+    expect(controller.pipelineState).toBe('idle');
+  });
+
   it('times out a hung attempt, retries the same transaction, and ignores its late ack', async () => {
     const acks: Array<(value: { revision: number; confirmedHash: string }) => void> = [];
     const applyPatch = vi.fn(() => new Promise<{ revision: number; confirmedHash: string }>((resolve) => {
@@ -282,5 +314,13 @@ describe('diffText', () => {
     expect(diffText('abc', 'abc')).toEqual([]);
     expect(diffText('abc', 'XYZabc')).toEqual([{ from: 0, to: 0, insert: 'XYZ' }]);
     expect(diffText('abc', 'abcXYZ')).toEqual([{ from: 3, to: 3, insert: 'XYZ' }]);
+  });
+
+  it.each([
+    ['replacement', '😀', '😁', { from: 0, to: 2, insert: '😁' }],
+    ['insertion', 'a😀b', 'a😁😀b', { from: 1, to: 1, insert: '😁' }],
+    ['deletion', 'a😀b', 'ab', { from: 1, to: 3, insert: '' }],
+  ])('keeps UTF-16 boundaries outside surrogate pairs for emoji %s', (_name, before, after, expected) => {
+    expect(diffText(before, after)).toEqual([expected]);
   });
 });

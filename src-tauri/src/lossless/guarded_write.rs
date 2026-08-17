@@ -34,13 +34,42 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use markflow_core::{ContentHash, FileIdentity, SessionId};
+use markflow_core::{ContentHash, DocumentId, FileIdentity, SessionId};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use super::dto::{LosslessError, ReceiptState, SaveReceipt};
 use crate::paths::app_config_dir;
 use crate::state::AppState;
+
+// Deterministic dispatcher-test barrier: it fires after the initial receipt /
+// generation validation and temp-file fsync, immediately before the final
+// replacement-point lease validation. It models a reload/close revocation that
+// arrives in exactly the historical check-to-exchange window.
+#[cfg(test)]
+thread_local! {
+    static REVOKE_LEASE_BEFORE_REPLACE_ONCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+pub fn inject_lifecycle_revocation_before_replace_once() {
+    REVOKE_LEASE_BEFORE_REPLACE_ONCE.with(|flag| flag.set(true));
+}
+
+#[cfg(test)]
+fn test_revoke_lease_before_replace(state: &State<AppState>, session_id: SessionId) {
+    REVOKE_LEASE_BEFORE_REPLACE_ONCE.with(|flag| {
+        if flag.replace(false) {
+            state
+                .lossless_registry
+                .with_lifecycle_transition(session_id, || Ok::<_, LosslessError>(()))
+                .expect("test lifecycle transition");
+        }
+    });
+}
+
+#[cfg(not(test))]
+fn test_revoke_lease_before_replace(_state: &State<AppState>, _session_id: SessionId) {}
 
 pub const RECEIPTS_DIR_NAME: &str = "lossless-receipts";
 
@@ -107,6 +136,11 @@ pub struct StartupRecoveryItem {
     /// The displaced recovery copy (bytes preserved at exchange time), when the
     /// host retained one (P1B corrective P1-1).
     pub recovery_path: Option<String>,
+    /// The durable receipt cannot be decoded by this version (including an
+    /// older schema). It must be explicitly quarantined before the global
+    /// lossless safety gate can be lifted; accepting/discarding bytes would be
+    /// dishonest because their target and outcome are unknown.
+    pub requires_quarantine: bool,
 }
 
 /// `resolve_startup_recovery` request.
@@ -114,7 +148,7 @@ pub struct StartupRecoveryItem {
 #[serde(rename_all = "camelCase")]
 pub struct ResolveStartupRecoveryRequest {
     pub save_operation_id: String,
-    /// "accept-written" | "discard-recovery"
+    /// "accept-written" | "discard-recovery" | "quarantine-invalid-receipt"
     pub action: String,
 }
 
@@ -135,8 +169,28 @@ pub fn list_startup_recovery(_state: State<AppState>) -> Vec<StartupRecoveryItem
             revision: receipt.revision,
             payload_sha256: receipt.payload_sha256,
             recovery_path: receipt.recovery_path,
+            requires_quarantine: false,
         });
     }
+    // A parse/schema failure must never silently disappear from the recovery
+    // UI: it is a global Host write gate. Expose a constrained, explicit
+    // quarantine action that preserves the opaque receipt under the app data
+    // directory instead of guessing a target or allowing legacy writes.
+    items.extend(
+        invalid_receipt_entries()
+            .into_iter()
+            .map(|entry| StartupRecoveryItem {
+                save_operation_id: entry.recovery_id,
+                path: format!("不可读 durable receipt：{}", entry.file_name),
+                state: "unreadable-receipt".to_owned(),
+                session_id: 0,
+                document_id: 0,
+                revision: 0,
+                payload_sha256: String::new(),
+                recovery_path: None,
+                requires_quarantine: true,
+            }),
+    );
     items
 }
 
@@ -157,6 +211,13 @@ pub fn resolve_startup_recovery(
     req: ResolveStartupRecoveryRequest,
     _state: State<AppState>,
 ) -> Result<(), LosslessError> {
+    // Invalid or old-schema receipts deliberately use an opaque recovery ID
+    // rather than a filesystem path supplied by the WebView. The only allowed
+    // action preserves the original receipt beneath our controlled receipts
+    // directory, then removes it from the active gate scan.
+    if req.action == "quarantine-invalid-receipt" {
+        return quarantine_invalid_receipt(&req.save_operation_id);
+    }
     validate_operation_id(&req.save_operation_id)?;
     let receipt_path = receipt_path_for(&req.save_operation_id);
     let Some(receipt) = read_receipt(&receipt_path)? else {
@@ -204,6 +265,88 @@ pub fn resolve_startup_recovery(
     }
 }
 
+#[derive(Debug, Clone)]
+struct InvalidReceiptEntry {
+    recovery_id: String,
+    receipt_path: PathBuf,
+    file_name: String,
+}
+
+/// Enumerate active receipt files that this Host cannot safely decode. This
+/// includes historical schemas with missing required fields as well as damaged
+/// JSON. They are intentionally not folded into `scan_unfinished_receipts`:
+/// callers must not mistake unknown state for a normal save outcome.
+fn invalid_receipt_entries() -> Vec<InvalidReceiptEntry> {
+    let Ok(entries) = std::fs::read_dir(receipts_dir()) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .filter_map(|entry| {
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            if !file_name.ends_with(".json") || !entry.path().is_file() {
+                return None;
+            }
+            read_receipt(&entry.path())
+                .err()
+                .map(|_| InvalidReceiptEntry {
+                    recovery_id: invalid_receipt_recovery_id(&entry.path()),
+                    receipt_path: entry.path(),
+                    file_name,
+                })
+        })
+        .collect()
+}
+
+/// An opaque, valid UUID-shaped identifier derived from the controlled receipt
+/// path. It lets the frontend nominate exactly one entry without ever exposing
+/// a path-join primitive through the command boundary.
+fn invalid_receipt_recovery_id(receipt_path: &Path) -> String {
+    let digest = path_hash(&receipt_path.to_string_lossy());
+    format!(
+        "{}-{}-4{}-8{}-{}",
+        &digest[0..8],
+        &digest[8..12],
+        &digest[13..16],
+        &digest[17..20],
+        &digest[20..32],
+    )
+}
+
+fn quarantine_invalid_receipt(recovery_id: &str) -> Result<(), LosslessError> {
+    validate_operation_id(recovery_id)?;
+    let Some(entry) = invalid_receipt_entries()
+        .into_iter()
+        .find(|entry| entry.recovery_id == recovery_id)
+    else {
+        return Err(LosslessError::new(
+            "operation-not-prepared",
+            "找不到不可读 durable receipt，可能已被其他恢复操作处理",
+        ));
+    };
+
+    let quarantine_dir = receipts_dir().join("quarantined-invalid");
+    std::fs::create_dir_all(&quarantine_dir)
+        .map_err(|e| LosslessError::io(format!("创建 receipt 隔离目录失败: {e}")))?;
+    let target = quarantine_dir.join(format!("{recovery_id}.json"));
+    if target.exists() {
+        return Err(LosslessError::new(
+            "recovery-already-quarantined",
+            "该不可读 receipt 已被隔离；请重新打开文件",
+        ));
+    }
+    std::fs::rename(&entry.receipt_path, &target)
+        .map_err(|e| LosslessError::io(format!("隔离不可读 receipt 失败: {e}")))?;
+    // The original opaque evidence survives the operation; fsync both
+    // directories so a power loss cannot resurrect an active corrupt gate or
+    // lose the user's recovery artifact.
+    fsync_parent_dir(&entry.receipt_path)
+        .map_err(|e| LosslessError::io(format!("同步 receipt 原目录失败: {e}")))?;
+    fsync_parent_dir(&target)
+        .map_err(|e| LosslessError::io(format!("同步 receipt 隔离目录失败: {e}")))?;
+    Ok(())
+}
+
 /// Advance a receipt to `Committed` (durably, with recovery finalization) after
 /// a terminal user decision. The Host gate lifts because committed receipts are
 /// skipped by the startup/path gate.
@@ -244,7 +387,12 @@ pub fn guarded_atomic_write(
     // prepared against an older document image must not write bytes the user
     // explicitly discarded by reloading — refuse the write (the receipt stays
     // Prepared, reconcile reports not-written).
-    validate_receipt_generation(&state, &receipt)?;
+    let save_lease = state.lossless_registry.resume_save_lease(
+        SessionId(receipt.session_id),
+        DocumentId(receipt.document_id),
+        receipt.binding_generation,
+        receipt.save_epoch,
+    )?;
     let path = PathBuf::from(&receipt.canonical_target_path);
 
     match receipt.state {
@@ -329,6 +477,7 @@ pub fn guarded_atomic_write(
         .unwrap_or_else(|| "doc.md".into());
     let tmp = parent.join(format!(".{file_name}.{}.mf-tmp", path_hash(&op_id)));
 
+    let mut replacement_completed = false;
     let write_result = (|| -> Result<GuardedWriteResponse, LosslessError> {
         {
             use std::io::Write;
@@ -342,12 +491,24 @@ pub fn guarded_atomic_write(
 
         match &receipt.expected_file_identity {
             Some(_) => {
-                // Backup-preserving atomic exchange: swap temp ↔ target. After
-                // the swap, `tmp` holds the displaced target bytes.
-                atomic_exchange(&tmp, &path).map_err(|e| {
-                    let _ = std::fs::remove_file(&tmp);
-                    LosslessError::io(format!("原子替换失败: {e}"))
-                })?;
+                // This is the last in-process lifecycle check before the
+                // native replacement. Reload/close revoke the lease before
+                // replacing their session image, so a user discard that wins
+                // while temp bytes are being prepared cannot reach disk.
+                test_revoke_lease_before_replace(&state, SessionId(receipt.session_id));
+                // Validation and the actual native exchange share one
+                // lifecycle mutex with reload/close. There is deliberately no
+                // instruction boundary where a discard can arrive after the
+                // validation yet before `renameatx_np` executes.
+                state
+                    .lossless_registry
+                    .with_save_lifecycle_lock(&save_lease, || {
+                        atomic_exchange(&tmp, &path).map_err(|e| {
+                            let _ = std::fs::remove_file(&tmp);
+                            LosslessError::io(format!("原子替换失败: {e}"))
+                        })
+                    })?;
+                replacement_completed = true;
                 // Verify displaced identity at the replace point.
                 let displaced = std::fs::read(&tmp).map_err(|e| {
                     let _ = std::fs::remove_file(&tmp);
@@ -377,18 +538,23 @@ pub fn guarded_atomic_write(
                 // the displaced original discoverable.
             }
             None => {
-                // Create-if-absent (no replace) — platform no-replace primitive.
-                if !create_if_absent(&tmp, &path).map_err(|e| {
-                    let _ = std::fs::remove_file(&tmp);
-                    if e.kind() == std::io::ErrorKind::Unsupported {
-                        LosslessError::new(
-                            "unsupported-platform",
-                            format!("当前平台不支持无覆盖保存，另存为已拒绝（请使用另存副本）: {e}"),
-                        )
-                    } else {
-                        LosslessError::io(format!("创建新文件失败: {e}"))
-                    }
-                })? {
+                test_revoke_lease_before_replace(&state, SessionId(receipt.session_id));
+                // Save As/New follows the same validation+create critical
+                // section; a close/reload cannot slip into this final gap.
+                let created = state.lossless_registry.with_save_lifecycle_lock(&save_lease, || {
+                    create_if_absent(&tmp, &path).map_err(|e| {
+                        let _ = std::fs::remove_file(&tmp);
+                        if e.kind() == std::io::ErrorKind::Unsupported {
+                            LosslessError::new(
+                                "unsupported-platform",
+                                format!("当前平台不支持无覆盖保存，另存为已拒绝（请使用另存副本）: {e}"),
+                            )
+                        } else {
+                            LosslessError::io(format!("创建新文件失败: {e}"))
+                        }
+                    })
+                })?;
+                if !created {
                     update_receipt(&op_id, |r| r.state = ReceiptState::Conflict)?;
                     return Ok(conflict_response(&op_id));
                 }
@@ -408,9 +574,7 @@ pub fn guarded_atomic_write(
         })?;
         // P1-1: the target directory entry itself (exchange/create) must be
         // durable — fsync the target's parent directory before acknowledging.
-        fsync_parent_dir(&path).map_err(|e| {
-            LosslessError::io(format!("同步目标目录失败: {e}"))
-        })?;
+        fsync_parent_dir(&path).map_err(|e| LosslessError::io(format!("同步目标目录失败: {e}")))?;
         Ok(GuardedWriteResponse {
             save_operation_id: op_id.clone(),
             outcome: WriteOutcome::Written,
@@ -423,7 +587,37 @@ pub fn guarded_atomic_write(
     match write_result {
         Ok(response) => Ok(response),
         Err(e) => {
-            update_receipt(&op_id, |r| r.state = ReceiptState::Conflict).ok();
+            // The exchange may already have landed even though writing the
+            // `Written` receipt failed. Preserve enough durable Conflict
+            // metadata for startup recovery to expose the displaced bytes;
+            // never leave an unaddressable temp copy behind.
+            // Before exchange `tmp` contains the application's payload, not
+            // a displaced original. Delete it rather than falsely exposing it
+            // as recovery evidence. After exchange it holds the original and
+            // must remain discoverable even if receipt persistence failed.
+            if !replacement_completed {
+                let _ = std::fs::remove_file(&tmp);
+            }
+            let recovery_path = replacement_completed
+                .then(|| tmp.exists().then(|| tmp.to_string_lossy().to_string()))
+                .flatten();
+            let landed_identity = replacement_completed
+                .then(|| {
+                    std::fs::read(&path)
+                        .ok()
+                        .map(|bytes| current_file_identity(&path, &bytes))
+                })
+                .flatten();
+            update_receipt(&op_id, |r| {
+                r.state = ReceiptState::Conflict;
+                if r.recovery_path.is_none() {
+                    r.recovery_path = recovery_path.clone();
+                }
+                if r.new_file_identity.is_none() {
+                    r.new_file_identity = landed_identity.clone();
+                }
+            })
+            .ok();
             Err(e)
         }
     }
@@ -518,6 +712,7 @@ pub fn record_prepared(
     document_id: u64,
     binding_generation: u64,
     revision: u64,
+    save_epoch: u64,
 ) -> Result<(), LosslessError> {
     validate_operation_id(save_operation_id)?;
     let canonical_target_path = canonical_target_path(path)?;
@@ -530,6 +725,7 @@ pub fn record_prepared(
             || existing.document_id != document_id
             || existing.binding_generation != binding_generation
             || existing.revision != revision
+            || existing.save_epoch != save_epoch
         {
             return Err(LosslessError::new(
                 "duplicate-mismatch",
@@ -543,6 +739,7 @@ pub fn record_prepared(
         session_id,
         document_id,
         binding_generation,
+        save_epoch,
         revision,
         path: path.to_string(),
         path_hash: path_hash(&canonical_target_path),
@@ -577,6 +774,7 @@ pub fn mark_committed(
     document_id: u64,
     binding_generation: u64,
     revision: u64,
+    save_epoch: u64,
     new_file_identity: &FileIdentity,
 ) -> Result<(), LosslessError> {
     validate_operation_id(save_operation_id)?;
@@ -588,6 +786,7 @@ pub fn mark_committed(
         || receipt.document_id != document_id
         || receipt.binding_generation != binding_generation
         || receipt.revision != revision
+        || receipt.save_epoch != save_epoch
     {
         return Err(LosslessError::new(
             "wrong-identity",
@@ -692,6 +891,32 @@ pub fn ensure_target_reconciled(
     Ok(())
 }
 
+/// Load the epoch that the durable receipt froze at prepare time. Commit must
+/// resume this exact capability rather than sampling the registry epoch after
+/// a reload has already begun.
+pub fn receipt_save_epoch(
+    save_operation_id: &str,
+    session_id: u64,
+    document_id: u64,
+    binding_generation: u64,
+    revision: u64,
+) -> Result<u64, LosslessError> {
+    validate_operation_id(save_operation_id)?;
+    let receipt = read_receipt(&receipt_path_for(save_operation_id))?.ok_or_else(|| {
+        LosslessError::new("operation-not-prepared", "commit 对应的 receipt 缺失")
+    })?;
+    if receipt.session_id != session_id
+        || receipt.document_id != document_id
+        || receipt.binding_generation != binding_generation
+        || receipt.revision != revision
+    {
+        return Err(LosslessError::wrong_identity(
+            "commit 身份与 durable receipt 不匹配",
+        ));
+    }
+    Ok(receipt.save_epoch)
+}
+
 /// Startup classification is intentionally side-effect-light: it proves and
 /// reports Prepared receipts, while Written/Conflict receipts remain durable
 /// path gates until their owning session is reconciled or the user resolves the
@@ -707,14 +932,7 @@ pub fn reconcile_startup_receipts() -> HashMap<String, String> {
 }
 
 pub fn receipt_store_has_corruption() -> bool {
-    let dir = receipts_dir();
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return false;
-    };
-    entries
-        .flatten()
-        .filter(|entry| entry.file_name().to_string_lossy().ends_with(".json"))
-        .any(|entry| read_receipt(&entry.path()).is_err())
+    !invalid_receipt_entries().is_empty()
 }
 
 fn classify_startup_receipt(receipt: &SaveReceipt) -> Result<String, LosslessError> {
@@ -790,25 +1008,6 @@ fn validate_write_request_against_receipt(
 /// advanced) or closed since prepare, the write is refused so a discarded
 /// generation's payload can never reach disk. A missing session means the
 /// document was closed — also refuse.
-fn validate_receipt_generation(
-    state: &State<AppState>,
-    receipt: &SaveReceipt,
-) -> Result<(), LosslessError> {
-    let registry = &state.lossless_registry;
-    let Some(session) = registry.get(SessionId(receipt.session_id)) else {
-        return Err(LosslessError::new(
-            "session-missing",
-            "save 所属 session 已关闭，拒绝写入",
-        ));
-    };
-    if session.binding_generation().0 != receipt.binding_generation {
-        return Err(LosslessError::wrong_identity(
-            "save 已因 reload/close 失效（binding generation 不匹配），拒绝写入",
-        ));
-    }
-    Ok(())
-}
-
 fn expected_identity_still_matches(receipt: &SaveReceipt, actual: &FileIdentity) -> bool {
     receipt
         .expected_file_identity
@@ -960,8 +1159,7 @@ fn write_receipt_atomically(path: &Path, receipt: &SaveReceipt) -> Result<(), Lo
     }
     std::fs::rename(&tmp, path)
         .map_err(|e| LosslessError::io(format!("提交 receipt 失败: {e}")))?;
-    fsync_parent_dir(path)
-        .map_err(|e| LosslessError::io(format!("同步 receipt 目录失败: {e}")))?;
+    fsync_parent_dir(path).map_err(|e| LosslessError::io(format!("同步 receipt 目录失败: {e}")))?;
     Ok(())
 }
 
@@ -1248,9 +1446,9 @@ mod tests {
         let hash = ContentHash::of(b"payload");
         // Direct receipt write under the real config dir is isolated per run id.
         let op = operation_id(1);
-        record_prepared(&op, path, &Some(identity.clone()), &hash, 1, 2, 0, 3).unwrap();
+        record_prepared(&op, path, &Some(identity.clone()), &hash, 1, 2, 0, 3, 0).unwrap();
         // Same op + same payload → idempotent.
-        record_prepared(&op, path, &Some(identity.clone()), &hash, 1, 2, 0, 3).unwrap();
+        record_prepared(&op, path, &Some(identity.clone()), &hash, 1, 2, 0, 3, 0).unwrap();
         // Same op + different payload → rejected.
         let err = record_prepared(
             &op,
@@ -1261,6 +1459,7 @@ mod tests {
             2,
             0,
             3,
+            0,
         )
         .unwrap_err();
         assert_eq!(err.code, "duplicate-mismatch");
@@ -1283,6 +1482,7 @@ mod tests {
             2,
             0,
             3,
+            0,
         )
         .unwrap();
         record_prepared(
@@ -1294,6 +1494,7 @@ mod tests {
             5,
             0,
             6,
+            0,
         )
         .unwrap();
         // Mark one committed so scan excludes it.
@@ -1326,6 +1527,7 @@ mod tests {
             2,
             0,
             3,
+            0,
         )
         .unwrap();
 
@@ -1342,6 +1544,7 @@ mod tests {
             5,
             0,
             6,
+            0,
         )
         .unwrap();
         update_receipt(&written_op, |receipt| {
@@ -1362,6 +1565,7 @@ mod tests {
             8,
             0,
             9,
+            0,
         )
         .unwrap();
         update_receipt(&conflict_op, |receipt| {

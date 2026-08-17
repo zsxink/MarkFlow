@@ -45,6 +45,8 @@ export interface LocalChange {
   from: number;
   to: number;
   insert: string;
+  /** Position of the insertion in the post-change optimistic document. */
+  fromAfter?: number;
   /** One entry per inserted logical LF. Raw paste/drop may make these explicit. */
   insertedLineEndings?: Array<'inherit' | 'lf' | 'crlf' | 'cr'>;
 }
@@ -65,6 +67,11 @@ export interface SyncControllerDeps {
   currentDoc(): string;
   /** Drop locally queued changes after resync has captured the optimistic doc. */
   discardPending?(): void;
+  /**
+   * Add explicit clipboard EOL provenance to a confirmed→optimistic rebase.
+   * The binding owns this because only it observes raw browser paste events.
+   */
+  annotateChanges?(changes: LocalChange[]): LocalChange[];
   onStateChange?(state: PipelineState, detail?: unknown): void;
   batchWindowMs?: number;
   maxRetries?: number;
@@ -103,6 +110,8 @@ export class SourceSyncController {
   private disposers: Array<() => void> = [];
   private disposed = false;
   private nextTxnId: number;
+  /** Incremented for every optimistic edit; invalidates an empty-batch check. */
+  private optimisticGeneration = 0;
   /** Incremented on every resync so stale resync results are dropped. */
   private resyncGeneration = 0;
 
@@ -127,6 +136,7 @@ export class SourceSyncController {
     // optimistic CM transaction exists it must keep close/switch/reload dirty
     // until Core confirms it or an explicit recovery/discard flow handles it.
     this.unresolvedOptimistic = true;
+    this.optimisticGeneration++;
     if (this.state === 'blocked') {
       this.pendingCount++;
       this.deps.onStateChange?.(this.state);
@@ -253,9 +263,12 @@ export class SourceSyncController {
 
     const changes = this.deps.composePending();
     if (changes.length === 0) {
-      // Nothing composed (e.g. programmatic-only changes) — treat as consumed.
+      // A composed net-zero batch is clean only when the actual optimistic CM
+      // document equals Core's confirmed snapshot. A ChangeSet can compose to
+      // empty while the two mirrors have diverged (for example after a stale
+      // ack), so never clear the authoritative dirty bit optimistically.
       this.pendingCount = 0;
-      this.setState('idle');
+      void this.reconcileEmptyComposition(this.optimisticGeneration);
       return;
     }
 
@@ -351,11 +364,16 @@ export class SourceSyncController {
       // Recompute confirmed → optimistic into a fresh Core patch. The CM editor
       // already contains `optimistic`: applying this diff to it would duplicate
       // the change (Xbase -> XXbase). Rebase controller bookkeeping only.
-      const diff = diffText(confirmedText, optimistic);
-      if (!diff) {
+      const rawDiff = diffText(confirmedText, optimistic);
+      if (!rawDiff) {
         this.block(new Error(`resync-cannot-rebase: ${reason}`));
         return;
       }
+      // A single confirmed→optimistic diff inserts at its own `from` in the
+      // resulting document. Keep `diffText`'s public minimal DTO stable while
+      // giving the binding the post-change anchor needed for paste provenance.
+      const rebaseChanges = rawDiff.map((change) => ({ ...change, fromAfter: change.from }));
+      const diff = this.deps.annotateChanges?.(rebaseChanges) ?? rebaseChanges;
       // All queued ChangeSets are represented by `diff`; leaving them queued
       // would replay their mutations after this rebase.
       this.deps.discardPending?.();
@@ -389,6 +407,29 @@ export class SourceSyncController {
     if (this.inFlight?.retryTimer) clearTimeout(this.inFlight.retryTimer);
     this.inFlight = null;
     this.setState('blocked', { error: error.message });
+  }
+
+  /** Resolve an empty composed batch against Core rather than assuming clean. */
+  private async reconcileEmptyComposition(observedGeneration: number): Promise<void> {
+    this.setState('resyncing', { reason: 'empty-composition' });
+    try {
+      const snapshot = await this.deps.getSnapshot();
+      if (this.disposed) return;
+      // If input arrived while the request was in flight, it is safer to run a
+      // normal rebase from the fresh snapshot than to erase its dirty state.
+      if (observedGeneration !== this.optimisticGeneration || snapshot.logicalText !== this.deps.currentDoc()) {
+        await this.resync('empty-composition');
+        return;
+      }
+      this.confirmedRevision = snapshot.revision;
+      this.confirmedHash = snapshot.confirmedHash;
+      this.pendingCount = 0;
+      this.inFlight = null;
+      this.unresolvedOptimistic = false;
+      this.setState('idle');
+    } catch (err) {
+      if (!this.disposed) this.block(err as Error);
+    }
   }
 
   private cancelTimers(): void {
@@ -461,17 +502,33 @@ export class SourceSyncController {
  */
 export function diffText(before: string, after: string): LocalChange[] | null {
   if (before === after) return [];
-  // Longest common prefix / suffix.
+  // Longest common prefix / suffix over Unicode scalar values, while retaining
+  // UTF-16 offsets for CodeMirror/Core. Comparing individual code units would
+  // turn 😀 -> 😁 into a replacement beginning at offset 1 (inside a surrogate
+  // pair), which Core rightly rejects as an invalid UTF-16 boundary.
   let start = 0;
-  const minLen = Math.min(before.length, after.length);
-  while (start < minLen && before[start] === after[start]) start++;
-  let end = 0;
-  while (
-    end < minLen - start &&
-    before[before.length - 1 - end] === after[after.length - 1 - end]
-  ) {
-    end++;
+  while (start < before.length && start < after.length) {
+    const a = before.codePointAt(start);
+    const b = after.codePointAt(start);
+    if (a === undefined || b === undefined || a !== b) break;
+    start += a > 0xffff ? 2 : 1;
   }
-  const insert = after.slice(start, after.length - end);
-  return [{ from: start, to: before.length - end, insert }];
+  let beforeEnd = before.length;
+  let afterEnd = after.length;
+  while (beforeEnd > start && afterEnd > start) {
+    const aStart = scalarStart(before, beforeEnd);
+    const bStart = scalarStart(after, afterEnd);
+    if (before.slice(aStart, beforeEnd) !== after.slice(bStart, afterEnd)) break;
+    beforeEnd = aStart;
+    afterEnd = bStart;
+  }
+  return [{ from: start, to: beforeEnd, insert: after.slice(start, afterEnd) }];
+}
+
+/** Return the start offset of the scalar immediately preceding `end`. */
+function scalarStart(text: string, end: number): number {
+  const previous = text.charCodeAt(end - 1);
+  return previous >= 0xdc00 && previous <= 0xdfff && end >= 2
+    ? end - 2
+    : end - 1;
 }

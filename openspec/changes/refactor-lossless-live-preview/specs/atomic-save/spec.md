@@ -75,6 +75,19 @@ lossless 文档保存 SHALL 只把 Core `prepare_save` 为已确认 revision 产
 - **THEN** 现有文件 autosave 被禁用，普通 Save 不覆盖目标
 - **THEN** 用户只能选择 Save Copy，或在明确风险提示后执行 Force overwrite
 
+#### Scenario: reload 或 close 在 replace 点前丢弃已准备保存
+- **WHEN** revision N 已通过 prepare，且 guarded write 已完成早期 generation 校验与临时文件 fsync
+- **AND** 用户在 native exchange/create 前选择 discard reload 或 close
+- **THEN** Host 在同一 per-session lifecycle mutex 中 revoke 对应 receipt 的 prepare `saveEpoch`，并完成 reload/close 状态迁移
+- **THEN** guarded write 在 replacement-point 最终校验拒绝 N，且磁盘不包含被丢弃的 payload
+- **THEN** 后续 commit 不得把任何新 generation 标记为 N 已持久化
+
+#### Scenario: reload 读盘失败后旧 receipt 仍不得恢复授权
+- **WHEN** revision N 已通过 prepare 并持久化 receipt 的 `saveEpoch`
+- **AND** reload 已取得 lifecycle mutex、revoke N，但随后读取新磁盘内容失败，session generation 因而尚未变化
+- **THEN** guarded write 和 commit 仍必须因 receipt `saveEpoch` 与当前 epoch 不匹配而拒绝 N
+- **THEN** 目标文件、receipt terminal state 与 persisted revision 不得被 N 改写
+
 ### Requirement: 保存操作必须幂等并可恢复不确定结果
 
 每次保存 SHALL 使用唯一 `saveOperationId` 和 durable write receipt。写盘成功后即使 commit 请求或响应丢失，系统 MUST 通过 receipt、prepared payload hash 与磁盘 identity reconcile，而不是再次无条件写盘或把自身写入误判为外部冲突。
@@ -89,6 +102,13 @@ lossless 文档保存 SHALL 只把 Core `prepare_save` 为已确认 revision 产
 - **WHEN** 应用启动时发现状态为 Prepared 或 Written 的 durable receipt
 - **THEN** 系统在允许该路径 autosave 前执行 reconcile
 - **THEN** 无法证明磁盘、payload 和 receipt 一致时进入 conflict 并保留 recovery copy
+
+#### Scenario: 无法解析 receipt 不得回退 legacy 写入
+- **WHEN** 打开路径发现 corrupt、旧 schema、Written 或 Conflict 的未解决 receipt
+- **THEN** 产品显示只含显式 resolve action 的 recovery-only Source surface，并提供 `recoveryPath`（若存在）
+- **THEN** 对 corrupt/旧 schema receipt，产品只提供保留原始证据的 quarantine action，不得伪造 accept/discard 结果
+- **THEN** 产品不得回落到可写 ProseMirror/legacy editor
+- **THEN** legacy `write_file` 入口再次拒绝该路径，直到 durable recovery decision 已记录
 
 #### Scenario: 相同 operation 携带不同 payload
 - **WHEN** 已记录的 `saveOperationId` 以不同 payload hash 重试

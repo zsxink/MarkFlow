@@ -1,0 +1,5 @@
+a26011f4d35756d7dc60eb65166b05ca12b0f87adf313f1b4ec2869e9bd2d70e  openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260817-p1b-epoch-independent-review-337b46cb/ENVIRONMENT.md
+45d42352659204c0302a9ef153bec284e7c7ffde9f6e213b3a07abf4adddb0a2  openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260817-p1b-epoch-independent-review-337b46cb/REVIEW.md
+8f6e04125cbed7ed3ccd6268ccf7fad8f124f4ad017e335e4a5335f63c889b89  openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260817-p1b-epoch-independent-review-337b46cb/RUN.md
+a347a0575a9f1e6b06867e3c652da558fd48ba29993c006b73e0649149e845a2  openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260817-p1b-epoch-independent-review-337b46cb/harness/paste-provenance-boundary.test.ts
+6d825a46e97fb4396525147f5e171156332d7064eb4ad589ebb446cfc22dcf89  openspec/changes/refactor-lossless-live-preview/validation/evidence/P1B/20260817-p1b-epoch-independent-review-337b46cb/harness/vitest.config.ts

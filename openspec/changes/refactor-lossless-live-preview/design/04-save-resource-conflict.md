@@ -42,6 +42,20 @@ Host 暴露单一 `guarded_atomic_write(path, payload/token, expectedFileIdentit
 
 `saveOperationId` 必须幂等。Host 在应用配置目录保存小型 durable receipt：operation ID、目标路径 hash、expected/new identity、payload hash、状态 `Prepared/Written/Committed`，receipt 自身需要原子写与 flush。相同 operation/payload 重试返回原结果；相同 operation 不同 payload 被拒绝。
 
+### 3.1 Save lifecycle lease（reload/close 与 replace 的线性化）
+
+Prepared receipt 还必须绑定 `sessionId/documentId/bindingGeneration` 与 prepare 时捕获的不可重采样
+`saveEpoch`，并在 Host 中取得一个 per-session save lifecycle lease。`reload` 与 `close` 必须持有该
+session 的 lifecycle mutex，原子覆盖 `revoke → read/parse/update` 或 `revoke → remove` 的完整状态迁移；
+guarded write 与 commit 只能从 receipt 恢复相同 `saveEpoch`，并在临时文件 fsync 后、调用 native
+exchange/create 的**最后一跳**持有同一 mutex 重验证 lease、session identity 与 binding generation。若
+revoke 已发生，写入/commit 必须返回 `wrong-identity`，即使 reload 随后读盘失败、generation 尚未变化。
+
+该 lease 不是用前端 promise 顺序替代 Host 校验：前端可等待/取消 in-flight save 改善体验，但 reload/close
+与保存竞争时 Host 的 replacement-point 校验才是数据完整性权威。P1B dispatcher 必须使用确定性 hook 在“早期
+generation 检查已通过、native replace 尚未调用”之间触发 revoke，并分别证明旧 payload 没有到达磁盘；还
+必须覆盖 revoke 后 reload 读盘失败但旧 generation 仍在的情形。
+
 平台竞态语义必须在 P0 ADR 声明：
 
 - 优先使用真正 compare-and-swap；若系统只提供替换，则必须使用能在同一原子操作中保留“替换瞬间旧目标”的 atomic exchange 或 backup-preserving replace；
@@ -97,8 +111,8 @@ Autosave tick 只有在以下条件全部满足时开始：
 
 ## 7. Reload、Close 与切换文档
 
-- Reload：若 dirty，必须先人工决策；干净时关闭旧 session 并从新 disk bytes 建 session。
-- Close：pending 先 flush；blocked 提供复制恢复文本和取消关闭；不得用旧 confirmed snapshot 自动保存。
+- Reload：若 dirty，必须先人工决策；一旦决定 discard/reload，Host 先 revoke save lifecycle lease，再从新 disk bytes 建 session。
+- Close：pending 先 flush；blocked 提供复制恢复文本和取消关闭；close 入口先 revoke save lifecycle lease，不得用旧 confirmed snapshot 自动保存。
 - A→B：先隔离 A 的所有 generation/request，再挂载 B；A 的异步结果只能清理自身资源。
 - Save As：准备新 target identity，默认继承 BOM/EOL，成功后 session 绑定新 file identity。
 - New File：使用明确默认 BOM/EOL；首次保存按 Save As。
@@ -120,5 +134,11 @@ Export 读取一个明确 revision 的 Core snapshot或经过确认的只读 ren
 3. receipt 已 `Committed`：返回原 commit 结果；
 4. 磁盘、receipt、prepared payload 任一不一致：进入 Conflict，保留 recovery copy，不猜测成功；
 5. 应用重启先扫描未终结 receipt，再允许相关路径 autosave。
+
+无法解析、旧 schema 或 Conflict receipt 是路径级安全门：它们不能让产品静默回落到可写 legacy
+ProseMirror/`write_file` 路径。产品必须显示 recovery-only Source surface，列出结构化 receipt（包括
+`recoveryPath`），并由用户明确选择接受已写入版本或保留当前磁盘版本。不可解析/旧 schema receipt 没有可
+诚实解释的 target/outcome，UI 只可执行“隔离不可读 receipt”动作：将原始证据 durable 地移入受控 quarantine
+目录后才解除全局安全门；同一恢复门在 legacy `write_file` 入口再次执行，避免双 owner 期间绕过。
 
 写盘 revision N 后产生的 N+1 输入不参与 N 的 file identity 判断。N commit 只更新 `persistedRevision=N`；N+1 patch/ack 继续按 session/document/revision identity 处理。

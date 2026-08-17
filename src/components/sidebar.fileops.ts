@@ -21,6 +21,7 @@ import {
 } from '../lib/imageUtils';
 import {
   closeLosslessActiveDocument,
+  isLosslessOpenRecoveryBlocked,
   isLosslessActiveDoc,
   openLosslessDocument,
   reloadLosslessActiveDocument,
@@ -368,6 +369,10 @@ export async function openFileInEditor(path: string) {
       resetEditorScroll();
       refreshOutline();
       showToast('已打开文件');
+      return;
+    }
+    if (isLosslessOpenRecoveryBlocked()) {
+      showToast('保存恢复尚未完成：已阻止使用旧编辑器写入该文件');
       return;
     }
     // Lossless open failed → dispose any stale binding, then fall through to

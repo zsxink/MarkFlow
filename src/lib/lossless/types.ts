@@ -96,6 +96,20 @@ export interface ReconcileResponse {
   newFileIdentity: FileIdentity | null;
 }
 
+/** An unresolved durable save surfaced after startup; resolution is explicit. */
+export interface StartupRecoveryItem {
+  saveOperationId: string;
+  path: string;
+  state: string;
+  sessionId: number;
+  documentId: number;
+  revision: number;
+  payloadSha256: string;
+  recoveryPath: string | null;
+  /** Opaque/old-schema durable receipt: only an explicit quarantine action is safe. */
+  requiresQuarantine: boolean;
+}
+
 /** `flush_document_session` */
 export interface FlushResult {
   revision: number;

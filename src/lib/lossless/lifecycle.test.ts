@@ -34,6 +34,10 @@ const state = vi.hoisted(() => ({
   /** Reject next patch before mutating Core, forcing controller resync. */
   rejectPatchStaleOnce: false,
   rejectPatchIoAlways: false,
+  /** Reject the next reload before its mock Core session is mutated. */
+  failReloadOnce: false,
+  openSafetyErrorOnce: false,
+  recoveryRequiresQuarantine: false,
 }));
 
 vi.mock('@tauri-apps/api/core', async () => {
@@ -57,6 +61,10 @@ vi.mock('@tauri-apps/api/core', async () => {
       const req = args.req ?? args;
       switch (cmd) {
         case 'open_lossless_document': {
+          if (sessionState.openSafetyErrorOnce) {
+            sessionState.openSafetyErrorOnce = false;
+            throw { code: 'save-outcome-unknown', message: 'unresolved receipt' };
+          }
           const content = await nodeFsMod.readFile(req.path, 'utf8');
           const logicalText = readLogical(content);
           const sessionId = sessionState.nextSession++;
@@ -228,6 +236,10 @@ vi.mock('@tauri-apps/api/core', async () => {
           return null;
         }
         case 'reload_lossless_document': {
+          if (sessionState.failReloadOnce) {
+            sessionState.failReloadOnce = false;
+            throw { code: 'io', message: 'injected reload read/parse failure' };
+          }
           const content = await nodeFsMod.readFile(req.path, 'utf8');
           const session = sessionState.sessions.get(req.sessionId);
           if (!session) throw { code: 'session-missing', message: 'missing' };
@@ -251,6 +263,18 @@ vi.mock('@tauri-apps/api/core', async () => {
           sessionState.sessions.delete(req.sessionId);
           return null;
         }
+        case 'list_startup_recovery':
+          return [{
+            saveOperationId: '00000000-0000-4000-8000-000000000001',
+            path: req?.path ?? '',
+            state: 'conflict',
+            sessionId: 1,
+            documentId: 1,
+            revision: 1,
+            payloadSha256: 'test',
+            recoveryPath: '/recovery-copy.md',
+            requiresQuarantine: sessionState.recoveryRequiresQuarantine,
+          }];
         // Legacy file commands (used by surrounding UI).
         case 'load_settings':
           return { ...DEFAULT_SETTINGS };
@@ -272,7 +296,7 @@ vi.mock('@tauri-apps/api/core', async () => {
 });
 
 // Real modules — imported after the mock.
-import { openLosslessDocument, saveLosslessActiveDocument, closeLosslessActiveDocument, reloadLosslessActiveDocument } from './integration';
+import { openLosslessDocument, saveLosslessActiveDocument, closeLosslessActiveDocument, reloadLosslessActiveDocument, isLosslessOpenRecoveryBlocked } from './integration';
 import { setLosslessCoreSessionEnabled } from './flag';
 import { getActiveLosslessBinding, setActiveLosslessBinding } from './registry';
 import { store } from '../store';
@@ -308,6 +332,9 @@ beforeEach(async () => {
   state.loseWriteResponseAfterMutationOnce = false;
   state.rejectPatchStaleOnce = false;
   state.rejectPatchIoAlways = false;
+  state.failReloadOnce = false;
+  state.openSafetyErrorOnce = false;
+  state.recoveryRequiresQuarantine = false;
   setLosslessCoreSessionEnabled(true);
   setActiveLosslessBinding(null);
   store.setState({ dirty: false, activeFilePath: null, mode: 'source' });
@@ -329,6 +356,41 @@ async function stageFixture(id: string): Promise<{ dest: string; original: Buffe
 }
 
 describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
+  it('unresolved receipt keeps a recovery-only Source surface instead of legacy fallback', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    state.openSafetyErrorOnce = true;
+    expect(await openLosslessDocument(dest)).toBe(false);
+    expect(isLosslessOpenRecoveryBlocked()).toBe(true);
+    expect(document.querySelector('[data-testid="lossless-startup-recovery"]')).not.toBeNull();
+    expect(document.getElementById('wysiwyg-editor')?.hidden ?? true).toBe(true);
+  });
+
+  it('old-schema receipt exposes only the explicit quarantine recovery action', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    state.openSafetyErrorOnce = true;
+    state.recoveryRequiresQuarantine = true;
+    expect(await openLosslessDocument(dest)).toBe(false);
+
+    const panel = document.querySelector('[data-testid="lossless-startup-recovery"]')!;
+    const quarantine = Array.from(panel.querySelectorAll('button')).find(
+      (button) => button.textContent === '隔离不可读收据并继续',
+    ) as HTMLButtonElement | undefined;
+    expect(quarantine).toBeDefined();
+    expect(panel.textContent).not.toContain('确认保留已写入版本');
+    expect(panel.textContent).not.toContain('保留当前磁盘版本');
+
+    quarantine!.click();
+    await Promise.resolve();
+    const core = await import('@tauri-apps/api/core');
+    expect(vi.mocked(core.invoke)).toHaveBeenCalledWith('resolve_startup_recovery', {
+      req: {
+        saveOperationId: '00000000-0000-4000-8000-000000000001',
+        action: 'quarantine-invalid-receipt',
+      },
+    });
+    expect(panel.textContent).toContain('不可读收据已隔离保留');
+  });
+
   it('zero-edit open → clean; two autosave ticks → no write; close no prompt; no serializer/PM calls', async () => {
     const { dest, original } = await stageFixture('utf8-lf-tail2');
     const origMtime = (await nodeFs.stat(dest)).mtimeMs;
@@ -423,6 +485,51 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     expect(reloaded).toBe(true);
     expect(getActiveLosslessBinding()!.isDirty()).toBe(false);
     expect(state.writeCount).toBe(0);
+  });
+
+  it('reload read/parse failure keeps the existing binding operational for edit, save, and close', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    const before = binding.logicalText;
+
+    state.failReloadOnce = true;
+    expect(await reloadLosslessActiveDocument(dest, 'lf', { discard: true })).toBe(false);
+    expect(getActiveLosslessBinding()).toBe(binding);
+    expect(binding.isDisposed()).toBe(false);
+    expect(binding.logicalText).toBe(before);
+
+    // A failed Host reload must not leave the visible CM editor attached to a
+    // disposed SourceSyncController. Subsequent input reaches the old Core
+    // session and can still be durably saved and closed.
+    binding.typeAtCursor('after-reload-failure-');
+    await sleep(90);
+    expect(binding.pipelineState).toBe('idle');
+    expect(binding.isDirty()).toBe(true);
+    expect(await saveLosslessActiveDocument({ interactive: false })).toBe('saved');
+    expect(binding.isDirty()).toBe(false);
+    await closeLosslessActiveDocument();
+    expect(state.sessions.has(binding.sessionId)).toBe(false);
+  });
+
+  it('dirty discard reload failure retains existing pending text and remains saveable', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    binding.typeAtCursor('before-failed-reload-');
+    await sleep(90);
+    expect(binding.isDirty()).toBe(true);
+
+    state.failReloadOnce = true;
+    expect(await reloadLosslessActiveDocument(dest, 'lf', { discard: true })).toBe(false);
+    expect(binding.logicalText).toContain('before-failed-reload-');
+    binding.typeAtCursor('after-failed-reload-');
+    await sleep(90);
+    expect(binding.pipelineState).toBe('idle');
+    expect(await saveLosslessActiveDocument({ interactive: false })).toBe('saved');
+    const saved = await nodeFs.readFile(dest, 'utf8');
+    expect(saved).toContain('before-failed-reload-');
+    expect(saved).toContain('after-failed-reload-');
   });
 
   it('A/B switch: disposing A leaves B untouched and clean', async () => {
@@ -536,6 +643,71 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     const patch = state.sessions.get(binding.sessionId).lastPatch;
     expect(patch.changes[0].insertedLogicalText).toBe(raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
     expect(patch.changes[0].insertedLineEndings).toEqual(expected);
+  });
+
+  it('retains explicit paste EOL provenance through a forced stale-resync', async () => {
+    const { dest } = await stageFixture('utf8-mixed-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    state.rejectPatchStaleOnce = true;
+    binding.pasteRawAtCursor('a\r\nb\r');
+    await sleep(140);
+    const patch = state.sessions.get(binding.sessionId).lastPatch;
+    expect(patch.changes[0].insertedLogicalText).toBe('a\nb\n');
+    expect(patch.changes[0].insertedLineEndings).toEqual(['crlf', 'cr']);
+    expect(binding.pipelineState).toBe('idle');
+  });
+
+  it('retains every pasted CRLF/CR EOL through immediate boundary/internal edits and stale resync', async () => {
+    const { dest } = await stageFixture('utf8-mixed-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    const view = (binding as any).editor.view;
+    const raw = 'a\r\nb\rc\r\n';
+    state.rejectPatchStaleOnce = true;
+    binding.pasteRawAtCursor(raw);
+
+    // All dispatches happen in the batch window. They exercise start, inside,
+    // and end boundary mapping, deletion within the pasted span, and a
+    // composition-tagged CM transaction. The pasted LF annotations—not their
+    // original string offsets—must survive into the rebased Core patch.
+    view.dispatch({ changes: { from: 0, to: 0, insert: 'start-' } });
+    let text = view.state.doc.toString();
+    const firstBreak = text.indexOf('\n');
+    view.dispatch({
+      changes: { from: firstBreak + 1, to: firstBreak + 1, insert: 'inside-' },
+      annotations: (await import('@codemirror/state')).Transaction.userEvent.of('input.type.compose'),
+    });
+    text = view.state.doc.toString();
+    const pastedC = text.indexOf('c');
+    view.dispatch({ changes: { from: pastedC, to: pastedC + 1, insert: '' } });
+    text = view.state.doc.toString();
+    const finalBreak = text.indexOf('\n', text.indexOf('\n', text.indexOf('\n') + 1) + 1);
+    view.dispatch({ changes: { from: finalBreak + 1, to: finalBreak + 1, insert: 'end-' } });
+
+    await sleep(150);
+    const patch = state.sessions.get(binding.sessionId).lastPatch;
+    expect(patch.changes[0].insertedLogicalText).toContain('start-a\ninside-b\n\nend-');
+    expect(patch.changes[0].insertedLineEndings).toEqual(['crlf', 'cr', 'crlf']);
+    expect(binding.pipelineState).toBe('idle');
+  });
+
+  it('drops provenance only when its pasted LF is deleted, never leaking it to a replacement newline', async () => {
+    const { dest } = await stageFixture('utf8-mixed-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    const view = (binding as any).editor.view;
+    binding.pasteRawAtCursor('a\r\nb');
+
+    // The LF from the paste is deliberately deleted. A later LF at the same
+    // offset is new user input and must inherit rather than accidentally keep
+    // the removed clipboard CRLF annotation.
+    view.dispatch({ changes: { from: 1, to: 2, insert: '' } });
+    view.dispatch({ changes: { from: 1, to: 1, insert: '\n' } });
+    await sleep(90);
+    const patch = state.sessions.get(binding.sessionId).lastPatch;
+    expect(patch.changes[0].insertedLogicalText).toContain('a\nb');
+    expect(patch.changes[0].insertedLineEndings).toEqual(['inherit']);
   });
 });
 

@@ -13,7 +13,7 @@
 //     drops stale responses, design 02 §9).
 
 import { invoke } from '@tauri-apps/api/core';
-import type { ChangeSet, Transaction } from '@codemirror/state';
+import { MapMode, type ChangeSet, type Transaction } from '@codemirror/state';
 import { store } from '../store';
 import type {
   BridgeTextPatch,
@@ -50,7 +50,17 @@ export class EditorSurfaceBinding {
   private editor: LosslessSourceEditorHandle;
   private controller: SourceSyncController;
   private pendingChangeSets: ChangeSet[] = [];
-  private pendingPasteProvenance: Array<{ logicalText: string; endings: Array<'lf' | 'crlf' | 'cr'> }> = [];
+  /** Browser paste event observed before CodeMirror normalizes EOLs. */
+  private pendingRawPasteProvenance: Array<{ logicalText: string; endings: Array<'lf' | 'crlf' | 'cr'> }> = [];
+  /**
+   * Explicit paste EOLs anchored to their individual LF character in the
+   * optimistic CodeMirror document. A range plus its original paste string is
+   * insufficient: typing at a range boundary changes the paste-relative
+   * offset, even though the pasted LF itself is still present. Individual
+   * anchors are mapped through every ChangeSet and are discarded only when
+   * that actual LF is replaced/deleted.
+   */
+  private pasteProvenance: Array<{ position: number; ending: 'lf' | 'crlf' | 'cr' }> = [];
   private programmaticDispatch = false;
   private saving = false;
   private disposed = false;
@@ -114,6 +124,7 @@ export class EditorSurfaceBinding {
       composePending: () => binding!.composePending(),
       currentDoc: () => binding!.editor.doc(),
       discardPending: () => binding!.discardPendingChanges(),
+      annotateChanges: (changes) => binding!.annotatePasteProvenance(changes),
       onStateChange: (state) => {
         binding?.syncDirty();
         onStateChange?.(state);
@@ -162,26 +173,10 @@ export class EditorSurfaceBinding {
     }
     this.pendingChangeSets = [];
     const changes: LocalChange[] = [];
-    composed.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-      changes.push({ from: fromA, to: toA, insert: inserted.toString() });
+    composed.iterChanges((fromA, toA, fromB, _toB, inserted) => {
+      changes.push({ from: fromA, to: toA, fromAfter: fromB, insert: inserted.toString() });
     });
-    // Attach raw clipboard EOLs to their normalized logical insertion. A paste
-    // may batch with adjacent typing, so annotate the exact contained slice
-    // rather than assuming the whole ChangeSet is clipboard data.
-    for (const provenance of this.pendingPasteProvenance) {
-      for (const change of changes) {
-        const at = change.insert.indexOf(provenance.logicalText);
-        if (at < 0) continue;
-        const logicalBreaksBefore = (change.insert.slice(0, at).match(/\n/g) ?? []).length;
-        const totalBreaks = (change.insert.match(/\n/g) ?? []).length;
-        const endings = Array<'inherit' | 'lf' | 'crlf' | 'cr'>(totalBreaks).fill('inherit');
-        endings.splice(logicalBreaksBefore, provenance.endings.length, ...provenance.endings);
-        change.insertedLineEndings = endings;
-        break;
-      }
-    }
-    this.pendingPasteProvenance = [];
-    return changes;
+    return this.annotatePasteProvenance(changes);
   }
 
   private recordRawPaste(rawText: string): void {
@@ -190,10 +185,66 @@ export class EditorSurfaceBinding {
       endings.push(eol === '\r\n' ? 'crlf' : eol === '\r' ? 'cr' : 'lf');
     }
     if (endings.length === 0) return;
-    this.pendingPasteProvenance.push({
+    this.pendingRawPasteProvenance.push({
       logicalText: rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n'),
       endings,
     });
+  }
+
+  private annotatePasteProvenance(changes: LocalChange[]): LocalChange[] {
+    return changes.map((change) => {
+      const insertionStart = change.fromAfter ?? change.from;
+      const endings = Array<'inherit' | 'lf' | 'crlf' | 'cr'>(
+        (change.insert.match(/\n/g) ?? []).length,
+      ).fill('inherit');
+      let breakIndex = 0;
+      for (let offset = 0; offset < change.insert.length; offset++) {
+        if (change.insert[offset] !== '\n') continue;
+        const absolute = insertionStart + offset;
+        const provenance = this.pasteProvenance.find((item) => item.position === absolute);
+        if (provenance) {
+          endings[breakIndex] = provenance.ending;
+        }
+        breakIndex++;
+      }
+      return endings.some((ending) => ending !== 'inherit')
+        ? { ...change, insertedLineEndings: endings }
+        : change;
+    });
+  }
+
+  private mapPasteProvenance(changes: ChangeSet): void {
+    this.pasteProvenance = this.pasteProvenance
+      .flatMap((item) => {
+        // `TrackAfter` follows an insertion immediately before the LF (the
+        // normal "type at line start" case), but returns null when the LF
+        // character itself is deleted/replaced. This prevents stale clipboard
+        // provenance from contaminating a later, unrelated newline.
+        const position = changes.mapPos(item.position, 1, MapMode.TrackAfter);
+        return position === null ? [] : [{ ...item, position }];
+      });
+  }
+
+  private bindRawPasteToTransaction(changes: ChangeSet): void {
+    const raw = this.pendingRawPasteProvenance.shift();
+    if (!raw) return;
+    const matches: Array<{ from: number; to: number }> = [];
+    changes.iterChanges((_fromA, _toA, fromB, toB, inserted) => {
+      // Exact transaction attachment is intentional. `indexOf` would attach a
+      // clipboard EOL family to unrelated typed text after a resync/rebase.
+      if (matches.length === 0 && inserted.toString() === raw.logicalText) {
+        matches.push({ from: fromB, to: toB });
+      }
+    });
+    const range = matches[0];
+    if (range) {
+      let endingIndex = 0;
+      for (let offset = 0; offset < raw.logicalText.length; offset++) {
+        if (raw.logicalText[offset] !== '\n') continue;
+        const ending = raw.endings[endingIndex++];
+        if (ending) this.pasteProvenance.push({ position: range.from + offset, ending });
+      }
+    }
   }
 
   private discardPendingChanges(): void {
@@ -206,7 +257,11 @@ export class EditorSurfaceBinding {
   private handleTransactions(transactions: readonly Transaction[]): void {
     if (this.disposed || this.programmaticDispatch) return;
     for (const tr of transactions) {
-      if (tr.docChanged) this.pendingChangeSets.push(tr.changes);
+      if (tr.docChanged) {
+        this.mapPasteProvenance(tr.changes);
+        this.bindRawPasteToTransaction(tr.changes);
+        this.pendingChangeSets.push(tr.changes);
+      }
     }
     // Never drop input: the controller accumulates; the cap forces a flush.
     this.controller.onUserEdit();
@@ -503,13 +558,29 @@ export class EditorSurfaceBinding {
 
   async reload(path: string, defaultEol = 'lf'): Promise<void> {
     if (this.disposed) return;
-    // Pause the pipeline; the reload resets confirmed/persisted to revision 0.
+    // Reload changes Core's binding generation. Keep the existing controller
+    // and queued CM changes alive until the Host has successfully constructed
+    // that new image. Otherwise a read/UTF-8 failure would strand the visible
+    // editor with a disposed controller and no way to save/recover its text.
+    this.editor.setReadOnly(true);
+    let reloaded: LosslessOpenResponse;
+    try {
+      reloaded = await invoke<LosslessOpenResponse>('reload_lossless_document', {
+        req: { sessionId: this.sessionId, path, defaultEol },
+      });
+    } catch (error) {
+      this.editor.setReadOnly(false);
+      this.syncDirty();
+      throw error;
+    }
+
+    // Host transition succeeded. It is now safe to retire the former
+    // controller and discard its ChangeSets; Core has invalidated its binding
+    // generation and the editor will be replaced from the returned snapshot.
     this.controller.dispose();
     this.pendingChangeSets = [];
-    this.pendingPasteProvenance = [];
-    const reloaded = await invoke<LosslessOpenResponse>('reload_lossless_document', {
-      req: { sessionId: this.sessionId, path, defaultEol },
-    });
+    this.pendingRawPasteProvenance = [];
+    this.pasteProvenance = [];
     this.path = path;
     this.bindingGeneration = reloaded.bindingGeneration;
     this.original = reloaded.original;
@@ -536,7 +607,10 @@ export class EditorSurfaceBinding {
       composePending: () => this.composePending(),
       currentDoc: () => this.editor.doc(),
       discardPending: () => this.discardPendingChanges(),
+      annotateChanges: (changes) => this.annotatePasteProvenance(changes),
     });
+    this.editor.setReadOnly(false);
+    this.syncDirty();
   }
 
   // ── Close / disposal ────────────────────────────────────────────────
@@ -546,6 +620,8 @@ export class EditorSurfaceBinding {
     this.disposed = true;
     this.controller.dispose();
     this.pendingChangeSets = [];
+    this.pendingRawPasteProvenance = [];
+    this.pasteProvenance = [];
     this.editor.destroy();
     try {
       await invoke('close_lossless_document', { req: { sessionId: this.sessionId } });

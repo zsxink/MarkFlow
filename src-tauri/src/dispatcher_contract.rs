@@ -467,7 +467,14 @@ fn bridge_prepared_save_cannot_cross_reload_generation_write_or_commit() {
     let st = app.state::<AppState>();
     apply_document_patch(
         PatchRequest {
-            patch: bridge_patch(session_id, document_id, 1, 2, 0, vec![lf_change(0, 5, "fresh+")]),
+            patch: bridge_patch(
+                session_id,
+                document_id,
+                1,
+                2,
+                0,
+                vec![lf_change(0, 5, "fresh+")],
+            ),
         },
         st,
     )
@@ -479,7 +486,7 @@ fn bridge_prepared_save_cannot_cross_reload_generation_write_or_commit() {
             document_id: markflow_core::DocumentId(document_id),
             persisted_revision: 1,
             new_file_identity: bridge_identity_of(&path),
-            save_operation_id: op_id,
+            save_operation_id: op_id.clone(),
         },
         st,
     );
@@ -505,6 +512,231 @@ fn bridge_prepared_save_cannot_cross_reload_generation_write_or_commit() {
 
     eprintln!(
         "[dispatcher] bridge_prepared_save_cannot_cross_reload_generation_write_or_commit ok"
+    );
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_failed_reload_still_revokes_prepared_epoch_before_write_or_commit() {
+    // A reload may fail after it has won the lifecycle transition lock (for
+    // example the file vanished). Its binding generation remains 0, so this
+    // specifically proves the durable receipt epoch—not just generation—is
+    // required to keep the old payload from being re-authorized.
+    let app = build_app();
+    let dir = temp_dir("lossless-failed-reload-epoch");
+    let path = dir.join("doc.md");
+    fs::write(&path, "old").unwrap();
+    let path_s = path.to_string_lossy().to_string();
+    let op_id = operation_id(63);
+
+    let st = app.state::<AppState>();
+    let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+    let identity = bridge_identity_of(&path);
+    let st = app.state::<AppState>();
+    apply_document_patch(
+        PatchRequest {
+            patch: bridge_patch(
+                opened.session_id,
+                opened.document_id,
+                0,
+                1,
+                0,
+                vec![lf_change(0, 3, "stale")],
+            ),
+        },
+        st,
+    )
+    .expect("edit");
+    let st = app.state::<AppState>();
+    let prepared = prepare_document_save(
+        PrepareSaveRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+            document_id: markflow_core::DocumentId(opened.document_id),
+            binding_generation: 0,
+            expected_revision: 1,
+            expected_file_identity: Some(identity.clone()),
+            save_operation_id: op_id.clone(),
+            path: path_s.clone(),
+        },
+        st,
+    )
+    .expect("prepare");
+
+    let missing = dir.join("was-deleted.md");
+    let st = app.state::<AppState>();
+    assert_eq!(
+        reload_lossless_document(
+            ReloadDocumentRequest {
+                session_id: markflow_core::SessionId(opened.session_id),
+                path: missing.to_string_lossy().to_string(),
+                default_eol: "lf".into(),
+            },
+            st,
+        )
+        .map_err(|error| error.code)
+        .unwrap_err(),
+        "io"
+    );
+
+    // Session is still generation 0 after the failed read, but the exact
+    // prepare epoch is irrevocably invalidated.
+    let st = app.state::<AppState>();
+    let stale_write = guarded_atomic_write(
+        GuardedWriteRequest {
+            path: path_s.clone(),
+            payload_base64: prepared.payload_base64,
+            expected_file_identity: Some(identity.clone()),
+            save_operation_id: op_id.clone(),
+        },
+        st,
+    );
+    assert_eq!(
+        stale_write.map_err(|error| error.code).unwrap_err(),
+        "wrong-identity"
+    );
+    assert_eq!(fs::read_to_string(&path).unwrap(), "old");
+
+    // A forged/lost-response commit is likewise refused before the receipt or
+    // Core persisted revision can be changed.
+    let st = app.state::<AppState>();
+    let stale_commit = commit_document_save(
+        CommitSaveRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+            document_id: markflow_core::DocumentId(opened.document_id),
+            persisted_revision: 1,
+            new_file_identity: identity,
+            save_operation_id: op_id,
+        },
+        st,
+    );
+    assert_eq!(
+        stale_commit.map_err(|error| error.code).unwrap_err(),
+        "wrong-identity"
+    );
+    let st = app.state::<AppState>();
+    assert_eq!(
+        get_document_snapshot(
+            SessionRequest {
+                session_id: markflow_core::SessionId(opened.session_id),
+            },
+            st,
+        )
+        .unwrap()
+        .persisted_revision,
+        Some(markflow_core::Revision(0))
+    );
+
+    // A newly prepared epoch can be captured after the failed reload, but an
+    // actual close transition revokes it and removes the session before its
+    // native write point.
+    let close_op = operation_id(64);
+    let st = app.state::<AppState>();
+    let close_prepared = prepare_document_save(
+        PrepareSaveRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+            document_id: markflow_core::DocumentId(opened.document_id),
+            binding_generation: 0,
+            expected_revision: 1,
+            expected_file_identity: Some(bridge_identity_of(&path)),
+            save_operation_id: close_op.clone(),
+            path: path_s.clone(),
+        },
+        st,
+    )
+    .expect("prepare current epoch before close");
+    let st = app.state::<AppState>();
+    close_lossless_document(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("close");
+    let st = app.state::<AppState>();
+    let closed_write = guarded_atomic_write(
+        GuardedWriteRequest {
+            path: path_s,
+            payload_base64: close_prepared.payload_base64,
+            expected_file_identity: Some(bridge_identity_of(&path)),
+            save_operation_id: close_op,
+        },
+        st,
+    );
+    assert!(matches!(
+        closed_write,
+        Err(error) if error.code == "wrong-identity" || error.code == "session-missing"
+    ));
+    assert_eq!(fs::read_to_string(&path).unwrap(), "old");
+    eprintln!(
+        "[dispatcher] bridge_failed_reload_still_revokes_prepared_epoch_before_write_or_commit ok"
+    );
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_replacement_point_lifecycle_revocation_never_writes_discarded_payload() {
+    // The deterministic hook fires after guarded_write has passed its first
+    // generation check and fsynced the temp file, but before native exchange.
+    // It uses the same registry revocation that reload/close call at their
+    // entrance, closing the former check-to-replace window.
+    let app = build_app();
+    let dir = temp_dir("lossless-replace-point-revoke");
+    let path = dir.join("doc.md");
+    fs::write(&path, "old").unwrap();
+    let path_s = path.to_string_lossy().to_string();
+    let op_id = operation_id(61);
+    let st = app.state::<AppState>();
+    let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+    let identity = bridge_identity_of(&path);
+    let st = app.state::<AppState>();
+    apply_document_patch(
+        PatchRequest {
+            patch: bridge_patch(
+                opened.session_id,
+                opened.document_id,
+                0,
+                1,
+                0,
+                vec![lf_change(0, 3, "discarded")],
+            ),
+        },
+        st,
+    )
+    .expect("edit");
+    let st = app.state::<AppState>();
+    let prepared = prepare_document_save(
+        PrepareSaveRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+            document_id: markflow_core::DocumentId(opened.document_id),
+            binding_generation: 0,
+            expected_revision: 1,
+            expected_file_identity: Some(identity.clone()),
+            save_operation_id: op_id.clone(),
+            path: path_s.clone(),
+        },
+        st,
+    )
+    .expect("prepare");
+    crate::lossless::guarded_write::inject_lifecycle_revocation_before_replace_once();
+    let st = app.state::<AppState>();
+    let rejected = guarded_atomic_write(
+        GuardedWriteRequest {
+            path: path_s,
+            payload_base64: prepared.payload_base64,
+            expected_file_identity: Some(identity),
+            save_operation_id: op_id.clone(),
+        },
+        st,
+    );
+    assert_eq!(
+        rejected.map_err(|error| error.code).unwrap_err(),
+        "wrong-identity"
+    );
+    assert_eq!(fs::read_to_string(&path).unwrap(), "old");
+    assert_eq!(
+        receipt_recovery_path(&op_id),
+        None,
+        "a lease rejection before exchange must not mislabel app payload as displaced recovery"
     );
     fs::remove_dir_all(&dir).ok();
 }
@@ -1134,6 +1366,19 @@ fn bridge_uncommitted_written_receipt_blocks_new_prepare_until_reconciled() {
     )
     .expect("write without commit");
 
+    // The legacy command is intentionally guarded too. An unresolved receipt
+    // must not be bypassed by falling back from a failed lossless open to the
+    // old writable WYSIWYG path.
+    let st = app.state::<AppState>();
+    let legacy_bypass = write_file(path_s.clone(), "unsafe legacy overwrite".into(), st);
+    assert!(legacy_bypass
+        .expect_err("legacy write must respect unresolved lossless receipt")
+        .starts_with("save-outcome-unknown:"),);
+    assert_ne!(
+        fs::read_to_string(&path).unwrap(),
+        "unsafe legacy overwrite"
+    );
+
     let st = app.state::<AppState>();
     let blocked = prepare_document_save(
         PrepareSaveRequest {
@@ -1259,6 +1504,17 @@ fn bridge_receipt_write_failure_after_exchange_retains_displaced_recovery_copy()
     );
     assert_eq!(receipt_state, "conflict");
 
+    // The fallback Conflict receipt remains a structured startup-recovery
+    // item. Losing the Written receipt must not orphan the displaced bytes.
+    let st = app.state::<AppState>();
+    let recovery = list_startup_recovery(st)
+        .into_iter()
+        .find(|item| item.save_operation_id == op_id)
+        .expect("post-exchange receipt failure must be surfaced on startup");
+    assert_eq!(recovery.state, "conflict");
+    let canonical_tmp = tmp.canonicalize().expect("canonical recovery temp path");
+    assert_eq!(recovery.recovery_path.as_deref(), canonical_tmp.to_str());
+
     // A subsequent reconcile classifies it Conflict, and the target stays gated.
     let st = app.state::<AppState>();
     let reconciled = reconcile_document_save(op_id.clone(), st).expect("reconcile");
@@ -1379,16 +1635,17 @@ fn bridge_recovery_copy_survives_until_commit_then_is_finalized() {
         st,
     )
     .expect("commit");
-    assert!(!tmp.exists(), "commit must finalize the displaced recovery copy");
+    assert!(
+        !tmp.exists(),
+        "commit must finalize the displaced recovery copy"
+    );
     assert_eq!(
         receipt_recovery_path(&op_id).as_deref(),
         None,
         "the Committed receipt no longer references a recovery copy"
     );
 
-    eprintln!(
-        "[dispatcher] bridge_recovery_copy_survives_until_commit_then_is_finalized ok"
-    );
+    eprintln!("[dispatcher] bridge_recovery_copy_survives_until_commit_then_is_finalized ok");
     fs::remove_dir_all(&dir).ok();
 }
 
@@ -1460,7 +1717,10 @@ fn bridge_startup_recovery_list_exposes_structured_items_and_accept_written_lift
     assert_eq!(item.document_id, opened.document_id);
     assert_eq!(item.revision, 1);
     assert_eq!(item.path, path.canonicalize().unwrap().to_string_lossy());
-    assert!(item.recovery_path.is_some(), "Written receipt retains recovery path");
+    assert!(
+        item.recovery_path.is_some(),
+        "Written receipt retains recovery path"
+    );
 
     // Host gate is active until the terminal decision is recorded.
     let st = app.state::<AppState>();
@@ -1597,6 +1857,78 @@ fn bridge_startup_recovery_discard_recovery_lifts_conflict_gate() {
 
     eprintln!("[dispatcher] bridge_startup_recovery_discard_recovery_lifts_conflict_gate ok");
     fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_old_schema_receipt_is_actionable_in_recovery_ui_and_quarantined_durably() {
+    // P1B final-review P0: an older/unreadable receipt remains a global Host
+    // gate, but it must expose a safe, executable recovery action rather than
+    // silently falling into WYSIWYG/legacy write_file. The action only moves
+    // opaque evidence inside the controlled receipt store; it never guesses
+    // the historical target or outcome.
+    let app = build_app();
+    let dir = temp_dir("startup-recovery-old-schema");
+    let path = dir.join("doc.md");
+    fs::write(&path, "body").unwrap();
+    let path_s = path.to_string_lossy().to_string();
+
+    let receipt_dir = crate::lossless::guarded_write::receipts_dir();
+    fs::create_dir_all(&receipt_dir).unwrap();
+    let legacy_receipt = receipt_dir.join("legacy-v0.json");
+    let legacy_bytes = br#"{\"schemaVersion\":0,\"legacy\":true}"#;
+    fs::write(&legacy_receipt, legacy_bytes).unwrap();
+    assert!(crate::lossless::guarded_write::receipt_store_has_corruption());
+
+    // The global safety gate blocks normal lossless open rather than allowing
+    // an undecodable receipt to be ignored.
+    let st = app.state::<AppState>();
+    assert_eq!(
+        open_lossless_document(open_req(&path_s), st)
+            .map_err(|error| error.code)
+            .unwrap_err(),
+        "save-outcome-unknown"
+    );
+
+    let st = app.state::<AppState>();
+    let items: Vec<StartupRecoveryItem> = list_startup_recovery(st);
+    let item = items
+        .iter()
+        .find(|item| item.state == "unreadable-receipt")
+        .expect("old-schema receipt must have a structured recovery row");
+    assert!(item.requires_quarantine);
+    assert!(item.save_operation_id.len() == 36);
+
+    let st = app.state::<AppState>();
+    resolve_startup_recovery(
+        ResolveStartupRecoveryRequest {
+            save_operation_id: item.save_operation_id.clone(),
+            action: "quarantine-invalid-receipt".into(),
+        },
+        st,
+    )
+    .expect("explicit quarantine action must be executable");
+
+    assert!(
+        !crate::lossless::guarded_write::receipt_store_has_corruption(),
+        "quarantined receipt is no longer an active global gate"
+    );
+    let quarantined = receipt_dir
+        .join("quarantined-invalid")
+        .join(format!("{}.json", item.save_operation_id));
+    assert_eq!(fs::read(&quarantined).unwrap(), legacy_bytes);
+    assert!(
+        !legacy_receipt.exists(),
+        "the active receipt root no longer contains the unreadable file"
+    );
+
+    let st = app.state::<AppState>();
+    assert!(
+        open_lossless_document(open_req(&path_s), st).is_ok(),
+        "after explicit recovery, the normal lossless open gate is lifted"
+    );
+    eprintln!("[dispatcher] bridge_old_schema_receipt_is_actionable_in_recovery_ui_and_quarantined_durably ok");
+    fs::remove_dir_all(&dir).ok();
+    fs::remove_dir_all(&receipt_dir).ok();
 }
 
 fn receipt_was_written(op_id: &str, expected_state: &str) -> bool {

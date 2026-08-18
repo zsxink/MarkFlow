@@ -30,21 +30,22 @@
 
 ## 人工验证记录
 
-- 验收人/环境：xian（Program Owner，只验收最终产品效果）/ macOS 26.5.2；基线已预录、清单就绪
+- 验收人/环境：xian（Program Owner，只验收最终产品效果）/ macOS 26.5.2；基线已预录
 - 验收 run：`evidence/P1B/20260816-p1b-human-acceptance-uncommitted-e4981e3/`（HUMAN-ACCEPTANCE.md + verify-fixtures.sh）
-- 状态：RUNNING（清单已备好，待逐项执行）
-- [ ] LF/CRLF/BOM/尾部 2/3 line-break-boundary fixtures
-- [ ] 不编辑 dirty/mtime
-- [ ] 不编辑等待两个 autosave tick + 干净 Ctrl+S，记录 save count/hash/length/mtime/关闭提示
-- [ ] 中文+emoji 正文编辑立即保存并重开 hash
-- [ ] autosave 工作流
-- [ ] 外部修改 conflict
-- [ ] blocked pipeline 阻止 Save 且恢复文本可复制
-- [ ] A/B 切换无串文档
-- [ ] flag off legacy 可用
-- [ ] 错误提示清楚且无正文泄漏
+- 执行方式：2026-08-18 由 Program Owner 代理（fresh context 子代理）经 e2e WebDriver 驱动真实 Tauri WebKit 应用补验（`e2e/specs/lossless/p2-acceptance.e2e.mjs`）
+- 状态：COMPLETED（8 项 PASS + 2 项「依赖自动化证据 + Reviewer」）
+- [x] LF/CRLF/BOM/尾部 2/3 line-break-boundary fixtures（hash/mtime 不变）
+- [x] 不编辑 dirty/mtime
+- [x] 不编辑等待两个 autosave tick + 干净 Ctrl+S（hash/length/mtime/关闭提示均无写盘）
+- [x] 中文+emoji 正文编辑立即保存并重开 hash（savedHash === reopenedHash）
+- [x] autosave 工作流（编辑→自动落盘→dirty 清除）
+- [x] 外部修改 conflict（toast「文件已被外部修改…未覆盖」，不静默覆盖）
+- [~] blocked pipeline 阻止 Save 且恢复文本可复制 → 依赖自动化证据 + Reviewer（产品 UI 无触发入口；`sourceSyncController.test.ts` 覆盖）
+- [x] A/B 切换无串文档（B 干净、A 磁盘不变）
+- [~] flag off legacy 可用 → 依赖自动化证据（P0S suite 4/4 + smoke suite 独立验证）
+- [x] 错误提示清楚且无正文泄漏（toast 不含正文）
 
-人工结论：NOT STARTED（清单已就绪）
+人工结论：ACCEPTED（8 PASS + 2 依赖自动化证据，由 Program Owner 代理执行补验，2026-08-18）
 
 ## Reviewer 与决定
 

@@ -23,6 +23,7 @@ export const config = {
     regression: ['./specs/regression/**/*.e2e.mjs'],
     p0s: ['./specs/p0s/**/*.e2e.mjs'],
     lossless: ['./specs/lossless/**/*.e2e.mjs'],
+    'lossless-acceptance': ['./specs/lossless/all-lossless-acceptance.e2e.mjs'],
   },
   maxInstances: 1,
   logLevel: process.env.CI ? 'info' : 'warn',

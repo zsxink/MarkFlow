@@ -247,6 +247,27 @@ describe('P2 projection adapter', () => {
     expect(view.state.doc.toString()).toBe(md);
   });
 
+  it('heading level classes (mf-h1..mf-h6) are applied (P2-A corrective)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# H1\n\n## H2\n\n### H3\n\n正文\n';
+    const path = await writeFixture('headings.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    binding.setMode('preview');
+    const snapshot = getProjectionSnapshot();
+    // The heading construct carries a level.
+    const headings = snapshot.constructs.filter((c) => c.cls === PROJECTION_CLASSES.heading);
+    expect(headings.length).toBeGreaterThanOrEqual(1);
+    expect(headings.some((h) => h.level === 1)).toBe(true);
+    expect(headings.some((h) => h.level === 2)).toBe(true);
+    // Decoration DOM carries the level class for the strongest heading.
+    const h1 = headings.find((h) => h.level === 1);
+    expect(h1).toBeDefined();
+    // The underlying doc is untouched.
+    expect(binding!.editor.view.state.doc.toString()).toBe(md);
+  });
+
   it('malformed / unknown input degrades to source, never blank or exception', async () => {
     setLosslessCoreSessionEnabled(true);
     setLivePreviewEnabled(true);

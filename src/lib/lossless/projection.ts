@@ -54,6 +54,8 @@ export interface ConstructRange {
   markerTo: number;
   /** Semantic class (`mf-h1`…, `mf-strong`, …). */
   cls: string;
+  /** Heading level (1-6) when this construct is a heading; undefined otherwise. */
+  level?: number;
 }
 
 export interface ProjectionSnapshot {
@@ -171,6 +173,7 @@ function buildDecorations(view: EditorView): DecorationSet {
           markerFrom: nodeFrom,
           markerTo: nodeFrom + Math.min(nodeTo - nodeFrom, 2),
           cls: cls.cls,
+          level: cls.level,
         });
         count++;
       }
@@ -214,7 +217,7 @@ function buildDecorations(view: EditorView): DecorationSet {
       range.to,
       active
         ? Decoration.mark({ class: `mf-construct ${range.cls} ${PROJECTION_CLASSES.active}` })
-        : decorationFor(range.cls),
+        : decorationFor(range.cls, range.level),
     );
     // Weak-reveal the marker characters unless the construct is active.
     if (!active && range.markerTo > range.markerFrom) {

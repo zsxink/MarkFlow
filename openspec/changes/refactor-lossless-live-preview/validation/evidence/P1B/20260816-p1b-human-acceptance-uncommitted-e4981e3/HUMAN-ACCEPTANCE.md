@@ -9,13 +9,14 @@
 | --- | --- |
 | Phase | P1B（无损 Source 纵向闭环） |
 | Run ID | `20260816-p1b-human-acceptance-uncommitted-e4981e3` |
-| Date/time | 2026-08-16 |
+| Date/time | 2026-08-16（创建）/ 2026-08-18（candidate 对齐更新） |
 | Branch | `test/issue-255-lossless-byte-contract` |
-| Commit SHA | `e4981e3`（HEAD）+ 工作树未提交 corrective 17 文件（桌面 E2E corrective run 已验证此工作树） |
+| Commit SHA | `8bbcb79` / froze 候选 `a16e575`（P2 启动前复核冻结候选；frozen candidate = `a16e575`，含此前全部 P1B corrective；Reviewer #3 已复核该候选，产品 diff 与 evidence 一致） |
 | Feature flags | `markflow.losslessCoreSession`（localStorage 手动钩子，生产默认 off） |
 | Autosave | 默认开，interval 10000ms（`src/types/settings.ts`） |
 | 测试目录 | `/Users/xian/markflow-test`（隔离副本在下方 Isolated workspace） |
 | 环境 | macOS 26.5.2 / Node v24 / Rust 1.96 / WebKit |
+| 基线复核 | 2026-08-18 `bash verify-fixtures.sh` 输出与下表全部一致（12 fixtures SHA-256/len/BOM/尾部一致） |
 
 ## 启动与开启 flag
 

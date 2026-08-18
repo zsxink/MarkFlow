@@ -28,6 +28,7 @@ import type {
 } from './types';
 import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
+import { isLivePreviewEnabled } from './livePreviewFlag';
 
 /** `blocked`/`conflict` are safe, explainable skips — never write failures. */
 export type LosslessSaveResult = 'saved' | 'skipped' | 'blocked' | 'failed' | 'conflict';
@@ -47,7 +48,10 @@ export class EditorSurfaceBinding {
   persistedRevision: number;
   /** The known file identity used as the guarded-write expected identity. */
   fileIdentity: FileIdentity;
-  private editor: LosslessSourceEditorHandle;
+  /** The single CodeMirror view backing this session (P2: one EditorView per
+   *  document; mode switching reconfigures compartments on it). Exposed so UI
+   *  consumers (outline/stats/settings/read-only) read the active binding. */
+  readonly editor: LosslessSourceEditorHandle;
   private controller: SourceSyncController;
   private pendingChangeSets: ChangeSet[] = [];
   /** Browser paste event observed before CodeMirror normalizes EOLs. */
@@ -108,6 +112,11 @@ export class EditorSurfaceBinding {
     let binding: EditorSurfaceBinding | null = null;
     const editor = createLosslessSourceEditor(container, opened.logicalText, {
       readOnly: false,
+      // P2: the single EditorView starts in Source mode. Live Preview is only
+      // reachable when the `codemirrorLivePreview` flag is on (default-off),
+      // and switching mode is a compartment reconfigure, never a rebuild.
+      livePreview: isLivePreviewEnabled(),
+      mode: 'source',
       onTransaction: (transactions) => binding?.handleTransactions(transactions),
       onDocChanged: () => store.emit({ type: 'editor:update' }),
       onRawPasteText: (text) => binding?.recordRawPaste(text),
@@ -332,6 +341,16 @@ export class EditorSurfaceBinding {
     const { view } = this.editor;
     const pos = view.state.selection.main.head;
     view.dispatch({ changes: { from: pos, to: pos, insert: text } });
+  }
+
+  /**
+   * P2: switch the single EditorView between Source and Live Preview. This is a
+   * compartment reconfiguration ONLY — no doc rewrite, no History entry, no
+   * EditorView rebuild, so selection/scroll/focus/dirty/revision all survive.
+   */
+  setMode(mode: 'source' | 'preview'): void {
+    if (this.disposed) return;
+    this.editor.setMode(mode);
   }
 
   /** E2E/desktop automation hook: follows the same raw-paste provenance path. */

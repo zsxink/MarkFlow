@@ -9,6 +9,7 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { Compartment, type Transaction } from '@codemirror/state';
+import { GFM } from '@lezer/markdown';
 import {
   HighlightStyle,
   syntaxHighlighting,
@@ -19,6 +20,7 @@ import {
 import { tags } from '@lezer/highlight';
 import { getLanguageExtension } from '../codemirror-languages';
 import { highlightLimitPlugin } from '../codemirror-highlight-limit';
+import { projectionExtension } from './projection';
 import { getCachedSettings } from '../storage';
 
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -59,6 +61,11 @@ const noHighlightStyle = HighlightStyle.define([
 
 export interface LosslessSourceEditorOptions {
   readOnly?: boolean;
+  /** Initial mode: 'source' shows raw Markdown; 'preview' adds local
+   *  semantic decorations over the SAME EditorState.doc (no doc rewrite). */
+  mode?: 'source' | 'preview';
+  /** Whether the Live Preview projection is enabled at all (flag-gated). */
+  livePreview?: boolean;
   /** Called on every doc-changing user transaction (not programmatic). */
   onTransaction?: (transactions: readonly Transaction[]) => void;
   /** Called for non-authoritative UI refresh after doc changes. */
@@ -69,6 +76,11 @@ export interface LosslessSourceEditorOptions {
 
 export interface LosslessSourceEditorHandle {
   view: EditorView;
+  /** The current mode. Mode switching only reconfigures compartments — it never
+   *  rewrites the doc, never enters History, never rebuilds the EditorView. */
+  getMode(): 'source' | 'preview';
+  setMode(mode: 'source' | 'preview'): void;
+  setLivePreview(enabled: boolean): void;
   setReadOnly(readOnly: boolean): void;
   setHighlight(enabled: boolean): void;
   destroy(): void;
@@ -85,6 +97,11 @@ export function createLosslessSourceEditor(
 ): LosslessSourceEditorHandle {
   const readOnlyCompartment = new Compartment();
   const highlightCompartment = new Compartment();
+  // P2: mode switching is compartment reconfiguration on the SAME EditorView.
+  // base = always-present extensions; mode/projection = switchable compartments.
+  const projectionCompartment = new Compartment();
+  const livePreviewEnabled = options.livePreview ?? false;
+  let mode: 'source' | 'preview' = options.mode ?? 'source';
   let destroyed = false;
 
   const view = new EditorView({
@@ -98,6 +115,7 @@ export function createLosslessSourceEditor(
         ),
       ),
       markdown({
+        extensions: [GFM],
         codeLanguages: [
           LanguageDescription.of({
             name: 'javascript',
@@ -181,12 +199,40 @@ export function createLosslessSourceEditor(
       }),
       highlightLimitPlugin,
       readOnlyCompartment.of(EditorView.editable.of(!(options.readOnly ?? false))),
+      // P2 projection compartment: only active in 'preview' mode when the flag
+      // is on. Reconfiguring this compartment NEVER changes the doc, the
+      // selection, or the History — it only adds/removes semantic decorations.
+      projectionCompartment.of(
+        livePreviewEnabled && mode === 'preview' ? projectionExtension() : [],
+      ),
     ],
   });
   view.contentDOM.dataset.testid = 'editor-source-content';
 
   return {
     view,
+    getMode(): 'source' | 'preview' {
+      return mode;
+    },
+    setMode(nextMode: 'source' | 'preview'): void {
+      if (nextMode === mode || destroyed) return;
+      mode = nextMode;
+      view.dispatch({
+        effects: projectionCompartment.reconfigure(
+          livePreviewEnabled && mode === 'preview' ? projectionExtension() : [],
+        ),
+      });
+    },
+    setLivePreview(enabled: boolean): void {
+      if (destroyed) return;
+      // Re-enable/disable the projection without changing mode. When enabled
+      // and in preview mode the projection turns on; otherwise it stays off.
+      view.dispatch({
+        effects: projectionCompartment.reconfigure(
+          enabled && mode === 'preview' ? projectionExtension() : [],
+        ),
+      });
+    },
     setReadOnly(readOnly: boolean): void {
       view.dispatch({
         effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),

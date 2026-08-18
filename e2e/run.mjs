@@ -127,6 +127,24 @@ try {
   await Promise.all([mkdir(dataDir, { recursive: true }), mkdir(workspace, { recursive: true }), mkdir(artifactsDir, { recursive: true })]);
   await writeFile(path.join(dataDir, 'settings.json'), `${JSON.stringify(defaultSettings(workspace), null, 2)}\n`);
   await writeFile(path.join(workspace, 'welcome.md'), '# MarkFlow E2E Testing\n\n这是 E2E 测试的初始文档，包含段落内容。\n\n- 列表项一\n- 列表项二\n- 列表项三\n');
+  // ── P2 Live Preview fixtures (lossless suite only) ─────────────────────
+  // Written inline: they cover every basic construct for the semantic
+  // decoration E2E + a zero-edit mode-switch byte-contract case.
+  if (suite === 'lossless') {
+    await writeFile(path.join(workspace, 'p2-live-preview-switch.md'),
+      '# 切换测试\n\n普通段落。\n');
+    await writeFile(path.join(workspace, 'p2-live-preview-constructs.md'),
+      [
+        '# 标题一', '## 二级标题', '',
+        '**加粗** 和 *斜体* 和 ~~删除~~ 和 `行内代码`', '',
+        '[链接](https://example.com)', '',
+        '> 引用段落', '',
+        '- 列表项一', '- 列表项二', '',
+        '```js', 'const x = 1;', '```', '',
+      ].join('\n'));
+    await writeFile(path.join(workspace, 'p2-live-preview-zeroedit.md'),
+      '# 零编辑切换\n\n内容不变。\n');
+  }
   // ── P0S lifecycle fixtures (byte-contract copies, autosave ENABLED) ──
   if (autosaveEnabled) {
     const fixturesDir = path.join(projectRoot, 'tests/fixtures/byte-contract/fixtures');

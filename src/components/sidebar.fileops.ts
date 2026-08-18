@@ -29,6 +29,7 @@ import {
   saveLosslessActiveDocumentAsNewFile,
 } from '../lib/lossless/integration';
 import { isLosslessCoreSessionEnabled } from '../lib/lossless/flag';
+import { getActiveLosslessBinding } from '../lib/lossless/registry';
 
 // ── Serial save guard ────────────────────────────────────────────────
 
@@ -465,6 +466,13 @@ async function prepareImageLifecycleForOpenedDocument(path: string): Promise<voi
 
 function setReadOnly(readOnly: boolean): void {
   store.setState({ readOnly });
+  // Lossless binding: read-only applies to the SAME CodeMirror view in both
+  // Source and Live Preview modes (P2). The binding's own reload lock stays
+  // authoritative; this only adds the user-forced read-only state.
+  const losslessBinding = getActiveLosslessBinding();
+  if (losslessBinding) {
+    losslessBinding.editor.setReadOnly(readOnly);
+  }
   // ProseMirror (WYSIWYG) read-only
   const editor = getEditor();
   if (editor) {

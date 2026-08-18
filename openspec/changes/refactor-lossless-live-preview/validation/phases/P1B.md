@@ -76,6 +76,13 @@
   - 证据：`evidence/P1B/20260817-053048-independent-review-a16e575/`
 - Program Go/No-Go：NOT STARTED（待人工验收 + Program Owner 决定）
 
+> **Program Owner 决定记录（2026-08-18，xian）**：P1B 人工验收经权衡后**推迟**
+> （跳过先执行），进入 P2 编码。候选锁定冻结候选 `a16e575`（HEAD `8bbcb79`，
+> Reviewer #3 已复核，fixtures 基线已复核一致）。**此决定不改变 P1B gate 状态**：
+> `tasks.md` 3.11 保持 `[ ]` 未勾选，本行 Program Go/No-Go 仍为 NOT STARTED；
+> P2 完成后的最终 Go/No-Go 必须先补 P1B 人工验收。任何 corrective / 归档都
+> 不得在验收完成前进行。
+
 ## P1B 后 corrective 待办
 
 - 观察项：启动 receipt 扫描（`src-tauri/src/lib.rs` setup）目前仅记录日志/警告，

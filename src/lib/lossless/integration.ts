@@ -18,6 +18,7 @@ import {
   setActiveLosslessBinding,
 } from './registry';
 import { isLosslessCoreSessionEnabled } from './flag';
+import { getProjectionSnapshot } from './projection';
 
 // Re-export for callers (main.ts external-modification routing).
 export { isActiveLosslessPath } from './registry';
@@ -333,6 +334,23 @@ if (import.meta.env.MODE === 'e2e') {
       if (!binding) return 'no-binding';
       binding.typeAtCursor(text);
       return 'typed';
+    },
+    // P2: mode switching + projection introspection for semantic E2E.
+    setMode: (mode: 'source' | 'preview') => {
+      const binding = getActiveLosslessBinding();
+      if (!binding) return 'no-binding';
+      binding.setMode(mode);
+      return 'set';
+    },
+    getMode: () => getActiveLosslessBinding()?.editor.getMode() ?? 'source',
+    projectionState: () => getProjectionSnapshot().state,
+    /** Semantic construct counts keyed by class (e.g. `{ 'mf-h1': 2, 'mf-strong': 1 }`). */
+    decorations: () => {
+      const counts: Record<string, number> = {};
+      for (const c of getProjectionSnapshot().constructs) {
+        counts[c.cls] = (counts[c.cls] ?? 0) + 1;
+      }
+      return counts;
     },
   };
   (window as unknown as { __markflowLossless?: typeof hooks }).__markflowLossless = hooks;

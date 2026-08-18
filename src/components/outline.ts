@@ -1,4 +1,5 @@
 import { getEditor, getMode } from '../lib/editor';
+import { getActiveLosslessBinding } from '../lib/lossless/registry';
 import { store } from '../lib/store';
 
 export function initOutline() {
@@ -11,9 +12,40 @@ export function initOutline() {
   });
 }
 
+/** Collect headings from the lossless binding's CodeMirror syntax tree. */
+function headingsFromLossless(): { level: number; text: string; pos: number }[] {
+  const binding = getActiveLosslessBinding();
+  if (!binding) return [];
+  const view = binding.editor.view;
+  const tree = view.state.doc;
+  const headings: { level: number; text: string; pos: number }[] = [];
+  // Walk the visible text lines; heading detection uses the Lezer tree when
+  // available, falling back to a simple line scan (never DOM textContent).
+  const text = tree.toString();
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m = line.match(/^(#{1,6})\s+(.*)/);
+    if (m) {
+      let pos = 0;
+      for (let j = 0; j < i; j++) pos += lines[j].length + 1;
+      headings.push({ level: m[1].length, text: m[2], pos });
+    }
+  }
+  return headings;
+}
+
 export function refreshOutline() {
   const outlineTree = document.getElementById('outline-tree');
   if (!outlineTree) return;
+
+  // Lossless docs: read headings from the single CodeMirror binding in BOTH
+  // Source and Live Preview modes (the doc is the same either way).
+  const losslessBinding = getActiveLosslessBinding();
+  if (losslessBinding) {
+    renderHeadings(outlineTree, headingsFromLossless());
+    return;
+  }
 
   if (getMode() === 'source') {
     outlineTree.innerHTML = '<div class="empty-state">源码模式</div>';
@@ -36,6 +68,13 @@ export function refreshOutline() {
     }
   });
 
+  renderHeadings(outlineTree, headings);
+}
+
+function renderHeadings(
+  outlineTree: HTMLElement,
+  headings: { level: number; text: string; pos: number }[],
+) {
   if (headings.length === 0) {
     outlineTree.innerHTML = '<div class="empty-state">当前文档无标题</div>';
     return;
@@ -56,6 +95,17 @@ export function refreshOutline() {
 
     item.append(level, text);
     item.addEventListener('click', () => {
+      // Lossless binding: jump via the CodeMirror selection (no PM nodeDOM).
+      const losslessBinding = getActiveLosslessBinding();
+      if (losslessBinding) {
+        const view = losslessBinding.editor.view;
+        const line = view.state.doc.lineAt(Math.min(h.pos, view.state.doc.length));
+        view.dispatch({ selection: { anchor: line.from }, scrollIntoView: true });
+        view.focus();
+        return;
+      }
+      const editor = getEditor();
+      if (!editor) return;
       editor.commands.focus(h.pos);
       const editorEl = document.getElementById('wysiwyg-editor');
       if (editorEl) {

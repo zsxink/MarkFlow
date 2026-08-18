@@ -697,6 +697,77 @@
   background: var(--selection);
 }
 
+/* ── P2 Live Preview projection decorations ──────────────────────────
+   Semantic classes layered over the SAME source text. Markers stay WEAK by
+   default (editable, never hidden); a construct the caret/selection/composition
+   intersects gets `.mf-active` (full marker visibility). Only decorations —
+   the EditorState.doc is never rewritten. */
+
+.source-editor-wrapper .cm-editor .mf-construct.mf-h1 {
+  font-size: 1.4em; font-weight: 700; color: var(--accent);
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-h2 {
+  font-size: 1.25em; font-weight: 700; color: var(--accent);
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-h3 {
+  font-size: 1.1em; font-weight: 700; color: var(--accent);
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-h4,
+.source-editor-wrapper .cm-editor .mf-construct.mf-h5,
+.source-editor-wrapper .cm-editor .mf-construct.mf-h6 {
+  font-weight: 700; color: var(--accent);
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-strong {
+  font-weight: 700;
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-emphasis {
+  font-style: italic;
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-strikethrough {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-inline-code {
+  font-family: var(--font-code);
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--fg);
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-link {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-blockquote {
+  color: var(--muted);
+  font-style: italic;
+  border-left: 3px solid var(--border);
+  padding-left: 6px;
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-list-item {
+  font-weight: 600;
+}
+.source-editor-wrapper .cm-editor .mf-construct.mf-fence {
+  background: var(--code-bg);
+  border-radius: 4px;
+  display: inline-block;
+  width: 100%;
+  color: var(--fg);
+}
+
+/* Marker weak by default — the construct is always fully editable. */
+.source-editor-wrapper .cm-editor .mf-construct .mf-marker {
+  opacity: 0.45;
+  color: var(--muted);
+}
+
+/* Active range reveal: full marker/inline visibility, no hide. */
+.source-editor-wrapper .cm-editor .mf-construct.mf-active {
+  opacity: 1;
+  box-shadow: 0 0 0 1px var(--accent-soft) inset;
+  border-radius: 2px;
+}
+
 /* 活动行高亮 — 极淡背景 */
 .source-editor-wrapper .cm-editor .cm-activeLine {
   background: var(--accent-soft);

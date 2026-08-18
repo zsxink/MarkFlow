@@ -39,6 +39,7 @@ import {
   setSourceContent,
 } from './editor.source';
 import { getActiveLosslessBinding } from './lossless/registry';
+import { isLivePreviewEnabled } from './lossless/livePreviewFlag';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -165,12 +166,15 @@ export function setMarkdown(
 
 export function switchToSource() {
   // Lossless Core docs are already in Source mode with Core logical text; never
-  // rebuild a PM-backed source (owner isolation, design P1B §5).
-  if (getActiveLosslessBinding()) {
+  // rebuild a PM-backed source (owner isolation, design P1B §5). P2: switching
+  // back to Source is a compartment reconfigure on the SAME EditorView.
+  const losslessBinding = getActiveLosslessBinding();
+  if (losslessBinding) {
     const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
     if (wrapper) wrapper.hidden = false;
     const wysiwygEditor = document.getElementById('wysiwyg-editor');
     if (wysiwygEditor) wysiwygEditor.hidden = true;
+    losslessBinding.setMode('source');
     setMode('source');
     return;
   }
@@ -225,11 +229,20 @@ export function switchToSource() {
 }
 
 export function switchToWysiwyg() {
-  // Lossless Core docs stay in Source mode (P1B vertical slice); switching would
-  // require populating ProseMirror from a serializer, which the lossless session
-  // never touches. Block the switch so PM is never made the owner.
-  if (getActiveLosslessBinding()) {
-    showToast('Lossless 模式当前仅支持源码编辑');
+  // Lossless Core docs use a SINGLE EditorView (P2). "WYSIWYG" in the lossless
+  // path means Live Preview: a compartment reconfigure on the same view that
+  // layers semantic decorations over the unchanged doc — no serializer, no
+  // ProseMirror ownership, no rebuild. The `codemirrorLivePreview` flag gates it
+  // (default-off); with the flag off the legacy block stays (Source only).
+  const losslessBinding = getActiveLosslessBinding();
+  if (losslessBinding) {
+    if (!isLivePreviewEnabled()) {
+      showToast('Lossless 模式当前仅支持源码编辑');
+      return;
+    }
+    losslessBinding.setMode('preview');
+    setMode('wysiwyg'); // store mode stays 'wysiwyg' — legacy consumers unchanged
+    store.emit({ type: 'editor:update' });
     return;
   }
   const wysiwygEditor = document.getElementById('wysiwyg-editor');

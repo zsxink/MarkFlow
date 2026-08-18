@@ -6,6 +6,7 @@ import { showModal } from './ui/modal';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
 import { setSourceHighlight } from '../lib/editor.source';
+import { getActiveLosslessBinding } from '../lib/lossless/registry';
 import { open } from '@tauri-apps/plugin-dialog';
 
 type Theme = 'light' | 'dark' | 'sepia';
@@ -451,7 +452,13 @@ function applyRuntimeSettings(settings: Settings) {
     }
   }
 
-  // Apply code highlight to source editor (CodeMirror)
+  // Apply code highlight to the active editor (lossless binding first, then
+  // the legacy CodeMirror source editor). P2: the lossless view is the same
+  // single EditorView in both modes.
+  const losslessBinding = getActiveLosslessBinding();
+  if (losslessBinding) {
+    losslessBinding.editor.setHighlight(settings.codeHighlight !== false);
+  }
   setSourceHighlight(settings.codeHighlight !== false);
 }
 

@@ -1,0 +1,12 @@
+[
+{"path":"./ENVIRONMENT.md","sha256":"2d145e9127ad6e3204fbfbadd2d5191d38bf4c89482b642b6a4c5d9d073937ff"},
+{"path":"./fixture-hashes.txt","sha256":"091d8df62ee511609c8526af235a435f49cda98444d5303e34ca6d5fa4473563"},
+{"path":"./logs/C01-tsc.log","sha256":"d4ff63da9dcc55241f7093c7298125e151a3168e683129c99e06d4580a24da40"},
+{"path":"./logs/C02-vitest.log","sha256":"4d5f7dcdaead4b712f196372a2cd88a28a79f2e52c087065ac1e14a0e6e373a5"},
+{"path":"./logs/C03-core.log","sha256":"214932b21178d68d1e67ccec227281fe9650648f6643f6d64902f5721b69dada"},
+{"path":"./logs/C04-tauri.log","sha256":"af7f460884cf054eb0c4c21d3aa468994d12d1ec7f3021e4c730846f3549f6fb"},
+{"path":"./logs/C05-build.log","sha256":"78527637ef08739351af9f03b0407ca6b1d54e139859880ef952368a49bac2fd"},
+{"path":"./logs/C06-byte-contract.log","sha256":"f4a10fd289ba3ea9a0f3afa6b9ff1841fac1ea822bd9aea493f7952417bba74b"},
+{"path":"./logs/C07-openspec-all.log","sha256":"57a5a802c9491df7db5877e165618c911c9de0f911ea14f0ab88b55c733ef023"},
+{"path":"./RUN.md","sha256":"ce783c68bf0a43e10f1fed31ac6bcb04b314f205fcd39c453a5a6d0312618b93"}
+]

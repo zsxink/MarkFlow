@@ -1,0 +1,110 @@
+npm notice run markflow@0.0.6 npx
+npm notice run 'vitest' run
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/editor.serializer.test.ts (31 tests) 4ms
+ ✓ src/lib/editor.state.test.ts (30 tests) 8ms
+ ✓ src/lib/imageUtils.test.ts (20 tests) 114ms
+ ✓ src/components/sidebar.fileops.test.ts (15 tests) 111ms
+ ✓ src/lib/lossless/commandRouter.test.ts (13 tests) 132ms
+ ✓ src/lib/pathUtils.test.ts (39 tests) 6ms
+ ✓ src/lib/lossless/projection.test.ts (11 tests) 220ms
+ ✓ src/components/menu.test.ts (10 tests) 131ms
+ ✓ src/lib/editor.helpers.test.ts (26 tests) 23ms
+stderr | src/lib/plantuml-lazy.test.ts > PlantUML client > encodes source and builds the official server SVG endpoint
+Failed to forward frontend log event TypeError: Cannot read properties of undefined (reading 'invoke')
+    at Module.invoke (file:///Users/xian/Project/book/MarkFlow/node_modules/@tauri-apps/api/core.js:202:39)
+    at send (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:14:8)
+    at Module.logDebug (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:36:3)
+    at Module.buildPlantUmlSvgUrl (/Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts:54:3)
+    at /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.test.ts:25:17
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+ ✓ src/lib/plantuml-lazy.test.ts (18 tests) 38ms
+ ✓ src/lib/documentExport.test.ts (10 tests) 18ms
+ ✓ src/lib/store.test.ts (15 tests) 6ms
+ ✓ src/main.autosave.test.ts (10 tests) 4ms
+ ✓ src/lib/exportTheme.test.ts (21 tests) 3ms
+ ✓ src/lib/editor.extensions.test.ts (10 tests) 17ms
+ ✓ src/components/settings.test.ts (4 tests) 65ms
+ ✓ src/lib/pdfExport.test.ts (9 tests) 6ms
+ ✓ src/components/toolbar.test.ts (5 tests) 13ms
+ ✓ src/lib/editor.continuation.test.ts (7 tests) 4ms
+ ✓ src/lib/taskScheduler.test.ts (11 tests) 5ms
+ ✓ src/lib/securityRegression.test.ts (7 tests) 27ms
+ ✓ src/components/fileTree.lazy.test.ts (6 tests) 9ms
+ ✓ src/components/fileTree.state.test.ts (4 tests) 7ms
+ ✓ src/lib/docxExport.test.ts (5 tests) 100ms
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail0: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-lf-tail0: len=66/66 sha=b8ada2a7b0e544ab saved=b8ada2a7b0e544ab mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+ ✓ src/lib/storage.test.ts (3 tests) 3ms
+ ✓ src/components/sidebar.conflict.test.ts (4 tests) 4ms
+ ✓ src/components/contextMenu.test.ts (2 tests) 3ms
+ ✓ src/lib/lossless/sourceSyncController.test.ts (18 tests) 1535ms
+   ✓ SourceSyncController > enters blocked after exhausting retries and preserves optimistic text 403ms
+   ✓ SourceSyncController > flush() returns Blocked when the pipeline is blocked 402ms
+ ✓ src/components/plantumlContextMenu.helpers.test.ts (6 tests) 3ms
+ ✓ src/lib/fileSizeTier.test.ts (14 tests) 4ms
+ ✓ src/components/mermaidContextMenu.helpers.test.ts (6 tests) 2ms
+ ✓ src/components/fileTree.core.test.ts (5 tests) 7ms
+ ✓ src/components/activeDocument.test.ts (1 test) 3ms
+ ✓ src/lib/codemirror-languages.test.ts (2 tests) 1ms
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail1: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-lf-tail1: len=67/67 sha=52a435d76c69c819 saved=52a435d76c69c819 mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+ ✓ src/lib/lossless/lifecycle.test.ts (21 tests) 2097ms
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-lf-tail2: len=68/68 sha=bc1b50f45486243a saved=bc1b50f45486243a mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail3: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-lf-tail3: len=69/69 sha=201dc08c2f7e700f saved=201dc08c2f7e700f mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-crlf-tail1: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-crlf-tail1: len=71/71 sha=262aa53ae6984dc1 saved=262aa53ae6984dc1 mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-crlf-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-crlf-tail2: len=73/73 sha=6928ce6518b78c45 saved=6928ce6518b78c45 mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-crlf-tail3: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-crlf-tail3: len=75/75 sha=db562fc521f4ff93 saved=db562fc521f4ff93 mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-cr-tail1: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-cr-tail1: len=67/67 sha=3e505e2c736942f6 saved=3e505e2c736942f6 mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-mixed-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-mixed-tail2: len=91/91 sha=0a892d540a04d1b3 saved=0a892d540a04d1b3 mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-bom-lf-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt
+[p0s] utf8-bom-lf-tail2: len=71/71 sha=c7d99fe8fa174dab saved=c7d99fe8fa174dab mtimeDelta=0.0ms dirty=false/false/false/false rev=0/0 saves=0/0 prompt=null
+
+stdout | src/main.lifecycle.guard.test.ts > P0S: legacy zero-edit open lifecycle stays clean (default green) > a real user edit enters dirty, saves, and persists its revision
+[p0s-user-edit] len=68/71 sha=bc1b50f45486243a/1e1aa50d4fd45f53 mtimeChanged=true revAfterEdit=1
+
+ ✓ src/main.lifecycle.guard.test.ts (19 tests) 11043ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail0: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 751ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail1: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 719ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 718ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-lf-tail3: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 718ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-crlf-tail1: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 723ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-crlf-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 723ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-crlf-tail3: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 720ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-cr-tail1: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 720ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-mixed-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 721ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > utf8-bom-lf-tail2: zero-edit open → two autosave ticks → clean, no write, hash/length/mtime unchanged, no close prompt 724ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > read-only → editable toggles do not dirty or write a zero-edit doc 1017ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > A/B document switch keeps both docs clean and unwritten 723ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > reload from disk keeps the reloaded doc clean 816ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > clean interactive Ctrl+S returns skipped and does not serialize or write 515ms
+   ✓ P0S: legacy zero-edit open lifecycle stays clean (default green) > a real user edit enters dirty, saves, and persists its revision 618ms
+
+ Test Files  36 passed (36)
+      Tests  438 passed (438)
+   Start at  22:36:30
+   Duration  12.18s (transform 985ms, setup 0ms, collect 3.35s, tests 15.78s, environment 5.06s, prepare 1.42s)
+

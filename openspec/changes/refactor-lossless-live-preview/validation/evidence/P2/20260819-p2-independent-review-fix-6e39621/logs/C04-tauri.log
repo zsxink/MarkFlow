@@ -1,0 +1,170 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/markflow_lib-0d811835f62d1977)
+
+running 151 tests
+test commands::export::tests::ready_script_waits_for_fonts_images_and_two_frames ... ok
+test commands::export::tests::temporary_pdf_is_created_beside_destination ... ok
+test commands::export::tests::supported_platform_backend_must_not_regress_to_old_stub ... ok
+test commands::files::tests::cleanup_keeps_current_process_temp ... ok
+test commands::export::tests::valid_temp_file_replaces_destination_and_cleanup_is_idempotent ... ok
+test commands::export::tests::invalid_temp_file_does_not_replace_existing_destination ... ok
+test commands::files::tests::extract_pid_from_tmp_no_pid ... ok
+test commands::files::tests::atomic_write_creates_file ... ok
+test commands::files::tests::atomic_write_cleans_up_temp_file_on_success ... ok
+test commands::files::tests::atomic_write_preserves_old_file_on_failure ... ok
+test commands::files::tests::cleanup_removes_temp_with_dead_pid ... ok
+test commands::export::tests::validates_pdf_header_and_length ... ok
+test commands::files::tests::extract_pid_from_tmp_not_tmp ... ok
+test commands::files::tests::atomic_write_creates_parent_directories ... ok
+test commands::files::tests::extract_pid_from_tmp_valid ... ok
+test commands::files::tests::normalizes_lexical_parent_segments_without_filesystem_access ... ok
+test commands::files::tests::atomic_write_overwrites_existing_file ... ok
+test commands::files_image::tests::mime_extension_uses_canonical_jpeg_suffix ... ok
+test commands::files_image::tests::destination_accepts_nonexistent_nested_directory ... ok
+test commands::files_image::tests::destination_must_stay_inside_storage_root ... ok
+test commands::files_image::tests::local_image_source_requires_valid_image_content ... ok
+test commands::files_meta::tests::extract_title_basic ... ok
+test commands::files_meta::tests::extract_title_case_insensitive ... ok
+test commands::files_image::tests::local_image_source_rejects_symlinks ... ok
+test commands::files_meta::tests::extract_title_empty_returns_none ... ok
+test commands::files_image::tests::pending_draft_id_rejects_path_components ... ok
+test commands::files_image::tests::storage_modes_resolve_from_the_document_without_a_second_level_directory ... ok
+test commands::files_meta::tests::extract_title_no_title_tag ... ok
+test commands::files_meta::tests::extract_title_short_buffer ... ok
+test commands::files_image::tests::destination_rejects_symlink_hop ... ok
+test commands::files_meta::tests::extract_title_truncates_long_title ... ok
+test commands::files_meta::tests::extract_title_truncates_multibyte_utf8_safely ... ok
+test commands::files_meta::tests::extract_title_whitespace_trimmed ... ok
+test commands::export::tests::delayed_native_output_is_cleaned_without_touching_destination ... ok
+test commands::files_meta::tests::extract_title_with_surrounding_text ... ok
+test commands::settings::tests::invalid_settings_fall_back_to_defaults ... ok
+test commands::files_pagination::tests::shallow_page_filters_symlinks_when_platform_allows_creation ... ok
+test commands::files_pagination::tests::shallow_page_clamps_limit_and_sorts_case_insensitively ... ok
+test commands::settings::tests::legacy_settings_receive_empty_plantuml_server_url ... ok
+test commands::settings::tests::legacy_settings_receive_file_tree_defaults ... ok
+test commands::settings::tests::parses_valid_settings_without_dropping_values ... ok
+test commands::settings::tests::version_one_image_settings_are_migrated_to_explicit_behaviors ... ok
+test commands::files_pagination::tests::shallow_pages_are_stable_bounded_and_non_overlapping ... ok
+test commands::files_image::tests::expired_cleanup_preserves_recoverable_drafts_then_removes_them ... ok
+test commands::files_pagination::tests::shallow_page_rejects_stale_generation_and_filters_hidden_entries ... ok
+test commands::files_image::tests::pending_manifest_cannot_redirect_migration_outside_the_draft ... ok
+test commands::settings::tests::version_three_image_defaults_match_the_persisted_contract ... ok
+test commands::settings::tests::version_two_custom_path_is_preserved ... ok
+test commands::files_image::tests::pending_write_generates_draft_and_never_overwrites_same_name ... ok
+test commands::settings::tests::version_two_document_assets_preserves_the_closest_directory_rule ... ok
+test commands::files_image::tests::pending_migration_is_idempotent_and_reuses_its_manifest_mapping ... ok
+test dispatcher_contract::bridge_open_returns_clean_session_with_original_logical_text ... ok
+test dispatcher_contract::bridge_apply_patch_and_snapshot_round_trip ... ok
+test dispatcher_contract::bridge_receipt_is_a_target_bound_capability_and_rejects_unsafe_operation_ids ... ok
+test dispatcher_contract::bridge_old_schema_receipt_is_actionable_in_recovery_ui_and_quarantined_durably ... ok
+test dispatcher_contract::bridge_prepared_save_cannot_cross_reload_generation_write_or_commit ... ok
+test dispatcher_contract::bridge_failed_reload_still_revokes_prepared_epoch_before_write_or_commit ... ok
+test dispatcher_contract::bridge_guarded_write_conflicts_on_mismatched_expected_identity ... ok
+test dispatcher_contract::bridge_stale_patch_rejected_and_old_generation_rejected_after_reload ... ok
+test dispatcher_contract::bridge_prepare_save_zero_patch_returns_original_bytes_and_guarded_write_preserves_l0 ... ok
+test dispatcher_contract::bridge_committed_receipt_reconciles_exact_identity_after_lost_commit_response ... ok
+test dispatcher_contract::bridge_receipt_write_failure_after_exchange_retains_displaced_recovery_copy ... ok
+test dispatcher_contract::bridge_commit_without_matching_receipt_is_rejected_and_leaves_state_unchanged ... ok
+test dispatcher_contract::read_missing_file_returns_error ... ok
+test error::tests::error_code_serializes_with_message ... ok
+test dispatcher_contract::bridge_save_as_target_created_between_prepare_and_write_is_conflict_not_overwritten ... ok
+test fs::ignore::tests::custom_wildcards_match_components_and_paths ... ok
+test error::tests::lock_mutex_recovers_poisoned_state ... ok
+test dispatcher_contract::bridge_replacement_point_lifecycle_revocation_never_writes_discarded_payload ... ok
+test fs::ignore::tests::defaults_ignore_dependency_and_generated_directories ... ok
+test fs::ignore::tests::invalid_patterns_are_rejected ... ok
+test fs::ignore::tests::invalid_update_keeps_last_valid_snapshot ... ok
+test fs::watcher::tests::bounded_enqueue_reports_overflow_without_growing_queue ... ok
+test fs::watcher::tests::coalesces_duplicate_modifies_and_delete_supersedes_modify ... ok
+test dispatcher_contract::bridge_recovery_copy_survives_until_commit_then_is_finalized ... ok
+test dispatcher_contract::read_oversized_file_returns_error ... ok
+test fs::watcher::tests::event_storm_coalesces_and_ignored_storm_is_filtered ... ok
+test fs::watcher::tests::maps_batches_and_ignores_dependency_directories ... ok
+test dispatcher_contract::read_write_roundtrip_preserves_bom ... ok
+test fs::watcher::tests::overflow_recovery_uses_minimal_common_ancestor ... ok
+test fs::watcher::tests::pairs_rename_both_and_recovers_unpaired_rename ... ok
+test http::tests::accepts_bmp_magic ... ok
+test http::tests::accepts_gif_magic ... ok
+test http::tests::accepts_default_port ... ok
+test http::tests::accepts_ipv4_mapped_public ... ok
+test http::tests::accepts_jpeg_magic ... ok
+test dispatcher_contract::read_write_roundtrip_preserves_bytes ... ok
+test http::tests::accepts_png_magic ... ok
+test http::tests::accepts_port_443 ... ok
+test http::tests::accepts_port_80 ... ok
+test http::tests::accepts_public_ipv4 ... ok
+test dispatcher_contract::bridge_startup_recovery_discard_recovery_lifts_conflict_gate ... ok
+test http::tests::accepts_public_ipv6 ... ok
+test http::tests::accepts_svg_direct_tag ... ok
+test http::tests::accepts_svg_magic ... ok
+test http::tests::accepts_redirect_with_standard_port ... ok
+test http::tests::accepts_webp_magic ... ok
+test http::tests::accepts_valid_public_url ... ok
+test http::tests::keeps_path ... ok
+test http::tests::allows_same_scheme_redirect ... ok
+test http::tests::rejects_documentation_ipv4 ... ok
+test http::tests::rejects_bare_private_ip ... ok
+test http::tests::rejects_documentation_ipv6 ... ok
+test dispatcher_contract::bridge_uncommitted_written_receipt_blocks_new_prepare_until_reconciled ... ok
+test http::tests::rejects_ftp_redirect ... ok
+test http::tests::rejects_ftp_scheme ... ok
+test http::tests::rejects_html_content ... ok
+test http::tests::rejects_ipv4_mapped_loopback ... ok
+test http::tests::rejects_https_to_http_downgrade ... ok
+test http::tests::rejects_ipv4_mapped_private ... ok
+test http::tests::rejects_gopher_redirect ... ok
+test http::tests::rejects_link_local_v4 ... ok
+test http::tests::rejects_localhost ... ok
+test http::tests::rejects_loopback_v4 ... ok
+test http::tests::rejects_loopback_v6 ... ok
+test http::tests::rejects_multicast ... ok
+test dispatcher_contract::bridge_startup_recovery_list_exposes_structured_items_and_accept_written_lifts_gate ... ok
+test http::tests::rejects_non_standard_port ... ok
+test http::tests::rejects_port_on_localhost ... ok
+test http::tests::rejects_private_v4 ... ok
+test http::tests::rejects_redis_port ... ok
+test http::tests::rejects_redirect_with_non_standard_port ... ok
+test http::tests::rejects_ssh_port ... ok
+test http::tests::rejects_too_short_buffer ... ok
+test http::tests::rejects_unique_local_v6 ... ok
+test http::tests::returns_original_on_invalid_url ... ok
+test http::tests::strips_query_and_fragment ... ok
+test logger::tests::masks_bare_token_without_colon ... ok
+test logger::tests::leaves_short_paths_untouched ... ok
+test logger::tests::masks_credentials_and_query ... ok
+test logger::tests::masks_path_inside_redacted_url_message ... ok
+test logger::tests::masks_private_path_filename ... ok
+test logger::tests::masks_query_strings ... ok
+test logger::tests::masks_url_credentials ... ok
+test logger::tests::truncates_long_message ... ok
+test lossless::guarded_write::tests::create_if_absent_refuses_an_existing_target_on_this_platform ... ok
+test lossless::guarded_write::tests::create_if_absent_moves_an_absent_target_on_this_platform ... ok
+test fs::watcher::tests::sustained_overflow_keeps_constant_size_recovery_scope ... ok
+test http::tests::resolves_and_validates_localhost ... ok
+test lossless::guarded_write::tests::unreadable_receipt_blocks_save_instead_of_being_silently_ignored ... ok
+test http::tests::fetches_local_response_with_explicit_limit ... ok
+test state::tests::cleanup_removes_correct_label_without_affecting_others ... ok
+test lossless::guarded_write::tests::record_prepared_is_idempotent_and_rejects_different_payload ... ok
+test state::tests::consumed_permission_is_removed_and_cannot_be_consumed_again ... ok
+test state::tests::grant_for_window_a_does_not_grant_for_window_b ... ok
+test state::tests::stop_all_is_safe_to_call_repeatedly ... ok
+test lossless::guarded_write::tests::scan_unfinished_receipts_finds_non_committed ... ok
+test lossless::guarded_write::tests::startup_reconcile_classifies_prepared_written_and_conflict_receipts ... ok
+test fs::watcher::tests::emitting_after_stop_is_safe_no_panic ... ok
+test lossless::lifecycle_lock_tests::lifecycle_lock_linearizes_replace_point_with_reload_or_close_revoke ... ok
+test state::tests::set_workspace_switches_without_leaking_watcher_thread ... ok
+
+test result: ok. 151 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+
+     Running unittests src/main.rs (src-tauri/target/debug/deps/markflow-20fd020653046f42)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests markflow_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

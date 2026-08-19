@@ -29,6 +29,7 @@ import type {
 import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
 import { isLivePreviewEnabled } from './livePreviewFlag';
+import { setProjectionDisposed } from './projection';
 
 /** `blocked`/`conflict` are safe, explainable skips — never write failures. */
 export type LosslessSaveResult = 'saved' | 'skipped' | 'blocked' | 'failed' | 'conflict';
@@ -637,6 +638,9 @@ export class EditorSurfaceBinding {
   async close(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    // Task 4.9: the projection debug state must reflect the teardown, never
+    // reuse a stale rendered/stale/composing value for the next document.
+    setProjectionDisposed();
     this.controller.dispose();
     this.pendingChangeSets = [];
     this.pendingRawPasteProvenance = [];

@@ -484,11 +484,18 @@ export function registerP2AcceptanceTests() {
       const state = await browser.execute(() => window.__markflowLossless?.projectionState?.() ?? 'none');
       expect(['rendered', 'degraded']).toContain(state);
 
-      // Malformed construct must not blank.
+      // Inject a REAL buildDecorations throw (every rebuild), then edit. The
+      // plugin's try/catch must degrade without touching the Source document.
+      const armed = await browser.execute(() => {
+        const proj = window.__markflowProjection;
+        if (!proj?.failAlways) return 'no-hook';
+        return proj.failAlways();
+      });
+      expect(armed).toBe('armed');
       await losslessType('<<<><>');
-      const docAfter = (await cmSurface()).doc;
-      expect(docAfter).toContain('<<<><>');
-      expect(docAfter.length).toBeGreaterThan(0);
+      const docAfterThrow = (await cmSurface()).doc;
+      expect(docAfterThrow).toContain('<<<><>');
+      expect(docAfterThrow.length).toBeGreaterThan(0);
 
       await (await app.save()).click();
       await browser.waitUntil(async () => (await losslessDirty()) === false, {
@@ -496,6 +503,10 @@ export function registerP2AcceptanceTests() {
       });
       const savedBytes = await readFileBytes(name);
       expect(savedBytes.toString('utf8')).toContain('<<<><>');
+
+      // Clear the injection; the projection recovers.
+      const cleared = await browser.execute(() => window.__markflowProjection?.clearFail?.() ?? 'no-hook');
+      expect(cleared).toBe('cleared');
     });
 
     // ── P2 #8: malformed document is not blank ───────────────────────

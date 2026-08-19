@@ -14,6 +14,16 @@ import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport
 import { showContextMenuStatic } from './ui/contextMenu';
 import { getSourceView } from '../lib/editor.source';
 import { getActiveLosslessBinding } from '../lib/lossless/registry';
+import {
+  getActiveLosslessView,
+  insertHorizontalRule,
+  insertImageMarkdown,
+  toggleCodeBlock,
+  toggleHeading,
+  toggleInlineWrap,
+  toggleList,
+  toggleQuote,
+} from '../lib/lossless/commandRouter';
 
 export function initToolbar() {
   initAriaAttributes();
@@ -63,15 +73,64 @@ function bindToolbarEvents() {
     showNewFileDialog('file', getWorkspacePath());
   });
 
-  bind('btn-bold', () => getEditor()?.chain().focus().toggleBold().run());
-  bind('btn-italic', () => getEditor()?.chain().focus().toggleItalic().run());
-  bind('btn-strike', () => getEditor()?.chain().focus().toggleStrike().run());
-  bind('btn-code', () => getEditor()?.chain().focus().toggleCode().run());
-  bind('btn-h1', () => getEditor()?.chain().focus().toggleHeading({ level: 1 }).run());
-  bind('btn-h2', () => getEditor()?.chain().focus().toggleHeading({ level: 2 }).run());
+  bind('btn-bold', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleInlineWrap(lossless, 'bold');
+      return;
+    }
+    getEditor()?.chain().focus().toggleBold().run();
+  });
+  bind('btn-italic', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleInlineWrap(lossless, 'italic');
+      return;
+    }
+    getEditor()?.chain().focus().toggleItalic().run();
+  });
+  bind('btn-strike', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleInlineWrap(lossless, 'strike');
+      return;
+    }
+    getEditor()?.chain().focus().toggleStrike().run();
+  });
+  bind('btn-code', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleInlineWrap(lossless, 'code');
+      return;
+    }
+    getEditor()?.chain().focus().toggleCode().run();
+  });
+  bind('btn-h1', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleHeading(lossless, 1);
+      return;
+    }
+    getEditor()?.chain().focus().toggleHeading({ level: 1 }).run();
+  });
+  bind('btn-h2', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleHeading(lossless, 2);
+      return;
+    }
+    getEditor()?.chain().focus().toggleHeading({ level: 2 }).run();
+  });
   bind('btn-quote', () => {
+    // Lossless path: the single EditorView is the active owner in BOTH Source
+    // and Live Preview modes — never the hidden ProseMirror surface.
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleQuote(lossless);
+      return;
+    }
     if (getMode() === 'source') {
-      // CM6: wrap selection/current line with > prefix
+      // CM6 legacy source: wrap selection/current line with > prefix
       const view = getSourceView();
       if (!view) return;
       const { state, dispatch } = view;
@@ -100,12 +159,39 @@ function bindToolbarEvents() {
   bind('btn-link', () => {
     showLinkDialog();
   });
-  bind('btn-ul', () => getEditor()?.chain().focus().toggleBulletList().run());
-  bind('btn-ol', () => getEditor()?.chain().focus().toggleOrderedList().run());
-  bind('btn-hr', () => getEditor()?.chain().focus().setHorizontalRule().run());
+  bind('btn-ul', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleList(lossless, false);
+      return;
+    }
+    getEditor()?.chain().focus().toggleBulletList().run();
+  });
+  bind('btn-ol', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleList(lossless, true);
+      return;
+    }
+    getEditor()?.chain().focus().toggleOrderedList().run();
+  });
+  bind('btn-hr', () => {
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      insertHorizontalRule(lossless);
+      return;
+    }
+    getEditor()?.chain().focus().setHorizontalRule().run();
+  });
   bind('btn-codeblock', () => {
+    // Lossless path: route to the single EditorView (both modes).
+    const lossless = getActiveLosslessView();
+    if (lossless) {
+      toggleCodeBlock(lossless);
+      return;
+    }
     if (getMode() === 'source') {
-      // CM6: wrap selection with ``` fences
+      // CM6 legacy source: wrap selection with ``` fences
       const view = getSourceView();
       if (!view) return;
       const { state, dispatch } = view;
@@ -134,13 +220,23 @@ function bindToolbarEvents() {
   bind('btn-image', () => showImageInsertDialog());
 
   bind('btn-wysiwyg', () => {
-    if (getActiveLosslessBinding()) {
-      // Lossless docs are Source-only (spec: 不得切换到 PM owner). The switch
-      // is blocked with a toast; keep the button + indicator consistent rather
-      // than flipping them to a "所见即所得" state that has no rendered content.
+    const lossless = getActiveLosslessBinding();
+    if (lossless) {
+      // Lossless Live Preview. When the flag is on, `switchToWysiwyg` reconfigures
+      // the SAME EditorView's projection compartment; the shared button/indicator
+      // update below keeps the toolbar truthful about the actual view. When the
+      // Live Preview flag is off, switchToWysiwyg refuses (Source-only) — the
+      // indicator then stays on Source (`switchToWysiwyg` calls syncModeUI).
+      const active = lossless.editor.getMode();
       switchToWysiwyg();
+      const now = lossless.editor.getMode();
+      const previewOn = active === 'preview' || now === 'preview';
+      setActive('btn-wysiwyg', previewOn);
+      setActive('btn-source', !previewOn);
+      updateModeIndicator(previewOn ? 'wysiwyg' : 'source');
       return;
     }
+    // Legacy path: the WYSIWYG surface is the active owner after switching.
     switchToWysiwyg();
     setActive('btn-wysiwyg');
     setActive('btn-source', false);
@@ -286,6 +382,13 @@ function updateModeIndicator(mode: string) {
 
 /// Insert image Markdown in either WYSIWYG or source mode
 function insertImageSrc(src: string) {
+  // Lossless path: the active lossless view is the owner in Source AND Live
+  // Preview modes — route the insert there (never the hidden ProseMirror).
+  const lossless = getActiveLosslessView();
+  if (lossless) {
+    insertImageMarkdown(lossless, src);
+    return;
+  }
   const mode = getMode();
   if (mode === 'source') {
     const view = getSourceView();

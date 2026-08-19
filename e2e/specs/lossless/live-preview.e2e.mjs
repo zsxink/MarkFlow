@@ -163,6 +163,19 @@ describe('P2 lossless Live Preview (dual flags ON, autosave ENABLED)', () => {
     const state = await browser.execute(() => window.__markflowLossless?.projectionState?.() ?? 'none');
     expect(['rendered', 'degraded']).toContain(state);
 
+    // P2 §4.9: inject a REAL buildDecorations throw for every rebuild, then
+    // force a rebuild by editing. The plugin's try/catch must degrade without
+    // touching the Source document.
+    const armed = await browser.execute(() => {
+      const proj = window.__markflowProjection;
+      if (!proj?.failAlways) return 'no-hook';
+      return proj.failAlways();
+    });
+    expect(armed).toBe('armed');
+    await browser.execute(() => window.__markflowLossless?.type?.('P2 ') ?? 'no-hook');
+    const degraded = await browser.execute(() => window.__markflowLossless?.projectionState?.() ?? 'none');
+    expect(degraded).toBe('degraded');
+
     // Edit in Live Preview mode → still a real user edit (dirty), and Save
     // persists bytes (projection never intercepts the input path).
     const typed = await browser.execute(() => window.__markflowLossless?.type?.(' P2') ?? 'no-hook');
@@ -176,6 +189,15 @@ describe('P2 lossless Live Preview (dual flags ON, autosave ENABLED)', () => {
       const d = await browser.execute(() => window.__markflowLossless?.isDirty?.() ?? true);
       return d === false;
     }, { timeout: 10_000, timeoutMsg: 'Expected save to clear dirty' });
+
+    // The persisted file contains the typed text (bytes untouched by the
+    // projection failure).
+    const saved = await readFileBytes(name);
+    expect(saved.toString('utf8')).toContain('P2');
+
+    // Clear the injection; the projection recovers on the next rebuild.
+    const cleared = await browser.execute(() => window.__markflowProjection?.clearFail?.() ?? 'no-hook');
+    expect(cleared).toBe('cleared');
   });
 });
 }

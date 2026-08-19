@@ -97,9 +97,14 @@ vi.mock('@tauri-apps/api/core', async () => {
 // Flag + integration imports (real modules under test).
 import { setLivePreviewEnabled } from './livePreviewFlag';
 import { setLosslessCoreSessionEnabled } from './flag';
-import { openLosslessDocument } from './integration';
+import { openLosslessDocument, saveLosslessActiveDocument } from './integration';
 import { getActiveLosslessBinding } from './registry';
-import { getProjectionSnapshot, PROJECTION_CLASSES, resetProjectionSnapshot } from './projection';
+import {
+  getProjectionSnapshot,
+  PROJECTION_CLASSES,
+  resetProjectionSnapshot,
+  setProjectionTestFailMode,
+} from './projection';
 
 let dir: string;
 
@@ -285,4 +290,191 @@ describe('P2 projection adapter', () => {
     const snapshot = getProjectionSnapshot();
     expect(['rendered', 'degraded']).toContain(snapshot.state);
   });
+
+  // ── P2A marker weakening fix: discrete marker spans ─────────────────
+  // Design 03 §2: only the delimiter characters are weakened (marker 初期可见但
+  // 弱化) — never the content between two delimiters. Each marker range must be
+  // a SEPARATE decoration covering exactly the syntax characters.
+
+  it('strong marker decoration covers only the ** delimiters, not the content', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** and normal text\n';
+    const path = await writeFixture('strong-markers.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+
+    // Choose a caret safely away from the strong construct so it is not active.
+    view.dispatch({ selection: { anchor: md.indexOf('normal') } });
+
+    const snapshot = getProjectionSnapshot();
+    const strong = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong);
+    expect(strong).toBeDefined();
+    // The construct spans the whole `**bold**` (8 chars).
+    expect(strong!.from).toBe(0);
+    expect(strong!.to).toBe(8);
+    // The discrete marker spans must be EXACTLY the two `**` delimiters.
+    expect(strong!.markers).toEqual([
+      [0, 2],
+      [6, 8],
+    ]);
+
+    // The DOM must carry .mf-marker on the delimiter characters ONLY, never on
+    // the content between them. Each .mf-marker span wraps exactly one `**`.
+    const mfMarkers = Array.from(view.contentDOM.querySelectorAll('span.mf-marker'));
+    expect(mfMarkers.length).toBe(2);
+    const markerTexts = mfMarkers.map((el) => el.textContent);
+    expect(markerTexts).toEqual(['**', '**']);
+    // The bold content lives inside the .mf-strong wrapper but is NOT wrapped by
+    // any .mf-marker span — it is the syntax-highlight span between the two
+    // marker spans.
+    const strongEl = view.contentDOM.querySelector('span.mf-strong')!;
+    const boldSpan = Array.from(strongEl.children).find(
+      (el) => !el.classList.contains('mf-marker'),
+    );
+    expect(boldSpan).toBeTruthy();
+    expect(boldSpan!.textContent).toBe('bold');
+    // No .mf-marker span contains the content text.
+    expect(markerTexts.includes('bold')).toBe(false);
+  });
+
+  it('link decoration covers only [ ] ( ) delimiters, not text or url', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[text](https://example.com)\n\nplain paragraph far away\n';
+    const path = await writeFixture('link-markers.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+
+    // Caret far from the link so it is NOT active (active reveal would promote
+    // the construct to full marker visibility and skip the weak markers).
+    view.dispatch({ selection: { anchor: md.indexOf('far away') } });
+
+    const snapshot = getProjectionSnapshot();
+    // There are two mf-link constructs: the Link itself and its nested URL.
+    // The URL construct decorates the URL text; the Link construct owns the
+    // four delimiter markers ( [ ] ( ) ). Filter for the construct that owns
+    // them.
+    const linkConstructs = snapshot.constructs.filter((c) => c.cls === PROJECTION_CLASSES.link);
+    expect(linkConstructs.length).toBe(2);
+    const link = linkConstructs.find((c) => c.from === 0)!;
+    const url = linkConstructs.find((c) => c.from === 7)!;
+    // The outer Link delimiter markers are exactly the four syntax characters.
+    expect(link.markers).toEqual([
+      [0, 1],
+      [5, 6],
+      [6, 7],
+      [26, 27],
+    ]);
+    // The nested URL construct (the (url) text) has no delimiter markers.
+    expect(url.markers).toEqual([]);
+
+    // DOM: the four delimiter spans carry .mf-marker with exactly the delimiters.
+    const mfMarkers = Array.from(view.contentDOM.querySelectorAll('span.mf-marker'));
+    const markerTexts = mfMarkers.map((el) => el.textContent);
+    expect(markerTexts).toEqual(['[', ']', '(', ')']);
+    // Neither the link text nor the URL is wrapped by .mf-marker.
+    expect(markerTexts.includes('text')).toBe(false);
+    expect(markerTexts.includes('https://example.com')).toBe(false);
+  });
+
+  it('heading decoration covers the # marker only, not the heading text', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# Heading text\n\nplain paragraph far away\n';
+    const path = await writeFixture('heading-markers.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+
+    // Caret far from the heading so it is NOT active.
+    view.dispatch({ selection: { anchor: md.indexOf('far away') } });
+
+    const snapshot = getProjectionSnapshot();
+    const heading = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    expect(heading).toBeDefined();
+    // The heading marker is the `#` at least (the HeaderMark node is [0,1]).
+    expect(heading.markers).toEqual([[0, 1]]);
+    // The heading content does not get the marker. A heading is an ATXHeading1
+    // block: the `#` delimiter is its only marker span.
+    const mfMarkers = Array.from(view.contentDOM.querySelectorAll('span.mf-marker'));
+    expect(mfMarkers.length).toBe(1);
+    expect(mfMarkers[0].textContent).toBe('#');
+    // The heading text is not inside any .mf-marker span.
+    expect(
+      mfMarkers.some((el) => el.textContent!.includes('Heading text')),
+    ).toBe(false);
+  });
+
+  // ── P2 §4.9 failure injection (task 4.13) ───────────────────────────
+  // The projection plugin must survive a REAL buildDecorations throw: the
+  // try/catch degrades to an empty decoration set, the doc is unchanged, and
+  // after the flag clears the projection renders again (same EditorView).
+
+  it('a real buildDecorations throw degrades, survives, and recovers (next)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# H1\n\n**bold** text\n\nplain paragraph\n';
+    const path = await writeFixture('fail-next.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+
+    // Arm the NEXT projection build to throw, then switch to preview.
+    setProjectionTestFailMode('next');
+    binding.setMode('preview');
+
+    // The throw was caught by the plugin: the doc is unchanged and the state is
+    // degraded, never blank or crashed.
+    expect(view.state.doc.toString()).toBe(md);
+    expect(getProjectionSnapshot().state).toBe('degraded');
+
+    // The same EditorView is alive and editable (the plugin's try/catch kept it
+    // mounted; no doc rewrite happened).
+    expect(() => binding.setMode('source')).not.toThrow();
+
+    // The flag self-cleared after the single throw; switching back to preview
+    // renders normally again (recovery after failure).
+    binding.setMode('preview');
+    expect(getProjectionSnapshot().state).toBe('rendered');
+    const snapshot = getProjectionSnapshot();
+    expect(snapshot.constructs.some((c) => c.cls === PROJECTION_CLASSES.strong)).toBe(true);
+  });
+
+  it('a continuous buildDecorations throw keeps degrading but input and save survive', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** text\n\nplain paragraph\n';
+    const path = await writeFixture('fail-always.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+
+    // Force every projection build to throw, then preview.
+    setProjectionTestFailMode('always');
+    binding.setMode('preview');
+    expect(getProjectionSnapshot().state).toBe('degraded');
+
+    // Input still goes through (projection never intercepts the edit path).
+    // Place the caret in the middle of the doc first, then type.
+    view.dispatch({ selection: { anchor: md.indexOf('text') + 4 } });
+    binding.typeAtCursor(' X');
+    expect(view.state.doc.toString()).toBe('**bold** text X\n\nplain paragraph\n');
+
+    // Saving still works (the binding's save path is Core-confirmed bytes,
+    // independent of the projection layer).
+    const result = await saveLosslessActiveDocument({ interactive: false });
+    expect(result).toBe('saved');
+
+    // Clear the injection and prove the plugin recovers on the next rebuild.
+    setProjectionTestFailMode('none');
+    view.dispatch({ selection: { anchor: md.length } }); // force a rebuild
+    expect(getProjectionSnapshot().state).toBe('rendered');
+  });
 });
+

@@ -164,7 +164,7 @@ export function setMarkdown(
 
 // ── Mode switching ────────────────────────────────────────────────────
 
-export function switchToSource() {
+export function switchToSource(): boolean {
   // Lossless Core docs are already in Source mode with Core logical text; never
   // rebuild a PM-backed source (owner isolation, design P1B §5). P2: switching
   // back to Source is a compartment reconfigure on the SAME EditorView.
@@ -176,13 +176,14 @@ export function switchToSource() {
     if (wysiwygEditor) wysiwygEditor.hidden = true;
     losslessBinding.setMode('source');
     setMode('source');
-    return;
+    syncModeIndicator('source');
+    return true;
   }
   const ed = getEditor();
-  if (!ed) return;
+  if (!ed) return false;
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
-  if (!wysiwygEditor || !wrapper) return;
+  if (!wysiwygEditor || !wrapper) return false;
 
   const rawMarkdown = replaceAssetUrlsWithOriginal(ed.storage.markdown.getMarkdown());
   const normalized = normalizeImageMarkdown(rawMarkdown);
@@ -226,9 +227,15 @@ export function switchToSource() {
 
   // Focus CM6 editor so user can type immediately
   view.focus();
+  return true;
 }
 
-export function switchToWysiwyg() {
+function syncModeIndicator(mode: 'source' | 'wysiwyg'): void {
+  const indicator = document.getElementById('mode-indicator');
+  if (indicator) indicator.textContent = mode === 'wysiwyg' ? '所见即所得' : '源码';
+}
+
+export function switchToWysiwyg(): boolean {
   // Lossless Core docs use a SINGLE EditorView (P2). "WYSIWYG" in the lossless
   // path means Live Preview: a compartment reconfigure on the same view that
   // layers semantic decorations over the unchanged doc — no serializer, no
@@ -238,34 +245,36 @@ export function switchToWysiwyg() {
   if (losslessBinding) {
     if (!isLivePreviewEnabled()) {
       showToast('Lossless 模式当前仅支持源码编辑');
-      return;
+      return false; // refused — caller keeps the Source indicator
     }
     losslessBinding.setMode('preview');
     setMode('wysiwyg'); // store mode stays 'wysiwyg' — legacy consumers unchanged
+    syncModeIndicator('wysiwyg');
     store.emit({ type: 'editor:update' });
-    return;
+    return true;
   }
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
-  if (!wysiwygEditor || !wrapper) return;
+  if (!wysiwygEditor || !wrapper) return false;
 
   try {
     const ed = getEditor();
-    if (ed) {
-      ed.chain()
-        .setMeta(TRANSACTION_ORIGIN_META, 'modeSync')
-        .setContent(normalizeImageMarkdown(getSourceContent()), false)
-        .run();
-    }
+    if (!ed) return false;
+    ed.chain()
+      .setMeta(TRANSACTION_ORIGIN_META, 'modeSync')
+      .setContent(normalizeImageMarkdown(getSourceContent()), false)
+      .run();
   } finally {
     wysiwygEditor.hidden = false;
     wrapper.hidden = true;
     destroySourceEditor();
     setMode('wysiwyg');
+    syncModeIndicator('wysiwyg');
     getEditor()?.commands.focus();
     // Immediate refresh so outline/statusbar show WYSIWYG data right away
     store.emit({ type: 'editor:update' });
   }
+  return true;
 }
 
 export { ensureContinuationParagraph } from './editor.continuation';

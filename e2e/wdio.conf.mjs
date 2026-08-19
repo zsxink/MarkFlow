@@ -22,7 +22,7 @@ export const config = {
     smoke: ['./specs/smoke/**/*.e2e.mjs'],
     regression: ['./specs/regression/**/*.e2e.mjs'],
     p0s: ['./specs/p0s/**/*.e2e.mjs'],
-    lossless: ['./specs/lossless/**/*.e2e.mjs'],
+    lossless: ['./specs/lossless/all-lossless.e2e.mjs'],
     'lossless-acceptance': ['./specs/lossless/all-lossless-acceptance.e2e.mjs'],
   },
   maxInstances: 1,

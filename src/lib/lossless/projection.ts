@@ -39,19 +39,25 @@ export type ProjectionState =
   | 'projecting' // building decorations
   | 'rendered' // decorations rendered for the visible ranges
   | 'stale' // doc changed, rebuild pending
-  | 'degraded'; // fell back to source (huge doc / exception)
+  | 'composing' // composition active (rebuild followed the composing flag)
+  | 'degraded' // fell back to source (huge doc / exception)
+  | 'disposed'; // projection destroyed (mode switched back to Source / binding closed)
 
 /**
- * A semantic construct to decorate: its content range plus the derived marker
- * span (the syntax characters). Exposed for semantic assertions (the content
- * AND the marker coexist) without leaking body text into the debug snapshot.
+ * A semantic construct to decorate: its content range plus its discrete marker
+ * spans (the syntax characters, e.g. the two `**` of `**bold**`). Exposed for
+ * semantic assertions (the content AND the markers coexist) without leaking
+ * body text into the debug snapshot.
  */
 export interface ConstructRange {
   from: number;
   to: number;
-  /** Start of the marker (syntax) characters. */
-  markerFrom: number;
-  markerTo: number;
+  /**
+   * Discrete marker (syntax) spans inside the construct, each `[from, to)`.
+   * Each delimiter range is weakened separately — NEVER the content between
+   * two delimiters (design 03 §2: only the marker characters are weakened).
+   */
+  markers: Array<[number, number]>;
   /** Semantic class (`mf-h1`…, `mf-strong`, …). */
   cls: string;
   /** Heading level (1-6) when this construct is a heading; undefined otherwise. */
@@ -120,7 +126,80 @@ export function resetProjectionSnapshot(): void {
   lastSnapshot = { state: 'source', constructs: [], count: 0 };
 }
 
+/** Reflect a binding teardown in the debug state (task 4.9 `disposed`). */
+export function setProjectionDisposed(): void {
+  lastSnapshot = { state: 'disposed', constructs: [], count: 0 };
+}
+
+// ── Test-only failure injection (P2 §4.9 覆盖) ────────────────────────
+//
+// Proves the projection fallback contract (design P2 §4.9, task 4.13): when
+// buildDecorations ACTUALLY THROWS, the plugin's try/catch degrades to an empty
+// decoration set and the Source document still displays, edits, and saves. The
+// injection is reachable only in E2E/test builds (`import.meta.env.MODE` is
+// `'e2e'` in the desktop E2E build, `'test'` under vitest); production builds
+// replace MODE with `'production'` and the whole branch is dead code.
+
+type ProjectionTestFailMode = 'none' | 'next' | 'always';
+let testFailMode: ProjectionTestFailMode = 'none';
+
+/** True only in test/E2E builds; `MODE === 'production'` disables the injection. */
+function projectionInjectionEnabled(): boolean {
+  const mode = import.meta.env.MODE;
+  return mode !== 'production';
+}
+
+/**
+ * Test-only: force `buildDecorations` to throw. `'next'` throws on the next
+ * invocation only (then clears); `'always'` throws on every invocation while
+ * set. `'none'` (default) disables injection. No-op in production builds.
+ */
+export function setProjectionTestFailMode(mode: ProjectionTestFailMode): void {
+  if (!projectionInjectionEnabled()) return;
+  testFailMode = mode;
+}
+
+/** Test-only: whether the next decoration build is forced to throw. */
+export function isProjectionTestFailMode(): ProjectionTestFailMode {
+  return testFailMode;
+}
+
+function maybeInjectProjectionFailure(): void {
+  if (!projectionInjectionEnabled()) return;
+  if (testFailMode === 'next') {
+    testFailMode = 'none';
+    throw new Error('projection-test-injected-failure');
+  }
+  if (testFailMode === 'always') {
+    throw new Error('projection-test-injected-failure');
+  }
+}
+
+// E2E-only hooks: the desktop E2E (WebDriver) forces real projection failures
+// on the real app. Present only in `e2e` builds, never in prod.
+if (import.meta.env.MODE === 'e2e') {
+  const projectionHooks = {
+    /** Inject a throw on the NEXT projection build (then self-clears). */
+    failNext: () => {
+      setProjectionTestFailMode('next');
+      return 'armed';
+    },
+    /** Inject a throw on EVERY projection build while the flag is set. */
+    failAlways: () => {
+      setProjectionTestFailMode('always');
+      return 'armed';
+    },
+    /** Clear any armed failure injection. */
+    clearFail: () => {
+      setProjectionTestFailMode('none');
+      return 'cleared';
+    },
+  };
+  (window as unknown as { __markflowProjection?: typeof projectionHooks }).__markflowProjection = projectionHooks;
+}
+
 function buildDecorations(view: EditorView): DecorationSet {
+  maybeInjectProjectionFailure();
   const { state } = view;
   const tree = syntaxTree(state);
   const doc = state.doc;
@@ -168,10 +247,9 @@ function buildDecorations(view: EditorView): DecorationSet {
         constructs.push({
           from: nodeFrom,
           to: nodeTo,
-          // The marker span is refined below once we know which delimiter
+          // The marker spans are refined below once we know which delimiter
           // nodes fall inside this construct.
-          markerFrom: nodeFrom,
-          markerTo: nodeFrom + Math.min(nodeTo - nodeFrom, 2),
+          markers: [],
           cls: cls.cls,
           level: cls.level,
         });
@@ -186,16 +264,14 @@ function buildDecorations(view: EditorView): DecorationSet {
     },
   });
 
-  // Assign precise marker spans to each construct using the collected
-  // delimiter nodes that fall inside its range.
+  // Assign the precise discrete marker spans to each construct using the
+  // delimiter nodes that fall inside its range — each delimiter range is kept
+  // SEPARATE so only the syntax characters get weak-revealed, never the content
+  // between two delimiters (design 03 §2).
   for (const range of constructs) {
-    const inside = markerSpans
+    range.markers = markerSpans
       .filter(([mf, mt]) => mf >= range.from && mt <= range.to)
       .sort((a, b) => a[0] - b[0]);
-    if (inside.length > 0) {
-      range.markerFrom = inside[0][0];
-      range.markerTo = inside[inside.length - 1][1];
-    }
   }
 
   // Active reveal: when the current selection (or a small neighborhood around a
@@ -210,19 +286,35 @@ function buildDecorations(view: EditorView): DecorationSet {
 
   const finalBuilder = new RangeSetBuilder<Decoration>();
   const markerDeco = Decoration.mark({ class: 'mf-marker' });
+  // Collect every decoration (construct + its discrete marker delimiters) and
+  // add them in ascending `from` order. Nested constructs (e.g. a Link
+  // containing a URL, or emphasis inside bold) can place a later construct
+  // INSIDE an earlier construct's marker span, so insertion must follow the
+  // builder's sorted invariant — otherwise RangeSetBuilder throws
+  // "Ranges must be added sorted". The DOM nesting is derived from the ranges'
+  // geometry, not from insertion order, so this re-order is purely additive.
+  const additions: Array<{ from: number; to: number; deco: Decoration }> = [];
   for (const range of constructs) {
     const active = intersects(range);
-    finalBuilder.add(
-      range.from,
-      range.to,
-      active
+    additions.push({
+      from: range.from,
+      to: range.to,
+      deco: active
         ? Decoration.mark({ class: `mf-construct ${range.cls} ${PROJECTION_CLASSES.active}` })
         : decorationFor(range.cls, range.level),
-    );
-    // Weak-reveal the marker characters unless the construct is active.
-    if (!active && range.markerTo > range.markerFrom) {
-      finalBuilder.add(range.markerFrom, range.markerTo, markerDeco);
+    });
+    // Weak-reveal each marker delimiter range separately unless the construct
+    // is active — only the syntax characters get `.mf-marker`, never the
+    // content between two delimiters (design 03 §2).
+    if (!active) {
+      for (const [mf, mt] of range.markers) {
+        additions.push({ from: mf, to: mt, deco: markerDeco });
+      }
     }
+  }
+  additions.sort((a, b) => a.from - b.from || a.to - b.to);
+  for (const { from, to, deco } of additions) {
+    finalBuilder.add(from, to, deco);
   }
 
   lastSnapshot = { state: degraded ? 'degraded' : 'rendered', constructs, count };
@@ -240,19 +332,35 @@ export const projectionPlugin = ViewPlugin.fromClass(
 
     constructor(view: EditorView) {
       lastSnapshot = { state: 'projecting', constructs: [], count: 0 };
-      this.decorations = buildDecorations(view);
+      try {
+        this.decorations = buildDecorations(view);
+      } catch {
+        // A throw during the first build (e.g. a forced test failure or a
+        // parser hiccup) must NOT crash the plugin: degrade to an empty
+        // decoration set and keep the same EditorView mountable/editable.
+        this.decorations = RangeSet.empty;
+        lastSnapshot = { state: 'degraded', constructs: [], count: 0 };
+      }
     }
 
     update(update: ViewUpdate) {
-      if (
-        update.docChanged ||
-        update.viewportChanged ||
-        update.selectionSet ||
-        update.view.composing
-      ) {
+      if (update.docChanged || update.viewportChanged || update.selectionSet || update.view.composing) {
+        // Tasks 4.9: the state must reflect why we rebuild. `stale` is the
+        // transient "rebuild pending" state; a composition build is tagged
+        // `composing`; the rebuild itself resolves to `rendered`/`degraded`.
+        if (update.view.composing) {
+          lastSnapshot = { ...lastSnapshot, state: 'composing', constructs: [], count: 0 };
+        } else if (update.docChanged) {
+          lastSnapshot = { ...lastSnapshot, state: 'stale', constructs: [], count: 0 };
+        }
         try {
           this.decorations = buildDecorations(update.view);
-          if (update.docChanged) lastSnapshot = { ...lastSnapshot, state: 'stale' };
+          // `buildDecorations` resolves to `rendered`/`degraded`. During an
+          // active composition (e.g. a rebuild triggered alongside the IME
+          // session) keep the `composing` tag so the debug state is truthful.
+          if (update.view.composing && lastSnapshot.state !== 'degraded') {
+            lastSnapshot = { ...lastSnapshot, state: 'composing' };
+          }
         } catch {
           // Projection failure must never break input or save: degrade to raw
           // source (empty decoration set) and keep the plugin alive.
@@ -260,6 +368,13 @@ export const projectionPlugin = ViewPlugin.fromClass(
           lastSnapshot = { state: 'degraded', constructs: [], count: 0 };
         }
       }
+    }
+
+    destroy() {
+      // Switching back to Source (or closing the binding) removes this plugin.
+      // The snapshot must reflect that the projection is off — never reuse a
+      // stale rendered/stale/composing state for the next enable cycle.
+      lastSnapshot = { state: 'source', constructs: [], count: 0 };
     }
   },
   {

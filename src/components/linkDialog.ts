@@ -2,12 +2,22 @@ import { fetchPageTitle } from '../lib/storage';
 import { getEditor, getMode } from '../lib/editor';
 import { showToast } from './toast';
 import { showModal } from './ui/modal';
+import { getActiveLosslessView, insertLinkMarkdown } from '../lib/lossless/commandRouter';
 
 export function showLinkDialog() {
   const mode = getMode();
+  const losslessView = getActiveLosslessView();
   let selectedText = '';
 
-  if (mode === 'source') {
+  if (losslessView) {
+    // Lossless path: the single CodeMirror view is the only selection owner
+    // (design 03 §6). Never read the hidden ProseMirror or a legacy textarea.
+    const { state } = losslessView;
+    const { from, to } = state.selection.main;
+    if (from !== to) {
+      selectedText = state.sliceDoc(from, to);
+    }
+  } else if (mode === 'source') {
     const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;
     if (textarea) {
       const start = textarea.selectionStart;
@@ -105,6 +115,21 @@ export function showLinkDialog() {
     }
 
     if (aborted) return;
+
+    // Lossless path (Source AND Live Preview): dispatch the link-then-text
+    // change as a LOCAL CodeMirror transaction on the active view, so the
+    // binding's updateListener queues it as one user patch.
+    const activeLosslessView = getActiveLosslessView();
+    if (activeLosslessView) {
+      const { from, to } = activeLosslessView.state.selection.main;
+      if (from === to && !text) {
+        showToast('请选择要链接的文本或输入显示文本');
+        return;
+      }
+      insertLinkMarkdown(activeLosslessView, href, text);
+      close();
+      return;
+    }
 
     if (mode === 'source') {
       const textarea = document.getElementById('source-editor') as HTMLTextAreaElement | null;

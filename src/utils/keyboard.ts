@@ -5,6 +5,7 @@ import { showNewFileDialog } from '../components/newFileDialog';
 import { getWorkspacePath } from '../components/fileTree';
 import { open } from '@tauri-apps/plugin-dialog';
 import { addRecentFile } from '../lib/storage';
+import { getActiveLosslessView, insertLinkMarkdown, toggleInlineWrap } from '../lib/lossless/commandRouter';
 
 function sanitizeLinkHref(input: string): string | null {
   const trimmed = input.trim();
@@ -33,10 +34,18 @@ export function initKeyboard() {
     switch (e.key.toLowerCase()) {
       case 'b':
         e.preventDefault();
+        if (getActiveLosslessView()) {
+          toggleInlineWrap(getActiveLosslessView()!, 'bold');
+          break;
+        }
         editor?.chain().focus().toggleBold().run();
         break;
       case 'i':
         e.preventDefault();
+        if (getActiveLosslessView()) {
+          toggleInlineWrap(getActiveLosslessView()!, 'italic');
+          break;
+        }
         editor?.chain().focus().toggleItalic().run();
         break;
       case 's':
@@ -58,8 +67,18 @@ export function initKeyboard() {
         e.preventDefault();
         const url = prompt('输入链接 URL:');
         const href = url ? sanitizeLinkHref(url) : null;
-        if (href && editor) {
-          editor.chain().focus().setLink({ href }).run();
+        if (href) {
+          const lossless = getActiveLosslessView();
+          if (lossless) {
+            const { from, to } = lossless.state.selection.main;
+            if (from === to) {
+              showToast('请选择要链接的文本或输入显示文本');
+            } else {
+              insertLinkMarkdown(lossless, href, '');
+            }
+          } else if (editor) {
+            editor.chain().focus().setLink({ href }).run();
+          }
         } else if (url) {
           showToast('不支持的链接协议');
         }
@@ -72,11 +91,11 @@ export function initKeyboard() {
       case '/':
         e.preventDefault();
         if (getMode() === 'wysiwyg') {
-          switchToSource();
-          updateModeBtns('source');
+          const switched = switchToSource();
+          if (switched) updateModeBtns('source');
         } else {
-          switchToWysiwyg();
-          updateModeBtns('wysiwyg');
+          const switched = switchToWysiwyg();
+          if (switched) updateModeBtns('wysiwyg');
         }
         break;
       case 'n':
@@ -95,7 +114,11 @@ export function initKeyboard() {
           break;
         case 's':
           e.preventDefault();
-          editor?.chain().focus().toggleStrike().run();
+          if (getActiveLosslessView()) {
+            toggleInlineWrap(getActiveLosslessView()!, 'strike');
+          } else {
+            editor?.chain().focus().toggleStrike().run();
+          }
           break;
       }
     }

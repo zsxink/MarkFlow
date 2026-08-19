@@ -75,7 +75,7 @@
     regression=1 p0s=4）全 PASS
   - 结论：P0 0 / P1 0 / P2 1（文档）；总体 **GO（条件性）**，剩余仅 Program Owner 人工验收
   - 证据：`evidence/P1B/20260817-053048-independent-review-a16e575/`
-- Program Go/No-Go：NOT STARTED（待人工验收 + Program Owner 决定）
+- Program Go/No-Go：**GO（2026-08-19，xian）**。P1B 人工验收已在 2026-08-18 补验 ACCEPTED（8 PASS + 2 依赖自动化证据，由 Program Owner 代理经 WebDriver 驱动真实桌面应用执行）；`tasks.md` 3.11 已勾选完成，记录 Slice 1B Go checkpoint。不归档 umbrella change（后续 P2-P5 继续在同一 change）。
 
 > **Program Owner 决定记录（2026-08-18，xian）**：P1B 人工验收经权衡后**推迟**
 > （跳过先执行），进入 P2 编码。候选锁定冻结候选 `a16e575`（HEAD `8bbcb79`，

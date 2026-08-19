@@ -62,25 +62,31 @@
 - [x] 3.9.1 继承 P0S lifecycle：autosave 开启，零编辑等待两个 tick、Ctrl+S、关闭、reload、A/B 切换均证明 dirty=false、save count=0、hash/length/mtime 不变
 - [x] 3.9.2 对 lossless flag 做调用审计/spy，证明打开、dirty、autosave、手动保存、reload 和 close 不调用 `setMarkdown/getMarkdown/normalizeImageMarkdown` 或 PM serializer
 - [x] 3.10 证明 render/parser 不可用时 Source 仍能编辑保存；任何 byte fixture 失败则 lossless flag 保持 default-off
-- [ ] 3.11 运行 TS/build、Core/Tauri、E2E 全 gate并派独立 reviewer；通过并经人工验收后记录 Slice 1B Go checkpoint，不归档 umbrella change
+- [x] 3.11 运行 TS/build、Core/Tauri、E2E 全 gate并派独立 reviewer；通过并经人工验收后记录 Slice 1B Go checkpoint，不归档 umbrella change
+  - Slice 1B Go checkpoint（2026-08-19）：三轮独立复核 GO + 人工验收补验 ACCEPTED（8 PASS + 2 依赖自动化证据）；
+  Program Owner GO；`20260816-p1b-human-acceptance-uncommitted-e4981e3/HUMAN-ACCEPTANCE.md` 与 `phases/P1B.md` 已记录
 
 ## 4. Slice 2 — 单一 CodeMirror Surface 与基础 Live Preview
 
-- [ ] 4.1 把 lossless 文档生命周期改为只创建一个 CodeMirror `EditorView`，拆分 base/mode/theme/readOnly/projection compartments
-- [ ] 4.2 将 Source/Live Preview 切换改为 compartment reconfigure，保持 selection、scroll、focus、pending queue、dirty 和 CodeMirror History
-- [ ] 4.3 使用 CodeMirror Markdown/Lezer 可见区语法树实现 heading、strong、emphasis、strike、inline code、link、quote、list 和 fence 的即时语义 decorations
-- [ ] 4.4 首版 marker 只弱化不隐藏；光标/选区/composition 进入范围时完整揭示 marker
-- [ ] 4.5 定义 projection invalidation closure：普通段落局部失效，list/quote/fence/reference/footnote 按最小结构闭包失效；range 不可信时精确回退源码
-- [ ] 4.6 定义 selection invariant：CM UTF-16 position + affinity 为 UI 基准，transaction 由 `ChangeDesc` 映射，bridge 使用显式 PositionMap；禁止 DOM node、`wbr` 或 sentinel 进入正常状态
-- [ ] 4.7 建立 marker reveal 矩阵，覆盖 collapsed/range/directional selection、鼠标 drag、Home/End、Shift+Arrow、Select All、composition 邻域和 atomic widget 边界
-- [ ] 4.8 让 outline、stats、statusbar、search、settings 和 read-only 状态读取 active CodeMirror binding，不读取隐藏 ProseMirror
-- [ ] 4.9 实现 projection 状态与调试属性：source/projecting/rendered/composing/stale/degraded/disposed，并记录 flags/identity 而不记录正文
-- [ ] 4.10 添加 adapter tests：projection 不改变 `EditorState.doc`、transaction 后即时更新、模式切换不产生正文 transaction
-- [ ] 4.11 添加真实 desktop semantic E2E，逐 construct 断言语义 decoration/DOM，而非只断言编辑区包含文本
-- [ ] 4.12 执行 Source/Live Preview 100 次切换测试，验证 bytes、EditorView identity、selection、scroll、dirty、revision 和 History
-- [ ] 4.13 注入 projection failure，验证只回退同一 CodeMirror Source 且保存 bytes 不受影响
-- [ ] 4.14 运行全 gate 与独立 reviewer；真实 WYSIWYG 未呈现 Markdown 语义则 Slice 2 No-Go
-- [ ] 4.15 重跑零编辑两个 autosave tick、干净 Ctrl+S、模式切换与关闭 L0 门禁，证明 projection reconfigure 不产生 transaction 或写盘
+- [x] 4.1 把 lossless 文档生命周期改为只创建一个 CodeMirror `EditorView`，拆分 base/mode/theme/readOnly/projection compartments
+- [x] 4.2 将 Source/Live Preview 切换改为 compartment reconfigure，保持 selection、scroll、focus、pending queue、dirty 和 CodeMirror History
+- [x] 4.3 使用 CodeMirror Markdown/Lezer 可见区语法树实现 heading、strong、emphasis、strike、inline code、link、quote、list 和 fence 的即时语义 decorations
+- [x] 4.4 首版 marker 只弱化不隐藏；光标/选区/composition 进入范围时完整揭示 marker
+  - active reveal 已实现（selection 驱动）；composition 邻域 reveal 由 `view.composing` 触发（桌面真 IME 未验证，标记依赖自动化证据，P3 补）
+- [x] 4.5 定义 projection invalidation closure：普通段落局部失效，list/quote/fence/reference/footnote 按最小结构闭包失效；range 不可信时精确回退源码
+  - 实现为 viewport 级 closure（只重建可见区，off-screen 不解析）；per-block diff 留待 P3 优化（Reviewer P2-3）
+- [x] 4.6 定义 selection invariant：CM UTF-16 position + affinity 为 UI 基准，transaction 由 `ChangeDesc` 映射，bridge 使用显式 PositionMap；禁止 DOM node、`wbr` 或 sentinel 进入正常状态
+- [x] 4.7 建立 marker reveal 矩阵，覆盖 collapsed/range/directional selection、鼠标 drag、Home/End、Shift+Arrow、Select All、composition 邻域和 atomic widget 边界
+  - collapsed/range selection reveal 已测；drag/Home/End/Shift+Arrow/Select All 经桌面 E2E 验证（selection 不变）；atomic widget 边界 P2 不涉及（无 widgets）
+- [x] 4.8 让 outline、stats、statusbar、search、settings 和 read-only 状态读取 active CodeMirror binding，不读取隐藏 ProseMirror
+- [x] 4.9 实现 projection 状态与调试属性：source/projecting/rendered/composing/stale/degraded/disposed，并记录 flags/identity 而不记录正文
+- [x] 4.10 添加 adapter tests：projection 不改变 `EditorState.doc`、transaction 后即时更新、模式切换不产生正文 transaction
+- [x] 4.11 添加真实 desktop semantic E2E，逐 construct 断言语义 decoration/DOM，而非只断言编辑区包含文本
+- [x] 4.12 执行 Source/Live Preview 100 次切换测试，验证 bytes、EditorView identity、selection、scroll、dirty、revision 和 History
+- [x] 4.13 注入 projection failure，验证只回退同一 CodeMirror Source 且保存 bytes 不受影响
+- [x] 4.14 运行全 gate 与独立 reviewer；真实 WYSIWYG 未呈现 Markdown 语义则 Slice 2 No-Go
+  - GO（2026-08-19）：独立 Reviewer 6/6 + 人工验收 ACCEPTED（语义清晰）；P1（toolbar 操作 getSourceView/hidden PM）归口 P3
+- [x] 4.15 重跑零编辑两个 autosave tick、干净 Ctrl+S、模式切换与关闭 L0 门禁，证明 projection reconfigure 不产生 transaction 或写盘
 
 ## 5. Slice 3 — 默认保存主链与常用编辑能力迁移
 

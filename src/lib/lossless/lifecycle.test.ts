@@ -31,6 +31,9 @@ const state = vi.hoisted(() => ({
   /** Backend mutates state first, then only the response is lost. */
   loseCommitResponseAfterMutationOnce: false,
   loseWriteResponseAfterMutationOnce: false,
+  /** When set, the NEXT guarded_atomic_write waits on this promise before
+   *  writing, so a test can start a NEW edit while the write is in flight. */
+  writeBarrier: null as Promise<void> | null,
   /** Reject next patch before mutating Core, forcing controller resync. */
   rejectPatchStaleOnce: false,
   rejectPatchIoAlways: false,
@@ -177,6 +180,9 @@ vi.mock('@tauri-apps/api/core', async () => {
           const payload = Buffer.from(req.payloadBase64, 'base64').toString('utf8');
           sessionState.writeCount += 1;
           sessionState.writes.push({ path: req.path, payloadSha256: sha256hex(payload) });
+          if (sessionState.writeBarrier) {
+            await sessionState.writeBarrier; // hold the disk write in flight
+          }
           await nodeFsMod.writeFile(req.path, payload, 'utf8');
           sessionState.receipts.set(req.saveOperationId, {
             state: 'written',
@@ -332,6 +338,7 @@ beforeEach(async () => {
   state.failCommitOnce = false;
   state.loseCommitResponseAfterMutationOnce = false;
   state.loseWriteResponseAfterMutationOnce = false;
+  state.writeBarrier = null;
   state.rejectPatchStaleOnce = false;
   state.rejectPatchIoAlways = false;
   state.failReloadOnce = false;
@@ -472,6 +479,44 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     expect(setMarkdownSpy).not.toHaveBeenCalled();
     getMarkdownSpy.mockRestore();
     setMarkdownSpy.mockRestore();
+  });
+
+  it('an edit typed DURING the guarded write stays dirty after the older revision is persisted (5.9)', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+
+    // Real CodeMirror edit → dirty.
+    binding.typeAtCursor('A');
+    await sleep(80); // controller batch + ack
+    expect(binding.isDirty()).toBe(true);
+
+    // Hold the NEXT guarded write in flight.
+    let releaseWrite: () => void = () => undefined;
+    state.writeBarrier = new Promise<void>((r) => { releaseWrite = r; });
+
+    // Start save (blocks on the write barrier inside guarded_atomic_write).
+    const savePromise = saveLosslessActiveDocument({ interactive: true });
+
+    // While the write is in flight, the user types again.
+    await sleep(50);
+    binding.typeAtCursor('B');
+    await sleep(80); // B is batched + acked as a NEW pending edit
+
+    // Release the write; the save completes writing revision N (with A).
+    releaseWrite();
+    const result = await savePromise;
+    expect(result).toBe('saved');
+
+    // The write only captured the pre-write revision; the newer B edit is
+    // still pending → the document stays dirty for a NEXT save.
+    expect(state.writeCount).toBe(1);
+    expect(binding.isDirty()).toBe(true);
+
+    // Saving again persists B and converges to clean.
+    const result2 = await saveLosslessActiveDocument({ interactive: true });
+    expect(result2).toBe('saved');
+    expect(binding.isDirty()).toBe(false);
   });
 
   it('reload keeps the doc clean and disposes the old pipeline', async () => {

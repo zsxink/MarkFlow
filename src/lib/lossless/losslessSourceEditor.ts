@@ -73,6 +73,15 @@ export interface LosslessSourceEditorOptions {
   onDocChanged?: () => void;
   /** Raw text from the browser paste event, captured before CM normalizes EOLs. */
   onRawPasteText?: (text: string) => void;
+  /**
+   * Called when image files are pasted/dropped into the lossless surface.
+   * The implementation runs the resource pipeline and returns the final image
+   * Markdown reference(s), OR null when the bind should be aborted (P3 5.5 /
+   * design 04 §6). The editor dispatches each returned Markdown as a local
+   * transaction at the caret. Async identity: the editor re-checks that the
+   * view is still mounted before dispatching.
+   */
+  onImageFiles?: (files: File[], mode: 'paste' | 'drop') => Promise<string[] | null>;
 }
 
 export interface LosslessSourceEditorHandle {
@@ -190,6 +199,31 @@ export function createLosslessSourceEditor(
       }),
       EditorView.domEventHandlers({
         paste(event: ClipboardEvent) {
+          // P3 5.5: image files take priority over plain text.
+          const imageFiles = Array.from(event.clipboardData?.files ?? []).filter((f) =>
+            f.type.startsWith('image/'),
+          );
+          if (imageFiles.length > 0 && options.onImageFiles) {
+            event.preventDefault();
+            const caret = view.state.selection.main.head;
+            void options
+              .onImageFiles(imageFiles, 'paste')
+              .then((markdowns) => {
+                if (!markdowns || destroyed) return;
+                const insert = markdowns.join('\n');
+                view.dispatch({
+                  changes: { from: caret, to: caret, insert },
+                  selection: { anchor: caret + insert.length },
+                  scrollIntoView: true,
+                  userEvent: 'input.paste',
+                  annotations: isolateHistory.of('full'),
+                });
+              })
+              .catch(() => {
+                // Resource failure → no doc change; user sees no inserted bytes.
+              });
+            return true;
+          }
           // CodeMirror's document is logical LF text. Read the OS clipboard
           // first so the bridge can retain explicit CRLF/CR provenance instead
           // of silently inheriting the surrounding document's EOL style.
@@ -219,6 +253,32 @@ export function createLosslessSourceEditor(
             userEvent: 'input.paste',
             annotations: isolateHistory.of('full'),
           });
+          return true;
+        },
+        drop(event: DragEvent) {
+          // P3 5.5: image files dropped into the surface.
+          const imageFiles = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
+            f.type.startsWith('image/'),
+          );
+          if (imageFiles.length === 0 || !options.onImageFiles) return false;
+          event.preventDefault();
+          event.stopPropagation();
+          const caret = view.posAtCoords({ x: event.clientX, y: event.clientY });
+          const insertAt = caret ?? view.state.selection.main.head;
+          void options
+            .onImageFiles(imageFiles, 'drop')
+            .then((markdowns) => {
+              if (!markdowns || destroyed) return;
+              const insert = markdowns.join('\n');
+              view.dispatch({
+                changes: { from: insertAt, to: insertAt, insert },
+                selection: { anchor: insertAt + insert.length },
+                scrollIntoView: true,
+                userEvent: 'input.paste',
+                annotations: isolateHistory.of('full'),
+              });
+            })
+            .catch(() => undefined);
           return true;
         },
       }),

@@ -125,6 +125,39 @@ export class EditorSurfaceBinding {
       onTransaction: (transactions) => binding?.handleTransactions(transactions),
       onDocChanged: () => store.emit({ type: 'editor:update' }),
       onRawPasteText: (text) => binding?.recordRawPaste(text),
+      // P3 5.5: image-file paste/drop → resource pipeline → local reference
+      // Markdown transaction (design 04 §6: resource prepared BEFORE the doc
+      // range is touched; failure inserts nothing).
+      onImageFiles: async (files, mode) => {
+        if (!binding) return null;
+        const { pasteImageFile, copyLocalFileToStorage, getImageSettings, imagePathToSrc } =
+          await import('../imageUtils');
+        const settings = await getImageSettings();
+        const docPath = binding.path;
+        const references: string[] = [];
+        for (const file of files) {
+          try {
+            const localPath =
+              mode === 'drop'
+                ? (file as File & { path?: string }).path
+                : undefined;
+            const reference = localPath
+              ? await copyLocalFileToStorage(localPath, docPath, settings)
+              : await pasteImageFile(file, docPath, settings);
+            references.push(reference);
+          } catch {
+            // Skip a single failed image; the rest still insert.
+          }
+        }
+        if (references.length === 0) return null;
+        // Convert stored references to display src (asset: URLs keep editing
+        // the SAME source range on next save; the migration runs at save time).
+        return references.map((ref) => {
+          if (/^(?:https?:|data:|asset:)/.test(ref)) return `![](${ref})`;
+          const src = imagePathToSrc(ref, docPath);
+          return `![](${src})`;
+        });
+      },
     });
 
     const controller = new SourceSyncController({

@@ -272,8 +272,10 @@ export function insertHorizontalRule(view: EditorView): void {
 /**
  * Toggle a fenced code block around the selection. With a non-empty selection
  * the selected lines are wrapped in ``` fences (cursor before the closing
- * fence). With an empty selection an empty fence is inserted with the caret
- * inside it. Mirrors the legacy source-mode `btn-codeblock` handler.
+ * fence). When the selection is ALREADY the inside of a fenced block, the
+ * fence lines are removed (unwrap) so the byte range returns to plain text.
+ * With an empty selection an empty fence is inserted with the caret inside it.
+ * Mirrors the legacy source-mode `btn-codeblock` handler.
  */
 export function toggleCodeBlock(view: EditorView): void {
   const { state } = view;
@@ -286,6 +288,36 @@ export function toggleCodeBlock(view: EditorView): void {
     const lastLine = state.doc.lineAt(Math.max(selTo - 1, selFrom));
     const insertAt = firstLine.from;
     const insertTo = lastLine.to;
+
+    // Unwrap when the selected region is already wrapped by an enclosing ```
+    // fence: the first selection line is a fence opener and the last is a
+    // closer (the opener/closer may BE the selection endpoints).
+    const isFenceOpener = /^```$/.test(firstLine.text) && firstLine.to >= selFrom && firstLine.from <= selTo;
+    const isFenceCloser = /^```$/.test(lastLine.text) && lastLine.to >= selFrom && lastLine.from <= selTo;
+    if (isFenceOpener && isFenceCloser && firstLine.number < lastLine.number) {
+      const openerTo = firstLine.to;
+      const closerFrom = lastLine.from;
+      // The body slice may end with the newline that precedes the closer;
+      // drop it so the unwrapped result is the body text without a dangling LF.
+      let body = state.sliceDoc(openerTo + 1, closerFrom);
+      if (body.endsWith('\n')) body = body.slice(0, -1);
+      // Remove the opener line (incl. its newline) and the closer line
+      // (incl. its preceding newline); keep the body bytes exactly. The
+      // changes apply left-to-right in one transaction: removing the closer
+      // first (at a later offset) does not shift the opener offsets, so the
+      // body is anchored at its own length after the opener is removed.
+      view.dispatch({
+        changes: [
+          { from: closerFrom - 1, to: lastLine.to, insert: '' },
+          { from: firstLine.from, to: openerTo + 1, insert: '' },
+        ],
+        selection: { anchor: body.length },
+        userEvent: 'command',
+      });
+      view.focus();
+      return;
+    }
+
     const body = state.sliceDoc(insertAt, insertTo);
     view.dispatch({
       changes: { from: insertAt, to: insertTo, insert: '```\n' + body + '\n```' },

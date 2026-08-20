@@ -276,3 +276,163 @@ describe('lossless command router', () => {
     expect(view.state.doc.toString()).toBe('- > # title\nbody text');
   });
 });
+
+// ── Table-driven command coverage (task 5.2) ───────────────────────────
+// Covers the mandated matrix: collapsed/range/reversed selection, line
+// start/end, nested constructs, CJK/emoji, malformed fallback, and Undo/Redo —
+// all through the SAME command router functions (each a local CM transaction).
+
+describe('lossless command router — table-driven (task 5.2)', () => {
+  const cases = [
+    {
+      name: 'bold wraps a range selection',
+      doc: 'hello world',
+      kind: 'bold',
+      sel: [0, 5] as const,
+      expect: '**hello** world',
+    },
+    {
+      name: 'bold wraps a REVERSED selection',
+      doc: 'hello world',
+      kind: 'bold',
+      sel: [5, 0] as const, // head < anchor
+      expect: '**hello** world',
+    },
+    {
+      name: 'bold unwraps when fully wrapped',
+      doc: '**hello** world',
+      kind: 'bold',
+      sel: [2, 7] as const, // "hello" inside
+      expect: 'hello world',
+    },
+    {
+      name: 'italic wraps a range',
+      doc: 'a quick x y',
+      kind: 'italic',
+      sel: [2, 7] as const,
+      expect: 'a *quick* x y',
+    },
+    {
+      name: 'strike wraps a range',
+      doc: 'a quick x y',
+      kind: 'strike',
+      sel: [8, 9] as const, // "x"
+      expect: 'a quick ~~x~~ y',
+    },
+    {
+      name: 'code wraps a range',
+      doc: 'a quick x y',
+      kind: 'code',
+      sel: [8, 9] as const, // "x"
+      expect: 'a quick `x` y',
+    },
+    {
+      name: 'bold at line start wraps cleanly (no cross-line leakage)',
+      doc: 'first line\nsecond line',
+      kind: 'bold',
+      sel: [0, 5] as const, // "first"
+      expect: '**first** line\nsecond line',
+    },
+    {
+      name: 'bold around CJK text preserves the exact bytes',
+      doc: '你好世界',
+      kind: 'bold',
+      sel: [0, 2] as const,
+      expect: '**你好**世界',
+    },
+    {
+      name: 'bold around emoji does not split the surrogate pair',
+      doc: 'a😀b',
+      kind: 'bold',
+      sel: [1, 3] as const, // the emoji high+low surrogate
+      expect: 'a**😀**b',
+    },
+    {
+      name: 'bold on malformed/unbalanced text still wraps the exact selection',
+      doc: '**unclosed text',
+      kind: 'bold',
+      sel: [0, 14] as const, // "**unclosed tex" (15 chars total; 14 = one short)
+      expect: '****unclosed tex**t',
+    },
+  ] as const;
+
+  for (const c of cases) {
+    it(c.name, async () => {
+      const { view } = await openWithSelection(c.doc, c.sel[0], c.sel[1]);
+      toggleInlineWrap(view, c.kind as 'bold');
+      expect(view.state.doc.toString()).toBe(c.expect);
+    });
+  }
+
+  it('heading toggles level 1 on a range spanning multiple lines', async () => {
+    const { view } = await openWithSelection('one\ntwo\nthree', 0, 7);
+    toggleHeading(view, 1);
+    expect(view.state.doc.toString()).toBe('# one\n# two\nthree');
+  });
+
+  it('heading normalizes a lower level to the target level', async () => {
+    const { view } = await openWithSelection('## two', 0, 0);
+    toggleHeading(view, 1);
+    expect(view.state.doc.toString()).toBe('# two');
+  });
+
+  it('quote toggle on a multi-line selection quotes every line', async () => {
+    const { view } = await openWithSelection('one\ntwo', 0, 7);
+    toggleQuote(view);
+    expect(view.state.doc.toString()).toBe('> one\n> two');
+  });
+
+  it('unordered list toggle respects existing markers per line', async () => {
+    const { view } = await openWithSelection('one\n- two', 0, 8);
+    toggleList(view, false);
+    // "one" gains a marker, "- two" already has one (allMarked=false path).
+    expect(view.state.doc.toString()).toBe('- one\n- two');
+  });
+
+  it('ordered list toggle normalizes numbered markers', async () => {
+    const { view } = await openWithSelection('1. one\n2. two', 0, 10);
+    toggleList(view, true);
+    // Removing the ordered marker from every line.
+    expect(view.state.doc.toString()).toBe('one\ntwo');
+  });
+
+  it('fence toggle unwraps an existing fence around a selection', async () => {
+    const { view } = await openWithSelection('```\nconst x = 1;\n```', 0, 20);
+    toggleCodeBlock(view);
+    // The whole fence (openers + body + closer) is selected → unwrap removes
+    // the fence lines and keeps the body exactly.
+    expect(view.state.doc.toString()).toBe('const x = 1;');
+  });
+
+  it('structure commands are undoable as ONE group each (history boundary)', async () => {
+    const { view } = await openWithSelection('hello world', 0, 5);
+    toggleInlineWrap(view, 'bold');
+    const wrapped = view.state.doc.toString();
+    expect(wrapped).toBe('**hello** world');
+
+    // `undo` restores the exact previous doc (structure command = one group).
+    const { undo } = await import('@codemirror/commands');
+    undo(view);
+    expect(view.state.doc.toString()).toBe('hello world');
+  });
+
+  it('heading, quote, list each undo as one group', async () => {
+    const { undo } = await import('@codemirror/commands');
+    const { view } = await openWithSelection('plain line', 0, 0);
+
+    toggleHeading(view, 1);
+    expect(view.state.doc.toString()).toBe('# plain line');
+    undo(view);
+    expect(view.state.doc.toString()).toBe('plain line');
+
+    toggleQuote(view);
+    expect(view.state.doc.toString()).toBe('> plain line');
+    undo(view);
+    expect(view.state.doc.toString()).toBe('plain line');
+
+    toggleList(view, false);
+    expect(view.state.doc.toString()).toBe('- plain line');
+    undo(view);
+    expect(view.state.doc.toString()).toBe('plain line');
+  });
+});

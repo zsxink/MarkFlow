@@ -19,6 +19,7 @@ import {
 } from './registry';
 import { isLosslessCoreSessionEnabled } from './flag';
 import { getProjectionSnapshot } from './projection';
+import { bindLosslessImageEditing } from './imageEditing';
 
 // Re-export for callers (main.ts external-modification routing).
 export { isActiveLosslessPath } from './registry';
@@ -218,6 +219,9 @@ export async function openLosslessDocument(
       // autosave coordinator records real I/O errors only (spec 3.5).
     });
     setActiveLosslessBinding(binding, path);
+    // P3 5.3: double-click a lossless image literal → local replace/delete
+    // (exact source range; never a full-text rewrite or the hidden PM owner).
+    bindLosslessImageEditing(binding.editor.view);
     // P2 corrective: the binding opened in the user's preferred mode (Source or
     // Live Preview). Reflect that in the store + toolbar so a document switch
     // does not silently revert to Source.

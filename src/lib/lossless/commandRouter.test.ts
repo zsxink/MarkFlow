@@ -102,6 +102,9 @@ import {
   getActiveLosslessView,
   insertHorizontalRule,
   insertLinkMarkdown,
+  insertImageMarkdown,
+  deleteImageSource,
+  replaceImageSource,
   toggleCodeBlock,
   toggleHeading,
   toggleInlineWrap,
@@ -434,5 +437,69 @@ describe('lossless command router — table-driven (task 5.2)', () => {
     expect(view.state.doc.toString()).toBe('- plain line');
     undo(view);
     expect(view.state.doc.toString()).toBe('plain line');
+  });
+});
+
+// ── Image insert / replace / delete (task 5.3) ─────────────────────────
+// Each operation targets ONLY the image's exact source range: surrounding bytes
+// are untouched and adjacent blank lines are never collapsed. All are local,
+// single-group, Undoable CM transactions.
+
+describe('lossless image operations (task 5.3)', () => {
+  it('inserts an image Markdown literal at the caret', async () => {
+    const { view } = await openWithSelection('text before', 5, 5);
+    insertImageMarkdown(view, 'a.png', 'alt');
+    expect(view.state.doc.toString()).toBe('text ![alt](a.png)before');
+  });
+
+  it('replaces ONLY the src range (alt and neighbours untouched)', async () => {
+    const md = '前 ![alt](old.png) 后';
+    const { view } = await openWithSelection(md, md.indexOf('old.png'), md.indexOf('old.png'));
+    expect(replaceImageSource(view, 'new.png')).toBe(true);
+    expect(view.state.doc.toString()).toBe('前 ![alt](new.png) 后');
+  });
+
+  it('replaces preserves the blank line structure around the image', async () => {
+    const md = 'line one\n\n![alt](old.png)\n\nline two';
+    const { view } = await openWithSelection(md, md.indexOf('old.png'), md.indexOf('old.png'));
+    expect(replaceImageSource(view, 'new.png')).toBe(true);
+    // Blank lines above and below are preserved byte-for-byte.
+    expect(view.state.doc.toString()).toBe('line one\n\n![alt](new.png)\n\nline two');
+  });
+
+  it('replace returns false when the caret is not on an image', async () => {
+    const { view } = await openWithSelection('no image', 3, 3);
+    expect(replaceImageSource(view, 'x.png')).toBe(false);
+    expect(view.state.doc.toString()).toBe('no image');
+  });
+
+  it('deletes EXACTLY the image literal leaving surrounding text intact', async () => {
+    const md = 'before ![a](x.png) after';
+    const { view } = await openWithSelection(md, md.indexOf('x.png'), md.indexOf('x.png'));
+    expect(deleteImageSource(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('before  after');
+  });
+
+  it('deletion does not collapse adjacent blank lines', async () => {
+    const md = 'a\n\n![img](x.png)\n\nb';
+    const { view } = await openWithSelection(md, md.indexOf('x.png'), md.indexOf('x.png'));
+    expect(deleteImageSource(view)).toBe(true);
+    expect(view.state.doc.toString()).toBe('a\n\n\n\nb');
+  });
+
+  it('image replace and delete are each undoable as one group', async () => {
+    const { undo } = await import('@codemirror/commands');
+    const md = '![a](old.png)';
+    const { view } = await openWithSelection(md, md.indexOf('old.png'), md.indexOf('old.png'));
+
+    replaceImageSource(view, 'new.png');
+    expect(view.state.doc.toString()).toBe('![a](new.png)');
+    undo(view);
+    expect(view.state.doc.toString()).toBe('![a](old.png)');
+
+    deleteImageSource(view);
+    expect(view.state.doc.toString()).toBe('');
+    undo(view);
+    expect(view.state.doc.toString()).toBe('![a](old.png)');
   });
 });

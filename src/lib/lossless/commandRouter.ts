@@ -16,6 +16,7 @@
 import type { EditorView } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
 import { getActiveLosslessBinding } from './registry';
+import { replaceImageSrcAt, deleteImageAt } from './imageSourceRange';
 
 /**
  * The active lossless EditorView, or null when the current document is NOT
@@ -378,4 +379,48 @@ export function insertImageMarkdown(view: EditorView, src: string, alt = ''): vo
     userEvent: 'command',
   });
   view.focus();
+}
+
+/**
+ * Replace the src of the image literal under the caret (or whole selection).
+ * Only the URL range is modified; the surrounding bytes and alt text are left
+ * untouched (task 5.3 — a single local, Undoable CM transaction).
+ * Returns true when an image was found under the selection.
+ */
+export function replaceImageSource(view: EditorView, newSrc: string): boolean {
+  const { state } = view;
+  const head = state.selection.main.head;
+  const doc = state.doc.toString();
+  const result = replaceImageSrcAt(doc, head, newSrc);
+  if (!result) return false;
+  view.dispatch({
+    changes: result.change,
+    selection: { anchor: result.change.from + newSrc.length },
+    scrollIntoView: true,
+    userEvent: 'command',
+  });
+  view.focus();
+  return true;
+}
+
+/**
+ * Delete the whole image Markdown literal under the caret (or whole selection).
+ * The deletion is a local exact-range transaction; nothing around it is
+ * reformatted and adjacent blank lines are not collapsed (task 5.3).
+ * Returns true when an image was found under the selection.
+ */
+export function deleteImageSource(view: EditorView): boolean {
+  const { state } = view;
+  const head = state.selection.main.head;
+  const doc = state.doc.toString();
+  const result = deleteImageAt(doc, head);
+  if (!result) return false;
+  view.dispatch({
+    changes: result.change,
+    selection: { anchor: result.change.from },
+    scrollIntoView: true,
+    userEvent: 'command',
+  });
+  view.focus();
+  return true;
 }

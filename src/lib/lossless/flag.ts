@@ -1,27 +1,29 @@
 // Lossless Core session feature flag.
 //
-// P1B constraint: `losslessCoreSession` MUST be default-off. Any byte-fixture
-// failure keeps it off. Only E2E/test harnesses may enable it (the product
-// build never does).
+// P3 decision (issue #254 umbrella): `losslessCoreSession` is now default-ON —
+// the product opens documents through the lossless Core path by default, with
+// ProseMirror retained only as an explicit rollback. Explicit opt-out is still
+// available via `localStorage['markflow.losslessCoreSession']==='0'` (kept so a
+// data-integrity rollback can ship without a code release).
 //
 // Isolation: when the flag is ON, a document opened through the lossless path
 // must NOT be owned by the ProseMirror WYSIWYG editor (design P1B §5 reviewer
 // checklist). Switching the flag off must safely flush/close any open lossless
 // document before the legacy path takes over.
 
-let enabled = false;
+let enabled = true;
 
 /**
- * Dev/test-only manual opt-in: `localStorage['markflow.losslessCoreSession']==='1'`
- * enables the flag at boot. Production default stays OFF; nothing in the product
- * sets this key. Used for the P1B manual desktop acceptance.
+ * Opt-out: `localStorage['markflow.losslessCoreSession']==='0'` disables the
+ * flag at boot (rollback path). Absent / any other value keeps it ON. Nothing
+ * in the product sets this key; it is a data-integrity escape hatch.
  */
 try {
-  if (typeof localStorage !== 'undefined' && localStorage.getItem('markflow.losslessCoreSession') === '1') {
-    enabled = true;
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('markflow.losslessCoreSession') === '0') {
+    enabled = false;
   }
 } catch {
-  // localStorage unavailable (SSR/test) — keep default off.
+  // localStorage unavailable (SSR/test) — keep default on.
 }
 
 /** Enable/disable the lossless Core session path (tests/E2E only). */

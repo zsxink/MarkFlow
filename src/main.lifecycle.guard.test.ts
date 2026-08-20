@@ -1,27 +1,24 @@
 /**
- * P0S default-green regression — legacy zero-edit open lifecycle must NOT write.
+ * P0S default-green regression — zero-edit open lifecycle must NOT write.
  *
- * P0 corrective characterization (`tests/byte-contract/legacy-open-autosave
- * .characterization.test.ts`) proved that on the pre-P0S baseline, merely
- * opening a file made the app dirty and autosave rewrote the original file:
- *
- *   open (zero edits) → setMarkdown/hydration → dirty=true
- *   → setReadOnly(false) setEditable(true) update → bumpRevision
- *   → autosave tick → saveActiveDocument → write_file
- *
- * This suite drives the SAME real lifecycle (real `openFileInEditor`, real
- * Tiptap `initEditor` + `onUpdate`, real `runAutoSaveTick`, real
- * `saveActiveDocument`, real `write_file` IPC to an isolated real temp file)
- * and asserts the P0S contract: dirty stays false, save count stays 0,
+ * P3 default-on: documents open through the lossless Core path (single CM
+ * EditorView). This suite drives the SAME real lifecycle (real `openFileInEditor`,
+ * real `openLosslessDocument` attempt + legacy fallback, real Tiptap `initEditor`
+ * + `onUpdate`, real `runAutoSaveTick`, real `saveActiveDocument`, real
+ * `write_file` IPC to an isolated real temp file) and asserts the P0S contract
+ * under the default-on open path: dirty stays false, save count stays 0,
  * hash/length/mtime stay unchanged, and closing shows no unsaved prompt.
  *
- * Unlike the P0 characterization, this is DEFAULT GREEN — it runs in `npm test`.
+ * Note: the invoke mock stub does not implement lossless IPC, so `openLosslessDocument`
+ * fails and the product falls back to the legacy open — which exactly exercises the
+ * real "lossless open failure → legacy fallback" path and proves zero-edit safety on
+ * both sides of that boundary. The lossless-success zero-edit lifecycle is itself
+ * covered by `src/lib/lossless/lifecycle.test.ts` (`zero-edit open → clean; two ticks
+ * → no write`).
+ *
+ * This suite is DEFAULT GREEN — it runs in `npm test`.
  * The only mocked boundary is the Tauri `invoke` IPC (Rust is not available
  * under vitest); that mock routes file commands to the REAL filesystem.
- *
- * P0S does NOT claim editing-byte fidelity (L1): the serializer still loses
- * soft breaks / EOLs after a real edit. That failing characterization remains
- * in the characterization suite — it is not turned green here.
  */
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import * as nodeFs from 'node:fs/promises';
@@ -156,7 +153,7 @@ async function stageFixture(id: string): Promise<{ dest: string; original: Buffe
   return { dest, original };
 }
 
-describe('P0S: legacy zero-edit open lifecycle stays clean (default green)', () => {
+describe('P0S: default-on zero-edit open lifecycle stays clean (default green)', () => {
   it('product default autosave is enabled (this gate must run with autosave ON)', async () => {
     const { DEFAULT_SETTINGS } = await import('./types/settings');
     expect(DEFAULT_SETTINGS.autosave).toBe(true);

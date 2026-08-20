@@ -4,16 +4,21 @@ const mocks = vi.hoisted(() => ({
   readFile: vi.fn(), writeFile: vi.fn(), addRecentFile: vi.fn(), getFileMetadata: vi.fn(),
   authorizeImageStorage: vi.fn(), preparePendingImagesForSave: vi.fn(), completePendingImagesSave: vi.fn(), abortPendingImagesSave: vi.fn(), discardActiveImageDraft: vi.fn(),
   getMarkdown: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getDocumentGeneration: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(), hasUnpersistedUserChanges: vi.fn(),
-  save: vi.fn(), showDialog: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(),
+  save: vi.fn(), showDialog: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(), openLosslessDocument: vi.fn(),
 }));
 vi.mock('../lib/storage', () => ({ readFile: mocks.readFile, writeFile: mocks.writeFile, addRecentFile: mocks.addRecentFile, authorizeImageStorage: mocks.authorizeImageStorage, getFileMetadata: mocks.getFileMetadata }));
 vi.mock('../lib/imageUtils', () => ({ preparePendingImagesForSave: mocks.preparePendingImagesForSave, completePendingImagesSave: mocks.completePendingImagesSave, abortPendingImagesSave: mocks.abortPendingImagesSave, discardActiveImageDraft: mocks.discardActiveImageDraft }));
 vi.mock('../lib/editor', () => ({ getMarkdown: mocks.getMarkdown, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getDocumentGeneration: mocks.getDocumentGeneration, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor, hasUnpersistedUserChanges: mocks.hasUnpersistedUserChanges }));
 vi.mock('../lib/editor.source', () => ({ setSourceReadOnly: vi.fn() })); vi.mock('./toast', () => ({ showToast: mocks.showToast })); vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() })); vi.mock('./outline', () => ({ refreshOutline: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() })); vi.mock('@tauri-apps/plugin-dialog', () => ({ save: mocks.save })); vi.mock('./ui/dialog', () => ({ showDialog: mocks.showDialog })); vi.mock('./activeDocument', () => ({ getActiveFilePath: mocks.getActiveFilePath, setActiveFilePath: mocks.setActiveFilePath })); vi.mock('./sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn() })); vi.mock('../lib/fileSizeTier', () => ({ determineTier: vi.fn(() => 'normal'), formatFileSize: vi.fn() })); vi.mock('./degradationBar', () => ({ showDegradationBar: vi.fn(), hideDegradationBar: vi.fn() })); vi.mock('../lib/store', () => ({ store: { setState: vi.fn() } })); vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
+vi.mock('../lib/lossless/integration', () => ({ closeLosslessActiveDocument: vi.fn(), isLosslessOpenRecoveryBlocked: vi.fn(() => false), isLosslessActiveDoc: vi.fn(() => false), openLosslessDocument: mocks.openLosslessDocument, reloadLosslessActiveDocument: vi.fn(), saveLosslessActiveDocument: vi.fn(() => Promise.resolve(null)), saveLosslessActiveDocumentAsNewFile: vi.fn(() => Promise.resolve(false)) }));
+vi.mock('../lib/lossless/registry', () => ({ getActiveLosslessBinding: vi.fn(() => null) }));
 import { confirmDocumentTransition, openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
 
 beforeEach(() => {
   vi.clearAllMocks(); mocks.getMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getDocumentGeneration.mockReturnValue(1); mocks.hasUnpersistedUserChanges.mockReturnValue(true); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => ({ markdown, draftId: null })); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
+  // Lossless 默认开：default-mock 让 openFileInEditor 走 lossless 打开尝试；
+  // mock 返回 false → fallback legacy，保持多数 save/transition 用例测 legacy 逻辑。
+  mocks.openLosslessDocument.mockResolvedValue(false);
 });
 
 describe('document transition save result', () => {
@@ -168,15 +173,16 @@ describe('active document file operations', () => {
     mocks.isDocumentDirty.mockReturnValue(true);
     await expect(reloadActiveDocumentFromDisk()).resolves.toBe(false);
   });
-  it('authorizes image storage and cleans the discarded draft before rendering an opened file', async () => {
+  it('authorizes image storage and cleans the discarded draft before a lossless open', async () => {
+    // P3 default-on: lossless 打开成功路径 — owner isolation 保证 setMarkdown
+    // 不被调用（lossless 用 Core logical text，不走 serializer）。
     mocks.getActiveFilePath.mockReturnValue(null);
-    mocks.getFileMetadata.mockResolvedValue({ size: 10, lines: 1 });
-    mocks.readFile.mockResolvedValue('# opened');
+    mocks.openLosslessDocument.mockResolvedValue(true);
     await openFileInEditor('/work/opened.md');
     expect(mocks.authorizeImageStorage).toHaveBeenCalledWith('/work/opened.md');
     expect(mocks.discardActiveImageDraft).toHaveBeenCalledOnce();
-    expect(mocks.setMarkdown).toHaveBeenCalledWith('# opened');
+    expect(mocks.setMarkdown).not.toHaveBeenCalled();
     expect(mocks.discardActiveImageDraft.mock.invocationCallOrder[0])
-      .toBeLessThan(mocks.setMarkdown.mock.invocationCallOrder[0]);
+      .toBeLessThan(mocks.openLosslessDocument.mock.invocationCallOrder[0]);
   });
 });

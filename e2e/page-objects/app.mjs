@@ -25,7 +25,9 @@ export const app = {
 
 export async function waitForAppReady() {
   await (await app.ready()).waitForDisplayed({ timeout: 30_000 });
-  await (await app.wysiwyg()).waitForDisplayed({ timeout: 10_000 });
+  // P3 default-on: the document opens on the lossless CodeMirror surface and the
+  // ProseMirror surface may be hidden or empty depending on open state. Readiness
+  // is the `#app[data-app-ready]` marker; surface assertions live in each spec.
 }
 
 export async function showFiles() {

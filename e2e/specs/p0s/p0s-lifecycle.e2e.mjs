@@ -34,41 +34,45 @@ async function readFileMtime(name) {
 }
 
 async function typeInWysiwyg(text) {
-  // Dispatch a real ProseMirror transaction through the e2e-exposed editor.
-  // WebKit + WDIO browser.keys does not fire the beforeinput/input sequence
-  // ProseMirror needs, and document.execCommand bypasses ProseMirror's state
-  // (DOM only, no revision). The exposed editor (only in e2e builds) dispatches
-  // through Tiptap → ProseMirror → onTransaction → bumpRevision → dirty, which
-  // exercises the exact product path ISSUE-001/003 require (immediate edit).
-  const ok = await browser.execute((text) => {
-    const editor = window.__markflowEditor;
-    if (!editor) return 'no-editor';
-    editor.commands.insertContent(text, { updateSelection: false });
-    return 'inserted';
-  }, text);
-  if (ok !== 'inserted') throw new Error(`typeInWysiwyg failed: ${ok}`);
+  // P3 default-on: the document lives on the lossless single CodeMirror
+  // EditorView. Type through the lossless hook (`__markflowLossless.type`),
+  // which dispatches a real CodeMirror transaction → SourceSyncController →
+  // dirty — the exact product input path for the immediate-edit assertions.
+  const ok = await browser.execute((t) => window.__markflowLossless?.type?.(t) ?? 'no-hook', text);
+  if (ok !== 'typed') throw new Error(`typeInWysiwyg failed: ${ok}`);
 }
 
-// The ProseMirror contenteditable root (nested inside the #wysiwyg-editor wrapper).
-const pmRoot = () => $('#wysiwyg-editor .ProseMirror');
+// Read the current CodeMirror doc (the single lossless surface) — equivalent
+// of reading the old ProseMirror root, but on the surface actually shown.
+async function cmDoc() {
+  return browser.execute(() => {
+    const view = document.querySelector('.source-editor-wrapper .cm-content')?.cmTile?.view ?? null;
+    return view ? view.state.doc.toString() : '';
+  });
+}
 
 // Open a file in the tree AND wait until it actually becomes the active document
-// (the tree click kicks off an async read→setMarkdown; inserting into the editor
-// before that settles targets the PREVIOUS document).
+// (the tree click kicks off an async read→open; inserting into the editor
+// before that settles targets the PREVIOUS document). P3 default-on: also wait
+// for the lossless binding so `__markflowLossless` is available for typing.
 async function openFileAndWaitActive(name) {
   await openFileInTree(name);
   await browser.waitUntil(async () => {
     const state = await browser.execute(() => window.__markflowStore?.getState()?.activeFilePath ?? null);
     return state != null && state.endsWith(`/${name}`);
   }, { timeout: 10_000, timeoutMsg: `Expected active document to be ${name}` });
+  await browser.waitUntil(async () => {
+    const active = await browser.execute(() => window.__markflowLossless?.isActive?.() ?? false);
+    return active === true;
+  }, { timeout: 10_000, timeoutMsg: `Expected lossless binding for ${name}` });
 }
 
-// Wait for the WYSIWYG editor to show the expected text (sync after dispatch).
+// Wait for the lossless CodeMirror doc to contain the expected text.
 async function expectWysiwygText(expected) {
   await browser.waitUntil(async () => {
-    const text = await (await pmRoot()).getText();
-    return text.includes(expected);
-  }, { timeout: 10_000, timeoutMsg: `Expected WYSIWYG to include "${expected}"` });
+    const doc = await cmDoc();
+    return doc.includes(expected);
+  }, { timeout: 10_000, timeoutMsg: `Expected lossless editor to include "${expected}"` });
 }
 
 export function registerP0SLifecycleTests() {

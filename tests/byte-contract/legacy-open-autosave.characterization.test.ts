@@ -17,10 +17,16 @@
  *   openspec/changes/archive/2026-08-13-p0-lossless-byte-contract/
  *   validation/evidence/P0/20260813-005131-p0-corrective-zeroedit-lifecycle/
  *
- * THIS FILE now verifies the P0S FIX on the historical failing lifecycle: the
- * same real open/initEditor/onUpdate/setEditable/runAutoSaveTick/
- * saveActiveDocument/write_file chain must produce dirty=false, save count=0,
- * unchanged hash/length/mtime and no close prompt. The default-green guard
+ * P3 default-on: the open path is now lossless-first. The real lifecycle this
+ * suite drives is exactly the product default — `openFileInEditor` attempts a
+ * lossless open; the IPC stub here does not implement lossless commands, so it
+ * falls back to the legacy open. Both sides of that boundary must keep the
+ * zero-edit document clean: dirty=false, save count=0, unchanged
+ * hash/length/mtime, no close prompt. (The lossless-success lifecycle is
+ * covered by src/lib/lossless/lifecycle.test.ts.)
+ *
+ * THIS FILE now verifies the P0S FIX on the historical failing lifecycle under
+ * the default-on open path. The default-green guard
  * (src/main.lifecycle.guard.test.ts) independently covers the full fixture
  * matrix; this suite keeps the historical-run link and the REAL drive, and
  * still runs only via `npm run test:characterization`.

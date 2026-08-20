@@ -11,6 +11,7 @@ import { copyLocalFileToStorage, handleNetworkImage, getImageSettings, imagePath
 import { assetToOriginalMap, getActiveDocPath } from '../lib/editor.state';
 import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
+import { buildLosslessExportRoot } from '../lib/exportLossless';
 import { showContextMenuStatic } from './ui/contextMenu';
 import { getSourceView } from '../lib/editor.source';
 import { getActiveLosslessBinding } from '../lib/lossless/registry';
@@ -343,6 +344,17 @@ function setAriaPressed(id: string, pressed: boolean) {
 }
 
 async function exportCurrentDocument(format: ExportFormat) {
+  // P3 default-on: a document on the lossless binding is exported from its
+  // Core logical text (markdown-it rendered) — never from the empty ProseMirror
+  // surface. The exporter theme comes from the live `data-theme` attribute.
+  const losslessBinding = getActiveLosslessBinding();
+  if (losslessBinding) {
+    const themeAttr = document.documentElement.getAttribute('data-theme');
+    const root = buildLosslessExportRoot(losslessBinding.logicalText, themeAttr);
+    await exportRenderedDocument(format, root, getActiveDocPath());
+    return;
+  }
+
   const mode = getMode();
   let restoredMode = false;
 

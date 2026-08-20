@@ -31,8 +31,11 @@ export function registerEditSaveTests() {
       );
       expect(fileContent).toContain(TEST_MARKER);
 
+      // P3 default-on: "所见即所得" is Live Preview — the SAME CodeMirror
+      // surface, so the edited source text is still present there.
       await (await app.wysiwygMode()).click();
-      await expect(await app.wysiwyg()).toHaveText(expect.stringContaining(TEST_MARKER));
+      await expect(await app.source()).toBeDisplayed();
+      await expect(await app.sourceContent()).toHaveText(expect.stringContaining(TEST_MARKER));
     });
   });
 }

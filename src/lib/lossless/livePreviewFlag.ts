@@ -1,26 +1,25 @@
 // Lossless Live Preview feature flag.
 //
-// P2 constraint: `codemirrorLivePreview` MUST be default-off. It is a MODE
-// switch ON TOP of an active lossless Core session, never an independent
-// session: Live Preview is only reachable when `losslessCoreSession` is also
-// ON. Turning `codemirrorLivePreview` off rolls back to the SAME lossless
-// Source/Core session (no serializer save, no PM ownership), matching
-// design P2 §9. Only E2E/test harnesses may enable it (the product build
-// never does).
+// P3 decision (issue #254 umbrella): `codemirrorLivePreview` is now default-ON
+// alongside `losslessCoreSession` — the lossless path opens with Live Preview
+// reachable by default. It is a MODE switch ON TOP of an active lossless Core
+// session, never an independent session: Live Preview is only reachable when
+// `losslessCoreSession` is also ON. Explicit opt-out is available via
+// `localStorage['markflow.codemirrorLivePreview']==='0'`.
 
-let enabled = false;
+let enabled = true;
 
 /**
- * Dev/test-only manual opt-in: `localStorage['markflow.codemirrorLivePreview']==='1'`
- * enables the flag at boot. Production default stays OFF; nothing in the product
- * sets this key. Used for the P2 manual desktop acceptance.
+ * Opt-out: `localStorage['markflow.codemirrorLivePreview']==='0'` disables the
+ * flag at boot. Absent / any other value keeps it ON. Nothing in the product
+ * sets this key.
  */
 try {
-  if (typeof localStorage !== 'undefined' && localStorage.getItem('markflow.codemirrorLivePreview') === '1') {
-    enabled = true;
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('markflow.codemirrorLivePreview') === '0') {
+    enabled = false;
   }
 } catch {
-  // localStorage unavailable (SSR/test) — keep default off.
+  // localStorage unavailable (SSR/test) — keep default on.
 }
 
 /** Enable/disable the lossless Live Preview path (tests/E2E only). */

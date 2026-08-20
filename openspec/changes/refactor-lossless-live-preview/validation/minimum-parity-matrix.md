@@ -17,6 +17,8 @@
 
 ## 累积判定
 
+- 独立 Reviewer **GO**（`70f314c`，六点全 PASS，F1-F4 全部 resolved）：见
+  `evidence/P3/20260821-p3-reviewer-final-70f314c/REVIEW.md`。
 - `losslessCoreSession` 默认开启：在 Program Owner 逐行签署全部行为 `PASS` 或
   明确接受 `FALLBACK-ACCEPTED` 前，**保持未获准发布**（不宣称 P3 GO）。
 - 任一行为 FAIL 或 fallback 不可编辑，或 data/save 项失败 → 立即关闭默认 flag。

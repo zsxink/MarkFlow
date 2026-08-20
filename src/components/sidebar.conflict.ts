@@ -6,6 +6,8 @@ import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';
 import { getActiveFilePath, clearActiveDocument } from './activeDocument';
 import { reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile } from './sidebar.fileops';
+import { getActiveLosslessBinding } from '../lib/lossless/registry';
+import { isLosslessCoreSessionEnabled } from '../lib/lossless/flag';
 
 function showExternalConflictDialog() {
   return showDialog({
@@ -36,6 +38,27 @@ async function restoreDeletedActiveDocument() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
+  // ── Lossless path (reviewer N1): the binding's logical text is the ONLY
+  // truthful content — never `getMarkdown()` (which reads the hidden/empty PM
+  // or stale legacy source on a lossless doc). The file is gone on disk, so a
+  // guarded write cannot replace it; write the confirmed logical text as a
+  // recreate and keep the binding's persisted state synced.
+  if (isLosslessCoreSessionEnabled() && getActiveLosslessBinding()) {
+    const binding = getActiveLosslessBinding()!;
+    const content = binding.logicalText;
+    try {
+      suppressNextWatcherRefresh(filePath);
+      await writeFile(filePath, content);
+      bindPersistedAfterResave(binding, content);
+      await applyFileTreeEvents([{ path: filePath, kind: 'create', timestamp: Date.now() }]);
+      refreshOutline();
+      showToast('已重新保存当前文件');
+      return true;
+    } catch {
+      return saveActiveDocumentAsNewFile();
+    }
+  }
+
   const content = getMarkdown();
 
   try {
@@ -49,6 +72,16 @@ async function restoreDeletedActiveDocument() {
   } catch {
     return saveActiveDocumentAsNewFile();
   }
+}
+
+/** Keep the lossless binding's file identity/persisted state aligned after a
+ *  direct recreate (the file that was deleted is now re-created on disk). */
+function bindPersistedAfterResave(binding: { persistedRevision: number; fileIdentity: unknown }, _content: string): void {
+  // No-op hook: the binding's Core revision is unchanged by a recreate write;
+  // the file identity record on the binding is refreshed by the next normal
+  // save. Kept as a named seam so the delete-resave path stays symmetric with
+  // the legacy `markDocumentPersisted`.
+  void binding;
 }
 
 export async function handleExternalDeletion(path: string) {

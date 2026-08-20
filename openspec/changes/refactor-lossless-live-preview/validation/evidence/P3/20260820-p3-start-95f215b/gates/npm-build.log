@@ -1,0 +1,105 @@
+npm notice run markflow@0.0.6 build
+npm notice run tsc && vite build
+vite v5.4.21 building for production...
+transforming...
+✓ 2501 modules transformed.
+rendering chunks...
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-css/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-javascript/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-markdown/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/imageUtils.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.bubble.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.resolver.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.init.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/plantuml.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/lib/editor.extensions.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/editor.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/degradationBar.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/linkDialog.ts, /Users/xian/Project/book/MarkFlow/src/components/outline.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.conflict.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/statusbar.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, /Users/xian/Project/book/MarkFlow/src/utils/keyboard.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                                10.50 kB │ gzip:   2.69 kB
+dist/assets/SourceSerif4SmText-It.ttf-Bk-HSzgp.woff2           61.67 kB
+dist/assets/SourceSerif4-BoldIt.ttf-1j4hxMHI.woff2             63.46 kB
+dist/assets/SourceSerif4-Regular.ttf-BNbBs0kC.woff2            76.26 kB
+dist/assets/SourceSerif4-Bold.ttf-Csh8T7yr.woff2               81.54 kB
+dist/assets/SourceHanSerifSC-Regular-common-b8OKDD3V.woff2  1,814.15 kB
+dist/assets/SourceHanSerifSC-Bold-common-BQag0cBy.woff2     1,903.70 kB
+dist/assets/index-NkauirQq.css                                 32.04 kB │ gzip:   6.33 kB
+dist/assets/channel-slmGJCk8.js                                 0.11 kB │ gzip:   0.13 kB
+dist/assets/init-Gi6I4Gst.js                                    0.15 kB │ gzip:   0.13 kB
+dist/assets/chunk-QZHKN3VN-Ckhys-_r.js                          0.19 kB │ gzip:   0.16 kB
+dist/assets/chunk-55IACEB6-BphGchaF.js                          0.24 kB │ gzip:   0.21 kB
+dist/assets/chunk-4BX2VUAB-C39b4m63.js                          0.30 kB │ gzip:   0.21 kB
+dist/assets/chunk-FMBD7UC4-B_SkIuUs.js                          0.37 kB │ gzip:   0.27 kB
+dist/assets/stateDiagram-v2-BHNVJYJU-BzW3Nfk2.js                0.47 kB │ gzip:   0.32 kB
+dist/assets/chunk-2J33WTMH-W2OtfVIP.js                          0.53 kB │ gzip:   0.38 kB
+dist/assets/classDiagram-4FO5ZUOK-CCcfiGYz.js                   0.55 kB │ gzip:   0.35 kB
+dist/assets/classDiagram-v2-Q7XG4LA2-CCcfiGYz.js                0.55 kB │ gzip:   0.35 kB
+dist/assets/infoDiagram-5YYISTIA-DottnRGq.js                    0.66 kB │ gzip:   0.44 kB
+dist/assets/ordinal-Cboi1Yqb.js                                 1.19 kB │ gzip:   0.57 kB
+dist/assets/chunk-ND2GUHAM-BXN7sXIw.js                          1.86 kB │ gzip:   0.82 kB
+dist/assets/index-Chs4Q90m.js                                   2.47 kB │ gzip:   1.53 kB
+dist/assets/shell-CjFT_Tl9.js                                   2.57 kB │ gzip:   1.21 kB
+dist/assets/diagram-5GNKFQAL-Cf8Ykf5U.js                        2.84 kB │ gzip:   1.40 kB
+dist/assets/arc-Lkpxrb45.js                                     3.44 kB │ gzip:   1.48 kB
+dist/assets/diagram-LMA3HP47-B654s_RB.js                        4.36 kB │ gzip:   1.90 kB
+dist/assets/defaultLocale-DX6XiGOO.js                           4.69 kB │ gzip:   2.18 kB
+dist/assets/pieDiagram-4H26LBE5-BEkat3uk.js                     5.44 kB │ gzip:   2.42 kB
+dist/assets/linear-K5WXA5n_.js                                  5.68 kB │ gzip:   2.32 kB
+dist/assets/diagram-2AECGRRQ-2seWcliU.js                        6.18 kB │ gzip:   2.60 kB
+dist/assets/stateDiagram-AJRCARHV-D0_ZZnns.js                  10.44 kB │ gzip:   3.66 kB
+dist/assets/diagram-KO2AKTUF-DPcHX-Br.js                       11.13 kB │ gzip:   4.29 kB
+dist/assets/dagre-BM42HDAG-CfJUpTFt.js                         11.48 kB │ gzip:   4.25 kB
+dist/assets/index-B4KXc2rn.js                                  12.76 kB │ gzip:   5.63 kB
+dist/assets/index-BibaeuAY.js                                  14.84 kB │ gzip:   6.00 kB
+dist/assets/diagram-OG6HWLK6-B00j9yJW.js                       16.26 kB │ gzip:   5.83 kB
+dist/assets/ishikawaDiagram-YF4QCWOH-DnW5nXd5.js               17.77 kB │ gzip:   6.77 kB
+dist/assets/kanban-definition-UN3LZRKU-DK85Xk6g.js             20.85 kB │ gzip:   7.35 kB
+dist/assets/settings-D8qWhdf8.js                               21.17 kB │ gzip:   5.13 kB
+dist/assets/mindmap-definition-RKZ34NQL-DGsfa9uk.js            23.55 kB │ gzip:   7.98 kB
+dist/assets/journeyDiagram-JHISSGLW-BJWrIxxH.js                23.68 kB │ gzip:   8.41 kB
+dist/assets/sankeyDiagram-5OEKKPKP-BV8dYbRS.js                 23.76 kB │ gzip:   8.76 kB
+dist/assets/graph-Dla4jY_b.js                                  23.95 kB │ gzip:   8.32 kB
+dist/assets/wardleyDiagram-YWT4CUSO-jR06gZxK.js                26.66 kB │ gzip:   7.19 kB
+dist/assets/erDiagram-TEJ5UH35-BxpkZCTS.js                     27.12 kB │ gzip:   9.45 kB
+dist/assets/gitGraphDiagram-PVQCEYII-B1ceSLxD.js               30.40 kB │ gzip:   9.02 kB
+dist/assets/index-B3YloYKQ.js                                  30.84 kB │ gzip:  12.67 kB
+dist/assets/requirementDiagram-4Y6WPE33-rdfR3XK6.js            31.39 kB │ gzip:   9.91 kB
+dist/assets/timeline-definition-PNZ67QCA-CYdW4H7I.js           31.67 kB │ gzip:  10.56 kB
+dist/assets/index-Ch609NG-.js                                  32.37 kB │ gzip:  13.09 kB
+dist/assets/quadrantDiagram-W4KKPZXB-Do82v3hM.js               34.67 kB │ gzip:  10.22 kB
+dist/assets/layout-DUXn2AVC.js                                 35.84 kB │ gzip:  12.87 kB
+dist/assets/chunk-AQP2D5EJ-BOTQm2ZE.js                         37.68 kB │ gzip:  12.28 kB
+dist/assets/xychartDiagram-2RQKCTM6-DnpoqThF.js                40.49 kB │ gzip:  11.61 kB
+dist/assets/index-B888K1ep.js                                  40.78 kB │ gzip:  16.78 kB
+dist/assets/vennDiagram-CIIHVFJN-DKwGVFcO.js                   42.11 kB │ gzip:  15.72 kB
+dist/assets/index-BkAEIyvS.js                                  45.15 kB │ gzip:  19.18 kB
+dist/assets/chunk-727SXJPM-BtrEems5.js                         49.18 kB │ gzip:  15.80 kB
+dist/assets/flowDiagram-I6XJVG4X-CwoDGUzx.js                   61.46 kB │ gzip:  19.65 kB
+dist/assets/ganttDiagram-6RSMTGT7-D_5xDWMQ.js                  69.49 kB │ gzip:  23.42 kB
+dist/assets/c4Diagram-AAUBKEIU-DyUK1ubS.js                     70.03 kB │ gzip:  19.68 kB
+dist/assets/index-BklLPXyb.js                                  70.86 kB │ gzip:  25.87 kB
+dist/assets/blockDiagram-GPEHLZMM-Baj7-QcM.js                  75.45 kB │ gzip:  21.81 kB
+dist/assets/cose-bilkent-S5V4N54A-BCUv_rFo.js                  81.70 kB │ gzip:  22.53 kB
+dist/assets/sequenceDiagram-3UESZ5HK-Cbl_BFr9.js              117.77 kB │ gzip:  31.38 kB
+dist/assets/architectureDiagram-3BPJPVTR-CQ2qeKRP.js          149.77 kB │ gzip:  42.39 kB
+dist/assets/katex-DkKDou_j.js                                 256.23 kB │ gzip:  76.99 kB
+dist/assets/vendor-codemirror-MfEHkmQi.js                     408.51 kB │ gzip: 133.06 kB
+dist/assets/index-DGIbxU7w.js                                 411.10 kB │ gzip: 119.22 kB
+dist/assets/cytoscape.esm-xgCGXJTu.js                         442.64 kB │ gzip: 141.99 kB
+dist/assets/vendor-prosemirror-COtpVrr0.js                    506.71 kB │ gzip: 178.78 kB
+dist/assets/mermaid.core-Y6LamCSr.js                          597.47 kB │ gzip: 140.45 kB
+dist/assets/wardley-L42UT6IY-CC4u-OkV.js                      616.24 kB │ gzip: 148.86 kB
+dist/assets/index-BEcldWN3.js                                 652.42 kB │ gzip: 219.85 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.78s

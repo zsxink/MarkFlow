@@ -1,26 +1,27 @@
 # 验证环境清单
 
-当前状态：P1A AI-Verified（P0S 已 GO；P1A Core 实现完成，独立 Reviewer 待派，Program Owner 未 Go）
+当前状态：P3 in-progress（P2 已 GO；P3 start identity 见 `evidence/P3/20260820-p3-start-95f215b/`）
 
-本文件是当前环境清单模板/索引，不是历史 run 的不可变证据。AI 在每次 P1A run 开始时
+本文件是当前环境清单模板/索引，不是历史 run 的不可变证据。AI 在每次 run 开始时
 必须把完整实测值复制到该 run 目录的 `ENVIRONMENT.md`，计算 SHA-256，并在 `RUN.md` 中
 记录。后续修改本文件不得改变旧 run 的环境证据。
 
 | 字段 | 当前值 |
 | --- | --- |
-| 记录时间 | 2026-08-13（P0S start） |
-| 主机/设备 | NOT RECORDED（run 时实测） |
-| OS/版本 | Darwin 25.5.0 |
-| CPU 架构 | NOT RECORDED（run 时实测） |
-| WebView 版本 | NOT RECORDED（P0S desktop E3 实测） |
-| Node | NOT RECORDED（run 时实测） |
-| npm | NOT RECORDED（run 时实测） |
-| Rust | NOT RECORDED（run 时实测） |
-| Cargo | NOT RECORDED（run 时实测） |
-| Tauri CLI | NOT RECORDED（run 时实测） |
+| 记录时间 | 2026-08-20（P3 start） |
+| 主机/设备 | xian 的 macOS 开发机（run 时实测） |
+| OS/版本 | macOS 26.5.2 (Darwin 25.5.0, Build 25F84) |
+| CPU 架构 | arm64 |
+| WebView 版本 | WebKit（Tauri v2；未实测具体版本） |
+| Node | v24.17.0 |
+| npm | 12.0.2 |
+| Rust | rustc 1.96.0 |
+| Cargo | 1.96.0 |
+| Tauri CLI | tauri-cli 2.11.3 |
 | 仓库 branch | `test/issue-255-lossless-byte-contract` |
-| commit SHA | `ad59b21`（P0S start HEAD；证据提交后见 git log） |
-| feature flags | 无 lossless flags；legacy ProseMirror 默认路径；autosave 使用产品配置（默认 `autosave=true` / `autosaveInterval=10000`） |
+| commit SHA | `95f215b22e681e6f90f35f0d7062bd30ddc97aa1`（P3 start HEAD） |
+| feature flags | `losslessCoreSession` default ON（未验收候选）；`codemirrorLivePreview` default ON（未验收候选）；opt-out `localStorage['markflow.losslessCoreSession']==='0'` 与 `localStorage['markflow.codemirrorLivePreview']==='0'`；autosave 默认 `autosave=true` / `autosaveInterval=10000` |
+| 工作树状态 | clean |
 | 输入法 | NOT RECORDED |
 | screen reader | NOT RECORDED |
 | 显示缩放 | NOT RECORDED |

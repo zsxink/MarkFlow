@@ -244,7 +244,8 @@ export function switchToWysiwyg(): boolean {
   // path means Live Preview: a compartment reconfigure on the same view that
   // layers semantic decorations over the unchanged doc — no serializer, no
   // ProseMirror ownership, no rebuild. The `codemirrorLivePreview` flag gates it
-  // (default-off); with the flag off the legacy block stays (Source only).
+  // (default-ON; opt-out via localStorage `markflow.codemirrorLivePreview==='0'`);
+  // with the flag off the legacy block stays (Source only).
   const losslessBinding = getActiveLosslessBinding();
   if (losslessBinding) {
     if (!isLivePreviewEnabled()) {

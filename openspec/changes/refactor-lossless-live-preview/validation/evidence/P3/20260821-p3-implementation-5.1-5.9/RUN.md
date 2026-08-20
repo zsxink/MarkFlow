@@ -81,6 +81,7 @@ its results are recorded under this run when complete.
 - [x] npm run test:byte-contract — PASS (93 fixtures, 0 missed)
 - [x] npm run test:characterization — 9 tests PASS
 - [x] npm run validate:openspec — 61 PASS
+- [x] npm test (final) — 42 files / 516 tests PASS
 - [~] desktop E2E — BUILD OK (`test:e2e:build` exit 0) but wdio launch fails in
   this agent session: the app logs "Application starting" then exits cleanly
   (code 0) before the embedded WebDriver is ready. Root cause: the headless

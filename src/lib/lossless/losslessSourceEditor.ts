@@ -9,6 +9,7 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { Compartment, type Transaction } from '@codemirror/state';
+import { isolateHistory } from '@codemirror/commands';
 import { GFM } from '@lezer/markdown';
 import {
   HighlightStyle,
@@ -193,8 +194,32 @@ export function createLosslessSourceEditor(
           // first so the bridge can retain explicit CRLF/CR provenance instead
           // of silently inheriting the surrounding document's EOL style.
           const text = event.clipboardData?.getData('text/plain');
-          if (text !== undefined && text !== '') options.onRawPasteText?.(text);
-          return false; // let CodeMirror perform its normal single transaction
+          if (text === undefined || text === '') return false;
+          options.onRawPasteText?.(text);
+
+          // P3 5.6: one paste intent = one explicit History group.
+          // CM's default paste dispatches with `userEvent: 'input.paste'`, which
+          // the history extension MERGES with adjacent typing (`joinableUserEvent`
+          // matches `input.paste`). Re-dispatch our own transaction with
+          // `isolateHistory: 'full'` so a paste followed by typing Undos as two
+          // separate groups, and return `true` to prevent CM's later default
+          // paste handler from re-applying the insertion. The change is a single
+          // local transaction on the SAME EditorView (owner isolation — never the
+          // hidden ProseMirror), so `basicSetup`'s history records it normally.
+          const { from, to } = view.state.selection.main;
+          // Insert the raw clipboard text. CM normalizes CRLF/CR to the doc's
+          // logical LF internally, so the post-change caret must be clamped to
+          // the document (the raw length can differ for CRLF pastes).
+          const docLen = view.state.doc.length;
+          const anchor = Math.min(from + text.length, docLen);
+          view.dispatch({
+            changes: { from, to, insert: text },
+            selection: { anchor },
+            scrollIntoView: true,
+            userEvent: 'input.paste',
+            annotations: isolateHistory.of('full'),
+          });
+          return true;
         },
       }),
       highlightLimitPlugin,

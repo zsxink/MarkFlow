@@ -94,7 +94,7 @@
 - [x] 5.2 迁移 bold/italic/strike/link/heading/quote/list/code fence 命令为局部、可 Undo 的 CodeMirror transaction
 - [x] 5.3 迁移图片插入/替换/删除与资源事务，确保仅修改对应 source range 且相邻空行不被隐式整理
 - [x] 5.4 建立 Enter/Backspace command matrix：普通文本、空/非空 list item、quote、heading、fence、table、atomic inline、跨块 selection；不安全上下文揭示源码或退回原生 CM 文本语义
-- [ ] 5.5 迁移 paste/drop/clipboard：同步冻结 selection/MIME，区分 literal/HTML/plain/file/image，上下文转换后以一次局部 transaction 和显式 History boundary 提交
+- [x] 5.5 迁移 paste/drop/clipboard：同步冻结 selection/MIME，区分 literal/HTML/plain/file/image，上下文转换后以一次局部 transaction 和显式 History boundary 提交
 - [x] 5.6 明确 CodeMirror History grouping：composition、连续输入、paste、Enter、结构命令、widget commit、bulk replace；Undo/Redo 后通过同一 patch pipeline 收敛 Core revision
 - [ ] 5.7 迁移 autosave、external reload/conflict、document transition、save-as/new file 到 lossless 默认路径
 - [ ] 5.8 迁移 export 输入为同 revision Core snapshot 或只读明确 renderer，保证 export 不反向修改正文

@@ -11,7 +11,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 describe('default-flag rollback drill (task 5.10)', () => {
-  const MODULE_CACHE: Array<[string, string]> = [];
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();

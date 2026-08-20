@@ -13,7 +13,7 @@ import type { EditorView } from '@codemirror/view';
 import { showModal } from '../../components/ui/modal';
 import { showToast } from '../../components/toast';
 import { logException } from '../logger';
-import { findImageAt } from './imageSourceRange';
+import { findImageAt, type ImageSourceRange } from './imageSourceRange';
 import { replaceImageSource, deleteImageSource } from './commandRouter';
 import { getActiveLosslessBinding } from './registry';
 
@@ -25,7 +25,10 @@ export function bindLosslessImageEditing(view: EditorView): () => void {
     const doc = view.state.doc.toString();
     const range = findImageAt(doc, pos);
     if (!range) return;
-    showImageEditPanel(view, range.src.text, range.alt.text);
+    // Capture the exact source range AT THE CLICK. Re-resolving from the
+    // selection head on confirm is unsafe: CM's native dblclick selects a word
+    // whose head can sit outside the matched literal (reviewer F3).
+    showImageEditPanel(view, range);
   };
 
   view.contentDOM.addEventListener('dblclick', onDblClick);
@@ -34,9 +37,10 @@ export function bindLosslessImageEditing(view: EditorView): () => void {
 
 function showImageEditPanel(
   view: EditorView,
-  currentSrc: string,
-  currentAlt: string,
+  range: ImageSourceRange,
 ): void {
+  const currentSrc = range.src.text;
+  const currentAlt = range.alt.text;
   const modal = showModal({
     className: 'lossless-image-edit',
     content: `
@@ -74,14 +78,10 @@ function showImageEditPanel(
     }
     try {
       // Replace the src in-place. If the user changed the alt too, apply it as
-      // a second local change in the SAME transaction (both are exact ranges).
-      const head = view.state.selection.main.head;
-      const doc = view.state.doc.toString();
-      const srcRange = findImageAt(doc, head);
-      if (!srcRange) {
-        showToast('光标不在图片上');
-        return;
-      }
+      // a second local change in the SAME transaction (both are exact ranges
+      // captured at the dblclick — reviewer F3: never re-resolve from the
+      // possibly-shifted selection head).
+      const srcRange = range;
       const changes = [
         { from: srcRange.src.from, to: srcRange.src.to, insert: newSrc },
       ];
@@ -106,13 +106,16 @@ function showImageEditPanel(
 
   document.getElementById('lossless-image-delete')!.addEventListener('click', () => {
     try {
-      if (deleteImageSource(view)) {
-        close();
-        view.focus();
-        showToast('图片已删除');
-      } else {
-        showToast('光标不在图片上');
-      }
+      // Delete the EXACT range captured at the dblclick (reviewer F3).
+      view.dispatch({
+        changes: { from: range.start, to: range.end, insert: '' },
+        selection: { anchor: range.start },
+        scrollIntoView: true,
+        userEvent: 'command',
+      });
+      view.focus();
+      close();
+      showToast('图片已删除');
     } catch (e) {
       logException('lossless.image.delete', 'Failed to delete image', e);
       showToast('图片删除失败');

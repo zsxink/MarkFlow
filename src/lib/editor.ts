@@ -40,6 +40,7 @@ import {
 } from './editor.source';
 import { getActiveLosslessBinding } from './lossless/registry';
 import { isLivePreviewEnabled } from './lossless/livePreviewFlag';
+import { setPreferredMode } from './lossless/modePreference';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -175,6 +176,9 @@ export function switchToSource(): boolean {
     const wysiwygEditor = document.getElementById('wysiwyg-editor');
     if (wysiwygEditor) wysiwygEditor.hidden = true;
     losslessBinding.setMode('source');
+    // P2 corrective: remember the user's choice so the next document opens in
+    // the same mode.
+    setPreferredMode('source');
     setMode('source');
     syncModeIndicator('source');
     return true;
@@ -248,6 +252,9 @@ export function switchToWysiwyg(): boolean {
       return false; // refused — caller keeps the Source indicator
     }
     losslessBinding.setMode('preview');
+    // P2 corrective: remember the user's choice so the next document opens in
+    // the same mode.
+    setPreferredMode('preview');
     setMode('wysiwyg'); // store mode stays 'wysiwyg' — legacy consumers unchanged
     syncModeIndicator('wysiwyg');
     store.emit({ type: 'editor:update' });

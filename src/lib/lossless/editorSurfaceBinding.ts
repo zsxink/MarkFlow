@@ -29,6 +29,7 @@ import type {
 import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
 import { isLivePreviewEnabled } from './livePreviewFlag';
+import { getPreferredMode } from './modePreference';
 import { setProjectionDisposed } from './projection';
 
 /** `blocked`/`conflict` are safe, explainable skips — never write failures. */
@@ -111,13 +112,16 @@ export class EditorSurfaceBinding {
     // controller reference its methods. Neither fires until construction is
     // complete (transactions need a user edit; sends need a controller).
     let binding: EditorSurfaceBinding | null = null;
+    const livePreviewEnabled = isLivePreviewEnabled();
     const editor = createLosslessSourceEditor(container, opened.logicalText, {
       readOnly: false,
-      // P2: the single EditorView starts in Source mode. Live Preview is only
-      // reachable when the `codemirrorLivePreview` flag is on (default-off),
-      // and switching mode is a compartment reconfigure, never a rebuild.
-      livePreview: isLivePreviewEnabled(),
-      mode: 'source',
+      // P2: the single EditorView starts in the user's preferred mode (Source or
+      // Live Preview). Live Preview is only reachable when the
+      // `codemirrorLivePreview` flag is on; otherwise the preference is forced
+      // back to Source. Switching mode is a compartment reconfigure, never a
+      // rebuild.
+      livePreview: livePreviewEnabled,
+      mode: getPreferredMode(livePreviewEnabled),
       onTransaction: (transactions) => binding?.handleTransactions(transactions),
       onDocChanged: () => store.emit({ type: 'editor:update' }),
       onRawPasteText: (text) => binding?.recordRawPaste(text),

@@ -96,6 +96,7 @@ vi.mock('@tauri-apps/api/core', async () => {
 
 // Flag + integration imports (real modules under test).
 import { setLivePreviewEnabled } from './livePreviewFlag';
+import { resetPreferredMode, setPreferredMode } from './modePreference';
 import { setLosslessCoreSessionEnabled } from './flag';
 import { openLosslessDocument, saveLosslessActiveDocument } from './integration';
 import { getActiveLosslessBinding } from './registry';
@@ -119,6 +120,7 @@ afterAll(async () => {
 beforeEach(() => {
   document.body.innerHTML = '<div id="source-editor-wrapper"></div>';
   resetProjectionSnapshot();
+  resetPreferredMode();
 });
 
 afterEach(() => {
@@ -419,11 +421,15 @@ describe('P2 projection adapter', () => {
   it('a real buildDecorations throw degrades, survives, and recovers (next)', async () => {
     setLosslessCoreSessionEnabled(true);
     setLivePreviewEnabled(true);
+    // Open in Source so the projection build fires only on the preview switch
+    // below (the injection must hit THAT build, not the open-time one).
+    setPreferredMode('source');
     const md = '# H1\n\n**bold** text\n\nplain paragraph\n';
     const path = await writeFixture('fail-next.md', md);
     expect(await openLosslessDocument(path)).toBe(true);
     const binding = getActiveLosslessBinding()!;
     const view = binding.editor.view;
+    expect(binding.editor.getMode()).toBe('source');
 
     // Arm the NEXT projection build to throw, then switch to preview.
     setProjectionTestFailMode('next');
@@ -449,11 +455,13 @@ describe('P2 projection adapter', () => {
   it('a continuous buildDecorations throw keeps degrading but input and save survive', async () => {
     setLosslessCoreSessionEnabled(true);
     setLivePreviewEnabled(true);
+    setPreferredMode('source');
     const md = '**bold** text\n\nplain paragraph\n';
     const path = await writeFixture('fail-always.md', md);
     expect(await openLosslessDocument(path)).toBe(true);
     const binding = getActiveLosslessBinding()!;
     const view = binding.editor.view;
+    expect(binding.editor.getMode()).toBe('source');
 
     // Force every projection build to throw, then preview.
     setProjectionTestFailMode('always');

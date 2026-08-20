@@ -36,13 +36,23 @@ function wysiwygEditor(): HTMLElement | null {
   return document.getElementById(WYSIWYG_ID);
 }
 
-function showSourceForLossless(): void {
+function showSurfaceForLossless(): void {
   const wrapper = sourceWrapper();
   const wysiwyg = wysiwygEditor();
   if (wrapper) wrapper.hidden = false;
   if (wysiwyg) wysiwyg.hidden = true;
-  setMode('source');
-  syncModeUI('source');
+}
+
+/**
+ * Sync the shared store mode + toolbar/indicator to the binding's ACTUAL mode.
+ * The binding opens in the user's preferred mode (see modePreference.ts), so the
+ * UI must reflect that instead of assuming Source — a document switch must not
+ * silently revert the user's chosen view.
+ */
+function syncModeFromBinding(binding: EditorSurfaceBinding): void {
+  const mode = binding.editor.getMode();
+  setMode(mode === 'preview' ? 'wysiwyg' : 'source');
+  syncModeUI(mode === 'preview' ? 'wysiwyg' : 'source');
 }
 
 /** Keep toolbar buttons + mode indicator consistent with the actual view.
@@ -200,7 +210,7 @@ export async function openLosslessDocument(
     setActiveDocumentPath(path);
     const container = sourceWrapper();
     if (!container) return false;
-    showSourceForLossless();
+    showSurfaceForLossless();
 
     const binding = await EditorSurfaceBinding.open(path, container, defaultEol, (_state) => {
       store.emit({ type: 'editor:update' });
@@ -208,6 +218,10 @@ export async function openLosslessDocument(
       // autosave coordinator records real I/O errors only (spec 3.5).
     });
     setActiveLosslessBinding(binding, path);
+    // P2 corrective: the binding opened in the user's preferred mode (Source or
+    // Live Preview). Reflect that in the store + toolbar so a document switch
+    // does not silently revert to Source.
+    syncModeFromBinding(binding);
     // Lossless dirty is authoritative on the binding; keep the store in sync.
     store.setState({ dirty: binding.isDirty() });
     resetDocumentRevision();

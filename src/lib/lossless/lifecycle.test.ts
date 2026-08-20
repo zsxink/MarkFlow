@@ -298,6 +298,8 @@ vi.mock('@tauri-apps/api/core', async () => {
 // Real modules — imported after the mock.
 import { openLosslessDocument, saveLosslessActiveDocument, closeLosslessActiveDocument, reloadLosslessActiveDocument, isLosslessOpenRecoveryBlocked } from './integration';
 import { setLosslessCoreSessionEnabled } from './flag';
+import { setLivePreviewEnabled } from './livePreviewFlag';
+import { setPreferredMode, resetPreferredMode } from './modePreference';
 import { getActiveLosslessBinding, setActiveLosslessBinding } from './registry';
 import { store } from '../store';
 import * as editorMod from '../editor';
@@ -337,6 +339,7 @@ beforeEach(async () => {
   state.recoveryRequiresQuarantine = false;
   setLosslessCoreSessionEnabled(true);
   setActiveLosslessBinding(null);
+  resetPreferredMode();
   store.setState({ dirty: false, activeFilePath: null, mode: 'source' });
   // Provide the Source wrapper container the binding mounts into.
   document.body.innerHTML = '<div id="source-editor-wrapper"></div>';
@@ -485,6 +488,29 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     expect(reloaded).toBe(true);
     expect(getActiveLosslessBinding()!.isDirty()).toBe(false);
     expect(state.writeCount).toBe(0);
+  });
+
+  it('switching documents restores the user-preferred mode (not reset to Source)', async () => {
+    // P2 corrective: opening a second document must NOT force the mode back to
+    // Source. The user's chosen mode (preview / source) survives across documents.
+    const a = await stageFixture('utf8-lf-tail1');
+    const b = await stageFixture('utf8-lf-tail2');
+    setLivePreviewEnabled(true);
+
+    // User selects Live Preview (the real switch path writes the preference).
+    expect(await openLosslessDocument(a.dest)).toBe(true);
+    setPreferredMode('preview');
+
+    // Open doc B — must inherit the preferred mode, not reset to Source.
+    expect(await openLosslessDocument(b.dest)).toBe(true);
+    const bindingB = getActiveLosslessBinding()!;
+    expect(bindingB.editor.getMode()).toBe('preview');
+
+    // Switching back to Source is also remembered.
+    setPreferredMode('source');
+    const c = await stageFixture('utf8-lf-tail3');
+    expect(await openLosslessDocument(c.dest)).toBe(true);
+    expect(getActiveLosslessBinding()!.editor.getMode()).toBe('source');
   });
 
   it('reload read/parse failure keeps the existing binding operational for edit, save, and close', async () => {

@@ -98,7 +98,7 @@
 - [x] 5.6 明确 CodeMirror History grouping：composition、连续输入、paste、Enter、结构命令、widget commit、bulk replace；Undo/Redo 后通过同一 patch pipeline 收敛 Core revision
 - [x] 5.7 迁移 autosave、external reload/conflict、document transition、save-as/new file 到 lossless 默认路径
 - [x] 5.8 迁移 export 输入为同 revision Core snapshot 或只读明确 renderer，保证 export 不反向修改正文
-- [ ] 5.9 增加 CJK/emoji、pending-save、写盘期间继续输入、跨模式 Undo/Redo、A/B 文档隔离 E2E
+- [x] 5.9 增加 CJK/emoji、pending-save、写盘期间继续输入、跨模式 Undo/Redo、A/B 文档隔离 E2E
 - [ ] 5.10 逐行通过并签署 default minimum parity matrix 后才让 `losslessCoreSession` 默认开启；legacy ProseMirror 仅保留显式 flag 且与 lossless session owner 严格隔离
 - [ ] 5.11 收集一轮真实日常工作流证据与 legacy 回退原因；任何数据完整性问题立即关闭默认 flag
 - [ ] 5.12 运行全 gate、三平台可用环境 smoke 与独立 reviewer；通过并经人工验收后记录 Slice 3 Go checkpoint，不归档 umbrella change

@@ -1,0 +1,3 @@
+f37947de65e40952768a3ff369976a734207237988a4d28a82e194792847ec72  /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P3/20260821-210027-p3-verification-rerun-head807b3ad/RUN.md
+4ee9933d7a6de62d62b44eb272c03a2138fd3a202863b6662e86835bce466829  /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P3/20260821-210027-p3-verification-rerun-head807b3ad/gates/characterization.log
+cc803c3b08c24a8f719ad32f5cd867eed22641b311df57c8f1dd6966d2cb29ad  /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P3/20260821-210027-p3-verification-rerun-head807b3ad/gates/e2e-p0s.log

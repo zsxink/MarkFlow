@@ -1,0 +1,23 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+    Checking typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.189
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+    Checking cfg-if v1.0.4
+   Compiling serde_json v1.0.151
+    Checking itoa v1.0.18
+    Checking memchr v2.8.3
+   Compiling generic-array v0.14.7
+   Compiling syn v3.0.3
+   Compiling serde_derive v1.0.229
+    Checking cpufeatures v0.2.17
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+    Checking digest v0.10.7
+    Checking sha2 v0.10.9
+    Checking markflow-core v0.1.0 (/private/tmp/p3-clean-verify/wt/markflow-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.87s

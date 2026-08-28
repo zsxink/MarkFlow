@@ -1,0 +1,88 @@
+npm notice run markflow@0.0.6 test:characterization
+npm notice run vitest run --config vitest.characterization.config.ts
+
+ RUN  v2.1.9 /private/tmp/p3-clean-verify/wt
+
+stdout | tests/byte-contract/pm-tail-newline.characterization.test.ts > P0 characterization: PM path tail-newline byte loss > utf8-crlf-tail2: body edit rewrites untouched trailing line-break bytes
+[characterization] utf8-crlf-tail2: inputSha=6928ce6518b78c454a84fdd0296563cdbf815e34bc67048c6451bbe4e6bcbafb savedSha=7cf6ed359180cb6fa19cf92f2df7421d22c2c84cab389062bf516e6113033bbe oracleSha=312d21ecf5b8d870de2ac35ee20eb12c7cfbaad68d09cc0ee91c806a2aa67701
+[characterization] utf8-crlf-tail2: oracleTail="\r\n\r\n" savedTail="\n"
+
+stdout | tests/byte-contract/pm-tail-newline.characterization.test.ts > P0 characterization: PM path tail-newline byte loss > utf8-crlf-tail3: body edit rewrites untouched trailing line-break bytes
+[characterization] utf8-crlf-tail3: inputSha=db562fc521f4ff93c530de24139cc7161a522d12f65948219dfc26b6fb6cc42a savedSha=7cf6ed359180cb6fa19cf92f2df7421d22c2c84cab389062bf516e6113033bbe oracleSha=ed85af7cf3a41f225d620e7815a53630d2866c1f2f7073263920e2ac12481a90
+[characterization] utf8-crlf-tail3: oracleTail="\r\n\r\n\r\n" savedTail="\n"
+
+stdout | tests/byte-contract/pm-tail-newline.characterization.test.ts > P0 characterization: PM path tail-newline byte loss > utf8-cr-tail1: body edit rewrites untouched trailing line-break bytes
+[characterization] utf8-cr-tail1: inputSha=3e505e2c736942f615b6070bb561442271035453390544cf27f57d34642c0879 savedSha=bd86bcba42defeb762737a0b1af5e90a4e0a4c56b79801afe5737c00a82111d0 oracleSha=847f0540da3b2623012d8d81d9785000cddddcd44c3d50696ee10949945b2bdf
+[characterization] utf8-cr-tail1: oracleTail="\r" savedTail=""
+
+ ✓ tests/byte-contract/pm-tail-newline.characterization.test.ts (4 tests) 26ms
+stdout | tests/byte-contract/pm-tail-newline.characterization.test.ts > P0 characterization: PM path tail-newline byte loss > utf8-lf-tail3: explicit user tail deletion is overwritten by stale metadata
+[characterization] utf8-lf-tail3 after explicit tail delete: savedTail="line.\n\n\n"
+
+stdout | tests/byte-contract/legacy-open-autosave.characterization.test.ts > P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-lf-tail2: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix)
+
+[lifecycle] === utf8-lf-tail2 ===
+[lifecycle] original: length=68 sha256=bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0 mtime=1787935503328.8
+[lifecycle] dirty: afterOpen=false afterSettle=false afterTick1=false afterTick2=false
+[lifecycle] revision (transaction-time): afterOpen=0 afterSettle=0
+[lifecycle] closePrompt: transitionOk=true dialogTitle=null
+[lifecycle] saveCount: tick1=0 tick2=0 writtenPaths=[]
+[lifecycle] saved: length=68 sha256=bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0 mtime=1787935503328.8
+[lifecycle] byteDiff: firstDiffByte=-1 crlf=0->0 cr=0->0 lf=5->5
+[lifecycle] trailing: before="\n\n" after="\n\n"
+[lifecycle] bodyDiffs(up to 6): []
+[lifecycle] originalTailHex=...206c696e652e0a0a savedTailHex=...206c696e652e0a0a
+
+stdout | tests/byte-contract/legacy-open-autosave.characterization.test.ts > P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-lf-tail3: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix)
+
+[lifecycle] === utf8-lf-tail3 ===
+[lifecycle] original: length=69 sha256=201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1 mtime=1787935504047.7
+[lifecycle] dirty: afterOpen=false afterSettle=false afterTick1=false afterTick2=false
+[lifecycle] revision (transaction-time): afterOpen=0 afterSettle=0
+[lifecycle] closePrompt: transitionOk=true dialogTitle=null
+[lifecycle] saveCount: tick1=0 tick2=0 writtenPaths=[]
+[lifecycle] saved: length=69 sha256=201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1 mtime=1787935504047.7
+[lifecycle] byteDiff: firstDiffByte=-1 crlf=0->0 cr=0->0 lf=6->6
+[lifecycle] trailing: before="\n\n\n" after="\n\n\n"
+[lifecycle] bodyDiffs(up to 6): []
+[lifecycle] originalTailHex=...6c696e652e0a0a0a savedTailHex=...6c696e652e0a0a0a
+
+stdout | tests/byte-contract/legacy-open-autosave.characterization.test.ts > P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-crlf-tail2: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix)
+
+[lifecycle] === utf8-crlf-tail2 ===
+[lifecycle] original: length=73 sha256=6928ce6518b78c454a84fdd0296563cdbf815e34bc67048c6451bbe4e6bcbafb mtime=1787935504763.1
+[lifecycle] dirty: afterOpen=false afterSettle=false afterTick1=false afterTick2=false
+[lifecycle] revision (transaction-time): afterOpen=0 afterSettle=0
+[lifecycle] closePrompt: transitionOk=true dialogTitle=null
+[lifecycle] saveCount: tick1=0 tick2=0 writtenPaths=[]
+[lifecycle] saved: length=73 sha256=6928ce6518b78c454a84fdd0296563cdbf815e34bc67048c6451bbe4e6bcbafb mtime=1787935504763.1
+[lifecycle] byteDiff: firstDiffByte=-1 crlf=5->5 cr=5->5 lf=0->0
+[lifecycle] trailing: before="\r\n\r\n" after="\r\n\r\n"
+[lifecycle] bodyDiffs(up to 6): []
+[lifecycle] originalTailHex=...696e652e0d0a0d0a savedTailHex=...696e652e0d0a0d0a
+
+stdout | tests/byte-contract/legacy-open-autosave.characterization.test.ts > P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-crlf-tail3: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix)
+
+[lifecycle] === utf8-crlf-tail3 ===
+[lifecycle] original: length=75 sha256=db562fc521f4ff93c530de24139cc7161a522d12f65948219dfc26b6fb6cc42a mtime=1787935505475.9
+[lifecycle] dirty: afterOpen=false afterSettle=false afterTick1=false afterTick2=false
+[lifecycle] revision (transaction-time): afterOpen=0 afterSettle=0
+[lifecycle] closePrompt: transitionOk=true dialogTitle=null
+[lifecycle] saveCount: tick1=0 tick2=0 writtenPaths=[]
+[lifecycle] saved: length=75 sha256=db562fc521f4ff93c530de24139cc7161a522d12f65948219dfc26b6fb6cc42a mtime=1787935505475.9
+[lifecycle] byteDiff: firstDiffByte=-1 crlf=6->6 cr=6->6 lf=0->0
+[lifecycle] trailing: before="\r\n\r\n\r\n" after="\r\n\r\n\r\n"
+[lifecycle] bodyDiffs(up to 6): []
+[lifecycle] originalTailHex=...652e0d0a0d0a0d0a savedTailHex=...652e0d0a0d0a0d0a
+
+ ✓ tests/byte-contract/legacy-open-autosave.characterization.test.ts (5 tests) 2873ms
+   ✓ P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-lf-tail2: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix) 718ms
+   ✓ P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-lf-tail3: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix) 717ms
+   ✓ P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-crlf-tail2: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix) 713ms
+   ✓ P0S fix verification on the P0 corrective zero-edit lifecycle > utf8-crlf-tail3: zero-edit open → two autosave ticks → clean, bytes unchanged, no prompt (P0S fix) 711ms
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  00:45:02
+   Duration  3.49s (transform 223ms, setup 0ms, collect 566ms, tests 2.90s, environment 149ms, prepare 88ms)
+

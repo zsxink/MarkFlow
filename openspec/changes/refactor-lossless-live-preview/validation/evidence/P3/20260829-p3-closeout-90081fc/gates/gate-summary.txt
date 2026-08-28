@@ -1,0 +1,19 @@
+npm_ci exit=0 seconds=4
+npm_test exit=0 seconds=14
+tsc exit=0 seconds=2
+build exit=0 seconds=6
+byte_contract exit=0 seconds=0
+characterization exit=0 seconds=4
+openspec exit=0 seconds=2
+archive_synced exit=0 seconds=6
+core_fmt exit=0 seconds=0
+core_clippy exit=0 seconds=5
+core_cargo_test exit=0 seconds=6
+tauri_fmt exit=0 seconds=0
+tauri_clippy exit=0 seconds=38
+tauri_cargo_test exit=0 seconds=32
+e2e_lossless exit=0 seconds=149
+e2e_acceptance exit=0 seconds=74
+e2e_p0s exit=0 seconds=51
+e2e_regression exit=0 seconds=14
+ALL DONE 2026-08-29 00:51:23

@@ -100,9 +100,18 @@
 - [x] 5.8 迁移 export 输入为同 revision Core snapshot 或只读明确 renderer，保证 export 不反向修改正文
 - [x] 5.9 增加 CJK/emoji、pending-save、写盘期间继续输入、跨模式 Undo/Redo、A/B 文档隔离 E2E
 - [ ] 5.10 逐行通过并签署 default minimum parity matrix 后才让 `losslessCoreSession` 默认开启；legacy ProseMirror 仅保留显式 flag 且与 lossless session owner 严格隔离
+  - closeout（2026-08-29，run `20260829-p3-closeout-90081fc`）：干净 checkout 18 gate 全绿
+    （含协议 §3 fmt/clippy；两处历史遗留红灯 core fmt / tauri clippy×4 已以无行为变更方式修复）；
+    隐藏缺口静态审计 10 点（clearActiveDocument/外部删除/图片 range/read-only/复杂 fallback/
+    flag 隔离/serializer 残留等）未发现新缺口；parity 矩阵仍待 Program Owner 逐行签署（结论列 PENDING）
 - [ ] 5.11 收集一轮真实日常工作流证据与 legacy 回退原因；任何数据完整性问题立即关闭默认 flag
+  - 专项清单已备：`validation/manual-acceptance-p3-real-workflow.md`（真实工作流证据 +
+    legacy 回退原因 + 数据完整性 kill-switch），待 Program Owner 执行填写
 - [ ] 5.12 运行全 gate、三平台可用环境 smoke 与独立 reviewer；通过并经人工验收后记录 Slice 3 Go checkpoint，不归档 umbrella change
 - [ ] 5.13 在默认 flags 上重跑全部 L0 lifecycle 与 L1 surviving-span 案例；任何打开即 dirty/写盘或 serializer save 立即关闭默认 flag
+  - 自动化面已在干净 checkout（`90081fc`）fresh 重跑全绿并归档
+    （`evidence/P3/20260829-p3-closeout-90081fc/RUN.md` §3：guard 19 + lifecycle 23 +
+    flagRollback 4 + byte-contract 95/93 + 桌面 E2E 30 用例）；该清单即人工照跑脚本
 
 ## 6. Slice 4A — Parser/Source Map Spike 与 Confirmed Render IR
 

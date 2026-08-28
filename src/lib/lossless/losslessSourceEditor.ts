@@ -206,7 +206,7 @@ export function buildLosslessExtensions(
       ),
     ),
     // `addKeymap` defaults to true → `Prec.high(keymap.of(markdownKeymap))`.
-    markdown({ extensions: [GFM], codeLanguages: CODE_LANGUAGES, addKeymap: false }),
+    markdown({ extensions: [GFM], codeLanguages: CODE_LANGUAGES }),
     EditorView.updateListener.of((update) => {
       if (lifecycle.destroyed) return;
       if (update.docChanged) {

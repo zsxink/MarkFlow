@@ -8,7 +8,7 @@
 
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { Compartment, type Transaction } from '@codemirror/state';
+import { Compartment, type Extension, type Transaction } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
 import { GFM } from '@lezer/markdown';
 import {
@@ -29,6 +29,71 @@ const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as an
 async function loadLang(name: string): Promise<LanguageSupport> {
   return (await getLanguageExtension(name)) ?? plainText;
 }
+
+/** Code-fence languages offered by the lossless source editor. */
+const CODE_LANGUAGES = [
+  LanguageDescription.of({
+    name: 'javascript',
+    extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'],
+    load: () => loadLang('javascript'),
+  }),
+  LanguageDescription.of({
+    name: 'css',
+    extensions: ['css', 'scss', 'less'],
+    load: () => loadLang('css'),
+  }),
+  LanguageDescription.of({
+    name: 'html',
+    extensions: ['html', 'htm', 'svg'],
+    load: () => loadLang('html'),
+  }),
+  LanguageDescription.of({
+    name: 'python',
+    extensions: ['py', 'python'],
+    load: () => loadLang('python'),
+  }),
+  LanguageDescription.of({
+    name: 'java',
+    extensions: ['java'],
+    load: () => loadLang('java'),
+  }),
+  LanguageDescription.of({
+    name: 'rust',
+    extensions: ['rs', 'rust'],
+    load: () => loadLang('rust'),
+  }),
+  LanguageDescription.of({
+    name: 'go',
+    extensions: ['go'],
+    load: () => loadLang('go'),
+  }),
+  LanguageDescription.of({
+    name: 'json',
+    extensions: ['json'],
+    load: () => loadLang('json'),
+  }),
+  LanguageDescription.of({
+    name: 'yaml',
+    extensions: ['yaml', 'yml'],
+    load: () => loadLang('yaml'),
+  }),
+  LanguageDescription.of({
+    name: 'sql',
+    extensions: ['sql'],
+    load: () => loadLang('sql'),
+  }),
+  LanguageDescription.of({
+    name: 'xml',
+    extensions: ['xml', 'xsl', 'xslt'],
+    load: () => loadLang('xml'),
+  }),
+  LanguageDescription.of({
+    name: 'shell',
+    alias: ['bash', 'sh', 'zsh', 'fish'],
+    extensions: ['sh', 'bash'],
+    load: () => loadLang('shell'),
+  }),
+];
 
 const markdownHighlightStyle = HighlightStyle.define([
   { tag: tags.heading1, color: 'var(--accent)', fontWeight: '700', fontSize: '1.4em' },
@@ -99,198 +164,176 @@ export interface LosslessSourceEditorHandle {
   doc(): string;
 }
 
-/** Create a dedicated lossless source editor view. */
-export function createLosslessSourceEditor(
-  container: HTMLElement,
-  content: string,
+export interface LosslessExtensionSet {
+  /** Complete array handed to `new EditorView({ extensions })`. */
+  extensions: Extension[];
+  readOnlyCompartment: Compartment;
+  highlightCompartment: Compartment;
+  projectionCompartment: Compartment;
+  /** Live Preview flag as resolved from the options (default off). */
+  livePreviewEnabled: boolean;
+  /** Shared destroy flag; the builder's listeners check it before dispatching. */
+  lifecycle: { destroyed: boolean };
+}
+
+/**
+ * Build the extension stack of the lossless source editor.
+ *
+ * Exported so the P3 command-matrix evidence (task 5.4) runs against the
+ * PRODUCT definition instead of a stand-in view: a test that assembles its own
+ * `EditorView` cannot detect a regression here. Order matters — `markdown()`
+ * installs its keymap at `Prec.high`, so `insertNewlineContinueMarkup` /
+ * `deleteMarkupBackward` outrank the Enter/Backspace bindings of `basicSetup`'s
+ * `defaultKeymap`. Passing `addKeymap: false` or dropping `Prec.high` would
+ * silently degrade list/quote continuation to plain text semantics.
+ */
+export function buildLosslessExtensions(
   options: LosslessSourceEditorOptions = {},
-): LosslessSourceEditorHandle {
+): LosslessExtensionSet {
   const readOnlyCompartment = new Compartment();
   const highlightCompartment = new Compartment();
   // P2: mode switching is compartment reconfiguration on the SAME EditorView.
   // base = always-present extensions; mode/projection = switchable compartments.
   const projectionCompartment = new Compartment();
   const livePreviewEnabled = options.livePreview ?? false;
-  let mode: 'source' | 'preview' = options.mode ?? 'source';
-  let destroyed = false;
+  const lifecycle = { destroyed: false };
 
-  const view = new EditorView({
-    doc: content,
-    parent: container,
-    extensions: [
-      basicSetup,
-      highlightCompartment.of(
-        syntaxHighlighting(
-          getCachedSettings().codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
-        ),
+  const extensions: Extension[] = [
+    basicSetup,
+    highlightCompartment.of(
+      syntaxHighlighting(
+        getCachedSettings().codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
       ),
-      markdown({
-        extensions: [GFM],
-        codeLanguages: [
-          LanguageDescription.of({
-            name: 'javascript',
-            extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'],
-            load: () => loadLang('javascript'),
-          }),
-          LanguageDescription.of({
-            name: 'css',
-            extensions: ['css', 'scss', 'less'],
-            load: () => loadLang('css'),
-          }),
-          LanguageDescription.of({
-            name: 'html',
-            extensions: ['html', 'htm', 'svg'],
-            load: () => loadLang('html'),
-          }),
-          LanguageDescription.of({
-            name: 'python',
-            extensions: ['py', 'python'],
-            load: () => loadLang('python'),
-          }),
-          LanguageDescription.of({
-            name: 'java',
-            extensions: ['java'],
-            load: () => loadLang('java'),
-          }),
-          LanguageDescription.of({
-            name: 'rust',
-            extensions: ['rs', 'rust'],
-            load: () => loadLang('rust'),
-          }),
-          LanguageDescription.of({
-            name: 'go',
-            extensions: ['go'],
-            load: () => loadLang('go'),
-          }),
-          LanguageDescription.of({
-            name: 'json',
-            extensions: ['json'],
-            load: () => loadLang('json'),
-          }),
-          LanguageDescription.of({
-            name: 'yaml',
-            extensions: ['yaml', 'yml'],
-            load: () => loadLang('yaml'),
-          }),
-          LanguageDescription.of({
-            name: 'sql',
-            extensions: ['sql'],
-            load: () => loadLang('sql'),
-          }),
-          LanguageDescription.of({
-            name: 'xml',
-            extensions: ['xml', 'xsl', 'xslt'],
-            load: () => loadLang('xml'),
-          }),
-          LanguageDescription.of({
-            name: 'shell',
-            alias: ['bash', 'sh', 'zsh', 'fish'],
-            extensions: ['sh', 'bash'],
-            load: () => loadLang('shell'),
-          }),
-        ],
-      }),
-      EditorView.updateListener.of((update) => {
-        if (destroyed) return;
-        if (update.docChanged) {
-          if (options.onTransaction) options.onTransaction(update.transactions);
-          if (options.onDocChanged) options.onDocChanged();
-        }
-      }),
-      EditorView.domEventHandlers({
-        paste(event: ClipboardEvent) {
-          // P3 5.5: image files take priority over plain text.
-          const imageFiles = Array.from(event.clipboardData?.files ?? []).filter((f) =>
-            f.type.startsWith('image/'),
-          );
-          if (imageFiles.length > 0 && options.onImageFiles) {
-            event.preventDefault();
-            const caret = view.state.selection.main.head;
-            void options
-              .onImageFiles(imageFiles, 'paste')
-              .then((markdowns) => {
-                if (!markdowns || destroyed) return;
-                const insert = markdowns.join('\n');
-                view.dispatch({
-                  changes: { from: caret, to: caret, insert },
-                  selection: { anchor: caret + insert.length },
-                  scrollIntoView: true,
-                  userEvent: 'input.paste',
-                  annotations: isolateHistory.of('full'),
-                });
-              })
-              .catch(() => {
-                // Resource failure → no doc change; user sees no inserted bytes.
-              });
-            return true;
-          }
-          // CodeMirror's document is logical LF text. Read the OS clipboard
-          // first so the bridge can retain explicit CRLF/CR provenance instead
-          // of silently inheriting the surrounding document's EOL style.
-          const text = event.clipboardData?.getData('text/plain');
-          if (text === undefined || text === '') return false;
-          options.onRawPasteText?.(text);
-
-          // P3 5.6: one paste intent = one explicit History group.
-          // CM's default paste dispatches with `userEvent: 'input.paste'`, which
-          // the history extension MERGES with adjacent typing (`joinableUserEvent`
-          // matches `input.paste`). Re-dispatch our own transaction with
-          // `isolateHistory: 'full'` so a paste followed by typing Undos as two
-          // separate groups, and return `true` to prevent CM's later default
-          // paste handler from re-applying the insertion. The change is a single
-          // local transaction on the SAME EditorView (owner isolation — never the
-          // hidden ProseMirror), so `basicSetup`'s history records it normally.
-          const { from, to } = view.state.selection.main;
-          // Insert the raw clipboard text. CM normalizes CRLF/CR to the doc's
-          // logical LF internally, so the post-change caret must be clamped to
-          // the document (the raw length can differ for CRLF pastes).
-          const docLen = view.state.doc.length;
-          const anchor = Math.min(from + text.length, docLen);
-          view.dispatch({
-            changes: { from, to, insert: text },
-            selection: { anchor },
-            scrollIntoView: true,
-            userEvent: 'input.paste',
-            annotations: isolateHistory.of('full'),
-          });
-          return true;
-        },
-        drop(event: DragEvent) {
-          // P3 5.5: image files dropped into the surface.
-          const imageFiles = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
-            f.type.startsWith('image/'),
-          );
-          if (imageFiles.length === 0 || !options.onImageFiles) return false;
+    ),
+    // `addKeymap` defaults to true → `Prec.high(keymap.of(markdownKeymap))`.
+    markdown({ extensions: [GFM], codeLanguages: CODE_LANGUAGES, addKeymap: false }),
+    EditorView.updateListener.of((update) => {
+      if (lifecycle.destroyed) return;
+      if (update.docChanged) {
+        if (options.onTransaction) options.onTransaction(update.transactions);
+        if (options.onDocChanged) options.onDocChanged();
+      }
+    }),
+    EditorView.domEventHandlers({
+      paste(event: ClipboardEvent, view: EditorView) {
+        // P3 5.5: image files take priority over plain text.
+        const imageFiles = Array.from(event.clipboardData?.files ?? []).filter((f) =>
+          f.type.startsWith('image/'),
+        );
+        if (imageFiles.length > 0 && options.onImageFiles) {
           event.preventDefault();
-          event.stopPropagation();
-          const caret = view.posAtCoords({ x: event.clientX, y: event.clientY });
-          const insertAt = caret ?? view.state.selection.main.head;
+          const caret = view.state.selection.main.head;
           void options
-            .onImageFiles(imageFiles, 'drop')
+            .onImageFiles(imageFiles, 'paste')
             .then((markdowns) => {
-              if (!markdowns || destroyed) return;
+              if (!markdowns || lifecycle.destroyed) return;
               const insert = markdowns.join('\n');
               view.dispatch({
-                changes: { from: insertAt, to: insertAt, insert },
-                selection: { anchor: insertAt + insert.length },
+                changes: { from: caret, to: caret, insert },
+                selection: { anchor: caret + insert.length },
                 scrollIntoView: true,
                 userEvent: 'input.paste',
                 annotations: isolateHistory.of('full'),
               });
             })
-            .catch(() => undefined);
+            .catch(() => {
+              // Resource failure → no doc change; user sees no inserted bytes.
+            });
           return true;
-        },
-      }),
+        }
+        // CodeMirror's document is logical LF text. Read the OS clipboard
+        // first so the bridge can retain explicit CRLF/CR provenance instead
+        // of silently inheriting the surrounding document's EOL style.
+        const text = event.clipboardData?.getData('text/plain');
+        if (text === undefined || text === '') return false;
+        options.onRawPasteText?.(text);
+
+        // P3 5.6: one paste intent = one explicit History group.
+        // CM's default paste dispatches with `userEvent: 'input.paste'`, which
+        // the history extension MERGES with adjacent typing (`joinableUserEvent`
+        // matches `input.paste`). Re-dispatch our own transaction with
+        // `isolateHistory: 'full'` so a paste followed by typing Undos as two
+        // separate groups, and return `true` to prevent CM's later default
+        // paste handler from re-applying the insertion. The change is a single
+        // local transaction on the SAME EditorView (owner isolation — never the
+        // hidden ProseMirror), so `basicSetup`'s history records it normally.
+        const { from, to } = view.state.selection.main;
+        // Insert the raw clipboard text. CM normalizes CRLF/CR to the doc's
+        // logical LF internally, so the post-change caret must be clamped to
+        // the document (the raw length can differ for CRLF pastes).
+        const docLen = view.state.doc.length;
+        const anchor = Math.min(from + text.length, docLen);
+        view.dispatch({
+          changes: { from, to, insert: text },
+          selection: { anchor },
+          scrollIntoView: true,
+          userEvent: 'input.paste',
+          annotations: isolateHistory.of('full'),
+        });
+        return true;
+      },
+      drop(event: DragEvent, view: EditorView) {
+        // P3 5.5: image files dropped into the surface.
+        const imageFiles = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
+          f.type.startsWith('image/'),
+        );
+        if (imageFiles.length === 0 || !options.onImageFiles) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        const caret = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        const insertAt = caret ?? view.state.selection.main.head;
+        void options
+          .onImageFiles(imageFiles, 'drop')
+          .then((markdowns) => {
+            if (!markdowns || lifecycle.destroyed) return;
+            const insert = markdowns.join('\n');
+            view.dispatch({
+              changes: { from: insertAt, to: insertAt, insert },
+              selection: { anchor: insertAt + insert.length },
+              scrollIntoView: true,
+              userEvent: 'input.paste',
+              annotations: isolateHistory.of('full'),
+            });
+          })
+          .catch(() => undefined);
+        return true;
+      },
+    }),
       highlightLimitPlugin,
       readOnlyCompartment.of(EditorView.editable.of(!(options.readOnly ?? false))),
       // P2 projection compartment: only active in 'preview' mode when the flag
       // is on. Reconfiguring this compartment NEVER changes the doc, the
       // selection, or the History — it only adds/removes semantic decorations.
       projectionCompartment.of(
-        livePreviewEnabled && mode === 'preview' ? projectionExtension() : [],
+        livePreviewEnabled && (options.mode ?? 'source') === 'preview'
+          ? projectionExtension()
+          : [],
       ),
-    ],
+    ];
+
+  return {
+    extensions,
+    readOnlyCompartment,
+    highlightCompartment,
+    projectionCompartment,
+    livePreviewEnabled,
+    lifecycle,
+  };
+}
+
+/** Create a dedicated lossless source editor view. */
+export function createLosslessSourceEditor(
+  container: HTMLElement,
+  content: string,
+  options: LosslessSourceEditorOptions = {},
+): LosslessSourceEditorHandle {
+  const built = buildLosslessExtensions(options);
+  let mode: 'source' | 'preview' = options.mode ?? 'source';
+
+  const view = new EditorView({
+    doc: content,
+    parent: container,
+    extensions: built.extensions,
   });
   view.contentDOM.dataset.testid = 'editor-source-content';
 
@@ -300,27 +343,27 @@ export function createLosslessSourceEditor(
       return mode;
     },
     setMode(nextMode: 'source' | 'preview'): void {
-      if (nextMode === mode || destroyed) return;
+      if (nextMode === mode || built.lifecycle.destroyed) return;
       mode = nextMode;
       view.dispatch({
-        effects: projectionCompartment.reconfigure(
-          livePreviewEnabled && mode === 'preview' ? projectionExtension() : [],
+        effects: built.projectionCompartment.reconfigure(
+          built.livePreviewEnabled && mode === 'preview' ? projectionExtension() : [],
         ),
       });
     },
     setLivePreview(enabled: boolean): void {
-      if (destroyed) return;
+      if (built.lifecycle.destroyed) return;
       // Re-enable/disable the projection without changing mode. When enabled
       // and in preview mode the projection turns on; otherwise it stays off.
       view.dispatch({
-        effects: projectionCompartment.reconfigure(
+        effects: built.projectionCompartment.reconfigure(
           enabled && mode === 'preview' ? projectionExtension() : [],
         ),
       });
     },
     setReadOnly(readOnly: boolean): void {
       view.dispatch({
-        effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
+        effects: built.readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
       });
     },
     setHighlight(enabled: boolean): void {
@@ -328,11 +371,11 @@ export function createLosslessSourceEditor(
         enabled ? markdownHighlightStyle : noHighlightStyle,
         { fallback: true },
       );
-      view.dispatch({ effects: highlightCompartment.reconfigure(style) });
+      view.dispatch({ effects: built.highlightCompartment.reconfigure(style) });
       view.dom.classList.toggle('no-code-highlight', !enabled);
     },
     destroy(): void {
-      destroyed = true;
+      built.lifecycle.destroyed = true;
       view.destroy();
     },
     replaceDoc(text: string): void {

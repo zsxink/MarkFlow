@@ -1,294 +1,452 @@
 /**
  * Enter/Backspace/Delete command matrix — task 5.4.
  *
- * The lossless path uses ONE CodeMirror EditorView with the Markdown keymap
- * (`insertNewlineContinueMarkup` for Enter, `deleteMarkupBackward` for
- * Backspace) provided by `@codemirror/lang-markdown` (active by default via
- * `markdown({ addKeymap: true })`, only active in Markdown context). This test
- * pins the ACTUAL behavior of every cell in the P3 command matrix against the
- * REAL keymap commands, and asserts the safety rule: a context the Markdown
- * keymap does not handle MUST fall back to plain CodeMirror text semantics
- * (never a serializer round-trip, never a whole-doc rewrite, never the hidden
- * ProseMirror owner).
+ * Evidence discipline: every cell below runs against the EditorView built by
+ * the PRODUCT (`createLosslessSourceEditor` → `buildLosslessExtensions`), not a
+ * stand-in view assembled inside this file. A hand-built view cannot detect a
+ * regression in the product's extension list — `markdown({ addKeymap: false })`,
+ * a dropped `Prec.high`, or a reordering that lets `basicSetup`'s
+ * `defaultKeymap` outrank the Markdown keymap would all leave a stand-in test
+ * green while list/quote continuation silently degrades to a plain newline.
+ *
+ * Keystrokes are real `keydown` events dispatched on the product view's
+ * `contentDOM`, so the resolution order (`handleKeyEvents` → `runScopeHandlers`
+ * → keymap facet in precedence order) is the one a user actually gets.
  *
  * Cells verified:
- *  - paragraph / heading / fence → newlineAndIndent (plain, local transaction)
- *  - list (empty/non-empty/nested) → marker continuation or exit
+ *  - paragraph / heading / fence / table / image / malformed / cross-block
+ *    selection → plain newline (native CodeMirror text semantics)
+ *  - list (empty/non-empty/nested/ordered/task) → marker continuation or exit
  *  - quote (non-empty/empty) → `> ` continuation or exit
- *  - table / image / malformed / atomic-inline / cross-block → plain deletion
- *    (the keymap returns false and `defaultKeymap`/`input.type` handles it)
- *  - Backspace at line start inside list/quote marker → deletes one level of
+ *  - Backspace at line start inside list/quote marker → removes one level of
  *    markup; elsewhere → plain character deletion
- *  - every edit is a local CodeMirror transaction (doc bytes change only in
- *    the targeted range; the surrounding untouched bytes are preserved)
+ *  - Delete → plain forward deletion (surrogate-pair safe)
+ *  - CJK / emoji boundaries (UTF-16 surrogate safe)
+ *  - every edit is ONE local transaction: bytes outside the changed range are
+ *    byte-identical (no serializer round-trip, no whole-doc rewrite, no second
+ *    owner touching the doc)
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { EditorView, keymap, highlightSpecialChars, lineNumbers, drawSelection } from '@codemirror/view';
-import { markdown, insertNewlineContinueMarkup, deleteMarkupBackward, markdownKeymap } from '@codemirror/lang-markdown';
-import { GFM } from '@lezer/markdown';
-import { defaultKeymap, history, historyKeymap, insertNewlineAndIndent, deleteCharBackward } from '@codemirror/commands';
+import { EditorState, type Transaction } from '@codemirror/state';
+import { EditorView, keymap, runScopeHandlers } from '@codemirror/view';
+import { insertNewlineContinueMarkup, deleteMarkupBackward } from '@codemirror/lang-markdown';
+import { insertNewlineAndIndent, deleteCharBackward } from '@codemirror/commands';
+import {
+  createLosslessSourceEditor,
+  buildLosslessExtensions,
+  type LosslessSourceEditorHandle,
+} from './losslessSourceEditor';
 
-function setup(doc: string): { view: EditorView; destroy(): void } {
+type KeyName = 'Enter' | 'Backspace' | 'Delete';
+
+interface Harness {
+  readonly view: EditorView;
+  /** Source bytes as handed to the product factory. */
+  readonly before: string;
+  /** Doc-changing transactions reported by the product's own update listener. */
+  readonly txs: Transaction[];
+  doc(): string;
+  /** Dispatch a real keydown on the product view's contentDOM. */
+  press(key: KeyName): void;
+  /** Run the production keymap resolution and report whether it handled the key. */
+  pressHandled(key: KeyName): boolean;
+}
+
+const open: Harness[] = [];
+
+function harness(source: string, pos: number | [number, number]): Harness {
   const parent = document.createElement('div');
   document.body.appendChild(parent);
-  const view = new EditorView({
-    doc,
-    parent,
-    extensions: [
-      markdown({ extensions: [GFM] }),
-      EditorView.lineWrapping,
-      keymap.of([...defaultKeymap, ...historyKeymap, ...markdownKeymap]),
-      history(),
-      lineNumbers(),
-      highlightSpecialChars(),
-      drawSelection(),
-    ],
+  const txs: Transaction[] = [];
+  const handle: LosslessSourceEditorHandle = createLosslessSourceEditor(parent, source, {
+    onTransaction: (transactions) => {
+      txs.push(...transactions);
+    },
   });
-  return { view, destroy: () => { view.destroy(); } };
+  handle.view.dispatch({
+    selection: Array.isArray(pos) ? { anchor: pos[0], head: pos[1] } : { anchor: pos },
+  });
+
+  const h: Harness = {
+    view: handle.view,
+    before: source,
+    txs,
+    doc: () => handle.view.state.doc.toString(),
+    press(key) {
+      handle.view.contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+      );
+    },
+    pressHandled(key) {
+      return runScopeHandlers(
+        handle.view,
+        new KeyboardEvent('keydown', { key, cancelable: true }),
+        'editor',
+      );
+    },
+  };
+  open.push(h);
+  return h;
 }
 
-function cursor(view: EditorView, pos: number): void {
-  view.dispatch({ selection: { anchor: pos } });
+/**
+ * Pin the result of one keystroke AND the locality invariant:
+ *  - the doc matches `expected` exactly
+ *  - exactly one doc-changing transaction (no follow-up normalization pass, no
+ *    hidden second owner dispatching a rewrite)
+ *  - exactly one change range, and the bytes before/after it are byte-identical
+ *    to the untouched prefix/suffix of the source
+ */
+function expectLocalEdit(
+  h: Harness,
+  expected: string,
+  opts: { wholeDocChange?: boolean; spans?: number } = {},
+) {
+  const after = h.doc();
+  expect(after).toBe(expected);
+
+  expect(h.txs.length).toBe(1);
+  const spans: Array<{ fromA: number; toA: number; fromB: number; toB: number }> = [];
+  h.txs[0].changes.iterChanges((fromA, toA, fromB, toB) => {
+    spans.push({ fromA, toA, fromB, toB });
+  });
+  expect(spans.length).toBe(opts.spans ?? 1);
+
+  // Untouched bytes on both sides of the edited window are byte-identical.
+  const first = spans[0];
+  const last = spans[spans.length - 1];
+  expect(after.slice(0, first.fromB)).toBe(h.before.slice(0, first.fromA));
+  expect(after.slice(last.toB)).toBe(h.before.slice(last.toA));
+  if (!opts.wholeDocChange) {
+    // A serializer round-trip / whole-doc rewrite would have to touch both ends.
+    expect(first.fromA === 0 && last.toA === h.before.length).toBe(false);
+  }
 }
 
-/** Run the Enter keymap (markdown-aware) at the current cursor. */
-function pressEnter(view: EditorView): boolean {
-  return insertNewlineContinueMarkup(view);
-}
-
-/** Simulate a real Enter keydown: markdown-aware first, then CM fallback. */
-function enterKeydown(view: EditorView): boolean {
-  if (insertNewlineContinueMarkup(view)) return true;
-  return insertNewlineAndIndent(view);
-}
-
-/** Simulate Backspace at the current cursor (markdown-aware). */
-function pressBackspace(view: EditorView): boolean {
-  return deleteMarkupBackward(view);
-}
-
-/** Simulate a real Backspace keydown: markdown-aware first, then CM fallback. */
-function backspaceKeydown(view: EditorView): boolean {
-  if (deleteMarkupBackward(view)) return true;
-  return deleteCharBackward(view);
-}
-
-/** Simulate a plain Backspace (deletes one code-unit before the cursor). */
-function plainBackspace(view: EditorView): void {
-  deleteCharBackward(view);
-}
-
-describe('Enter command matrix (task 5.4)', () => {
-  afterEach(() => { document.body.innerHTML = ''; });
-
-  it('paragraph Enter inserts a plain logical LF with trailing-space trim (local, no rewrite)', () => {
-    const { view, destroy } = setup('hello world');
-    cursor(view, 5); // after "hello", before " world"
-    const handled = enterKeydown(view);
-    // Markdown keymap declines plain paragraph; defaultKeymap inserts an LF and
-    // CM trims trailing whitespace from the split line start (so " world"
-    // becomes "world" on the new line — still a purely local transaction).
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('hello\nworld');
-    destroy();
+describe('wiring guard: the product view resolves Enter/Backspace through the Markdown keymap', () => {
+  afterEach(() => {
+    while (open.length) open.pop()!.view.destroy();
+    document.body.innerHTML = '';
   });
 
-  it('paragraph Enter at end of line keeps the untouched rest intact', () => {
-    const { view, destroy } = setup('hello world');
-    cursor(view, 11); // end of line
-    const handled = enterKeydown(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('hello world\n');
-    destroy();
+  it('markdown keymap bindings precede basicSetup defaultKeymap bindings in the keymap facet', () => {
+    // Order in the facet IS precedence: `runHandlers` runs bindings in this
+    // order and stops at the first one that returns true. Asserting order
+    // (rather than `Prec` internals) survives an internal refactor of how the
+    // priority is expressed.
+    const state = EditorState.create({ doc: '', extensions: buildLosslessExtensions().extensions });
+    const bindings = state.facet(keymap).flat();
+    const markdownEnter = bindings.findIndex((b) => b.run === insertNewlineContinueMarkup);
+    const plainEnter = bindings.findIndex((b) => b.run === insertNewlineAndIndent);
+    const markdownBackspace = bindings.findIndex((b) => b.run === deleteMarkupBackward);
+    const plainBackspace = bindings.findIndex((b) => b.run === deleteCharBackward);
+
+    expect(markdownEnter).toBeGreaterThanOrEqual(0);
+    expect(markdownBackspace).toBeGreaterThanOrEqual(0);
+    expect(plainEnter).toBeGreaterThan(markdownEnter);
+    expect(plainBackspace).toBeGreaterThan(markdownBackspace);
   });
 
-  it('heading Enter inserts a plain newline (source text preserved)', () => {
-    const { view, destroy } = setup('# Title');
-    cursor(view, 7);
-    const handled = enterKeydown(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('# Title\n');
-    destroy();
+  it('a real Enter keydown continues the list marker instead of inserting a bare newline', () => {
+    // Regression guard: with `addKeymap: false` (or a lost `Prec.high`) this
+    // becomes the native fallback `'- item one\n'` and stays green in any test
+    // that does not use the product extension list.
+    const h = harness('- item one', 10);
+    h.press('Enter');
+    expect(h.doc()).toBe('- item one\n- ');
+    expect(h.doc()).not.toBe('- item one\n');
   });
 
-  it('non-empty list Enter continues with the same marker', () => {
-    const { view, destroy } = setup('- item one');
-    cursor(view, 10);
-    const handled = pressEnter(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('- item one\n- ');
-    destroy();
+  it('a real Backspace keydown removes list markup instead of one character', () => {
+    // Native fallback at pos 2 would delete the space → '-item'.
+    const h = harness('- item', 2);
+    h.press('Backspace');
+    expect(h.doc()).toBe('item');
+    expect(h.doc()).not.toBe('-item');
   });
 
-  it('nested list Enter continues at the same indentation level', () => {
-    const { view, destroy } = setup('  - item');
-    cursor(view, 8);
-    const handled = pressEnter(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('  - item\n  - ');
-    destroy();
+  it('a real Enter keydown continues the quote marker instead of inserting a bare newline', () => {
+    const h = harness('> quote text', 12);
+    h.press('Enter');
+    expect(h.doc()).toBe('> quote text\n> ');
+    expect(h.doc()).not.toBe('> quote text\n');
   });
 
-  it('EMPTY list item Enter exits the list (dedent to paragraph)', () => {
-    const { view, destroy } = setup('- ');
-    cursor(view, 2); // inside the empty item
-    const handled = enterKeydown(view);
-    // A lone empty list item Enter simply removes the empty item (dedent).
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('');
-    destroy();
+  it('the Markdown commands decline outside their context (fallback stays reachable)', () => {
+    // Sanity: the precedence above must not swallow plain text. Both Markdown
+    // commands must return false in a paragraph so the native binding runs.
+    const h = harness('hello world', 5);
+    expect(h.pressHandled('Enter')).toBe(true);
+    expect(h.doc()).toBe('hello\nworld');
+  });
+});
+
+describe('Enter command matrix on the product editor (task 5.4)', () => {
+  afterEach(() => {
+    while (open.length) open.pop()!.view.destroy();
+    document.body.innerHTML = '';
   });
 
-  it('non-empty quote Enter continues the quote marker', () => {
-    const { view, destroy } = setup('> quote text');
-    cursor(view, 12);
-    const handled = pressEnter(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('> quote text\n> ');
-    destroy();
+  it('paragraph mid-line → plain logical LF, trailing space trimmed, prefix/suffix intact', () => {
+    const h = harness('hello world', 5);
+    h.press('Enter');
+    // Only the split point changes: [5,6) (the space) → '\n'.
+    expectLocalEdit(h, 'hello\nworld');
   });
 
-  it('EMPTY quote Enter exits the quote when a blank quoted line precedes', () => {
-    // CM's quote exit requires two consecutive empty quoted lines (`>\n> `),
-    // mirroring CommonMark tightness rules — the first Enter continues the
-    // quote, the second (on the blank quoted line) exits it.
-    const { view, destroy } = setup('> text\n>\n> ');
-    cursor(view, '> text\n>\n> '.length);
-    const handled = enterKeydown(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('> text\n\n');
-    destroy();
+  it('paragraph end-of-line → plain LF, nothing else touched', () => {
+    const h = harness('hello world', 11);
+    h.press('Enter');
+    expectLocalEdit(h, 'hello world\n');
   });
 
-  it('fence body Enter inserts a literal newline (no structural transform)', () => {
-    const { view, destroy } = setup('```\ncode\n```');
-    cursor(view, 8); // after "code"
-    const handled = enterKeydown(view);
-    // The Markdown keymap declines inside a fence body; the default fallback
-    // inserts a literal LF (no structural rewrite).
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('```\ncode\n\n```');
-    destroy();
+  it('heading → plain newline (no marker continuation)', () => {
+    const h = harness('# Title', 7);
+    h.press('Enter');
+    expectLocalEdit(h, '# Title\n');
   });
 
-  it('table Enter falls back to a plain newline (table widget is P4B, not P3)', () => {
-    const { view, destroy } = setup('| a | b |\n|---|---|\n| 1 | 2 |');
-    cursor(view, 29); // end of the last row
-    const handled = enterKeydown(view);
-    // No table command in P3 → exact source fallback (plain text semantics keeps
-    // the whole table source; only the caret line gains a newline).
-    expect(handled).toBe(true);
-    const after = view.state.doc.toString();
+  it('fence body → literal newline (no structural transform)', () => {
+    const h = harness('```\ncode\n```', 8);
+    h.press('Enter');
+    expectLocalEdit(h, '```\ncode\n\n```');
+  });
+
+  it('non-empty list item → same marker continuation', () => {
+    const h = harness('- item one', 10);
+    h.press('Enter');
+    expectLocalEdit(h, '- item one\n- ');
+  });
+
+  it('nested list item → continuation at the same indentation', () => {
+    const h = harness('  - item', 8);
+    h.press('Enter');
+    expectLocalEdit(h, '  - item\n  - ');
+  });
+
+  it('ordered list item → next ordinal', () => {
+    const h = harness('1. a', 4);
+    h.press('Enter');
+    expectLocalEdit(h, '1. a\n2. ');
+  });
+
+  it('GFM task list item → checkbox continuation', () => {
+    const h = harness('- [ ] a', 7);
+    h.press('Enter');
+    expectLocalEdit(h, '- [ ] a\n- [ ] ');
+  });
+
+  it('EMPTY list item → exits the list (dedent)', () => {
+    const h = harness('- ', 2);
+    h.press('Enter');
+    // The only content WAS the marker, so the change legitimately spans it.
+    expectLocalEdit(h, '', { wholeDocChange: true });
+  });
+
+  it('non-empty quote → `> ` continuation', () => {
+    const h = harness('> quote text', 12);
+    h.press('Enter');
+    expectLocalEdit(h, '> quote text\n> ');
+  });
+
+  it('EMPTY quote after a blank quoted line → exits the quote', () => {
+    const h = harness('> text\n>\n> ', 11);
+    h.press('Enter');
+    // One transaction, two adjacent deletions (`>` at [7,8) and `> ` at [9,11));
+    // the quoted text and everything before it survive byte-for-byte.
+    expectLocalEdit(h, '> text\n\n', { spans: 2 });
+  });
+
+  it('table → plain newline, table source preserved byte-for-byte (P4B widget absent)', () => {
+    const source = '| a | b |\n|---|---|\n| 1 | 2 |';
+    const h = harness(source, source.length);
+    h.press('Enter');
+    const after = h.doc();
+    expect(after).toBe(`${source}\n`);
     expect(after).toContain('| a | b |');
     expect(after).toContain('|---|---|');
     expect(after).toContain('| 1 | 2 |');
-    destroy();
+    expectLocalEdit(h, `${source}\n`);
   });
 
-  it('image line Enter inserts a plain newline (image widget is P4B)', () => {
-    const { view, destroy } = setup('before ![alt](x.png) after');
-    cursor(view, 26); // end of the line
-    const handled = enterKeydown(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('before ![alt](x.png) after\n');
-    destroy();
-  });
-});
-
-describe('Backspace command matrix (task 5.4)', () => {
-  afterEach(() => { document.body.innerHTML = ''; });
-
-  it('Backspace at list marker removes one level of markup', () => {
-    const { view, destroy } = setup('- item');
-    cursor(view, 2); // right after "- "
-    const handled = pressBackspace(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('item');
-    destroy();
+  it('image line → plain newline, image source preserved (P4B widget absent)', () => {
+    const h = harness('before ![alt](x.png) after', 26);
+    h.press('Enter');
+    expectLocalEdit(h, 'before ![alt](x.png) after\n');
   });
 
-  it('Backspace at quote marker removes the quote prefix', () => {
-    const { view, destroy } = setup('> text');
-    cursor(view, 2);
-    const handled = pressBackspace(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('text');
-    destroy();
+  it('malformed Markdown → plain newline, no repair/normalization of the source', () => {
+    const h = harness('**unclosed [link', 16);
+    h.press('Enter');
+    expectLocalEdit(h, '**unclosed [link\n');
   });
 
-  it('Backspace at line start of a heading is a plain no-op (no marker to delete)', () => {
-    const { view, destroy } = setup('# Title');
-    cursor(view, 0);
-    const handled = pressBackspace(view);
-    // deleteMarkupBackward handles only list/quote markers in Markdown context;
-    // at a heading start it declines, and defaultKeymap is also a no-op at 0.
-    expect(handled).toBe(false);
-    expect(view.state.doc.toString()).toBe('# Title');
-    destroy();
-  });
-
-  it('Backspace in plain text deletes one character (local, exact source)', () => {
-    const { view, destroy } = setup('hello');
-    cursor(view, 5);
-    const handled = pressBackspace(view);
-    expect(handled).toBe(false);
-    plainBackspace(view);
-    expect(view.state.doc.toString()).toBe('hell');
-    destroy();
-  });
-
-  it('Backspace inside a fence body deletes literally (no structural transform)', () => {
-    const { view, destroy } = setup('```\ncode\n```');
-    cursor(view, 8); // after the 'd' of "code"
-    const handled = backspaceKeydown(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('```\ncod\n```');
-    destroy();
-  });
-
-  it('Backspace at an image marker boundary deletes literally (P4B widget not present)', () => {
-    const { view, destroy } = setup('![alt](x.png)');
-    cursor(view, 13); // end of the image source
-    const handled = backspaceKeydown(view);
-    expect(handled).toBe(true);
-    expect(view.state.doc.toString()).toBe('![alt](x.png');
-    destroy();
-  });
-
-  it('Backspace with a non-empty selection deletes the whole selection', () => {
-    const { view, destroy } = setup('abc def');
-    view.dispatch({ selection: { anchor: 0, head: 7 } });
-    const handled = pressBackspace(view);
-    expect(handled).toBe(false);
-    view.dispatch({ changes: { from: 0, to: 7, insert: '' }, userEvent: 'delete' });
-    expect(view.state.doc.toString()).toBe('');
-    destroy();
+  it('cross-block selection → native replace-with-newline, no structural rewrite', () => {
+    const h = harness('a\n\nb', [0, 3]);
+    h.press('Enter');
+    // The whole selection is replaced by a single LF — one local change.
+    expect(h.doc()).toBe('\nb');
+    expect(h.txs.length).toBe(1);
   });
 });
 
-describe('local transaction discipline (task 5.4 safety rule)', () => {
-  afterEach(() => { document.body.innerHTML = ''; });
-
-  it('CJK/emoji Enter keeps untouched bytes around the edit', () => {
-    const { view, destroy } = setup('你好 世界');
-    cursor(view, 2); // between 好 and the space
-    enterKeydown(view); // plain newline in non-markdown context
-    // An Enter in CJK text inserts a plain logical LF. CM trims the whitespace
-    // at the split to the new line start (same rule as Latin text), so the
-    // space becomes the new line's indentation-less start — the untouched CJK
-    // text itself is preserved exactly.
-    expect(view.state.doc.toString()).toBe('你好\n世界');
-    destroy();
+describe('Backspace command matrix on the product editor (task 5.4)', () => {
+  afterEach(() => {
+    while (open.length) open.pop()!.view.destroy();
+    document.body.innerHTML = '';
   });
 
-  it('CJK/emoji Backspace deletes exactly one code unit at a surrogate-pair-safe boundary', () => {
-    const { view, destroy } = setup('a 😀 b');
-    // Cursor at the high surrogate (position 2). deleteCharBackward is
-    // surrogate-pair-aware: it removes ONE code point before the cursor — the
-    // space at index 1 — leaving the emoji intact (never splitting the pair).
-    cursor(view, 2);
-    backspaceKeydown(view);
-    expect(view.state.doc.toString()).toBe('a😀 b');
-    destroy();
+  it('at list marker → removes one level of markup', () => {
+    const h = harness('- item', 2);
+    h.press('Backspace');
+    expectLocalEdit(h, 'item');
+  });
+
+  it('at a nested list marker → removes one whole level (indent + marker)', () => {
+    // `deleteMarkupBackward` treats the indentation as part of the list item's
+    // markup, so one level = '  - ' (not just '- ').
+    const h = harness('  - item', 4);
+    h.press('Backspace');
+    expectLocalEdit(h, 'item');
+  });
+
+  it('at quote marker → removes the `> ` prefix', () => {
+    const h = harness('> text', 2);
+    h.press('Backspace');
+    expectLocalEdit(h, 'text');
+  });
+
+  it('at line start of a heading → no-op (no markup to delete, nothing to delete before)', () => {
+    const h = harness('# Title', 0);
+    h.press('Backspace');
+    expect(h.doc()).toBe('# Title');
+    expect(h.txs.length).toBe(0);
+  });
+
+  it('in plain text → plain single-character deletion', () => {
+    const h = harness('hello', 5);
+    h.press('Backspace');
+    expectLocalEdit(h, 'hell');
+  });
+
+  it('inside a fence body → literal deletion (no structural transform)', () => {
+    const h = harness('```\ncode\n```', 8);
+    h.press('Backspace');
+    expectLocalEdit(h, '```\ncod\n```');
+  });
+
+  it('at the end of an image source → literal single-character deletion', () => {
+    const h = harness('![alt](x.png)', 13);
+    h.press('Backspace');
+    expectLocalEdit(h, '![alt](x.png');
+  });
+
+  it('inside a table row → literal single-character deletion, rest of the table intact', () => {
+    const source = '| a | b |\n|---|---|\n| 1 | 2 |';
+    const h = harness(source, source.length);
+    h.press('Backspace');
+    const after = h.doc();
+    expect(after).toBe('| a | b |\n|---|---|\n| 1 | 2 ');
+    expect(after.startsWith('| a | b |\n|---|---|\n| 1 |')).toBe(true);
+    expectLocalEdit(h, '| a | b |\n|---|---|\n| 1 | 2 ');
+  });
+
+  it('with a non-empty selection → deletes exactly the selection', () => {
+    const h = harness('abc def', [0, 7]);
+    h.press('Backspace');
+    // Selection covers the whole doc, so the change legitimately spans both ends.
+    expectLocalEdit(h, '', { wholeDocChange: true });
+  });
+});
+
+describe('Delete command matrix on the product editor (task 5.4)', () => {
+  afterEach(() => {
+    while (open.length) open.pop()!.view.destroy();
+    document.body.innerHTML = '';
+  });
+
+  it('plain text → forward single-character deletion (no Markdown binding)', () => {
+    const h = harness('hello', 0);
+    h.press('Delete');
+    expectLocalEdit(h, 'ello');
+  });
+
+  it('at a list marker → literal forward deletion of the marker character', () => {
+    const h = harness('- item', 0);
+    h.press('Delete');
+    expectLocalEdit(h, ' item');
+  });
+
+  it('inside a fence body → literal forward deletion', () => {
+    const h = harness('```\ncode\n```', 4);
+    h.press('Delete');
+    expectLocalEdit(h, '```\node\n```');
+  });
+});
+
+describe('CJK / emoji boundaries and byte locality (task 5.4 safety rule)', () => {
+  afterEach(() => {
+    while (open.length) open.pop()!.view.destroy();
+    document.body.innerHTML = '';
+  });
+
+  it('Enter inside CJK text → plain LF, both halves preserved', () => {
+    const h = harness('你好 世界', 2);
+    h.press('Enter');
+    expectLocalEdit(h, '你好\n世界');
+  });
+
+  it('Backspace before an emoji removes the preceding code unit and never splits the pair', () => {
+    const h = harness('a \u{1F600} b', 2);
+    h.press('Backspace');
+    expectLocalEdit(h, 'a\u{1F600} b');
+  });
+
+  it('Backspace after an emoji removes the whole code point (two UTF-16 units)', () => {
+    const h = harness('a \u{1F600} b', 4);
+    h.press('Backspace');
+    expectLocalEdit(h, 'a  b');
+  });
+
+  it('Delete at the start of an emoji removes the whole code point', () => {
+    const h = harness('a \u{1F600} b', 2);
+    h.press('Delete');
+    expectLocalEdit(h, 'a  b');
+  });
+
+  it('no lone surrogate can survive any matrix edit', () => {
+    const samples: Array<[string, number, KeyName]> = [
+      ['a \u{1F600} b', 2, 'Backspace'],
+      ['a \u{1F600} b', 4, 'Backspace'],
+      ['a \u{1F600} b', 2, 'Delete'],
+      ['\u{1F1FA}\u{1F1F8} flag', 4, 'Backspace'],
+      ['你好 \u{1F600}', 3, 'Enter'],
+    ];
+    const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    for (const [source, pos, key] of samples) {
+      const h = harness(source, pos);
+      h.press(key);
+      expect(lone.test(h.doc()), `${JSON.stringify(source)} @${pos} ${key}`).toBe(false);
+    }
+  });
+});
+
+describe('the product editor never normalizes on open (byte contract)', () => {
+  afterEach(() => {
+    while (open.length) open.pop()!.view.destroy();
+    document.body.innerHTML = '';
+  });
+
+  // NOTE: CRLF/CR are intentionally NOT asserted here — CodeMirror's doc model
+  // splits on \r\n and \r and re-emits \n, so the EditorView is LF-only by
+  // construction. EOL provenance for CRLF files lives outside the view (the
+  // paste hook and the Core byte layer), not in this matrix.
+  it('opening does not rewrite BOM / trailing newlines / tabs', () => {
+    const sources = ['\uFEFF# title', 'x\n\n\n', '- a\n\n\ttab', 'no-trailing-newline'];
+    for (const source of sources) {
+      const h = harness(source, 0);
+      expect(h.doc(), source).toBe(source);
+      expect(h.txs.length).toBe(0);
+    }
   });
 });

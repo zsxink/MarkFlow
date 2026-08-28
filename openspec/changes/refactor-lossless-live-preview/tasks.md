@@ -148,3 +148,15 @@
 - [ ] 8.7 派独立 reviewer 做静态走查与全测试；存在任何 serializer 保存、双 owner 或数据完整性阻塞则拒绝清理合入
 - [ ] 8.8 将全部 delta specs 同步到 main specs，运行 `npx openspec validate --all` 与 `bash scripts/check-archive-synced.sh`
 - [ ] 8.9 将现有 P0 child delta 与 program delta 同步到 main specs，归档现有 changes，更新 Issue #254/追踪文档并明确产品已验收范围与仍为 source fallback 的 constructs
+
+## 9. Slice 6 — BACKLOG（P5 之后，当前不启动）
+
+> **当前状态：NOT STARTED — BACKLOG。** 本 slice 记录 P5 之后的后续功能点，**不属于 Issue #254 当前交付范围**；P5 Go 之前不得开展实施。设计见 [design/phases/P6-true-wysiwyg-hidden-markers.md](./design/phases/P6-true-wysiwyg-hidden-markers.md)，验证记录见 [validation/phases/P6.md](./validation/phases/P6.md)。目标：Typora 式所见即所得（正常仅显示渲染视图，鼠标点击/光标进入才短暂显示 Markdown 标记）。
+
+- [ ] 9.1 前置：P0–P5 全部 Go，legacy 编辑器/serializer/双正文状态已删除
+- [ ] 9.2 三级 marker 状态机（hidden / revealed / composing）+ ghost caret 通道
+- [ ] 9.3 heading 块级 cohort（M1，最先）
+- [ ] 9.4 行内 cohort：strong/emphasis/strike/inline code（M2）
+- [ ] 9.5 links、quote+lists、fence（M2–M3）
+- [ ] 9.6 与 P4B widgets（图片/表格/task）的 hidden 联动（M3）
+- [ ] 9.7 每 cohort 按 P4B 矩阵独立验证、独立 flag、独立回滚；（将在 P5 Go 后按 Issue #254 之外的流程启用）

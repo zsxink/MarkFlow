@@ -27,7 +27,8 @@ openspec/changes/refactor-lossless-live-preview/validation/
 │   ├── P3.md
 │   ├── P4A.md
 │   ├── P4B.md
-│   └── P5.md
+│   ├── P5.md
+│   └── P6.md  (BACKLOG — 不属于 Issue #254 当前范围)
 ├── fixtures/
 │   └── README.md
 ├── evidence/

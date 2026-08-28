@@ -1,0 +1,3359 @@
+{
+ "spike": "parser-candidate-range-comparison",
+ "change": "refactor-lossless-live-preview",
+ "task": "P4A 6.1 (CodeMirror Lezer candidate)",
+ "generatedAt": "2026-08-28T19:54:10.004Z",
+ "fixtureBasis": {
+  "manifest": "tests/fixtures/byte-contract/manifest.json",
+  "logicalTextRule": "source bytes decoded UTF-8, BOM stripped, CRLF/CR normalized to LF (Core LineEndingMap owns EOL restoration; out of scope here)",
+  "reportedCoordinateSystem": "utf16-code-units (half-open [start,end) on the logical LF text)",
+  "expectations": {
+   "file": "spike/parser-spike/expectations.json",
+   "sha256": "74b3c21dd779e31e833a78ffbb9779a76c883ba576ac14d86c421ae9ede7d83c",
+   "note": "frozen reference; derived from the verified Lezer dump and hand-checked against the canonical fixture definitions"
+  },
+  "fixtures": [
+   {
+    "id": "utf8-lf-tail0",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 0,
+    "byteLength": 66,
+    "manifestSha256": "b8ada2a7b0e544abde49ce047b911c3d9838a51422f5e2cb4781ee12a3a4a5c5",
+    "logicalLength": 60,
+    "logicalSha256": "b8ada2a7b0e544abde49ce047b911c3d9838a51422f5e2cb4781ee12a3a4a5c5"
+   },
+   {
+    "id": "utf8-lf-tail1",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 1,
+    "byteLength": 67,
+    "manifestSha256": "52a435d76c69c819c3b16972bca4214984a4c19f906a2ade440c025e471f3fdc",
+    "logicalLength": 61,
+    "logicalSha256": "52a435d76c69c819c3b16972bca4214984a4c19f906a2ade440c025e471f3fdc"
+   },
+   {
+    "id": "utf8-lf-tail2",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 68,
+    "manifestSha256": "bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0",
+    "logicalLength": 62,
+    "logicalSha256": "bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0"
+   },
+   {
+    "id": "utf8-lf-tail3",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 3,
+    "byteLength": 69,
+    "manifestSha256": "201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1",
+    "logicalLength": 63,
+    "logicalSha256": "201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1"
+   },
+   {
+    "id": "utf8-crlf-tail1",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "crlf",
+    "trailing": 1,
+    "byteLength": 71,
+    "manifestSha256": "262aa53ae6984dc1299336bdcd0137ef4f616f022fc9fe63f280c32368aebd5c",
+    "logicalLength": 61,
+    "logicalSha256": "52a435d76c69c819c3b16972bca4214984a4c19f906a2ade440c025e471f3fdc"
+   },
+   {
+    "id": "utf8-crlf-tail2",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "crlf",
+    "trailing": 2,
+    "byteLength": 73,
+    "manifestSha256": "6928ce6518b78c454a84fdd0296563cdbf815e34bc67048c6451bbe4e6bcbafb",
+    "logicalLength": 62,
+    "logicalSha256": "bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0"
+   },
+   {
+    "id": "utf8-crlf-tail3",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "crlf",
+    "trailing": 3,
+    "byteLength": 75,
+    "manifestSha256": "db562fc521f4ff93c530de24139cc7161a522d12f65948219dfc26b6fb6cc42a",
+    "logicalLength": 63,
+    "logicalSha256": "201dc08c2f7e700f66903559ca88398256f582d5bbd3394627d2cab17d6c6bd1"
+   },
+   {
+    "id": "utf8-cr-tail1",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "cr",
+    "trailing": 1,
+    "byteLength": 67,
+    "manifestSha256": "3e505e2c736942f615b6070bb561442271035453390544cf27f57d34642c0879",
+    "logicalLength": 61,
+    "logicalSha256": "52a435d76c69c819c3b16972bca4214984a4c19f906a2ade440c025e471f3fdc"
+   },
+   {
+    "id": "utf8-mixed-tail2",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "mixed",
+    "trailing": 2,
+    "byteLength": 91,
+    "manifestSha256": "0a892d540a04d1b306768be51e56b90f89dce7d649f76d0fe87712a9053e3f85",
+    "logicalLength": 84,
+    "logicalSha256": "ea7b5cceba8e00382083ff1ae7b947fb87890016b3e6274edf58a6ccebd4e59a"
+   },
+   {
+    "id": "utf8-bom-lf-tail2",
+    "origin": "canonical",
+    "bom": "utf8",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 71,
+    "manifestSha256": "c7d99fe8fa174dabd66a7be7463cc17d4475272432cf640fb177de53557d92fd",
+    "logicalLength": 62,
+    "logicalSha256": "bc1b50f45486243a37bf171b07da6bd34905835b8ae2c82010491f13eef231a0"
+   },
+   {
+    "id": "empty",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "none",
+    "trailing": 0,
+    "byteLength": 0,
+    "manifestSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logicalLength": 0,
+    "logicalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   {
+    "id": "bom-only",
+    "origin": "canonical",
+    "bom": "utf8",
+    "eol": "none",
+    "trailing": 0,
+    "byteLength": 3,
+    "manifestSha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5",
+    "logicalLength": 0,
+    "logicalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   {
+    "id": "newlines-only",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 3,
+    "byteLength": 3,
+    "manifestSha256": "6a3cf5192354f71615ac51034b3e97c20eda99643fcaf5bbe6d41ad59bd12167",
+    "logicalLength": 3,
+    "logicalSha256": "6a3cf5192354f71615ac51034b3e97c20eda99643fcaf5bbe6d41ad59bd12167"
+   },
+   {
+    "id": "spaces-only",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "none",
+    "trailing": 0,
+    "byteLength": 6,
+    "manifestSha256": "52d8194d6705aedb21ccffe6965db6913d277d3d259ad5f071f38034e8aa7f52",
+    "logicalLength": 6,
+    "logicalSha256": "52d8194d6705aedb21ccffe6965db6913d277d3d259ad5f071f38034e8aa7f52"
+   },
+   {
+    "id": "unicode-cjk",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 102,
+    "manifestSha256": "d5ccc8920e626890beb4074f7d3edd28dd78e02144786d39a2d753f2ba6b2c95",
+    "logicalLength": 50,
+    "logicalSha256": "d5ccc8920e626890beb4074f7d3edd28dd78e02144786d39a2d753f2ba6b2c95"
+   },
+   {
+    "id": "unicode-emoji",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 92,
+    "manifestSha256": "5466f6833170d5923a67a721110534460ab690069263d9734e1927456f97338b",
+    "logicalLength": 66,
+    "logicalSha256": "5466f6833170d5923a67a721110534460ab690069263d9734e1927456f97338b"
+   },
+   {
+    "id": "unicode-combining",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 88,
+    "manifestSha256": "db3a90e6287fef4445ca6fee4cc57fb5935aa08a5b59787c635eb29c518868d8",
+    "logicalLength": 66,
+    "logicalSha256": "db3a90e6287fef4445ca6fee4cc57fb5935aa08a5b59787c635eb29c518868d8"
+   },
+   {
+    "id": "syntax-lists",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 120,
+    "manifestSha256": "b6a683596bc16e83ed02584af26cfcb74c454e6048012160195371b082eb4df8",
+    "logicalLength": 120,
+    "logicalSha256": "b6a683596bc16e83ed02584af26cfcb74c454e6048012160195371b082eb4df8"
+   },
+   {
+    "id": "syntax-fence",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 80,
+    "manifestSha256": "5b0b7280306de9e7e775b4fbc751e584cfd5a4fb1db9d7b06d21aa34b700368d",
+    "logicalLength": 80,
+    "logicalSha256": "5b0b7280306de9e7e775b4fbc751e584cfd5a4fb1db9d7b06d21aa34b700368d"
+   },
+   {
+    "id": "syntax-frontmatter",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 92,
+    "manifestSha256": "d298cb82a277b66abe81e6b64dceae71c5e8c1571256909ae3d578bf8614616d",
+    "logicalLength": 92,
+    "logicalSha256": "d298cb82a277b66abe81e6b64dceae71c5e8c1571256909ae3d578bf8614616d"
+   },
+   {
+    "id": "syntax-table-reference-footnote",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 127,
+    "manifestSha256": "a0d1b76f9a4d3811f5960379ea61d61f84cd89abc24c21bfb9f5b9960813405f",
+    "logicalLength": 127,
+    "logicalSha256": "a0d1b76f9a4d3811f5960379ea61d61f84cd89abc24c21bfb9f5b9960813405f"
+   },
+   {
+    "id": "syntax-html",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 81,
+    "manifestSha256": "daa8c887c1bb4149b7bff33e00a7e4ed3c9c4e0a65a9de35e19199253ccda1d0",
+    "logicalLength": 81,
+    "logicalSha256": "daa8c887c1bb4149b7bff33e00a7e4ed3c9c4e0a65a9de35e19199253ccda1d0"
+   },
+   {
+    "id": "syntax-image-blanklines",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 3,
+    "byteLength": 40,
+    "manifestSha256": "1405f11cd7dd713510577201d95c99b2f6cebbebfba4472c5fe80966857d4ac0",
+    "logicalLength": 40,
+    "logicalSha256": "1405f11cd7dd713510577201d95c99b2f6cebbebfba4472c5fe80966857d4ac0"
+   },
+   {
+    "id": "malformed",
+    "origin": "canonical",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 2,
+    "byteLength": 97,
+    "manifestSha256": "bad0e9ced2c588b80322ce356b6effb19493e3fc787c5b56d237f30938996b1d",
+    "logicalLength": 97,
+    "logicalSha256": "bad0e9ced2c588b80322ce356b6effb19493e3fc787c5b56d237f30938996b1d"
+   },
+   {
+    "id": "spike-extra-task-inline",
+    "origin": "spike-synthetic",
+    "bom": "none",
+    "eol": "lf",
+    "trailing": 1,
+    "byteLength": 194,
+    "manifestSha256": "53516ff4cc6fc0f1b4895c129be7b9fe85617ce56450057bdce015484fc41c99",
+    "logicalLength": 194,
+    "logicalSha256": "53516ff4cc6fc0f1b4895c129be7b9fe85617ce56450057bdce015484fc41c99"
+   }
+  ]
+ },
+ "candidates": [
+  {
+   "id": "lezer",
+   "language": "TypeScript",
+   "packages": [
+    {
+     "name": "@codemirror/lang-markdown",
+     "version": "6.5.0",
+     "license": "MIT"
+    },
+    {
+     "name": "@lezer/markdown",
+     "version": "1.7.0",
+     "license": "MIT"
+    }
+   ],
+   "parserConfig": "markdown({ extensions: [GFM] }).language.parser — the exact product path (losslessSourceEditor.ts)",
+   "nativeCoordinateSystem": "utf16-code-units (JS string indices)",
+   "reportedCoordinateSystem": "utf16-code-units (no conversion)",
+   "coordinateProbe": {
+    "probe": "# 😀",
+    "headingTo": 4,
+    "utf16Length": 4,
+    "utf8Length": 6,
+    "codePointLength": 3,
+    "verdict": "utf16-code-units (CONFIRMED)"
+   },
+   "parseErrorPolicy": "try/catch around parser.parse; a throw is recorded per fixture (no panic propagation)",
+   "markerSource": "Lezer delimiter child nodes (HeaderMark/EmphasisMark/CodeMark/QuoteMark/ListMark/LinkMark/StrikethroughMark/TaskMarker/TableDelimiter) — native delimiter spans",
+   "fixtures": [
+    {
+     "fixtureId": "utf8-lf-tail0",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-lf-tail1",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-lf-tail2",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-lf-tail3",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-crlf-tail1",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-crlf-tail2",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-crlf-tail3",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-cr-tail1",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-mixed-tail2",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         82
+        ],
+        "contentRange": [
+         9,
+         82
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.\nMixed separator line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.\nMixed separator line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "utf8-bom-lf-tail2",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         7
+        ],
+        "contentRange": [
+         1,
+         7
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# Title",
+        "contentSlice": " Title",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         9,
+         60
+        ],
+        "contentRange": [
+         9,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "contentSlice": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "empty",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 0 constructs (kinds: none)",
+     "validation": {
+      "constructs": [],
+      "missed": [],
+      "summary": {
+       "match": 0,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "bom-only",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 0 constructs (kinds: none)",
+     "validation": {
+      "constructs": [],
+      "missed": [],
+      "summary": {
+       "match": 0,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "newlines-only",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 0 constructs (kinds: none)",
+     "validation": {
+      "constructs": [],
+      "missed": [],
+      "summary": {
+       "match": 0,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "spaces-only",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 0 constructs (kinds: none)",
+     "validation": {
+      "constructs": [],
+      "missed": [],
+      "summary": {
+       "match": 0,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "unicode-cjk",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: heading,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         0,
+         6
+        ],
+        "contentRange": [
+         1,
+         6
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "# 中文标题",
+        "contentSlice": " 中文标题",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         7,
+         48
+        ],
+        "contentRange": [
+         7,
+         48
+        ],
+        "markerRanges": [],
+        "sourceSlice": "日本語の段落。\n한국어 문단입니다.\n混合 CJK: 中文 English 日本語",
+        "contentSlice": "日本語の段落。\n한국어 문단입니다.\n混合 CJK: 中文 English 日本語",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "unicode-emoji",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 1 constructs (kinds: paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         0,
+         64
+        ],
+        "contentRange": [
+         0,
+         64
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Emoji: 😀 🎉\nZWJ family: 👨‍👩‍👧‍👦\nSkin tone: 👍🏽\nFlags: 🇨🇳",
+        "contentSlice": "Emoji: 😀 🎉\nZWJ family: 👨‍👩‍👧‍👦\nSkin tone: 👍🏽\nFlags: 🇨🇳",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 1,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "unicode-combining",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 1 constructs (kinds: paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         0,
+         64
+        ],
+        "contentRange": [
+         0,
+         64
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Combining: é (é) and ä (ä)\nDevanagari: नमस्ते\nHangul jamo: 한",
+        "contentSlice": "Combining: é (é) and ä (ä)\nDevanagari: नमस्ते\nHangul jamo: 한",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 1,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "syntax-lists",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 23 constructs (kinds: blockquote,list,listItem,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "list",
+        "meta": {
+         "lezerNode": "BulletList",
+         "ordered": false
+        },
+        "sourceRange": [
+         0,
+         10
+        ],
+        "contentRange": [
+         0,
+         10
+        ],
+        "markerRanges": [],
+        "sourceSlice": "- item one",
+        "contentSlice": "- item one",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         0,
+         10
+        ],
+        "contentRange": [
+         2,
+         10
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "- item one",
+        "contentSlice": "item one",
+        "markerSlices": [
+         "-"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         2,
+         10
+        ],
+        "contentRange": [
+         2,
+         10
+        ],
+        "markerRanges": [],
+        "sourceSlice": "item one",
+        "contentSlice": "item one",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "list",
+        "meta": {
+         "lezerNode": "BulletList",
+         "ordered": false
+        },
+        "sourceRange": [
+         11,
+         21
+        ],
+        "contentRange": [
+         11,
+         21
+        ],
+        "markerRanges": [],
+        "sourceSlice": "* item two",
+        "contentSlice": "* item two",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         11,
+         21
+        ],
+        "contentRange": [
+         13,
+         21
+        ],
+        "markerRanges": [
+         [
+          11,
+          12
+         ]
+        ],
+        "sourceSlice": "* item two",
+        "contentSlice": "item two",
+        "markerSlices": [
+         "*"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         13,
+         21
+        ],
+        "contentRange": [
+         13,
+         21
+        ],
+        "markerRanges": [],
+        "sourceSlice": "item two",
+        "contentSlice": "item two",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "list",
+        "meta": {
+         "lezerNode": "BulletList",
+         "ordered": false
+        },
+        "sourceRange": [
+         22,
+         34
+        ],
+        "contentRange": [
+         22,
+         34
+        ],
+        "markerRanges": [],
+        "sourceSlice": "+ item three",
+        "contentSlice": "+ item three",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         22,
+         34
+        ],
+        "contentRange": [
+         24,
+         34
+        ],
+        "markerRanges": [
+         [
+          22,
+          23
+         ]
+        ],
+        "sourceSlice": "+ item three",
+        "contentSlice": "item three",
+        "markerSlices": [
+         "+"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         24,
+         34
+        ],
+        "contentRange": [
+         24,
+         34
+        ],
+        "markerRanges": [],
+        "sourceSlice": "item three",
+        "contentSlice": "item three",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "list",
+        "meta": {
+         "lezerNode": "OrderedList",
+         "ordered": true
+        },
+        "sourceRange": [
+         35,
+         88
+        ],
+        "contentRange": [
+         35,
+         88
+        ],
+        "markerRanges": [],
+        "sourceSlice": "1. ordered\n2. ordered two\n   - nested a\n   - nested b",
+        "contentSlice": "1. ordered\n2. ordered two\n   - nested a\n   - nested b",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         35,
+         45
+        ],
+        "contentRange": [
+         38,
+         45
+        ],
+        "markerRanges": [
+         [
+          35,
+          37
+         ]
+        ],
+        "sourceSlice": "1. ordered",
+        "contentSlice": "ordered",
+        "markerSlices": [
+         "1."
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         38,
+         45
+        ],
+        "contentRange": [
+         38,
+         45
+        ],
+        "markerRanges": [],
+        "sourceSlice": "ordered",
+        "contentSlice": "ordered",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         46,
+         88
+        ],
+        "contentRange": [
+         49,
+         88
+        ],
+        "markerRanges": [
+         [
+          46,
+          48
+         ]
+        ],
+        "sourceSlice": "2. ordered two\n   - nested a\n   - nested b",
+        "contentSlice": "ordered two\n   - nested a\n   - nested b",
+        "markerSlices": [
+         "2."
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         49,
+         60
+        ],
+        "contentRange": [
+         49,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "ordered two",
+        "contentSlice": "ordered two",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "list",
+        "meta": {
+         "lezerNode": "BulletList",
+         "ordered": false
+        },
+        "sourceRange": [
+         64,
+         88
+        ],
+        "contentRange": [
+         64,
+         88
+        ],
+        "markerRanges": [],
+        "sourceSlice": "- nested a\n   - nested b",
+        "contentSlice": "- nested a\n   - nested b",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         64,
+         74
+        ],
+        "contentRange": [
+         66,
+         74
+        ],
+        "markerRanges": [
+         [
+          64,
+          65
+         ]
+        ],
+        "sourceSlice": "- nested a",
+        "contentSlice": "nested a",
+        "markerSlices": [
+         "-"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         66,
+         74
+        ],
+        "contentRange": [
+         66,
+         74
+        ],
+        "markerRanges": [],
+        "sourceSlice": "nested a",
+        "contentSlice": "nested a",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         78,
+         88
+        ],
+        "contentRange": [
+         80,
+         88
+        ],
+        "markerRanges": [
+         [
+          78,
+          79
+         ]
+        ],
+        "sourceSlice": "- nested b",
+        "contentSlice": "nested b",
+        "markerSlices": [
+         "-"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         80,
+         88
+        ],
+        "contentRange": [
+         80,
+         88
+        ],
+        "markerRanges": [],
+        "sourceSlice": "nested b",
+        "contentSlice": "nested b",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "blockquote",
+        "meta": {
+         "lezerNode": "Blockquote"
+        },
+        "sourceRange": [
+         90,
+         118
+        ],
+        "contentRange": [
+         92,
+         118
+        ],
+        "markerRanges": [
+         [
+          90,
+          91
+         ],
+         [
+          103,
+          104
+         ]
+        ],
+        "sourceSlice": "> blockquote\n>> nested quote",
+        "contentSlice": "blockquote\n>> nested quote",
+        "markerSlices": [
+         ">",
+         ">"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         92,
+         102
+        ],
+        "contentRange": [
+         92,
+         102
+        ],
+        "markerRanges": [],
+        "sourceSlice": "blockquote",
+        "contentSlice": "blockquote",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "blockquote",
+        "meta": {
+         "lezerNode": "Blockquote"
+        },
+        "sourceRange": [
+         104,
+         118
+        ],
+        "contentRange": [
+         106,
+         118
+        ],
+        "markerRanges": [
+         [
+          104,
+          105
+         ]
+        ],
+        "sourceSlice": "> nested quote",
+        "contentSlice": "nested quote",
+        "markerSlices": [
+         ">"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         106,
+         118
+        ],
+        "contentRange": [
+         106,
+         118
+        ],
+        "markerRanges": [],
+        "sourceSlice": "nested quote",
+        "contentSlice": "nested quote",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 23,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "syntax-fence",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 2 constructs (kinds: fence)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "fence",
+        "meta": {
+         "lezerNode": "FencedCode"
+        },
+        "sourceRange": [
+         0,
+         40
+        ],
+        "contentRange": [
+         6,
+         36
+        ],
+        "markerRanges": [
+         [
+          0,
+          3
+         ],
+         [
+          37,
+          40
+         ]
+        ],
+        "sourceSlice": "```js\nconst x = 1;\n\n\nfunction f() {}\n```",
+        "contentSlice": "const x = 1;\n\n\nfunction f() {}",
+        "markerSlices": [
+         "```",
+         "```"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "fence",
+        "meta": {
+         "lezerNode": "FencedCode"
+        },
+        "sourceRange": [
+         42,
+         78
+        ],
+        "contentRange": [
+         54,
+         74
+        ],
+        "markerRanges": [
+         [
+          42,
+          45
+         ],
+         [
+          75,
+          78
+         ]
+        ],
+        "sourceSlice": "~~~markdown\n# inside tilde fence\n~~~",
+        "contentSlice": "# inside tilde fence",
+        "markerSlices": [
+         "~~~",
+         "~~~"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 2,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "syntax-frontmatter",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 5 constructs (kinds: heading,hr,link)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "hr",
+        "meta": {
+         "lezerNode": "HorizontalRule"
+        },
+        "sourceRange": [
+         0,
+         3
+        ],
+        "contentRange": [
+         0,
+         3
+        ],
+        "markerRanges": [],
+        "sourceSlice": "---",
+        "contentSlice": "---",
+        "markerSlices": [],
+        "roundTrip": "SPURIOUS",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         4,
+         18
+        ],
+        "contentRange": [
+         5,
+         18
+        ],
+        "markerRanges": [
+         [
+          4,
+          5
+         ]
+        ],
+        "sourceSlice": "# comment line",
+        "contentSlice": " comment line",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "SPURIOUS",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "heading",
+        "level": 2,
+        "meta": {
+         "lezerNode": "SetextHeading2"
+        },
+        "sourceRange": [
+         19,
+         64
+        ],
+        "contentRange": [
+         42,
+         51
+        ],
+        "markerRanges": [
+         [
+          61,
+          64
+         ]
+        ],
+        "sourceSlice": "title: \"A title\"\ntags: [a, b, c]\norder: 3\n---",
+        "contentSlice": "[a, b, c]",
+        "markerSlices": [
+         "---"
+        ],
+        "roundTrip": "SPURIOUS",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "link",
+        "meta": {
+         "lezerNode": "Link"
+        },
+        "sourceRange": [
+         42,
+         51
+        ],
+        "contentRange": [
+         43,
+         50
+        ],
+        "markerRanges": [
+         [
+          42,
+          43
+         ],
+         [
+          50,
+          51
+         ]
+        ],
+        "sourceSlice": "[a, b, c]",
+        "contentSlice": "a, b, c",
+        "markerSlices": [
+         "[",
+         "]"
+        ],
+        "roundTrip": "SPURIOUS",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "heading",
+        "level": 1,
+        "meta": {
+         "lezerNode": "ATXHeading1"
+        },
+        "sourceRange": [
+         66,
+         90
+        ],
+        "contentRange": [
+         67,
+         90
+        ],
+        "markerRanges": [
+         [
+          66,
+          67
+         ]
+        ],
+        "sourceSlice": "# Body after frontmatter",
+        "contentSlice": " Body after frontmatter",
+        "markerSlices": [
+         "#"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       }
+      ],
+      "missed": [
+       {
+        "kind": "frontmatter",
+        "source": "---\n# comment line\ntitle: \"A title\"\ntags: [a, b, c]\norder: 3\n---"
+       }
+      ],
+      "summary": {
+       "match": 1,
+       "convention": 0,
+       "spurious": 4,
+       "invalid": 0,
+       "miss": 1,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "syntax-table-reference-footnote",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 14 constructs (kinds: link,linkRefDef,paragraph,table,tableCell,tableHeader,tableRow)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "table",
+        "meta": {
+         "lezerNode": "Table"
+        },
+        "sourceRange": [
+         0,
+         33
+        ],
+        "contentRange": [
+         0,
+         33
+        ],
+        "markerRanges": [
+         [
+          10,
+          23
+         ]
+        ],
+        "sourceSlice": "| a | b |\n| --- | --- |\n| 1 | 2 |",
+        "contentSlice": "| a | b |\n| --- | --- |\n| 1 | 2 |",
+        "markerSlices": [
+         "| --- | --- |"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "tableHeader",
+        "meta": {
+         "lezerNode": "TableHeader"
+        },
+        "sourceRange": [
+         0,
+         9
+        ],
+        "contentRange": [
+         0,
+         9
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ],
+         [
+          4,
+          5
+         ],
+         [
+          8,
+          9
+         ]
+        ],
+        "sourceSlice": "| a | b |",
+        "contentSlice": "| a | b |",
+        "markerSlices": [
+         "|",
+         "|",
+         "|"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "tableCell",
+        "meta": {
+         "lezerNode": "TableCell"
+        },
+        "sourceRange": [
+         2,
+         3
+        ],
+        "contentRange": [
+         2,
+         3
+        ],
+        "markerRanges": [],
+        "sourceSlice": "a",
+        "contentSlice": "a",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "tableCell",
+        "meta": {
+         "lezerNode": "TableCell"
+        },
+        "sourceRange": [
+         6,
+         7
+        ],
+        "contentRange": [
+         6,
+         7
+        ],
+        "markerRanges": [],
+        "sourceSlice": "b",
+        "contentSlice": "b",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "tableRow",
+        "meta": {
+         "lezerNode": "TableRow"
+        },
+        "sourceRange": [
+         24,
+         33
+        ],
+        "contentRange": [
+         24,
+         33
+        ],
+        "markerRanges": [
+         [
+          24,
+          25
+         ],
+         [
+          28,
+          29
+         ],
+         [
+          32,
+          33
+         ]
+        ],
+        "sourceSlice": "| 1 | 2 |",
+        "contentSlice": "| 1 | 2 |",
+        "markerSlices": [
+         "|",
+         "|",
+         "|"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "tableCell",
+        "meta": {
+         "lezerNode": "TableCell"
+        },
+        "sourceRange": [
+         26,
+         27
+        ],
+        "contentRange": [
+         26,
+         27
+        ],
+        "markerRanges": [],
+        "sourceSlice": "1",
+        "contentSlice": "1",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "tableCell",
+        "meta": {
+         "lezerNode": "TableCell"
+        },
+        "sourceRange": [
+         30,
+         31
+        ],
+        "contentRange": [
+         30,
+         31
+        ],
+        "markerRanges": [],
+        "sourceSlice": "2",
+        "contentSlice": "2",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         35,
+         62
+        ],
+        "contentRange": [
+         35,
+         62
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Reference link: [text][ref]",
+        "contentSlice": "Reference link: [text][ref]",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "link",
+        "meta": {
+         "lezerNode": "Link"
+        },
+        "sourceRange": [
+         51,
+         62
+        ],
+        "contentRange": [
+         52,
+         56
+        ],
+        "markerRanges": [
+         [
+          51,
+          52
+         ],
+         [
+          56,
+          57
+         ]
+        ],
+        "sourceSlice": "[text][ref]",
+        "contentSlice": "text",
+        "markerSlices": [
+         "[",
+         "]"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "linkRefDef",
+        "meta": {
+         "lezerNode": "LinkReference"
+        },
+        "sourceRange": [
+         64,
+         90
+        ],
+        "contentRange": [
+         64,
+         90
+        ],
+        "markerRanges": [
+         [
+          69,
+          70
+         ]
+        ],
+        "sourceSlice": "[ref]: https://example.com",
+        "contentSlice": "[ref]: https://example.com",
+        "markerSlices": [
+         ":"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         92,
+         104
+        ],
+        "contentRange": [
+         92,
+         104
+        ],
+        "markerRanges": [],
+        "sourceSlice": "Footnote[^1]",
+        "contentSlice": "Footnote[^1]",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "link",
+        "meta": {
+         "lezerNode": "Link"
+        },
+        "sourceRange": [
+         100,
+         104
+        ],
+        "contentRange": [
+         101,
+         103
+        ],
+        "markerRanges": [
+         [
+          100,
+          101
+         ],
+         [
+          103,
+          104
+         ]
+        ],
+        "sourceSlice": "[^1]",
+        "contentSlice": "^1",
+        "markerSlices": [
+         "[",
+         "]"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         106,
+         125
+        ],
+        "contentRange": [
+         106,
+         125
+        ],
+        "markerRanges": [],
+        "sourceSlice": "[^1]: footnote text",
+        "contentSlice": "[^1]: footnote text",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "link",
+        "meta": {
+         "lezerNode": "Link"
+        },
+        "sourceRange": [
+         106,
+         110
+        ],
+        "contentRange": [
+         107,
+         109
+        ],
+        "markerRanges": [
+         [
+          106,
+          107
+         ],
+         [
+          109,
+          110
+         ]
+        ],
+        "sourceSlice": "[^1]",
+        "contentSlice": "^1",
+        "markerSlices": [
+         "[",
+         "]"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "match",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 14,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "syntax-html",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 5 constructs (kinds: htmlBlock,htmlComment,htmlInline,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "htmlComment",
+        "meta": {
+         "lezerNode": "CommentBlock"
+        },
+        "sourceRange": [
+         0,
+         21
+        ],
+        "contentRange": [
+         0,
+         21
+        ],
+        "markerRanges": [],
+        "sourceSlice": "<!-- html comment -->",
+        "contentSlice": "<!-- html comment -->",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "htmlBlock",
+        "meta": {
+         "lezerNode": "HTMLBlock"
+        },
+        "sourceRange": [
+         23,
+         52
+        ],
+        "contentRange": [
+         23,
+         52
+        ],
+        "markerRanges": [],
+        "sourceSlice": "<div class=\"x\">raw html</div>",
+        "contentSlice": "<div class=\"x\">raw html</div>",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         54,
+         79
+        ],
+        "contentRange": [
+         54,
+         79
+        ],
+        "markerRanges": [],
+        "sourceSlice": "<span>inline</span> after",
+        "contentSlice": "<span>inline</span> after",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "htmlInline",
+        "meta": {
+         "lezerNode": "HTMLTag"
+        },
+        "sourceRange": [
+         54,
+         60
+        ],
+        "contentRange": [
+         54,
+         60
+        ],
+        "markerRanges": [],
+        "sourceSlice": "<span>",
+        "contentSlice": "<span>",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "htmlInline",
+        "meta": {
+         "lezerNode": "HTMLTag"
+        },
+        "sourceRange": [
+         66,
+         73
+        ],
+        "contentRange": [
+         66,
+         73
+        ],
+        "markerRanges": [],
+        "sourceSlice": "</span>",
+        "contentSlice": "</span>",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 5,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "syntax-image-blanklines",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 3 constructs (kinds: image,paragraph)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         1,
+         18
+        ],
+        "contentRange": [
+         1,
+         18
+        ],
+        "markerRanges": [],
+        "sourceSlice": "![alt](image.png)",
+        "contentSlice": "![alt](image.png)",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "image",
+        "meta": {
+         "lezerNode": "Image"
+        },
+        "sourceRange": [
+         1,
+         18
+        ],
+        "contentRange": [
+         3,
+         6
+        ],
+        "markerRanges": [
+         [
+          1,
+          3
+         ],
+         [
+          6,
+          7
+         ],
+         [
+          7,
+          8
+         ],
+         [
+          17,
+          18
+         ]
+        ],
+        "sourceSlice": "![alt](image.png)",
+        "contentSlice": "alt",
+        "markerSlices": [
+         "![",
+         "]",
+         "(",
+         ")"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         21,
+         37
+        ],
+        "contentRange": [
+         21,
+         37
+        ],
+        "markerRanges": [],
+        "sourceSlice": "text after image",
+        "contentSlice": "text after image",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 3,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "malformed",
+     "origin": "canonical",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 1 constructs (kinds: fence)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "fence",
+        "meta": {
+         "lezerNode": "FencedCode"
+        },
+        "sourceRange": [
+         0,
+         97
+        ],
+        "contentRange": [
+         18,
+         97
+        ],
+        "markerRanges": [
+         [
+          0,
+          3
+         ]
+        ],
+        "sourceSlice": "```unclosed fence\n\n[broken link\n| broken | table\n| --- |\n#\n**unclosed strong\n~~~ tilde unclosed\n\n",
+        "contentSlice": "\n[broken link\n| broken | table\n| --- |\n#\n**unclosed strong\n~~~ tilde unclosed\n\n",
+        "markerSlices": [
+         "```"
+        ],
+        "roundTrip": "SPURIOUS",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 0,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    },
+    {
+     "fixtureId": "spike-extra-task-inline",
+     "origin": "spike-synthetic",
+     "parseThrew": false,
+     "parseError": null,
+     "fallbackBehavior": "no throw; returned 15 constructs (kinds: emphasis,escape,inlineCode,link,list,listItem,paragraph,strikethrough,strong,taskCheckbox)",
+     "validation": {
+      "constructs": [
+       {
+        "kind": "list",
+        "meta": {
+         "lezerNode": "BulletList",
+         "ordered": false
+        },
+        "sourceRange": [
+         0,
+         29
+        ],
+        "contentRange": [
+         0,
+         29
+        ],
+        "markerRanges": [],
+        "sourceSlice": "- [ ] task one\n- [x] task two",
+        "contentSlice": "- [ ] task one\n- [x] task two",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         0,
+         14
+        ],
+        "contentRange": [
+         2,
+         14
+        ],
+        "markerRanges": [
+         [
+          0,
+          1
+         ]
+        ],
+        "sourceSlice": "- [ ] task one",
+        "contentSlice": "[ ] task one",
+        "markerSlices": [
+         "-"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "taskCheckbox",
+        "meta": {
+         "lezerNode": "Task"
+        },
+        "sourceRange": [
+         2,
+         14
+        ],
+        "contentRange": [
+         5,
+         14
+        ],
+        "markerRanges": [
+         [
+          2,
+          5
+         ]
+        ],
+        "sourceSlice": "[ ] task one",
+        "contentSlice": " task one",
+        "markerSlices": [
+         "[ ]"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "listItem",
+        "meta": {
+         "lezerNode": "ListItem"
+        },
+        "sourceRange": [
+         15,
+         29
+        ],
+        "contentRange": [
+         17,
+         29
+        ],
+        "markerRanges": [
+         [
+          15,
+          16
+         ]
+        ],
+        "sourceSlice": "- [x] task two",
+        "contentSlice": "[x] task two",
+        "markerSlices": [
+         "-"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "taskCheckbox",
+        "meta": {
+         "lezerNode": "Task"
+        },
+        "sourceRange": [
+         17,
+         29
+        ],
+        "contentRange": [
+         20,
+         29
+        ],
+        "markerRanges": [
+         [
+          17,
+          20
+         ]
+        ],
+        "sourceSlice": "[x] task two",
+        "contentSlice": " task two",
+        "markerSlices": [
+         "[x]"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "paragraph",
+        "meta": {
+         "lezerNode": "Paragraph"
+        },
+        "sourceRange": [
+         31,
+         193
+        ],
+        "contentRange": [
+         31,
+         193
+        ],
+        "markerRanges": [],
+        "sourceSlice": "a **bold with *nested em* inside** b\nan escaped \\*not em\\* star\n`inline code` and ~~strike~~ and <https://example.com>\na [link with *em*](https://example.com) end",
+        "contentSlice": "a **bold with *nested em* inside** b\nan escaped \\*not em\\* star\n`inline code` and ~~strike~~ and <https://example.com>\na [link with *em*](https://example.com) end",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "strong",
+        "meta": {
+         "lezerNode": "StrongEmphasis"
+        },
+        "sourceRange": [
+         33,
+         65
+        ],
+        "contentRange": [
+         35,
+         63
+        ],
+        "markerRanges": [
+         [
+          33,
+          35
+         ],
+         [
+          63,
+          65
+         ]
+        ],
+        "sourceSlice": "**bold with *nested em* inside**",
+        "contentSlice": "bold with *nested em* inside",
+        "markerSlices": [
+         "**",
+         "**"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "emphasis",
+        "meta": {
+         "lezerNode": "Emphasis"
+        },
+        "sourceRange": [
+         45,
+         56
+        ],
+        "contentRange": [
+         46,
+         55
+        ],
+        "markerRanges": [
+         [
+          45,
+          46
+         ],
+         [
+          55,
+          56
+         ]
+        ],
+        "sourceSlice": "*nested em*",
+        "contentSlice": "nested em",
+        "markerSlices": [
+         "*",
+         "*"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "escape",
+        "meta": {
+         "lezerNode": "Escape"
+        },
+        "sourceRange": [
+         79,
+         81
+        ],
+        "contentRange": [
+         79,
+         81
+        ],
+        "markerRanges": [],
+        "sourceSlice": "\\*",
+        "contentSlice": "\\*",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "escape",
+        "meta": {
+         "lezerNode": "Escape"
+        },
+        "sourceRange": [
+         87,
+         89
+        ],
+        "contentRange": [
+         87,
+         89
+        ],
+        "markerRanges": [],
+        "sourceSlice": "\\*",
+        "contentSlice": "\\*",
+        "markerSlices": [],
+        "roundTrip": "MATCH",
+        "contentMatch": "n/a",
+        "markerMatch": "n/a",
+        "problems": []
+       },
+       {
+        "kind": "inlineCode",
+        "meta": {
+         "lezerNode": "InlineCode"
+        },
+        "sourceRange": [
+         95,
+         108
+        ],
+        "contentRange": [
+         96,
+         107
+        ],
+        "markerRanges": [
+         [
+          95,
+          96
+         ],
+         [
+          107,
+          108
+         ]
+        ],
+        "sourceSlice": "`inline code`",
+        "contentSlice": "inline code",
+        "markerSlices": [
+         "`",
+         "`"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "strikethrough",
+        "meta": {
+         "lezerNode": "Strikethrough"
+        },
+        "sourceRange": [
+         113,
+         123
+        ],
+        "contentRange": [
+         115,
+         121
+        ],
+        "markerRanges": [
+         [
+          113,
+          115
+         ],
+         [
+          121,
+          123
+         ]
+        ],
+        "sourceSlice": "~~strike~~",
+        "contentSlice": "strike",
+        "markerSlices": [
+         "~~",
+         "~~"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "link",
+        "meta": {
+         "lezerNode": "Autolink",
+         "style": "autolink"
+        },
+        "sourceRange": [
+         128,
+         149
+        ],
+        "contentRange": [
+         129,
+         148
+        ],
+        "markerRanges": [
+         [
+          128,
+          129
+         ],
+         [
+          148,
+          149
+         ]
+        ],
+        "sourceSlice": "<https://example.com>",
+        "contentSlice": "https://example.com",
+        "markerSlices": [
+         "<",
+         ">"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "link",
+        "meta": {
+         "lezerNode": "Link"
+        },
+        "sourceRange": [
+         152,
+         189
+        ],
+        "contentRange": [
+         153,
+         167
+        ],
+        "markerRanges": [
+         [
+          152,
+          153
+         ],
+         [
+          167,
+          168
+         ],
+         [
+          168,
+          169
+         ],
+         [
+          188,
+          189
+         ]
+        ],
+        "sourceSlice": "[link with *em*](https://example.com)",
+        "contentSlice": "link with *em*",
+        "markerSlices": [
+         "[",
+         "]",
+         "(",
+         ")"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       },
+       {
+        "kind": "emphasis",
+        "meta": {
+         "lezerNode": "Emphasis"
+        },
+        "sourceRange": [
+         163,
+         167
+        ],
+        "contentRange": [
+         164,
+         166
+        ],
+        "markerRanges": [
+         [
+          163,
+          164
+         ],
+         [
+          166,
+          167
+         ]
+        ],
+        "sourceSlice": "*em*",
+        "contentSlice": "em",
+        "markerSlices": [
+         "*",
+         "*"
+        ],
+        "roundTrip": "MATCH",
+        "contentMatch": "match",
+        "markerMatch": "match",
+        "problems": []
+       }
+      ],
+      "missed": [],
+      "summary": {
+       "match": 15,
+       "convention": 0,
+       "spurious": 0,
+       "invalid": 0,
+       "miss": 0,
+       "contentMismatches": 0,
+       "markerGaps": 0,
+       "markerMismatches": 0
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

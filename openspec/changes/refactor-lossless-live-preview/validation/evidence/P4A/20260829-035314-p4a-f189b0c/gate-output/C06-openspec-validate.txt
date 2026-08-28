@@ -1,0 +1,3 @@
+npm notice run markflow@0.0.6 npx
+npm notice run 'openspec' validate refactor-lossless-live-preview --strict
+Change 'refactor-lossless-live-preview' is valid

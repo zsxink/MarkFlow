@@ -37,3 +37,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Rust spike scratch build cache
+spike/**/target/

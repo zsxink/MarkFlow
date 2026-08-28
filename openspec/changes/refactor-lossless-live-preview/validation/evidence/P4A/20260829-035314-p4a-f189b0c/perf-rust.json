@@ -1,0 +1,164 @@
+{
+  "generatedAt": "unix-secs:1787947111",
+  "note": "spike-grade wall-clock probe on one machine; 3 iterations; not the frozen SLO benchmark (design/05 §6)",
+  "results": [
+    {
+      "byteLength": 1000001,
+      "candidate": "markdown-rs",
+      "fixture": "perf-1m.md",
+      "fullParseMs": {
+        "median": 238.449583,
+        "samples": [
+          261.788,
+          238.449583,
+          234.59675
+        ]
+      }
+    },
+    {
+      "byteLength": 1000001,
+      "candidate": "pulldown-cmark",
+      "fixture": "perf-1m.md",
+      "fullParseMs": {
+        "median": 2.0658339999999997,
+        "samples": [
+          2.112583,
+          2.042458,
+          2.0658339999999997
+        ]
+      }
+    },
+    {
+      "byteLength": 1000001,
+      "candidate": "comrak",
+      "fixture": "perf-1m.md",
+      "fullParseMs": {
+        "median": 9.653917,
+        "samples": [
+          10.634792000000001,
+          9.653917,
+          8.952207999999999
+        ]
+      }
+    },
+    {
+      "byteLength": 10000004,
+      "candidate": "markdown-rs",
+      "fixture": "perf-10m.md",
+      "fullParseMs": {
+        "median": 20487.626417,
+        "samples": [
+          20865.406833,
+          20487.626417,
+          20404.001791
+        ]
+      }
+    },
+    {
+      "byteLength": 10000004,
+      "candidate": "pulldown-cmark",
+      "fixture": "perf-10m.md",
+      "fullParseMs": {
+        "median": 23.576584,
+        "samples": [
+          24.962125,
+          23.312417,
+          23.576584
+        ]
+      }
+    },
+    {
+      "byteLength": 10000004,
+      "candidate": "comrak",
+      "fixture": "perf-10m.md",
+      "fullParseMs": {
+        "median": 125.206958,
+        "samples": [
+          126.73533300000001,
+          125.206958,
+          124.271375
+        ]
+      }
+    },
+    {
+      "byteLength": 1000217,
+      "candidate": "markdown-rs",
+      "fixture": "perf-varied-1m.md",
+      "fullParseMs": {
+        "median": 623.27425,
+        "samples": [
+          670.587667,
+          623.27425,
+          622.128083
+        ]
+      }
+    },
+    {
+      "byteLength": 1000217,
+      "candidate": "pulldown-cmark",
+      "fixture": "perf-varied-1m.md",
+      "fullParseMs": {
+        "median": 4.128875,
+        "samples": [
+          4.462375,
+          4.128875,
+          3.877458
+        ]
+      }
+    },
+    {
+      "byteLength": 1000217,
+      "candidate": "comrak",
+      "fixture": "perf-varied-1m.md",
+      "fullParseMs": {
+        "median": 11.107416,
+        "samples": [
+          12.053125,
+          10.875291,
+          11.107416
+        ]
+      }
+    },
+    {
+      "byteLength": 10000178,
+      "candidate": "markdown-rs",
+      "fixture": "perf-varied-10m.md",
+      "fullParseMs": {
+        "median": 58111.770083,
+        "samples": [
+          58204.513,
+          58111.770083,
+          57796.223417
+        ]
+      }
+    },
+    {
+      "byteLength": 10000178,
+      "candidate": "pulldown-cmark",
+      "fixture": "perf-varied-10m.md",
+      "fullParseMs": {
+        "median": 44.749542000000005,
+        "samples": [
+          44.9505,
+          44.449458,
+          44.749542000000005
+        ]
+      }
+    },
+    {
+      "byteLength": 10000178,
+      "candidate": "comrak",
+      "fixture": "perf-varied-10m.md",
+      "fullParseMs": {
+        "median": 131.892875,
+        "samples": [
+          140.8285,
+          131.23337500000002,
+          131.892875
+        ]
+      }
+    }
+  ],
+  "spike": "parser-candidate-performance",
+  "task": "P4A 6.1 (Rust candidates performance probe)"
+}

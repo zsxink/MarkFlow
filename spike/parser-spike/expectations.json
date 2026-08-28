@@ -1,0 +1,807 @@
+{
+  "$comment": [
+    "Frozen reference expectation table for the P4A parser spike (task 6.1).",
+    "",
+    "Derived from the verified Lezer reference dump (spike/parser-spike/explore/dump-lezer.mjs)",
+    "cross-checked BY HAND against the known canonical fixture definitions in",
+    "tests/byte-contract/generate-fixtures.mjs (the non-circular part of the round-trip gate).",
+    "ALL candidates (TS + Rust) are validated against this same table.",
+    "",
+    "Semantics:",
+    "- source: exact canonical source text the construct's sourceRange must slice to",
+    "  (half-open [start,end) on the logical LF text, UTF-16 code units after conversion).",
+    "- content: expected contentRange text. Exact string compare for inline kinds",
+    "  (strong/emphasis/strikethrough/inlineCode/link/image/footnoteReference),",
+    "  trim()-tolerant for block kinds (heading/listItem/taskCheckbox/fence/blockquote/",
+    "  paragraph/table/frontmatter/htmlBlock/htmlComment). null = content not compared.",
+    "- markers: exact delimiter strings the candidate's markerRanges must slice to,",
+    "  as a multiset, when the candidate provides any. null = markers informational only.",
+    "- alsoMatch: alternative kinds a candidate may use for the same construct",
+    "  (e.g. footnoteReference vs link for '[^1]').",
+    "- requireAll=false fixtures (malformed) record behavior only; every construct is",
+    "  classified SPURIOUS/informational and no MISS is counted.",
+    "",
+    "Known intentional table facts (verified against parser output + fixture structure):",
+    "- Lezer has no frontmatter node: syntax-frontmatter will show SPURIOUS setext-heading/",
+    "  hr/link constructs; the frontmatter entry documents the REQUIRED correct construct.",
+    "- '[^1]: footnote text' is a link reference definition under pure CommonMark and a",
+    "  footnote definition when footnotes are enabled; both are acceptable via alsoMatch.",
+    "- Link reference definitions produce NO events in pulldown-cmark (expected MISS)."
+  ],
+  "contentCompare": {
+    "exact": [
+      "strong",
+      "emphasis",
+      "strikethrough",
+      "inlineCode",
+      "link",
+      "image",
+      "footnoteReference"
+    ],
+    "trim": [
+      "heading",
+      "listItem",
+      "taskCheckbox",
+      "fence",
+      "blockquote",
+      "paragraph",
+      "table",
+      "frontmatter",
+      "htmlBlock",
+      "htmlComment",
+      "htmlInline",
+      "linkRefDef",
+      "footnoteDefinition",
+      "indentedCode"
+    ]
+  },
+  "fixtures": {
+    "utf8-lf-tail0": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-lf-tail1": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-lf-tail2": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-lf-tail3": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-crlf-tail1": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-crlf-tail2": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-crlf-tail3": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-cr-tail1": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-mixed-tail2": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.\nMixed separator line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.\nMixed separator line.",
+          "markers": null
+        }
+      ]
+    },
+    "utf8-bom-lf-tail2": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# Title",
+          "content": "Title",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "content": "Body paragraph with ASCII and CJK 中文。\nAnother line.",
+          "markers": null
+        }
+      ]
+    },
+    "empty": {
+      "requireAll": true,
+      "expect": []
+    },
+    "bom-only": {
+      "requireAll": true,
+      "expect": []
+    },
+    "newlines-only": {
+      "requireAll": true,
+      "expect": []
+    },
+    "spaces-only": {
+      "requireAll": true,
+      "expect": []
+    },
+    "unicode-cjk": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "heading",
+          "source": "# 中文标题",
+          "content": "中文标题",
+          "markers": [
+            "#"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "日本語の段落。\n한국어 문단입니다.\n混合 CJK: 中文 English 日本語",
+          "content": "日本語の段落。\n한국어 문단입니다.\n混合 CJK: 中文 English 日本語",
+          "markers": null
+        }
+      ]
+    },
+    "unicode-emoji": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "paragraph",
+          "source": "Emoji: 😀 🎉\nZWJ family: 👨‍👩‍👧‍👦\nSkin tone: 👍🏽\nFlags: 🇨🇳",
+          "content": "Emoji: 😀 🎉\nZWJ family: 👨‍👩‍👧‍👦\nSkin tone: 👍🏽\nFlags: 🇨🇳",
+          "markers": null
+        }
+      ]
+    },
+    "unicode-combining": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "paragraph",
+          "source": "Combining: é (é) and ä (ä)\nDevanagari: नमस्ते\nHangul jamo: 한",
+          "content": "Combining: é (é) and ä (ä)\nDevanagari: नमस्ते\nHangul jamo: 한",
+          "markers": null
+        }
+      ]
+    },
+    "syntax-lists": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "list",
+          "source": "- item one",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "listItem",
+          "source": "- item one",
+          "content": "item one",
+          "markers": [
+            "-"
+          ]
+        },
+        {
+          "kind": "list",
+          "source": "* item two",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "listItem",
+          "source": "* item two",
+          "content": "item two",
+          "markers": [
+            "*"
+          ]
+        },
+        {
+          "kind": "list",
+          "source": "+ item three",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "listItem",
+          "source": "+ item three",
+          "content": "item three",
+          "markers": [
+            "+"
+          ]
+        },
+        {
+          "kind": "list",
+          "source": "1. ordered\n2. ordered two\n   - nested a\n   - nested b",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "listItem",
+          "source": "1. ordered",
+          "content": "ordered",
+          "markers": [
+            "1."
+          ]
+        },
+        {
+          "kind": "listItem",
+          "source": "2. ordered two\n   - nested a\n   - nested b",
+          "content": null,
+          "markers": [
+            "2."
+          ]
+        },
+        {
+          "kind": "list",
+          "source": "- nested a\n   - nested b",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "listItem",
+          "source": "- nested a",
+          "content": "nested a",
+          "markers": [
+            "-"
+          ]
+        },
+        {
+          "kind": "listItem",
+          "source": "- nested b",
+          "content": "nested b",
+          "markers": [
+            "-"
+          ]
+        },
+        {
+          "kind": "blockquote",
+          "source": "> blockquote\n>> nested quote",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "blockquote",
+          "source": "> nested quote",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "item one",
+          "content": "item one",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "item two",
+          "content": "item two",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "item three",
+          "content": "item three",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "ordered",
+          "content": "ordered",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "ordered two",
+          "content": "ordered two",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "nested a",
+          "content": "nested a",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "nested b",
+          "content": "nested b",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "blockquote",
+          "content": "blockquote",
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "nested quote",
+          "content": "nested quote",
+          "markers": null
+        }
+      ]
+    },
+    "syntax-fence": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "fence",
+          "source": "```js\nconst x = 1;\n\n\nfunction f() {}\n```",
+          "content": "const x = 1;\n\n\nfunction f() {}",
+          "markers": [
+            "```",
+            "```"
+          ]
+        },
+        {
+          "kind": "fence",
+          "source": "~~~markdown\n# inside tilde fence\n~~~",
+          "content": "# inside tilde fence",
+          "markers": [
+            "~~~",
+            "~~~"
+          ]
+        }
+      ]
+    },
+    "syntax-frontmatter": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "frontmatter",
+          "source": "---\n# comment line\ntitle: \"A title\"\ntags: [a, b, c]\norder: 3\n---",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "heading",
+          "source": "# Body after frontmatter",
+          "content": "Body after frontmatter",
+          "markers": [
+            "#"
+          ]
+        }
+      ]
+    },
+    "syntax-table-reference-footnote": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "table",
+          "source": "| a | b |\n| --- | --- |\n| 1 | 2 |",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "Reference link: [text][ref]",
+          "content": "Reference link: [text][ref]",
+          "markers": null
+        },
+        {
+          "kind": "link",
+          "source": "[text][ref]",
+          "content": "text",
+          "markers": [
+            "[",
+            "]"
+          ]
+        },
+        {
+          "kind": "linkRefDef",
+          "source": "[ref]: https://example.com",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "Footnote[^1]",
+          "content": "Footnote[^1]",
+          "markers": null
+        },
+        {
+          "kind": "link",
+          "source": "[^1]",
+          "content": null,
+          "markers": [
+            "[",
+            "]"
+          ],
+          "alsoMatch": [
+            "footnoteReference"
+          ]
+        },
+        {
+          "kind": "link",
+          "source": "[^1]",
+          "content": null,
+          "markers": [
+            "[",
+            "]"
+          ],
+          "alsoMatch": [
+            "footnoteReference"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "[^1]: footnote text",
+          "content": null,
+          "markers": null,
+          "alsoMatch": [
+            "linkRefDef",
+            "footnoteDefinition"
+          ]
+        },
+        {
+          "kind": "tableHeader",
+          "source": "| a | b |",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "tableRow",
+          "source": "| 1 | 2 |",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "tableCell",
+          "source": "a",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "tableCell",
+          "source": "b",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "tableCell",
+          "source": "1",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "tableCell",
+          "source": "2",
+          "content": null,
+          "markers": null
+        }
+      ]
+    },
+    "syntax-html": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "htmlComment",
+          "source": "<!-- html comment -->",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "htmlBlock",
+          "source": "<div class=\"x\">raw html</div>",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "paragraph",
+          "source": "<span>inline</span> after",
+          "content": "<span>inline</span> after",
+          "markers": null
+        },
+        {
+          "kind": "htmlInline",
+          "source": "<span>",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "htmlInline",
+          "source": "</span>",
+          "content": null,
+          "markers": null
+        }
+      ]
+    },
+    "syntax-image-blanklines": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "paragraph",
+          "source": "![alt](image.png)",
+          "content": "![alt](image.png)",
+          "markers": null
+        },
+        {
+          "kind": "image",
+          "source": "![alt](image.png)",
+          "content": "alt",
+          "markers": [
+            "![",
+            "]",
+            "(",
+            ")"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "text after image",
+          "content": "text after image",
+          "markers": null
+        }
+      ]
+    },
+    "malformed": {
+      "requireAll": false,
+      "expect": []
+    },
+    "spike-extra-task-inline": {
+      "requireAll": true,
+      "expect": [
+        {
+          "kind": "list",
+          "source": "- [ ] task one\n- [x] task two",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "listItem",
+          "source": "- [ ] task one",
+          "content": null,
+          "markers": [
+            "-"
+          ]
+        },
+        {
+          "kind": "taskCheckbox",
+          "source": "[ ] task one",
+          "content": "task one",
+          "markers": [
+            "[ ]"
+          ]
+        },
+        {
+          "kind": "listItem",
+          "source": "- [x] task two",
+          "content": null,
+          "markers": [
+            "-"
+          ]
+        },
+        {
+          "kind": "taskCheckbox",
+          "source": "[x] task two",
+          "content": "task two",
+          "markers": [
+            "[x]"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "source": "a **bold with *nested em* inside** b\nan escaped \\*not em\\* star\n`inline code` and ~~strike~~ and <https://example.com>\na [link with *em*](https://example.com) end",
+          "content": "a **bold with *nested em* inside** b\nan escaped \\*not em\\* star\n`inline code` and ~~strike~~ and <https://example.com>\na [link with *em*](https://example.com) end",
+          "markers": null
+        },
+        {
+          "kind": "strong",
+          "source": "**bold with *nested em* inside**",
+          "content": "bold with *nested em* inside",
+          "markers": [
+            "**",
+            "**"
+          ]
+        },
+        {
+          "kind": "emphasis",
+          "source": "*nested em*",
+          "content": "nested em",
+          "markers": [
+            "*",
+            "*"
+          ]
+        },
+        {
+          "kind": "inlineCode",
+          "source": "`inline code`",
+          "content": "inline code",
+          "markers": [
+            "`",
+            "`"
+          ]
+        },
+        {
+          "kind": "strikethrough",
+          "source": "~~strike~~",
+          "content": "strike",
+          "markers": [
+            "~~",
+            "~~"
+          ]
+        },
+        {
+          "kind": "link",
+          "source": "<https://example.com>",
+          "content": "https://example.com",
+          "markers": [
+            "<",
+            ">"
+          ]
+        },
+        {
+          "kind": "link",
+          "source": "[link with *em*](https://example.com)",
+          "content": "link with *em*",
+          "markers": [
+            "[",
+            "]",
+            "(",
+            ")"
+          ]
+        },
+        {
+          "kind": "emphasis",
+          "source": "*em*",
+          "content": "em",
+          "markers": [
+            "*",
+            "*"
+          ]
+        },
+        {
+          "kind": "escape",
+          "source": "\\*",
+          "content": null,
+          "markers": null
+        },
+        {
+          "kind": "escape",
+          "source": "\\*",
+          "content": null,
+          "markers": null
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+[package]
+name = "parser-spike-rust"
+version = "0.1.0"
+edition = "2021"
+description = "P4A task 6.1 parser candidate spike harness (markdown-rs / pulldown-cmark / comrak)"
+publish = false
+
+# Deliberately standalone: NOT a member of any workspace, and no product crate
+# (src-tauri, markflow-core) depends on it. Nothing here may be linked into the
+# product; it exists only to produce the machine-readable range comparison.
+[dependencies]
+markdown = "1.0.0"
+pulldown-cmark = { version = "0.13.4", default-features = false }
+comrak = { version = "0.54.0", default-features = false, features = ["emojis"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+debug = false

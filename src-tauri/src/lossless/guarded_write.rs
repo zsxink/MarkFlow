@@ -17,19 +17,35 @@
 //!
 //! ## Platform capability
 //!
-//! macOS provides `renameatx_np(RENAME_SWAP)`, an atomic exchange that preserves
-//! the displaced target at the temp path — the displaced bytes are then hashed
-//! and compared to `expectedFileIdentity`. This satisfies the design's
-//! "backup-preserving replace with displaced-identity verification" requirement
-//! (no true CAS primitive on this platform). A target expected to be absent
-//! (`expectedFileIdentity == None`) uses `renameatx_np(RENAME_EXCL)`
-//! (create-if-absent); if the path exists at the replace point it is a conflict,
-//! never treated as a replaceable old file.
+//! Every supported platform has a native exchange primitive that preserves the
+//! displaced target, so the replace point can hash it and compare it to
+//! `expectedFileIdentity`. This satisfies the design's "backup-preserving
+//! replace with displaced-identity verification" requirement (no true CAS
+//! primitive, but an atomic swap is equivalent for this purpose). All three
+//! implementations guarantee the same post-condition: after `atomic_exchange`
+//! returns `Ok`, `target` holds the new payload and `tmp` holds the displaced
+//! original bytes.
 //!
-//! On platforms without an atomic-exchange primitive this module refuses default
+//! - macOS: `renameatx_np(RENAME_SWAP)` — a single atomic swap of the two
+//!   paths.
+//! - Linux: `renameat2(RENAME_EXCHANGE)` — the same atomic swap semantic.
+//! - Windows: `ReplaceFileW` with a backup file — the replaced target is moved
+//!   to the backup path and the replacement is consumed, so the backup is
+//!   renamed back onto `tmp` to restore the shared post-condition.
+//!
+//! A target expected to be absent (`expectedFileIdentity == None`) uses the
+//! create-if-absent path (`renameatx_np(RENAME_EXCL)` /
+//! `renameat2(RENAME_NOREPLACE)` / `MoveFileExW` without
+//! `MOVEFILE_REPLACE_EXISTING`); if the path exists at the replace point it is
+//! a conflict, never treated as a replaceable old file.
+//!
+//! Where the primitive is unavailable at runtime — a filesystem without
+//! `RENAME_EXCHANGE` support (overlayfs, some FUSE/network filesystems) or a
+//! volume where `ReplaceFileW` is rejected — this module refuses default
 //! replacement (returns a documented `unsupported-platform` error so the caller
 //! degrades to Save Copy), rather than claiming a guarded write with plain
-//! rename.
+//! rename, which would silently overwrite a target replaced at the swap
+//! instant.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -504,8 +520,22 @@ pub fn guarded_atomic_write(
                     .lossless_registry
                     .with_save_lifecycle_lock(&save_lease, || {
                         atomic_exchange(&tmp, &path).map_err(|e| {
+                            // A failed exchange leaves `tmp` holding our own
+                            // payload (on Windows the replace consumed it, so
+                            // this is a no-op). Only a *completed* exchange
+                            // turns `tmp` into displaced evidence, and that
+                            // copy must never be deleted here.
                             let _ = std::fs::remove_file(&tmp);
-                            LosslessError::io(format!("原子替换失败: {e}"))
+                            if e.kind() == std::io::ErrorKind::Unsupported {
+                                LosslessError::new(
+                                    "unsupported-platform",
+                                    format!(
+                                        "当前平台/文件系统不支持保留原文件的原子替换，已拒绝覆盖保存（请使用另存副本）: {e}"
+                                    ),
+                                )
+                            } else {
+                                LosslessError::io(format!("原子替换失败: {e}"))
+                            }
                         })
                     })?;
                 replacement_completed = true;
@@ -1321,8 +1351,126 @@ fn create_if_absent(tmp: &Path, target: &Path) -> std::io::Result<bool> {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+/// Linux: `renameat2(RENAME_EXCHANGE)` swaps the two paths atomically, leaving
+/// the displaced target readable at `tmp` — the same post-condition as macOS
+/// `RENAME_SWAP`. A filesystem without exchange support (overlayfs, some
+/// FUSE/network filesystems) reports `ENOSYS`/`EINVAL`/`EOPNOTSUPP`; that is
+/// reported as `Unsupported` so the caller refuses the replace. Plain
+/// `rename(2)` is never used as a fallback: it would silently overwrite a
+/// target replaced at the swap instant.
+#[cfg(target_os = "linux")]
+fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let tmp_c = CString::new(tmp.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "tmp path"))?;
+    let target_c = CString::new(target.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "target path"))?;
+    let rc = unsafe {
+        libc::syscall(
+            libc::SYS_renameat2,
+            libc::AT_FDCWD,
+            tmp_c.as_ptr(),
+            libc::AT_FDCWD,
+            target_c.as_ptr(),
+            libc::RENAME_EXCHANGE as libc::c_uint,
+        )
+    };
+    if rc == 0 {
+        Ok(())
+    } else {
+        let err = std::io::Error::last_os_error();
+        match err.raw_os_error() {
+            Some(libc::ENOSYS) | Some(libc::EINVAL) | Some(libc::EOPNOTSUPP) => {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "filesystem does not support RENAME_EXCHANGE; guarded replace refused",
+                ))
+            }
+            _ => Err(err),
+        }
+    }
+}
+
+/// Windows: `ReplaceFileW` moves the replacement (`tmp`) onto the replaced file
+/// (`target`) and stages the displaced original at a backup path. Unlike the
+/// two exchange syscalls it *consumes* `tmp`, so the backup is renamed back
+/// onto `tmp` to restore the shared post-condition ("the displaced bytes are
+/// readable at `tmp`"). Both the replace and that same-directory rename are
+/// single metadata operations: there is no instant where the target is
+/// truncated or partially overwritten. A crash between them leaves the
+/// displaced original at the `.mf-bak` sibling rather than losing it.
+#[cfg(target_os = "windows")]
+fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn ReplaceFileW(
+            lp_replaced_file_name: *const u16,
+            lp_replacement_file_name: *const u16,
+            lp_backup_file_name: *const u16,
+            dw_replace_flags: u32,
+            lp_exclude: *const std::ffi::c_void,
+            lp_reserved: *const std::ffi::c_void,
+        ) -> i32;
+    }
+
+    fn wide(path: &Path) -> Vec<u16> {
+        path.as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
+    }
+
+    // No flags: `REPLACEFILE_WRITE_THROUGH` is documented as unsupported and
+    // the merge-error flags would hide ACL/attribute failures we want surfaced.
+    const REPLACEFILE_NONE: u32 = 0x0000_0000;
+    // ERROR_INVALID_FUNCTION (1) / ERROR_NOT_SUPPORTED (50): no
+    // backup-preserving replace on this volume.
+    const ERROR_INVALID_FUNCTION: i32 = 1;
+    const ERROR_NOT_SUPPORTED: i32 = 50;
+
+    let mut backup_os = tmp.as_os_str().to_owned();
+    backup_os.push(".mf-bak");
+    let backup = PathBuf::from(backup_os);
+
+    let replaced = wide(target);
+    let replacement = wide(tmp);
+    let backup_w = wide(&backup);
+    let rc = unsafe {
+        ReplaceFileW(
+            replaced.as_ptr(),
+            replacement.as_ptr(),
+            backup_w.as_ptr(),
+            REPLACEFILE_NONE,
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+    if rc == 0 {
+        let err = std::io::Error::last_os_error();
+        return Err(match err.raw_os_error() {
+            Some(ERROR_INVALID_FUNCTION) | Some(ERROR_NOT_SUPPORTED) => std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "ReplaceFileW unsupported on this volume; guarded replace refused",
+            ),
+            _ => err,
+        });
+    }
+    // `tmp` was consumed by the replace; restore the displaced original onto it
+    // so the caller's `read(tmp)` — and the receipt's recovery path — see the
+    // same bytes macOS/Linux leave there.
+    std::fs::rename(&backup, tmp)?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 fn atomic_exchange(_tmp: &Path, _target: &Path) -> std::io::Result<()> {
+    // No atomic-exchange primitive proven on this platform: refuse rather than
+    // degrade to plain rename(2), which would silently overwrite a target
+    // replaced at the swap instant.
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,
         "no atomic-exchange primitive on this platform; default replace refused",
@@ -1626,6 +1774,66 @@ mod tests {
         );
         assert_eq!(std::fs::read(&tmp).unwrap(), b"app payload");
         std::fs::remove_file(&target).ok();
+        std::fs::remove_file(&tmp).ok();
+    }
+
+    /// The replace branch reads the displaced bytes back from `tmp` after the
+    /// exchange, so every platform primitive must leave them there. This runs
+    /// the host's primitive: macOS `renameatx_np(RENAME_SWAP)`, Linux
+    /// `renameat2(RENAME_EXCHANGE)`, Windows `ReplaceFileW`. Only one branch can
+    /// compile on a given host, so the other two are covered when their CI runs
+    /// this same test.
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+    #[test]
+    fn atomic_exchange_leaves_displaced_bytes_at_tmp_on_this_platform() {
+        let dir = isolate_receipts();
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("exchange.md");
+        let tmp = dir.join("exchange-tmp.md");
+        std::fs::write(&target, b"displaced original").unwrap();
+        std::fs::write(&tmp, b"new payload").unwrap();
+
+        atomic_exchange(&tmp, &target).expect("atomic exchange must run on this platform");
+
+        assert_eq!(
+            std::fs::read(&target).unwrap(),
+            b"new payload",
+            "the target must hold the new payload"
+        );
+        assert_eq!(
+            std::fs::read(&tmp).unwrap(),
+            b"displaced original",
+            "the displaced target must be readable at the tmp path"
+        );
+        std::fs::remove_file(&target).ok();
+        std::fs::remove_file(&tmp).ok();
+    }
+
+    /// The exchange must never create a missing target: a target that vanished
+    /// between the precheck and the replace point is an external race, not
+    /// something to write into.
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+    #[test]
+    fn atomic_exchange_refuses_an_absent_target_on_this_platform() {
+        let dir = isolate_receipts();
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("vanished.md");
+        let tmp = dir.join("vanished-tmp.md");
+        std::fs::write(&tmp, b"new payload").unwrap();
+
+        let error = atomic_exchange(&tmp, &target)
+            .expect_err("exchanging onto a missing target must fail, not create it");
+        assert_ne!(
+            error.kind(),
+            std::io::ErrorKind::Unsupported,
+            "a missing target is an external race, not an unsupported platform"
+        );
+        assert!(!target.exists(), "the exchange must not create the target");
+        assert_eq!(
+            std::fs::read(&tmp).unwrap(),
+            b"new payload",
+            "the payload must stay at tmp"
+        );
         std::fs::remove_file(&tmp).ok();
     }
 

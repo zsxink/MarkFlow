@@ -522,12 +522,21 @@ pub fn prepare_document_save(
             req.binding_generation, binding_generation
         )));
     }
-    // Save As / New File carries `None`; the payload is still the confirmed Core
-    // bytes. A `Some` identity must match the session's frozen identity.
-    let expected_identity = req
-        .expected_file_identity
-        .clone()
-        .unwrap_or_else(|| session.original().file_identity.clone());
+    // `expected_file_identity` is the design's Present/Absent marker:
+    // - `Some(identity)` — a normal save onto the session's own path. Core
+    //   rejects it when the asserted identity differs from the session's frozen
+    //   identity (external change → external-conflict).
+    // - `None` — Save As / New File: the expected identity is ABSENT. The save
+    //   target holds no prior revision of this document, so there is no
+    //   external-conflict check to run; comparing the session's own identity
+    //   against itself can never fail and exists only to satisfy Core's
+    //   signature. Target-path safety is instead enforced at the replace point
+    //   by `create_if_absent`'s no-replace semantics, and the Absent marker is
+    //   what the receipt carries into `guarded_atomic_write`.
+    let expected_identity = match &req.expected_file_identity {
+        Some(identity) => identity.clone(),
+        None => session.original().file_identity.clone(),
+    };
     let payload = session
         .prepare_save(expected_revision, &expected_identity)
         .map_err(LosslessError::from)?;

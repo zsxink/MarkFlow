@@ -33,6 +33,14 @@ function toCode(err: unknown): string {
   return 'unknown';
 }
 
+/**
+ * The guarded write refused the replace: this platform/filesystem has no CAS,
+ * atomic exchange or backup-preserving replace, so overwriting the target
+ * cannot be done without risking an external racer's bytes. Branch on this
+ * code only — never on the (localized) message text.
+ */
+export const UNSUPPORTED_PLATFORM_CODE = 'unsupported-platform';
+
 // Map backend error codes (see src-tauri/src/error.rs) to UI actions.
 const CODE_KIND: Record<string, ErrorKind> = {
   'lock-poisoned': 'fatal',
@@ -41,6 +49,7 @@ const CODE_KIND: Record<string, ErrorKind> = {
   io: 'retry',
   serialization: 'retry',
   internal: 'fatal',
+  [UNSUPPORTED_PLATFORM_CODE]: 'degrade',
 };
 
 export function classifyError(err: unknown): ClassifiedError {

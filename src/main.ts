@@ -8,8 +8,8 @@ import { initKeyboard } from './utils/keyboard';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
-import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
-import { closeLosslessActiveDocument, isActiveLosslessPath, markLosslessExternalModification } from './lib/lossless/integration';
+import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, handleLosslessConflict, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
+import { closeLosslessActiveDocument, hasLosslessExternalConflict, isActiveLosslessPath, markLosslessExternalModification } from './lib/lossless/integration';
 import { isLosslessCoreSessionEnabled } from './lib/lossless/flag';
 import { showToast } from './components/toast';
 import { setToastReporter } from './lib/error';
@@ -112,12 +112,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         // ── Lossless Core path: guarded write detects the conflict at the
         // replace point; do NOT auto-reload the Core session (owner isolation).
         if (isLosslessCoreSessionEnabled() && isActiveLosslessPath(activePath)) {
+          // The conflict is already known and the user has already been asked;
+          // the watcher fires per filesystem event, so do not re-prompt until
+          // it is resolved (reload / save copy / force clears the flag).
+          if (hasLosslessExternalConflict()) continue;
           markLosslessExternalModification(activePath);
-          showToast('文件已被外部修改，保存时将提示冲突');
+          // The guarded write owns the conflict decision, so surface the same
+          // explicit exits the design requires (reload / save copy / force)
+          // instead of leaving the document in an unresolvable state.
+          const outcome = await handleLosslessConflict('external-modification', {
+            allowForce: true,
+          });
+          if (outcome === 'reloaded') showToast('已加载磁盘版本');
+          else if (outcome === 'saved-as') showToast('已另存为副本，原文件未改动');
+          else if (outcome === 'forced') showToast('已用当前内容覆盖磁盘版本');
+          else if (outcome === 'failed') showToast('处理外部修改失败，请手动另存副本');
           continue;
         }
         const result = await handleActiveDocumentExternalModification();
         if (result === 'reloaded') showToast('文件已从磁盘重新加载');
+        else if (result === 'saved-as') showToast('已另存为副本');
         else if (result === 'kept') showToast('已保留当前内容，自动保存已暂停');
         else if (result === 'failed') {
           markExternalModification();
@@ -211,6 +225,9 @@ async function restoreWorkspace() {
   }
 }
 
+/** Set once the "unsupported platform" skip has been surfaced to the user. */
+let unsupportedPlatformNotified = false;
+
 /** Single autosave tick — extracted for testability. */
 export async function runAutoSaveTick() {
   if (isSavingInProgress()) return; // skip — previous save still running
@@ -231,6 +248,13 @@ export async function runAutoSaveTick() {
       if (store.getState().autosaveErrorCount !== 0) {
         store.setState({ autosaveErrorCount: 0 });
       }
+      unsupportedPlatformNotified = false;
+    } else if (result === 'unsupported' && !unsupportedPlatformNotified) {
+      // Autosave must never force-overwrite, so it silently skips a platform
+      // that cannot do a guarded replace. Say so once, and point at the exit
+      // the user actually has: an interactive save → Save Copy.
+      unsupportedPlatformNotified = true;
+      showToast('当前文件系统不支持安全覆盖保存，自动保存已跳过；请手动保存并选择「另存副本到新路径」');
     }
     // 'skipped' — no action needed
   }

@@ -28,12 +28,24 @@ import type {
 } from './types';
 import { SourceSyncController, type FlushOutcome, type LocalChange } from './sourceSyncController';
 import { createLosslessSourceEditor, type LosslessSourceEditorHandle } from './losslessSourceEditor';
+import { classifyError, UNSUPPORTED_PLATFORM_CODE } from '../error';
 import { isLivePreviewEnabled } from './livePreviewFlag';
 import { getPreferredMode } from './modePreference';
 import { setProjectionDisposed } from './projection';
 
-/** `blocked`/`conflict` are safe, explainable skips — never write failures. */
-export type LosslessSaveResult = 'saved' | 'skipped' | 'blocked' | 'failed' | 'conflict';
+/**
+ * `blocked`/`conflict` are safe, explainable skips — never write failures.
+ * `unsupported` is neither: the write was REFUSED because this platform cannot
+ * do a guarded replace, so the caller must offer Save Copy / an explicitly
+ * confirmed Force overwrite instead of retrying (spec atomic-save).
+ */
+export type LosslessSaveResult =
+  | 'saved'
+  | 'skipped'
+  | 'blocked'
+  | 'failed'
+  | 'conflict'
+  | 'unsupported';
 
 /**
  * Bind a lossless Core session to a CodeMirror Source editor in `container`.
@@ -70,6 +82,16 @@ export class EditorSurfaceBinding {
   private programmaticDispatch = false;
   private saving = false;
   private disposed = false;
+  /**
+   * Set by the file watcher when this file changed outside the session. The
+   * guarded write remains the authority (identity is verified at the replace
+   * point), but the flag is consumed so that:
+   *   - autosave does not spend a doomed attempt every tick — each refusal
+   *     keeps the displaced bytes as a recovery copy on disk;
+   *   - the conflict UI can tell "external change" from "save refused".
+   * Cleared once the conflict is resolved (save / reload / save-as / force).
+   */
+  private externalConflict = false;
 
   private constructor(opts: {
     sessionId: number;
@@ -353,6 +375,20 @@ export class EditorSurfaceBinding {
     return this.controller.isBlocked();
   }
 
+  /** File watcher observed an external change to this binding's file. */
+  markExternalConflict(): void {
+    if (!this.disposed) this.externalConflict = true;
+  }
+
+  hasExternalConflict(): boolean {
+    return !this.disposed && this.externalConflict;
+  }
+
+  /** The conflict was resolved (reloaded / saved / copied / force-written). */
+  clearExternalConflict(): void {
+    this.externalConflict = false;
+  }
+
   /** Flush the pipeline and update confirmed revision/hash. */
   async flushNow(): Promise<FlushOutcome> {
     const flush = await this.controller.flush();
@@ -431,6 +467,16 @@ export class EditorSurfaceBinding {
         return 'skipped';
       }
 
+      // ── Known external change: autosave must not spend a doomed write ──
+      // The guarded replace would refuse at the replacement point and keep the
+      // displaced bytes as yet another recovery copy. Autosave never forces, so
+      // report the structured conflict and let the next INTERACTIVE save
+      // surface the choice (design 04 §4/§5). An interactive save still
+      // attempts the write: only the replace-point identity check is
+      // authoritative, so a watcher false positive (e.g. a bare `touch`) can
+      // never turn into a spurious conflict dialog.
+      if (this.externalConflict && !interactive) return 'conflict';
+
       // ── Prepare → guarded write → commit ─────────────────────────────
       const saveOperationId = crypto.randomUUID();
       opId = saveOperationId;
@@ -477,15 +523,24 @@ export class EditorSurfaceBinding {
         this.fileIdentity = newIdentity;
         this.persistedRevision = prepared.revision;
       }
+      // The write landed against the identity we now hold; any earlier
+      // external-change flag has been superseded by it.
+      this.externalConflict = false;
       this.syncDirty();
       return 'saved';
     } catch (err) {
       if (!generationAlive()) return 'failed';
+      const code = classifyError(err).code;
       // Outcome unknown after a lost write/commit response → reconcile the
       // durable receipt, never blind-rewrite (design 04 §10).
       const outcome = await this.reconcileOutcomeUnknown(opId, preparedRevision);
       if (outcome === 'persisted') return 'saved';
       if (outcome === 'conflict') return 'conflict';
+      // The platform refused the replace, so nothing reached the target and
+      // retrying can only fail the same way. Report it as its own outcome so
+      // the caller offers Save Copy / a confirmed Force overwrite instead of a
+      // bare "save failed" (spec atomic-save).
+      if (code === UNSUPPORTED_PLATFORM_CODE) return 'unsupported';
       if (interactive) store.setState({ autosaveErrorCount: store.getState().autosaveErrorCount + 1 });
       return 'failed';
     } finally {
@@ -598,14 +653,21 @@ export class EditorSurfaceBinding {
       this.path = targetPath;
       this.fileIdentity = written.newFileIdentity;
       this.persistedRevision = prepared.revision;
+      // The session no longer writes to the conflicted path.
+      this.externalConflict = false;
       this.syncDirty();
       return 'saved';
-    } catch {
+    } catch (err) {
       if (!generationAlive()) return 'failed';
+      const code = classifyError(err).code;
       // Lost response after a Save As write: reconcile the new target's receipt.
       const outcome = await this.reconcileOutcomeUnknown(opId, preparedRevision, targetPath);
       if (outcome === 'persisted') return 'saved';
-      return outcome === 'conflict' ? 'conflict' : 'failed';
+      if (outcome === 'conflict') return 'conflict';
+      // create-if-absent is unavailable: the caller may still Save Copy via a
+      // plain write to a target it has verified as absent.
+      if (code === UNSUPPORTED_PLATFORM_CODE) return 'unsupported';
+      return 'failed';
     } finally {
       this.saving = false;
     }
@@ -645,6 +707,8 @@ export class EditorSurfaceBinding {
     this.confirmedRevision = reloaded.revision;
     this.confirmedHash = reloaded.confirmedHash;
     this.persistedRevision = reloaded.persistedRevision;
+    // The editor now shows the disk bytes, so the external change is consumed.
+    this.externalConflict = false;
     // replaceDoc fires the editor updateListener (docChanged) — suppress it so
     // the reload content is never re-queued as a user edit.
     this.programmaticDispatch = true;

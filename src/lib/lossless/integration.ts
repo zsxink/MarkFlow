@@ -309,26 +309,42 @@ export async function closeLosslessActiveDocument(): Promise<void> {
   await disposeActiveLosslessBinding();
 }
 
-/** Save As for the active lossless document (new path, expected identity Absent). */
-export async function saveLosslessActiveDocumentAsNewFile(targetPath: string): Promise<boolean> {
+/**
+ * Save As for the active lossless document (new path, expected identity Absent).
+ * Returns the raw binding result so the caller can distinguish a platform that
+ * cannot create-without-overwrite (`unsupported`) from a plain failure.
+ */
+export async function saveLosslessActiveDocumentAsNewFile(
+  targetPath: string,
+): Promise<LosslessSaveResult> {
   const binding = getActiveLosslessBinding();
-  if (!binding) return false;
+  if (!binding) return 'failed';
   try {
     const saved = await binding.saveAs(targetPath);
     if (saved === 'saved') rebindActiveLosslessPath(binding, targetPath);
-    return saved === 'saved';
+    return saved;
   } catch {
-    return false;
+    return 'failed';
   }
 }
 
-/** External modification detection for a lossless document. */
+/**
+ * External modification detection for a lossless document.
+ *
+ * Records the conflict on the binding itself. It is consumed by the save path
+ * (autosave skips a write the guarded replace would refuse, so it stops
+ * spawning a recovery copy per tick) and by the conflict UI. The guarded write
+ * stays authoritative — this flag never replaces the replace-point check.
+ */
 export function markLosslessExternalModification(path: string): void {
   const binding = getActiveLosslessBinding();
   if (!binding || !isActiveLosslessPath(path)) return;
-  // The guarded atomic write detects the identity mismatch at the replace point;
-  // we only surface the state so an interactive save can prompt for a choice.
-  (binding as EditorSurfaceBinding & { externalConflict?: boolean }).externalConflict = true;
+  binding.markExternalConflict();
+}
+
+/** Whether the active lossless document has an unresolved external change. */
+export function hasLosslessExternalConflict(): boolean {
+  return getActiveLosslessBinding()?.hasExternalConflict() ?? false;
 }
 
 /** Read the active lossless doc's confirmed hash for E2E evidence. */

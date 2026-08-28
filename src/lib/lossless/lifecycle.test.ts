@@ -41,6 +41,9 @@ const state = vi.hoisted(() => ({
   failReloadOnce: false,
   openSafetyErrorOnce: false,
   recoveryRequiresQuarantine: false,
+  /** Test hook: the NEXT guarded_atomic_write is refused as an unsupported
+   *  platform/filesystem (nothing is written, the target is left untouched). */
+  refuseWriteUnsupportedOnce: false,
 }));
 
 vi.mock('@tauri-apps/api/core', async () => {
@@ -178,6 +181,15 @@ vi.mock('@tauri-apps/api/core', async () => {
         }
         case 'guarded_atomic_write': {
           const payload = Buffer.from(req.payloadBase64, 'base64').toString('utf8');
+          if (sessionState.refuseWriteUnsupportedOnce) {
+            // Mirrors the real dispatcher: the replace is refused BEFORE the
+            // target is touched, and the receipt stays unwritten.
+            sessionState.refuseWriteUnsupportedOnce = false;
+            throw {
+              code: 'unsupported-platform',
+              message: '当前平台/文件系统不支持保留原文件的原子替换，已拒绝覆盖保存',
+            };
+          }
           sessionState.writeCount += 1;
           sessionState.writes.push({ path: req.path, payloadSha256: sha256hex(payload) });
           if (sessionState.writeBarrier) {
@@ -302,7 +314,7 @@ vi.mock('@tauri-apps/api/core', async () => {
 });
 
 // Real modules — imported after the mock.
-import { openLosslessDocument, saveLosslessActiveDocument, closeLosslessActiveDocument, reloadLosslessActiveDocument, isLosslessOpenRecoveryBlocked } from './integration';
+import { openLosslessDocument, saveLosslessActiveDocument, closeLosslessActiveDocument, reloadLosslessActiveDocument, isLosslessOpenRecoveryBlocked, markLosslessExternalModification } from './integration';
 import { setLosslessCoreSessionEnabled } from './flag';
 import { setLivePreviewEnabled } from './livePreviewFlag';
 import { setPreferredMode, resetPreferredMode } from './modePreference';
@@ -656,6 +668,42 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     expect(binding.isDirty()).toBe(false);
   });
 
+  it('unsupported platform refusal → "unsupported" outcome, target left untouched', async () => {
+    const { dest, original } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    binding.typeAtCursor('U');
+    await sleep(80);
+    expect(binding.isDirty()).toBe(true);
+
+    state.refuseWriteUnsupportedOnce = true;
+    // Structured code, not message text: the caller must be able to offer
+    // Save Copy instead of presenting an unrecoverable failure.
+    expect(await saveLosslessActiveDocument({ interactive: true })).toBe('unsupported');
+    // The refusal happens before the replace: the file still holds the old bytes.
+    const onDisk = await nodeFs.readFile(dest);
+    expect(onDisk.equals(original)).toBe(true);
+    // Still dirty — the edit was never persisted.
+    expect(binding.isDirty()).toBe(true);
+  });
+
+  it('known external change → autosave skips the doomed write instead of forcing', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openLosslessDocument(dest);
+    const binding = getActiveLosslessBinding()!;
+    binding.typeAtCursor('E');
+    await sleep(80);
+
+    markLosslessExternalModification(dest);
+    expect(await saveLosslessActiveDocument({ interactive: false })).toBe('conflict');
+    // A doomed guarded write would keep the displaced bytes as another recovery
+    // copy on every autosave tick; the flag prevents that.
+    expect(state.writeCount).toBe(0);
+    // Autosave must never force, so an interactive save still asks the backend.
+    expect(await saveLosslessActiveDocument({ interactive: true })).toBe('saved');
+    expect(state.writeCount).toBe(1);
+  });
+
   it('Save As response loss reconciles and rebinds the active path', async () => {
     const { dest } = await stageFixture('utf8-lf-tail2');
     const target = nodePath.join(tempRoot, 'response-loss-save-as.md');
@@ -666,7 +714,9 @@ describe('P1B lossless lifecycle (flag ON, mocked IPC, real CM + fs)', () => {
     await sleep(80);
     state.loseWriteResponseAfterMutationOnce = true;
     const { saveLosslessActiveDocumentAsNewFile } = await import('./integration');
-    expect(await saveLosslessActiveDocumentAsNewFile(target)).toBe(true);
+    // Returns the raw binding result so callers can distinguish a platform
+    // that cannot create-without-overwrite (`unsupported`) from a failure.
+    expect(await saveLosslessActiveDocumentAsNewFile(target)).toBe('saved');
     expect(binding.path).toBe(target);
     expect(getActiveLosslessBinding()).toBe(binding);
   });

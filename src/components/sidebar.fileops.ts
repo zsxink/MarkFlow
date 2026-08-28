@@ -8,7 +8,7 @@ import { logException, logInfo, logDebug } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from './ui/dialog';
 import { getActiveFilePath, setActiveFilePath } from './activeDocument';
-import { handleActiveDocumentExternalModification } from './sidebar.conflict';
+import { handleActiveDocumentExternalModification, handleLosslessConflict } from './sidebar.conflict';
 import { determineTier, formatFileSize } from '../lib/fileSizeTier';
 import { showDegradationBar, hideDegradationBar } from './degradationBar';
 import { store } from '../lib/store';
@@ -29,7 +29,7 @@ import {
   saveLosslessActiveDocumentAsNewFile,
 } from '../lib/lossless/integration';
 import { isLosslessCoreSessionEnabled } from '../lib/lossless/flag';
-import { getActiveLosslessBinding } from '../lib/lossless/registry';
+import { getActiveLosslessBinding, rebindActiveLosslessPath } from '../lib/lossless/registry';
 
 // ── Serial save guard ────────────────────────────────────────────────
 
@@ -75,6 +75,37 @@ function getConflictSavePath(path: string) {
   return path.endsWith('.md') ? `${path.slice(0, -3)}.conflict.md` : `${path}.conflict.md`;
 }
 
+/**
+ * Hand a lossless save that cannot be written safely to the interactive
+ * conflict surface. Autosave never reaches this function — callers gate on
+ * `interactive` — so Force overwrite can never be taken by an automatic save.
+ */
+async function resolveLosslessConflict(
+  reason: 'save-conflict' | 'unsupported-platform',
+): Promise<SaveResult> {
+  const outcome = await handleLosslessConflict(reason, { allowForce: true });
+  if (outcome === 'saved-as') return 'saved';
+  if (outcome === 'forced') {
+    showToast('已强制覆盖保存（未使用原子替换）');
+    return 'saved';
+  }
+  if (outcome === 'reloaded') {
+    showToast('已加载磁盘版本');
+    return 'skipped';
+  }
+  if (outcome === 'failed') {
+    showToast('未能保存：请选择「另存副本到新路径」保留当前内容');
+    return 'failed';
+  }
+  // 'kept' / 'ignored' — the user declined; nothing was written.
+  showToast(
+    reason === 'unsupported-platform'
+      ? '当前文件系统不支持安全覆盖保存，未写入磁盘'
+      : '已保留当前内容，原文件未覆盖',
+  );
+  return reason === 'unsupported-platform' ? 'unsupported' : 'conflict';
+}
+
 export async function saveActiveDocumentAsNewFile() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
@@ -91,13 +122,20 @@ export async function saveActiveDocumentAsNewFile() {
       showToast('请另选一个新文件名');
       return false;
     }
-    const ok = await saveLosslessActiveDocumentAsNewFile(targetPath);
-    if (ok) {
+    const result = await saveLosslessActiveDocumentAsNewFile(targetPath);
+    if (result === 'saved') {
       setActiveFilePath(targetPath);
       await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
       refreshOutline();
       showToast('已另存为新文件');
       return true;
+    }
+    // The platform cannot create-without-overwrite, so Save Copy — the only
+    // guaranteed exit — must not depend on it. Fall back to a plain write, but
+    // only for a target verified as absent; otherwise we would clobber a file
+    // the platform just refused to guard.
+    if (result === 'unsupported') {
+      return saveLosslessCopyWithoutGuard(targetPath);
     }
     showToast('另存为失败');
     return false;
@@ -136,8 +174,56 @@ export async function saveActiveDocumentAsNewFile() {
   }
 }
 
-/** `blocked` and `conflict` preserve user data and are not write failures. */
-export type SaveResult = 'saved' | 'skipped' | 'blocked' | 'conflict' | 'failed';
+/**
+ * Save Copy for the active lossless document when the platform has no
+ * create-without-overwrite primitive. The target is checked for absence first;
+ * the session is then re-opened from the bytes just written so its file
+ * identity and persisted revision match the new path.
+ */
+async function saveLosslessCopyWithoutGuard(targetPath: string): Promise<boolean> {
+  const binding = getActiveLosslessBinding();
+  if (!binding) return false;
+  try {
+    await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
+    // Something is already there — refuse rather than overwrite it unguarded.
+    showToast('目标文件已存在，请另选一个新文件名');
+    return false;
+  } catch {
+    // Missing target: writing it does not displace anything.
+  }
+  try {
+    const flush = await binding.flushNow();
+    if (flush.status !== 'flushed') {
+      showToast('另存为失败：同步尚未恢复');
+      return false;
+    }
+    suppressNextWatcherRefresh(targetPath);
+    await writeFile(targetPath, binding.logicalText);
+    setActiveFilePath(targetPath);
+    rebindActiveLosslessPath(binding, targetPath);
+    const rebound = await reloadActiveDocumentFromDisk({ force: true });
+    await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
+    refreshOutline();
+    showToast(rebound ? '已另存为副本' : '副本已写入，但会话未重新绑定，请重新打开该文件');
+    return true;
+  } catch (e) {
+    showToast(`另存为失败: ${e}`);
+    return false;
+  }
+}
+
+/**
+ * `blocked`, `conflict` and `unsupported` preserve user data and are not write
+ * failures. `unsupported` means the platform refused the guarded replace, so
+ * the caller must offer Save Copy / a confirmed Force overwrite.
+ */
+export type SaveResult =
+  | 'saved'
+  | 'skipped'
+  | 'blocked'
+  | 'conflict'
+  | 'unsupported'
+  | 'failed';
 
 export async function saveActiveDocument(options: { interactive?: boolean } = {}): Promise<SaveResult> {
   const { interactive = true } = options;
@@ -154,10 +240,15 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       // Guarded write surfaced a conflict — never silently overwrite. In the
       // rare displaced-mismatch race the displaced bytes are preserved as a
       // recovery copy on disk.
-      if (interactive) {
-        showToast('检测到外部修改，原文件已保留为恢复副本，未覆盖');
-      }
-      return 'conflict';
+      if (!interactive) return 'conflict';
+      return resolveLosslessConflict('save-conflict');
+    }
+    if (losslessResult === 'unsupported') {
+      // The platform cannot do a guarded replace. Never fall back to a plain
+      // overwrite on our own: offer Save Copy, or Force overwrite after an
+      // explicit risk confirmation (spec atomic-save).
+      if (!interactive) return 'unsupported';
+      return resolveLosslessConflict('unsupported-platform');
     }
     if (losslessResult === 'blocked') {
       if (interactive) showToast('同步尚未恢复，未写入磁盘；请先恢复或另存副本');

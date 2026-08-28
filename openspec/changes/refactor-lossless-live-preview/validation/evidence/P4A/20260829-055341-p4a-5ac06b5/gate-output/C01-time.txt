@@ -1,0 +1,1 @@
+npm test > $RUN/gate-output/C01-npm-test.txt 2>&1  13.59s user 2.79s system 131% cpu 12.466 total

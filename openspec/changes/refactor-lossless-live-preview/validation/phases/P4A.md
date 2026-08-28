@@ -8,14 +8,14 @@
 
 | Branch | Commit | Parser/IR flags | Run ID |
 | --- | --- | --- | --- |
-| `test/issue-255-lossless-byte-contract` | `f189b0c`（spike 文件 uncommitted，工作树另含调度器其他工作流的既有修改，见 run ENVIRONMENT.md） | 无产品 flag（离线 spike；`coreRenderIr` 未引入） | `20260829-035314-p4a-f189b0c`（run 6.1：`evidence/P4A/20260829-035314-p4a-f189b0c/`；候选结论 `spike/parser-spike/REPORT.md`） |
+| `test/issue-255-lossless-byte-contract` | `5ac06b5`（6.2 spike 文件 uncommitted，工作树另含调度器其他工作流的既有修改，见 run ENVIRONMENT.md） | 无产品 flag（离线 spike；`coreRenderIr` 未引入） | `20260829-055341-p4a-5ac06b5`（run 6.2：`evidence/P4A/20260829-055341-p4a-5ac06b5/`；property 结论 `spike/parser-spike/PROPERTY-REPORT.md`）；前序 run 6.1：`evidence/P4A/20260829-035314-p4a-f189b0c/` |
 
 ## AI Coding 验证
 
 - [x] parser candidate range comparison（run `evidence/P4A/20260829-035314-p4a-f189b0c/`：Lezer/markdown-rs/pulldown-cmark/comrak × 26 统一 fixtures round-trip 全部 0 INVALID；draft ParseIndex 因 Tauri 无 JVM 运行时记 excluded；初步 qualify/disqualify 见 `spike/parser-spike/REPORT.md` §7）
 - [x] license/maintenance/supply-chain record（run 同上 `license.md`：MIT/MIT/MIT/BSD-2-Clause 实测；维护节奏与依赖面记录）
-- [ ] CJK/emoji/escape/nested/malformed/Mixed EOL source slice properties（6.1 已覆盖 CJK/emoji/Mixed EOL/malformed 的统一 fixtures round-trip；escape/nested/随机 boundary 的 property/fuzz 属任务 6.2）
-- [ ] range fuzz/deep nesting/huge token
+- [x] CJK/emoji/escape/nested/malformed/Mixed EOL source slice properties（run `evidence/P4A/20260829-055341-p4a-5ac06b5/`：TS Lezer + Rust 三候选确定性 property（固定 seed + SPEC 指纹两侧一致）；**0 range 失败** —— P1 上下文 220 例/候选、P2 嵌套包含、P3 malformed 13 例、P7 裸 CR/Mixed EOL、PF frontmatter（已知 SPURIOUS 按冻结清单豁免，无新发现）；markdown-rs 例外见下行）
+- [x] range fuzz/deep nesting/huge token（run 同上：P4 随机 boundary 430 例/候选（安全区精确断言）+ P5 校验器 fuzz 全判 INVALID + P6 10k 深嵌套/5MB 巨词/1e5 重复定界符；**markdown-rs 触发淘汰判据**：mixed-container-nest-10k 超 5s budget（实测 11.1s，默认栈 SIGABRT）→ 1 timeout 记录在案；Lezer/pulldown/comrak 全部 0 range 失败，Lezer 维持 QUALIFY，详见 `spike/parser-spike/PROPERTY-REPORT.md` §5）
 - [ ] versioned IR schema contract
 - [ ] stale revision/request/document/binding rejection
 - [ ] cancel 无 late mutation

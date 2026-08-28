@@ -25,6 +25,34 @@ const MARKER_NODES = new Set([
   'LinkMark', 'ImageMark', 'TaskMarker', 'StrikethroughMark', 'TableDelimiter',
 ]);
 
+// P4A 6.2 finding: a generic MARKER_NODES filter misattributes ANCESTOR
+// continuation marks. E.g. for a ListItem inside a Blockquote, Lezer attaches
+// the blockquote's continuation QuoteMark ("> " on the fenced-code lines) as a
+// DIRECT child of the ListItem, so the untyped filter emitted it as a
+// listItem marker — violating the marker-disjoint-content invariant and
+// misattributing the delimiter to the wrong construct in the Render IR.
+// Markers are therefore filtered by the delimiter types each construct kind
+// actually owns. Two Lezer facts established while freezing this table:
+//   - Image delimiters are LinkMark nodes ("![", "]", "(", ")") — there is no
+//     ImageMark element in @lezer/markdown 1.7 (6.1's MARKER_NODES listed it
+//     speculatively; the untyped filter matched because it accepted LinkMark).
+//   - everything else uses the mark type named after its family.
+// (Found by the 6.2 property tests; no 6.1 expectation changes — every
+// non-null markers entry still matches.)
+const KIND_OWN_MARKERS: Record<string, Set<string>> = {
+  heading: new Set(['HeaderMark']),
+  strong: new Set(['EmphasisMark']),
+  emphasis: new Set(['EmphasisMark']),
+  strikethrough: new Set(['StrikethroughMark']),
+  inlineCode: new Set(['CodeMark']),
+  link: new Set(['LinkMark']),
+  image: new Set(['LinkMark']),
+  blockquote: new Set(['QuoteMark']),
+  listItem: new Set(['ListMark']),
+  taskCheckbox: new Set(['TaskMarker']),
+  fence: new Set(['CodeMark']),
+};
+
 interface Kid {
   name: string;
   from: number;
@@ -118,11 +146,14 @@ function levelOf(name: string): number | undefined {
 
 export interface LezerParseResult {
   constructs: SpikeConstruct[];
+  /** total UTF-16 length of the parsed tree (=== doc length for a full parse) */
+  treeLength: number;
   threw: false;
 }
 
 export interface LezerParseError {
   constructs: [];
+  treeLength?: never;
   threw: true;
   error: string;
 }
@@ -144,6 +175,7 @@ export function parseWithLezer(text: string): LezerParseResult | LezerParseError
           kids.push({ name: c.name, from: c.from, to: c.to });
         }
         const content = emit.content({ from: node.from, to: node.to }, kids);
+        const ownMarkers = KIND_OWN_MARKERS[emit.kind];
         constructs.push({
           kind: emit.kind,
           level: emit.kind === 'heading' ? levelOf(name) : undefined,
@@ -151,13 +183,13 @@ export function parseWithLezer(text: string): LezerParseResult | LezerParseError
           sourceRange: [node.from, node.to],
           contentRange: content,
           markerRanges: kids
-            .filter((k) => MARKER_NODES.has(k.name))
+            .filter((k) => MARKER_NODES.has(k.name) && (!ownMarkers || ownMarkers.has(k.name)))
             .map((k): Range => [k.from, k.to]),
         });
         return emit.descend;
       },
     });
-    return { constructs, threw: false };
+    return { constructs, treeLength: tree.length, threw: false };
   } catch (e) {
     return { constructs: [], threw: true, error: String(e) };
   }

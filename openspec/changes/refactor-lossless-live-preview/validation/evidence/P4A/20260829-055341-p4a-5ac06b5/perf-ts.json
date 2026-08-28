@@ -1,0 +1,171 @@
+{
+ "spike": "parser-candidate-performance",
+ "task": "P4A 6.1 (Lezer performance probe)",
+ "generatedAt": "2026-08-28T21:52:55.370Z",
+ "note": "spike-grade wall-clock probe on one machine; 3 iterations; not the frozen SLO benchmark (design/05 §6)",
+ "machine": {
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v24.17.0"
+ },
+ "results": [
+  {
+   "fixture": "perf-1m.md",
+   "kind": "giant-paragraph",
+   "byteLength": 1000001,
+   "sha256": "aac16278150e6de3126adbcd21487a8f027fde4df9198bb76e177c4977ffad68",
+   "utf16Length": 819803,
+   "directFullParseMs": {
+    "samples": [
+     56.32500000000002,
+     49.042958,
+     46.747749999999996
+    ],
+    "median": 49.042958
+   },
+   "cmFullParseMs": {
+    "samples": [
+     48.17670799999996,
+     47.00800000000004,
+     49.524167000000034
+    ],
+    "median": 48.17670799999996
+   },
+   "cmViewportParseGiantParagraphMs": {
+    "samples": [
+     47.94341599999996,
+     47.40758400000004,
+     52.8125
+    ],
+    "median": 47.94341599999996,
+    "viewportUtf16": 5000,
+    "parsedTo": 819803,
+    "note": "word-salad fixture is ONE paragraph (no blank lines) — parse cannot stop early"
+   },
+   "cmViewportParseMs": {
+    "samples": [
+     0.9926249999999754,
+     0.6833749999999554,
+     0.4713329999999587
+    ],
+    "median": 0.6833749999999554,
+    "viewportUtf16": 5000,
+    "parsedTo": 5035,
+    "docUtf16": 819857
+   }
+  },
+  {
+   "fixture": "perf-10m.md",
+   "kind": "giant-paragraph",
+   "byteLength": 10000004,
+   "sha256": "96f08a3f31ff1c9ea7c28fdfd6b45220a43516eb934e9ccb1f168e5b194606f7",
+   "utf16Length": 8211134,
+   "directFullParseMs": {
+    "samples": [
+     529.04575,
+     516.836417,
+     509.675125
+    ],
+    "median": 516.836417
+   },
+   "cmFullParseMs": {
+    "samples": [
+     495.74529200000006,
+     495.8799589999999,
+     491.3787080000002
+    ],
+    "median": 495.74529200000006
+   },
+   "cmViewportParseGiantParagraphMs": {
+    "samples": [
+     486.7224580000002,
+     497.2174580000001,
+     487.8254999999999
+    ],
+    "median": 487.8254999999999,
+    "viewportUtf16": 5000,
+    "parsedTo": 8211134,
+    "note": "word-salad fixture is ONE paragraph (no blank lines) — parse cannot stop early"
+   },
+   "cmViewportParseMs": {
+    "samples": [
+     0.6521670000001905,
+     6.319832999999562,
+     0.5291669999987789
+    ],
+    "median": 0.6521670000001905,
+    "viewportUtf16": 5000,
+    "parsedTo": 5035,
+    "docUtf16": 8211149
+   }
+  },
+  {
+   "fixture": "perf-varied-1m.md",
+   "kind": "block-varied",
+   "byteLength": 1000217,
+   "sha256": "2ce45de69ef50fb932140b14368b21a8d6807b243a0b192f062d76bfd510cf44",
+   "utf16Length": 979457,
+   "directFullParseMs": {
+    "samples": [
+     69.98920800000087,
+     64.64812499999971,
+     73.16329199999927
+    ],
+    "median": 69.98920800000087
+   },
+   "cmFullParseMs": {
+    "samples": [
+     63.24812500000007,
+     64.84379199999967,
+     62.08849999999984
+    ],
+    "median": 63.24812500000007
+   },
+   "cmViewportParseMs": {
+    "samples": [
+     2.752875000000131,
+     0.3170829999999114,
+     0.28729200000088895
+    ],
+    "median": 0.3170829999999114,
+    "viewportUtf16": 5000,
+    "parsedTo": 5035,
+    "docUtf16": 979457
+   }
+  },
+  {
+   "fixture": "perf-varied-10m.md",
+   "kind": "block-varied",
+   "byteLength": 10000178,
+   "sha256": "066b1d71e32a806bb7632da53c71bff7a7c7b8600dc6758309b73a62222d4ffd",
+   "utf16Length": 9796808,
+   "directFullParseMs": {
+    "samples": [
+     636.0040840000001,
+     625.6897919999992,
+     716.5666249999995
+    ],
+    "median": 636.0040840000001
+   },
+   "cmFullParseMs": {
+    "samples": [
+     640.9652920000008,
+     713.9067500000001,
+     616.412624999999
+    ],
+    "median": 640.9652920000008
+   },
+   "cmViewportParseMs": {
+    "samples": [
+     0.44204199999876437,
+     0.2909589999999298,
+     4.737375000000611
+    ],
+    "median": 0.44204199999876437,
+    "viewportUtf16": 5000,
+    "parsedTo": 5035,
+    "docUtf16": 9796808
+   }
+  }
+ ]
+}

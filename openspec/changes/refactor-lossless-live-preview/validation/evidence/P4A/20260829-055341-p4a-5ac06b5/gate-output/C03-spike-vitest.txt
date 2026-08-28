@@ -1,0 +1,60 @@
+npm notice run markflow@0.0.6 npx
+npm notice run 'vitest' run --config vitest.spike.config.ts
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+stdout | spike/parser-spike/report.test.ts > P4A 6.1 — Lezer range report > builds the range report for every canonical fixture
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/report-ts.json
+
+ ✓ spike/parser-spike/report.test.ts (2 tests) 11ms
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P1/P2/P3/P7/PF — context + nested + malformed + EOL + frontmatter
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stderr | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P4 — random boundary perturbation (safe zone must survive exactly)
+[property] P4 REMNANT lezer seed=314159 kind=image o=11 char="　" remnant="![alt]"
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P4 — random boundary perturbation (safe zone must survive exactly)
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P5 — validator fuzz (validator must reject malformed ranges)
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — quote-nest-10k terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — list-indent-nest-1k terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — single-word-5mb terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — no-newline-para-5mb terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — stars-1e5 terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — backticks-1e5 terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — hashes-1e5 terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+ ✓ spike/parser-spike/property.test.ts (11 tests) 7333ms
+   ✓ P4A 6.2 — Lezer range→source property tests > P6 — list-indent-nest-1k terminates within 5000ms 4267ms
+   ✓ P4A 6.2 — Lezer range→source property tests > P6 — single-word-5mb terminates within 5000ms 327ms
+   ✓ P4A 6.2 — Lezer range→source property tests > P6 — mixed-container-nest-10k terminates within 5000ms 2266ms
+stdout | spike/parser-spike/property.test.ts > P4A 6.2 — Lezer range→source property tests > P6 — mixed-container-nest-10k terminates within 5000ms
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/property-ts.json
+
+ ✓ spike/parser-spike/perf.test.ts (1 test) 12851ms
+   ✓ P4A 6.1 — Lezer performance probe > times full parse vs viewport-bounded incremental parse 12851ms
+stdout | spike/parser-spike/perf.test.ts > P4A 6.1 — Lezer performance probe > times full parse vs viewport-bounded incremental parse
+[spike] wrote /Users/xian/Project/book/MarkFlow/openspec/changes/refactor-lossless-live-preview/validation/evidence/P4A/20260829-055341-p4a-5ac06b5/perf-ts.json
+
+
+ Test Files  3 passed (3)
+      Tests  14 passed (14)
+   Start at  05:52:42
+   Duration  13.10s (transform 61ms, setup 0ms, collect 159ms, tests 20.19s, environment 0ms, prepare 70ms)
+

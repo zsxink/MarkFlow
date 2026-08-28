@@ -1,0 +1,3 @@
+# Vitest spike 默认输出目录（report/perf/property JSON 的 SPIKE_OUT 缺省值）；
+# 归档产物写入 evidence run 目录，开发期本地输出不入档。
+out/

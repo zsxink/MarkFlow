@@ -18,10 +18,7 @@
 // Exit code: 0 = no INVALID ranges (round-trip failures) in any candidate;
 // 1 = at least one INVALID (wrong/out-of-bounds range) — that is a hard
 // finding, mismatches/coverage gaps are recorded data instead.
-mod adapters;
-mod common;
-mod validate;
-
+use parser_spike_rust::{adapters, common, property, validate};
 use common::{CoordMap, SpikeConstruct};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -82,6 +79,11 @@ struct Args {
     expectations: String,
     out: String,
     perf_dir: Option<String>,
+    /// task 6.2 mode: run the range→source property suite instead of the
+    /// fixture comparison; writes <out>/property-rust.json
+    property: bool,
+    /// with --property: skip the heavy deep-nesting/huge-token class
+    skip_heavy: bool,
 }
 
 fn parse_args() -> Args {
@@ -91,9 +93,23 @@ fn parse_args() -> Args {
         expectations: String::new(),
         out: String::new(),
         perf_dir: None,
+        property: false,
+        skip_heavy: false,
     };
     let mut it = std::env::args().skip(1);
     while let Some(k) = it.next() {
+        // boolean flags take no value
+        match k.as_str() {
+            "--property" => {
+                a.property = true;
+                continue;
+            }
+            "--skip-heavy" => {
+                a.skip_heavy = true;
+                continue;
+            }
+            _ => {}
+        }
         let v = it.next().unwrap_or_default();
         match k.as_str() {
             "--fixtures-dir" => a.fixtures_dir = v,
@@ -104,8 +120,16 @@ fn parse_args() -> Args {
             _ => {}
         }
     }
+    if a.property {
+        if a.out.is_empty() {
+            eprintln!("usage: parser-spike-rust --property --out <dir> [--skip-heavy]");
+            std::process::exit(2);
+        }
+        return a;
+    }
     if a.fixtures_dir.is_empty() || a.expectations.is_empty() || a.out.is_empty() {
         eprintln!("usage: parser-spike-rust --fixtures-dir <dir> --extra-fixture <file> --expectations <file> --out <dir> [--perf-dir <dir>]");
+        eprintln!("       parser-spike-rust --property --out <dir> [--skip-heavy]");
         std::process::exit(2);
     }
     a
@@ -307,6 +331,14 @@ fn chrono_now() -> String {
 
 fn main() {
     let args = parse_args();
+
+    if args.property {
+        if let Err(e) = property::run_property_suite(&args.out, args.skip_heavy) {
+            eprintln!("[spike] property suite failed: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
 
     let expectations_raw = std::fs::read_to_string(&args.expectations).expect("read expectations.json");
     let expectations: validate::ExpectationsFile =

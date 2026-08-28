@@ -1,0 +1,267 @@
+{
+ "spike": "parser-candidate-property-tests",
+ "change": "refactor-lossless-live-preview",
+ "task": "P4A 6.2 (CodeMirror Lezer range→source property tests)",
+ "generatedAt": "2026-08-28T21:52:49.862Z",
+ "partial": false,
+ "totalElapsedMs": 7332.55,
+ "spec": {
+  "seeds": [
+   42,
+   1337,
+   20260829,
+   7,
+   99,
+   12345,
+   5150,
+   8080,
+   314159,
+   271828
+  ],
+  "knownConstructs": 22,
+  "specFingerprint": "sha256:74ee61baa5fc2e7e3b498b2a352dc233ef8f989c0b759aadbd72278996ff0996",
+  "note": "same SPEC as spike/parser-spike-rust/src/property.rs (Rust side); fingerprints must match"
+ },
+ "coordinateProbe": {
+  "probe": "# 😀",
+  "headingTo": 4,
+  "utf16Length": 4,
+  "utf8Length": 6,
+  "codePointLength": 3,
+  "verdict": "utf16-code-units (CONFIRMED)"
+ },
+ "heavyResults": [
+  {
+   "case": "quote-nest-10k",
+   "docUtf16Length": 10005,
+   "elapsedMs": 16.11,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 10001
+  },
+  {
+   "case": "list-indent-nest-1k",
+   "docUtf16Length": 1002999,
+   "elapsedMs": 1097.23,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 3000
+  },
+  {
+   "case": "single-word-5mb",
+   "docUtf16Length": 5000000,
+   "elapsedMs": 311.99,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 1
+  },
+  {
+   "case": "no-newline-para-5mb",
+   "docUtf16Length": 3360000,
+   "elapsedMs": 266.16,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 1
+  },
+  {
+   "case": "stars-1e5",
+   "docUtf16Length": 100000,
+   "elapsedMs": 0.35,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 1
+  },
+  {
+   "case": "backticks-1e5",
+   "docUtf16Length": 100000,
+   "elapsedMs": 0.14,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 1
+  },
+  {
+   "case": "hashes-1e5",
+   "docUtf16Length": 100000,
+   "elapsedMs": 8.21,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 1
+  },
+  {
+   "case": "mixed-container-nest-10k",
+   "docUtf16Length": 40004,
+   "elapsedMs": 678.78,
+   "budgetMs": 5000,
+   "threw": null,
+   "covered": true,
+   "constructCount": 30001
+  }
+ ],
+ "candidates": [
+  {
+   "id": "lezer",
+   "language": "TypeScript",
+   "packages": [
+    "@codemirror/lang-markdown (product dependency)",
+    "@lezer/markdown (product dependency)"
+   ],
+   "parserConfig": "markdown({ extensions: [GFM] }).language.parser — the exact product path",
+   "nativeCoordinateSystem": "utf16-code-units (JS string indices; confirmed by coordinate probe)",
+   "classes": {
+    "P1-context": {
+     "matched": 220,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    },
+    "P2-nested": {
+     "matched": 11,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    },
+    "P3-malformed": {
+     "matched": 0,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    },
+    "P7-eol": {
+     "matched": 0,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    },
+    "PF-frontmatter": {
+     "matched": 1,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 1,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 4,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    },
+    "P4-boundary": {
+     "matched": 398,
+     "destroyed": 31,
+     "absorbed": 1,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    },
+    "P5-validator": {
+     "matched": 1,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 10,
+     "validatorBypass": 0
+    },
+    "P6-heavy": {
+     "matched": 8,
+     "destroyed": 0,
+     "absorbed": 0,
+     "miss": 0,
+     "markerNoneProvided": 0,
+     "spuriousExempted": 0,
+     "markerMismatch": 0,
+     "misplaced": 0,
+     "invalid": 0,
+     "panic": 0,
+     "timeout": 0,
+     "parseError": 0,
+     "validatorInvalidCaught": 0,
+     "validatorBypass": 0
+    }
+   },
+   "elapsedMs": {
+    "P1-context": 16.28,
+    "P2-nested": 0.38,
+    "P3-malformed": 0.63,
+    "P7-eol": 0.07,
+    "PF-frontmatter": 0.13,
+    "P4-boundary": 8.19,
+    "P5-validator": 0.28,
+    "P6:quote-nest-10k": 16.13,
+    "P6:list-indent-nest-1k": 1097.24,
+    "P6:single-word-5mb": 312.01,
+    "P6:no-newline-para-5mb": 266.18,
+    "P6:stars-1e5": 0.35,
+    "P6:backticks-1e5": 0.14,
+    "P6:hashes-1e5": 8.21,
+    "P6:mixed-container-nest-10k": 678.79
+   },
+   "failures": 0
+  }
+ ]
+}

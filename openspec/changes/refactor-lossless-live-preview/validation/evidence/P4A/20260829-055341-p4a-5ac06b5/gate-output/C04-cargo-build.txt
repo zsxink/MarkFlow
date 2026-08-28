@@ -1,0 +1,255 @@
+warning: unreachable pattern
+   --> src/adapters.rs:325:13
+    |
+300 |             pulldown_cmark::Event::Html(h) => {
+    |             ------------------------------ matches all the relevant values
+...
+325 |             pulldown_cmark::Event::Html(_) => {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no value can reach this
+    |
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `text`
+  --> src/common.rs:67:29
+   |
+67 |     pub fn u16_slice(&self, text: &str, r: RangeU) -> (usize, usize) {
+   |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_text`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: type `Candidate` is more private than the item `run_frontmatter_class`
+    --> src/property.rs:1185:1
+     |
+1185 | pub fn run_frontmatter_class(cand: &Candidate, cc: &mut ClassCounters) {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function `run_frontmatter_class` is reachable at visibility `pub`
+     |
+note: but type `Candidate` is only usable at visibility `pub(self)`
+    --> src/property.rs:428:1
+     |
+ 428 | struct Candidate {
+     | ^^^^^^^^^^^^^^^^
+     = note: `#[warn(private_interfaces)]` on by default
+
+warning: structure field `sourceRange` should have a snake case name
+  --> src/common.rs:17:9
+   |
+17 |     pub sourceRange: RangeU,
+   |         ^^^^^^^^^^^ help: convert the identifier to snake case: `source_range`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: structure field `contentRange` should have a snake case name
+  --> src/common.rs:19:9
+   |
+19 |     pub contentRange: Option<RangeU>,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `content_range`
+
+warning: structure field `markerRanges` should have a snake case name
+  --> src/common.rs:20:9
+   |
+20 |     pub markerRanges: Vec<RangeU>,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_ranges`
+
+warning: structure field `markerNoneProvided` should have a snake case name
+   --> src/property.rs:382:9
+    |
+382 |     pub markerNoneProvided: usize,
+    |         ^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_none_provided`
+
+warning: structure field `spuriousExempted` should have a snake case name
+   --> src/property.rs:384:9
+    |
+384 |     pub spuriousExempted: usize,
+    |         ^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `spurious_exempted`
+
+warning: structure field `markerMismatch` should have a snake case name
+   --> src/property.rs:386:9
+    |
+386 |     pub markerMismatch: usize,
+    |         ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_mismatch`
+
+warning: structure field `parseError` should have a snake case name
+   --> src/property.rs:394:9
+    |
+394 |     pub parseError: usize,
+    |         ^^^^^^^^^^ help: convert the identifier to snake case: `parse_error`
+
+warning: structure field `validatorInvalidCaught` should have a snake case name
+   --> src/property.rs:396:9
+    |
+396 |     pub validatorInvalidCaught: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `validator_invalid_caught`
+
+warning: structure field `validatorBypass` should have a snake case name
+   --> src/property.rs:398:9
+    |
+398 |     pub validatorBypass: usize,
+    |         ^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `validator_bypass`
+
+warning: structure field `elapsedMs` should have a snake case name
+    --> src/property.rs:1261:5
+     |
+1261 |     elapsedMs: ClassElapsed,
+     |     ^^^^^^^^^ help: convert the identifier to snake case: `elapsed_ms`
+
+warning: structure field `sourceRange` should have a snake case name
+  --> src/validate.rs:43:9
+   |
+43 |     pub sourceRange: RangeU,
+   |         ^^^^^^^^^^^ help: convert the identifier to snake case: `source_range`
+
+warning: structure field `contentRange` should have a snake case name
+  --> src/validate.rs:45:9
+   |
+45 |     pub contentRange: Option<RangeU>,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `content_range`
+
+warning: structure field `markerRanges` should have a snake case name
+  --> src/validate.rs:46:9
+   |
+46 |     pub markerRanges: Vec<RangeU>,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_ranges`
+
+warning: structure field `sourceSlice` should have a snake case name
+  --> src/validate.rs:47:9
+   |
+47 |     pub sourceSlice: String,
+   |         ^^^^^^^^^^^ help: convert the identifier to snake case: `source_slice`
+
+warning: structure field `contentSlice` should have a snake case name
+  --> src/validate.rs:49:9
+   |
+49 |     pub contentSlice: Option<String>,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `content_slice`
+
+warning: structure field `markerSlices` should have a snake case name
+  --> src/validate.rs:50:9
+   |
+50 |     pub markerSlices: Vec<String>,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_slices`
+
+warning: structure field `roundTrip` should have a snake case name
+  --> src/validate.rs:51:9
+   |
+51 |     pub roundTrip: String,
+   |         ^^^^^^^^^ help: convert the identifier to snake case: `round_trip`
+
+warning: structure field `contentMatch` should have a snake case name
+  --> src/validate.rs:52:9
+   |
+52 |     pub contentMatch: String,
+   |         ^^^^^^^^^^^^ help: convert the identifier to snake case: `content_match`
+
+warning: structure field `markerMatch` should have a snake case name
+  --> src/validate.rs:53:9
+   |
+53 |     pub markerMatch: String,
+   |         ^^^^^^^^^^^ help: convert the identifier to snake case: `marker_match`
+
+warning: structure field `alsoMatch` should have a snake case name
+  --> src/validate.rs:62:9
+   |
+62 |     pub alsoMatch: Option<Vec<String>>,
+   |         ^^^^^^^^^ help: convert the identifier to snake case: `also_match`
+
+warning: structure field `contentMismatches` should have a snake case name
+  --> src/validate.rs:72:9
+   |
+72 |     pub contentMismatches: usize,
+   |         ^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `content_mismatches`
+
+warning: structure field `markerGaps` should have a snake case name
+  --> src/validate.rs:73:9
+   |
+73 |     pub markerGaps: usize,
+   |         ^^^^^^^^^^ help: convert the identifier to snake case: `marker_gaps`
+
+warning: structure field `markerMismatches` should have a snake case name
+  --> src/validate.rs:74:9
+   |
+74 |     pub markerMismatches: usize,
+   |         ^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_mismatches`
+
+warning: `parser-spike-rust` (lib) generated 26 warnings (run `cargo fix --lib -p parser-spike-rust` to apply 1 suggestion)
+warning: structure field `fixtureId` should have a snake case name
+  --> src/main.rs:30:5
+   |
+30 |     fixtureId: String,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `fixture_id`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: structure field `byteLength` should have a snake case name
+  --> src/main.rs:32:5
+   |
+32 |     byteLength: usize,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `byte_length`
+
+warning: structure field `logicalLength` should have a snake case name
+  --> src/main.rs:33:5
+   |
+33 |     logicalLength: usize,
+   |     ^^^^^^^^^^^^^ help: convert the identifier to snake case: `logical_length`
+
+warning: structure field `parseThrew` should have a snake case name
+  --> src/main.rs:34:5
+   |
+34 |     parseThrew: bool,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `parse_threw`
+
+warning: structure field `parseError` should have a snake case name
+  --> src/main.rs:36:5
+   |
+36 |     parseError: Option<String>,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `parse_error`
+
+warning: structure field `fallbackBehavior` should have a snake case name
+  --> src/main.rs:38:5
+   |
+38 |     fallbackBehavior: String,
+   |     ^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `fallback_behavior`
+
+warning: structure field `nativeCoordinateSystem` should have a snake case name
+  --> src/main.rs:48:5
+   |
+48 |     nativeCoordinateSystem: String,
+   |     ^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `native_coordinate_system`
+
+warning: structure field `reportedCoordinateSystem` should have a snake case name
+  --> src/main.rs:49:5
+   |
+49 |     reportedCoordinateSystem: String,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `reported_coordinate_system`
+
+warning: structure field `coordinateProbe` should have a snake case name
+  --> src/main.rs:50:5
+   |
+50 |     coordinateProbe: serde_json::Value,
+   |     ^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `coordinate_probe`
+
+warning: structure field `parseErrorPolicy` should have a snake case name
+  --> src/main.rs:51:5
+   |
+51 |     parseErrorPolicy: String,
+   |     ^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `parse_error_policy`
+
+warning: structure field `markerSource` should have a snake case name
+  --> src/main.rs:52:5
+   |
+52 |     markerSource: String,
+   |     ^^^^^^^^^^^^ help: convert the identifier to snake case: `marker_source`
+
+warning: structure field `byteLength` should have a snake case name
+  --> src/main.rs:61:5
+   |
+61 |     byteLength: usize,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `byte_length`
+
+warning: structure field `fullParseMs` should have a snake case name
+  --> src/main.rs:62:5
+   |
+62 |     fullParseMs: Sample,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `full_parse_ms`
+
+warning: `parser-spike-rust` (bin "parser-spike-rust") generated 13 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s

@@ -71,10 +71,10 @@ Widget DOM 永远不是正文。widget commit 只能返回 source changes，由 
 5. fence；
 6. task checkbox；
 7. code fence controls；
-8. image；
-9. GFM table；
+8. image（移交 P7）；
+9. GFM table（移交 P7）；
 10. frontmatter；
-11. Mermaid/PlantUML；
+11. Mermaid/PlantUML（移交 P7）；
 12. raw HTML policy。
 
 每项独立 flag。一个 cohort/widget 失败只关闭自身，不能让基础 Live Preview 或保存失效。

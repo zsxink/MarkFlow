@@ -17,11 +17,13 @@
 | fence | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
 | task checkbox | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
 | code fence controls | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
-| image | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
-| GFM table | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
+| image | — | MOVED TO P7 | — | — | — |
+| GFM table | — | MOVED TO P7 | — | — | — |
 | frontmatter | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
-| Mermaid/PlantUML | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
+| Mermaid/PlantUML | — | MOVED TO P7 | — | — | — |
 | raw HTML | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
+
+> 2026-08-29 Program Owner 决定：image、GFM table、Mermaid/PlantUML 移交 P7 backlog，验证记录见 [P7.md](./P7.md)；P4B 期间三者保持 exact source fallback。
 
 ## 每项 AI Coding 验证
 

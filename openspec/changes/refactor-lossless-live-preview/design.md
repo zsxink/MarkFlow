@@ -589,7 +589,7 @@ P0 Go 后建立独立安全 child change：
 - 完成 parser/source-map spike；
 - 引入 versioned Render IR、stale identity、viewport/cancel/degraded；
 - 按 cohort 隐藏 marker；
-- 依次实现 task、image、table、FrontMatter、diagram widgets；
+- 依次实现 task、code fence controls、FrontMatter widgets；image、table、diagram 富块 widget 移交 Slice 7/P7（2026-08-29 Program Owner 决定）；
 - 每个 widget 独立 feature flag、source fallback 和安全/无障碍门禁。
 
 退出条件：每个默认开启 construct 单独有 desktop semantic、visual、selection、IME 证据。

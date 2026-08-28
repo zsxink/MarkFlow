@@ -28,7 +28,8 @@ openspec/changes/refactor-lossless-live-preview/validation/
 │   ├── P4A.md
 │   ├── P4B.md
 │   ├── P5.md
-│   └── P6.md  (BACKLOG — 不属于 Issue #254 当前范围)
+│   ├── P6.md  (BACKLOG — 不属于 Issue #254 当前范围)
+│   └── P7.md  (BACKLOG — P6 之后;Typora 完全体富块,2026-08-29 自 P4B 移入)
 ├── fixtures/
 │   └── README.md
 ├── evidence/

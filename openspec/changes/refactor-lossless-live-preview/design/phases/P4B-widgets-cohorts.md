@@ -14,7 +14,9 @@
 
 marker cohorts：heading+strong；emphasis+strike+inline code；links；quote+lists；fence。
 
-widgets：task checkbox；code fence controls；image；GFM table；frontmatter；Mermaid/PlantUML；raw HTML policy。
+widgets：task checkbox；code fence controls；frontmatter；raw HTML policy。
+
+> 2026-08-29 Program Owner 决定：image、GFM table、Mermaid/PlantUML 富块 widget 移交 [P7](./P7-typora-complete-rich-blocks.md)，移出 P5 关键路径；P4B 期间这些富块保持 exact source fallback（P3 已交付形态）。
 
 每项必须在当前 program 分支建立独立 flag、任务组、evidence run 和验收结论，声明 source range、交互、History、failure fallback、security、accessibility 和 export；不再新建 child Issue/change。
 
@@ -37,7 +39,7 @@ widgets：task checkbox；code fence controls；image；GFM table；frontmatter�
 - export/print fallback；
 - security payload 与 URL policy。
 
-专项：table 必测 cell navigation、escaped pipe、alignment、row/column operation；image 必测 alt/path/title、pending resource、broken URL；diagram 必测恶意源码、timeout、network policy；raw HTML 必测 XSS。
+专项：raw HTML 必测 XSS。table/image/diagram 的专项矩阵随 P7 执行（见 P7 设计 §4），P4B 不再覆盖。
 
 ## 5. 独立 Reviewer 验证
 
@@ -47,7 +49,7 @@ widgets：task checkbox；code fence controls；image；GFM table；frontmatter�
 
 每项至少一名验收人按同一矩阵实际操作，并记录：编辑是否自然、marker 是否可发现、光标是否可预测、键盘是否能完成、错误后是否能回源码、视觉是否达到默认开启标准。
 
-image/table/diagram/raw HTML 还需安全/资源负责人参与；accessibility 关键 widget 需要 VoiceOver 或等价 screen reader 验证。
+raw HTML 还需安全/资源负责人参与（P7 的 image/table/diagram 届时同样适用）；accessibility 关键 widget 需要 VoiceOver 或等价 screen reader 验证。
 
 ## 7. 必须证据
 

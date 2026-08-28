@@ -56,7 +56,7 @@ P6 只在现有 `decorationFor`(`projection.ts:112`)与 reveal 判定(`projectio
 3. links(URL 隐藏,hover/active 再显示)
 4. quote + lists
 5. fence
-6. 与 P4B 各 widget(图片/表格/task)的 hidden 联动
+6. 与 P4B 轻量 widget(task/fence controls)的 hidden 联动；图片/表格/图表 widget 已移交 P7，随 P7 落地后再联动
 
 每项按 P4B §4 通用矩阵验证:inactive/active/selected/composing/revealed/fallback、click/drag/double、Arrow/Home/End/Shift+Arrow/Backspace、Select All、copy/paste、IME、Undo/Redo、read-only、三主题、screen reader、viewport create/dispose、export。
 

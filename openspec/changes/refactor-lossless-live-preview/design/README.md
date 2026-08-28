@@ -41,6 +41,7 @@
 | P4B | [P4B-widgets-cohorts.md](./phases/P4B-widgets-cohorts.md) | widget/cohort 独立 flag | 高级投影逐项通过交互与保真门禁 |
 | P5 | [P5-release-legacy-cleanup.md](./phases/P5-release-legacy-cleanup.md) | 新路径稳定发布 | 删除 legacy 产品真相与 serializer 保存链 |
 | P6 | [P6-true-wysiwyg-hidden-markers.md](./phases/P6-true-wysiwyg-hidden-markers.md) | **BACKLOG — 不属于 Issue #254 当前范围** | Typora 式隐藏 marker;P5 Go 后 NOT STARTED |
+| P7 | [P7-typora-complete-rich-blocks.md](./phases/P7-typora-complete-rich-blocks.md) | **BACKLOG — 不属于 Issue #254 当前范围** | Typora 完全体富块(表格编辑/内联图片/Mermaid/PlantUML);P6 Go 后 NOT STARTED |
 
 ## 5. 每阶段固定产物
 

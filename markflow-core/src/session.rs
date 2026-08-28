@@ -229,11 +229,7 @@ impl LosslessDocumentSession {
     }
 
     /// Shared reload body: swap original/text, reset revision + ledger + ids.
-    fn replace_state(
-        &mut self,
-        original: OriginalSnapshot,
-        text: TextBuffer,
-    ) -> CoreResult<()> {
+    fn replace_state(&mut self, original: OriginalSnapshot, text: TextBuffer) -> CoreResult<()> {
         let next_binding_generation = self
             .binding_generation
             .0
@@ -753,12 +749,18 @@ mod tests {
         // P1B P2 freeze: the oldest id (1000) is evicted from the ledger but
         // still at/below the high-water mark — reuse is REJECTED, never
         // re-applied (the previous P2 behavior accepted it).
-        assert_eq!(s.max_transaction_id(), Some((1000 + TRANSACTION_RETRY_WINDOW_CAPACITY + 9) as u64));
+        assert_eq!(
+            s.max_transaction_id(),
+            Some((1000 + TRANSACTION_RETRY_WINDOW_CAPACITY + 9) as u64)
+        );
         let evicted = patch(&s, 1000, vec![change(0, 0, "a")]);
         assert_eq!(s.apply_patch(evicted), Err(CoreError::TransactionConflict));
         // Same for a DIFFERENT payload: still a stale duplicate, not a new txn.
         let evicted_diff = patch(&s, 1000, vec![change(0, 0, "zz")]);
-        assert_eq!(s.apply_patch(evicted_diff), Err(CoreError::TransactionConflict));
+        assert_eq!(
+            s.apply_patch(evicted_diff),
+            Err(CoreError::TransactionConflict)
+        );
         // An id within the window with the same fingerprint remains idempotent.
         let newest = patch(
             &s,

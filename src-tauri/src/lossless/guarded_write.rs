@@ -703,6 +703,9 @@ pub fn reconcile_document_save(
 
 // ── Receipt persistence ────────────────────────────────────────────────
 
+// The parameter list mirrors the durable receipt record verbatim; grouping it
+// into a struct would only move the same fields around at every call site.
+#[allow(clippy::too_many_arguments)]
 pub fn record_prepared(
     save_operation_id: &str,
     path: &str,
@@ -1082,11 +1085,11 @@ pub fn set_receipts_dir_override(dir: Option<PathBuf>) {
 
 thread_local! {
     static RECEIPTS_DIR_OVERRIDE: std::cell::RefCell<Option<PathBuf>> =
-        std::cell::RefCell::new(None);
+        const { std::cell::RefCell::new(None) };
     /// Test-only: fail the NEXT durable receipt write (P1B corrective P1-1
     /// crash/durability injection).
     static INJECT_RECEIPT_WRITE_FAILURE: std::cell::RefCell<bool> =
-        std::cell::RefCell::new(false);
+        const { std::cell::RefCell::new(false) };
 }
 
 /// Test-only hook: the next `write_receipt_atomically` call fails, simulating

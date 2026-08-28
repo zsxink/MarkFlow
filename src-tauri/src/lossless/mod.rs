@@ -666,7 +666,7 @@ pub fn reload_lossless_document(
         let bytes = read_bytes(&path)?;
         let identity = current_file_identity(&path, &bytes);
         let default_eol = parse_default_eol(&req.default_eol)?;
-        Ok(registry
+        registry
             .update(session_id, |session| {
                 session
                     .reload_with_identity(&bytes, default_eol, identity)
@@ -677,7 +677,7 @@ pub fn reload_lossless_document(
             })
             .ok_or_else(|| {
                 LosslessError::session_missing(format!("session {session_id:?} not found"))
-            })??)
+            })?
     })
 }
 

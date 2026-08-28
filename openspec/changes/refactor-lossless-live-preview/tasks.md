@@ -130,8 +130,8 @@
 - [ ] 7.2 每个 cohort 独立通过鼠标/键盘 selection、Home/End、Shift+Arrow、Select All、clipboard、CJK IME、emoji 和 accessibility 后才 default-on
 - [ ] 7.3 建立 widget protocol：source range、focus、commit/cancel、Undo、reveal、fallback、async identity、安全与 read-only 约束
 - [ ] 7.4 先实现 task checkbox 与 code fence widget pilot，验证局部 patch 和单一 History
-- [ ] 7.5 再实现 image 与 GFM table widgets，验证资源安全、键盘导航、未触及 table/style bytes 保真
-- [ ] 7.6 最后实现 FrontMatter、Mermaid/PlantUML 与 raw HTML policy；复杂/不安全内容精确回退源码
+- [ ] 7.5 image 与 GFM table widgets **移交 Slice 7/P7**（2026-08-29 Program Owner 决定，移出 P5 关键路径）；P4B 期间二者保持 exact source fallback（P3 已交付形态）
+- [ ] 7.6 FrontMatter 与 raw HTML policy 留在 P4B；Mermaid/PlantUML 渲染 **移交 Slice 7/P7**；复杂/不安全内容精确回退源码
 - [ ] 7.7 对每个 widget 单独添加 unit、desktop semantic、visual、IME、keyboard-only、安全和 failure injection 证据
 - [ ] 7.8 按 Normal/Large/Huge 验证 viewport-only projection、重型 widget 降级与内存/延迟预算
 - [ ] 7.9 每个 cohort/widget 使用独立 flag、evidence run 与验收结论；一个失败不得被“整体 Live Preview 通过”掩盖
@@ -158,5 +158,17 @@
 - [ ] 9.3 heading 块级 cohort（M1，最先）
 - [ ] 9.4 行内 cohort：strong/emphasis/strike/inline code（M2）
 - [ ] 9.5 links、quote+lists、fence（M2–M3）
-- [ ] 9.6 与 P4B widgets（图片/表格/task）的 hidden 联动（M3）
+- [ ] 9.6 与 P4B 轻量 widget（task/fence controls）的 hidden 联动（M3）；图片/表格/图表 widget 已移交 P7，随 P7 落地后再联动
 - [ ] 9.7 每 cohort 按 P4B 矩阵独立验证、独立 flag、独立回滚；（将在 P5 Go 后按 Issue #254 之外的流程启用）
+
+## 10. Slice 7 — BACKLOG（P6 之后，当前不启动）：Typora 完全体富块
+
+> **当前状态：NOT STARTED — BACKLOG。** 本 slice 记录 P6 之后的后续功能点，**不属于 Issue #254 当前交付范围**；P6 Go 之前不得开展实施。2026-08-29 Program Owner 决定：把原 P4B 的 image/GFM table/Mermaid/PlantUML widget（原 7.5/7.6 的一部分）移出 P5 关键路径，独立为 P7；P4B 只保留轻量控件（task checkbox/code fence controls/FrontMatter）与 raw HTML policy。设计见 [design/phases/P7-typora-complete-rich-blocks.md](./design/phases/P7-typora-complete-rich-blocks.md)，验证记录见 [validation/phases/P7.md](./validation/phases/P7.md)。目标：补齐 Typora 完全体差距——表格可视化编辑、图片文档流内渲染、Mermaid/PlantUML 图表渲染。
+
+- [ ] 10.1 前置：P0–P5 全部 Go（Live Preview 为唯一编辑路径）；建议 P6 M1/M2（hidden marker 状态机）Go 后启动，使富块 widget 一步接入 hidden 联动；确认 P4A 终态（local ranges 是否足够、Core IR 是否可用）
+- [ ] 10.2 内联图片 widget（M1，最先）：文档流内渲染、点击编辑 alt/路径、复用 P3 资源事务与 source range 管线、broken URL/加载失败精确回退源码
+- [ ] 10.3 GFM 表格编辑 widget（M2）：cell 导航/编辑、行/列增删、对齐、escaped pipe；全部操作为局部 source transaction，未触及 cell/分隔行 bytes L1 保真
+- [ ] 10.4 Mermaid 渲染（M3a）：沙箱渲染、timeout/cancel、恶意源码策略（fuzz 必测）、失败回退源码
+- [ ] 10.5 PlantUML 渲染（M3b）：同 10.4 + 明确渲染通道与网络策略（design 05 §7）；无可用通道时保持源码
+- [ ] 10.6 每 item 独立 flag、P4B 通用矩阵 + 富块专项矩阵（P7 设计 §4）、独立 Reviewer、人工验收、独立回滚；与 P6 hidden 状态机联动
+- [ ] 10.7 每 item 按 Normal/Large/Huge 验证 viewport-only、渲染降级与内存预算；任何未触及 bytes 改变、XSS/SSRF、selection trap 或不可回源码 = 单项 No-Go

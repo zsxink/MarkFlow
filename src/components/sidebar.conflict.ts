@@ -49,7 +49,7 @@ async function restoreDeletedActiveDocument() {
     try {
       suppressNextWatcherRefresh(filePath);
       await writeFile(filePath, content);
-      bindPersistedAfterResave(binding, content);
+      bindLosslessPersisted(binding, content);
       await applyFileTreeEvents([{ path: filePath, kind: 'create', timestamp: Date.now() }]);
       refreshOutline();
       showToast('已重新保存当前文件');
@@ -74,13 +74,24 @@ async function restoreDeletedActiveDocument() {
   }
 }
 
-/** Keep the lossless binding's file identity/persisted state aligned after a
- *  direct recreate (the file that was deleted is now re-created on disk). */
-function bindPersistedAfterResave(binding: { persistedRevision: number; fileIdentity: unknown }, _content: string): void {
-  // No-op hook: the binding's Core revision is unchanged by a recreate write;
-  // the file identity record on the binding is refreshed by the next normal
-  // save. Kept as a named seam so the delete-resave path stays symmetric with
-  // the legacy `markDocumentPersisted`.
+/**
+ * Lossless seam for "this content is now persisted".
+ *
+ * Deliberately a no-op: for a lossless document the Core session — not the
+ * legacy editor state — owns the persisted truth, and every exit that reaches
+ * here already syncs the binding (and through it `store.dirty`: `saveAs`
+ * calls `syncDirty`, reload/force land on `store.setState({ dirty: false })`).
+ *
+ * It must NOT be replaced by `markDocumentPersisted(content)`: that writes the
+ * legacy ledger (`lastPersistedMarkdown`, `persistedRevision`,
+ * `autosaveErrorCount`) from the lossless logical text. `persistedRevision` in
+ * particular is compared against the ProseMirror `userRevision`, which is
+ * meaningless for a lossless doc — bumping it would report a still-dirty
+ * document as clean the moment anyone stops routing `hasUnpersistedUserChanges`
+ * through the binding. Kept as a named seam so the lossless exits stay
+ * symmetric with each other.
+ */
+function bindLosslessPersisted(binding: { persistedRevision: number; fileIdentity: unknown }, _content: string): void {
   void binding;
 }
 
@@ -160,21 +171,21 @@ export async function handleLosslessConflict(
       const reloaded = await reloadActiveDocumentFromDisk({ force: true });
       if (!reloaded) return 'failed';
       refreshOutline();
-      markDocumentPersisted(binding.logicalText);
+      bindLosslessPersisted(binding, binding.logicalText);
       return 'reloaded';
     }
 
     if (choice === 'save-copy') {
       const saved = await saveActiveDocumentAsNewFile();
       if (!saved) return 'failed';
-      markDocumentPersisted(binding.logicalText);
+      bindLosslessPersisted(binding, binding.logicalText);
       return 'saved-as';
     }
 
     if (choice === 'force') {
       const forced = await forceOverwriteLossless(filePath);
       if (!forced) return 'failed';
-      markDocumentPersisted(binding.logicalText);
+      bindLosslessPersisted(binding, binding.logicalText);
       return 'forced';
     }
 

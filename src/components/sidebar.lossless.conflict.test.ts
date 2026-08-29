@@ -42,7 +42,6 @@ function makeBinding(overrides: { dirty?: boolean; text?: string } = {}) {
     flushNow: vi.fn(async () => ({ status: 'flushed', revision: 2, confirmedHash: 'h' })),
     markExternalConflict: vi.fn(() => { conflict = true; }),
     hasExternalConflict: vi.fn(() => conflict),
-    clearExternalConflict: vi.fn(() => { conflict = false; }),
   };
 }
 

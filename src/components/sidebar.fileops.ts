@@ -137,6 +137,13 @@ export async function saveActiveDocumentAsNewFile() {
     if (result === 'unsupported') {
       return saveLosslessCopyWithoutGuard(targetPath);
     }
+    // Save As expects an absent target; a conflict means something appeared
+    // there before the replace, and the guarded write refused to overwrite it.
+    // Nothing was written, so tell the user what to change instead.
+    if (result === 'conflict') {
+      showToast('目标文件已存在，另存为已取消，请换一个文件名');
+      return false;
+    }
     showToast('另存为失败');
     return false;
   }

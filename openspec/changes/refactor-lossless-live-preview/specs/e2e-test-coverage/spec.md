@@ -111,3 +111,39 @@ E2E SHALL 验证每个 default-on construct 的语义 projection、marker active
 - **WHEN** 测试分别以 legacy 和 lossless flag 打开文档
 - **THEN** 每个会话只有一个正文 owner
 - **THEN** lossless 会话的保存路径不调用 ProseMirror serializer
+
+### Requirement: Typora 式 marker 交互 E2E
+
+真实桌面 E2E SHALL 对每个 default-on hidden cohort 覆盖 inactive、revealed、selected、composition、empty、fallback 和 Source 状态，并验证视觉投影、selection 与底层 source 一致。
+
+#### Scenario: 非活动与活动 marker
+- **WHEN** fixture 包含 heading、strong、link、quote、list 和 fence
+- **AND** caret 依次离开和进入每个 construct
+- **THEN** 非活动 construct 隐藏 marker，活动 construct 在同一交互帧揭示完整 marker
+- **THEN** EditorState.doc、dirty、revision 和 History 不因显隐改变
+
+#### Scenario: 空构造、全选与跨 marker 导航
+- **WHEN** fixture 包含空 heading、空 list item、空 quote 与嵌套 inline construct
+- **THEN** 空 construct 始终有可发现 marker/glyph/placeholder
+- **THEN** Arrow/Home/End/Backspace/Delete、double click、drag selection 和 Select All 不产生 selection trap 或布局闪烁
+- **THEN** plain-text copy 包含完整 Markdown source
+
+#### Scenario: 隐藏 marker 邻域的真实 IME
+- **WHEN** 用户在 macOS/Windows/Linux 可用环境的真实 WebView 中于隐藏 marker 邻域完成中文或日文 composition
+- **THEN** marker reveal/冻结不取消 composition
+- **THEN** 文本无丢失、重复或重排，且一次 Undo 撤销完整意图
+
+### Requirement: 富块编辑与失败回退 E2E
+
+真实桌面 E2E SHALL 分别验证 task、image、GFM table、fence、Mermaid/PlantUML、FrontMatter 与 raw HTML 的 source-backed widget 行为。每个 item MUST 有独立 flag、失败注入、source before/after byte report 和回滚证据。
+
+#### Scenario: 图片与表格局部编辑
+- **WHEN** 用户修改图片 alt、编辑 table cell、切换 alignment 或新增一列
+- **THEN** 每个操作形成一个 CodeMirror History group 和 Core patch
+- **THEN** byte report 只允许声明的 affected ranges 与新增 bytes 改变
+- **THEN** 关闭对应 widget flag 后同一 range 精确显示源码
+
+#### Scenario: 图表 renderer 失败
+- **WHEN** Mermaid 返回不安全 SVG，或 PlantUML 离线、超时、redirect/SSRF policy 拒绝
+- **THEN** 该 fence 显示源码、可编辑、可保存并提供可理解的错误/Retry
+- **THEN** 不执行脚本、不发起未授权网络请求且保存 payload 不变

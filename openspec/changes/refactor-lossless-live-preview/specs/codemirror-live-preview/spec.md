@@ -45,7 +45,7 @@ Live Preview SHALL 只使用 CodeMirror decorations、widgets 和事件处理器
 
 ### Requirement: Projection owner 唯一且 revision-bound
 
-每种 construct 在任一 revision 只能由 `local`、`core` 或 `source-fallback` 中一个 owner 投影。Core Render IR SHALL 携带 binding generation、session、document、revision、request、viewport 和 source identity；不匹配的结果 MUST 被丢弃。
+每种 construct 在任一 revision 只能由 `local`、`widget`、`core` 或 `source-fallback` 中一个 owner 投影。Core Render IR SHALL 携带 binding generation、session、document、revision、request、viewport 和 source identity；不匹配的结果 MUST 被丢弃。
 
 #### Scenario: stale IR 返回
 - **WHEN** revision N 的 IR 在文档已更新到 revision N+1 后返回
@@ -64,7 +64,7 @@ Live Preview SHALL 只使用 CodeMirror decorations、widgets 和事件处理器
 
 ### Requirement: Marker reveal 按 cohort 安全启用
 
-系统 SHALL 先弱化 Markdown markers，只有某 construct 通过 selection、clipboard、IME 和 accessibility 门禁后才能默认隐藏。光标、选区或 composition 进入 construct 时 SHALL 揭示完成编辑所需的最小 marker 范围。
+系统 SHALL 先弱化 Markdown markers，只有某 construct 通过 selection、clipboard、IME 和 accessibility 门禁后才能进入 P6 的默认隐藏状态。P4B SHALL 提供 owner、source range、widget protocol 与共用交互门禁，但 MUST NOT 建立一套与 P6 竞争的 marker hiding 状态机。光标、选区或 composition 进入 construct 时 SHALL 按 `typora-wysiwyg-editing` 揭示完成编辑所需的 construct marker。
 
 #### Scenario: 未验收 construct
 - **WHEN** 某 construct 尚未通过隐藏 marker 门禁
@@ -198,7 +198,7 @@ Source 与 Live Preview SHALL 共享 CodeMirror History。普通输入、composi
 
 ### Requirement: ProseMirror 仅在完成门禁后移除
 
-系统 MUST 在 lossless CodeMirror 路径覆盖默认打开、保存、常用命令、图片、autosave、external conflict、export 和真实桌面验收后，才移除 ProseMirror/Tiptap 产品依赖。在迁移期，单个文档会话 MUST 选择唯一 owner，不能同时由 ProseMirror 与 lossless session 写入。
+系统 MUST 在 lossless CodeMirror 路径覆盖默认打开、保存、常用命令、Typora 式 marker 显隐、发布支持矩阵中的富块、autosave、external conflict、export 和真实桌面验收后，才移除 ProseMirror/Tiptap 产品依赖。在迁移期，单个文档会话 MUST 选择唯一 owner，不能同时由 ProseMirror 与 lossless session 写入。
 
 #### Scenario: lossless 路径尚未达标
 - **WHEN** 必要功能或真实桌面门禁未完成
@@ -206,6 +206,6 @@ Source 与 Live Preview SHALL 共享 CodeMirror History。普通输入、composi
 - **THEN** lossless 会话内不得切换到 ProseMirror owner
 
 #### Scenario: legacy 清理
-- **WHEN** 默认 lossless path 已通过全部退出门禁和稳定观察
+- **WHEN** P6/P7 发布范围已通过全部退出门禁且默认 lossless path 已通过稳定观察
 - **THEN** 系统删除 ProseMirror serializer、隐藏 DOM 和持久化 facade
 - **THEN** 独立复核确认产品路径不再读取或写入 ProseMirror 文档真相

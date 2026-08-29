@@ -1,70 +1,74 @@
-# P4B：Marker Cohorts 与高级 Widgets
+# P4B：投影交互底座与轻量 Widgets
+
+## 0. 状态与定位
+
+P4B 是 P6/P7 的基础设施阶段，不是 Typora marker hiding 的交付阶段。它建立统一 owner、source range、interaction harness、widget protocol 和轻量 widget；marker 在 P4B 期间保持 `visible/dimmed/revealed`，真正 `hidden` 统一由 P6 交付。
+
+该分工以 [Typora 投影与交互 ADR](../../adr/adr-typora-projection-interaction-contract.md) 为准，解决旧设计中 P4B/P6 同时负责 hiding 的冲突。
 
 ## 1. 目标
 
-逐项提升 Live Preview 质感。每个 cohort/widget 独立交付、独立验证、独立回滚，不能以“整体大致可用”掩盖 selection、IME、安全或 byte 问题。
+- 冻结 `visible/dimmed/hidden/revealed` 派生状态 API、construct range 与 reveal contract；P4B 不开启 hidden 输出。
+- 建立每个 source range 唯一 `local/widget/core/source-fallback` owner registry。
+- 建立 widget protocol、atomic range、focus/selection、History、async identity、fallback、security、a11y 和 export 合同。
+- 交付 task checkbox、code fence controls、FrontMatter safe projection 与 raw HTML policy。
+- 建立 P6/P7 共用的真实桌面交互矩阵，偿还 P3 的真实 IME 证据债。
 
 ## 2. 输入与依赖
 
-- P4A Go 或该 widget 仅需可信 local ranges；
-- widget protocol、owner registry、source fallback；
-- [P4B 验证记录](../../validation/phases/P4B.md)，并为每项建立子运行记录。
+- P3 默认路径候选及 minimum parity 证据；
+- P4A 的最终 parser/source-map ADR；无 Core IR 时使用受信 Lezer local ranges；
+- `specs/typora-wysiwyg-editing/spec.md` 与 `specs/rich-markdown-blocks/spec.md`；
+- [P4B 验证记录](../../validation/phases/P4B.md)。
 
-## 3. 实施顺序
+## 3. 实施范围
 
-marker cohorts：heading+strong；emphasis+strike+inline code；links；quote+lists；fence。
+### 3.1 共用交互底座
 
-widgets：task checkbox；code fence controls；frontmatter；raw HTML policy。
+- construct descriptor：kind、source/content/marker ranges、owner、revision、fallback；
+- visibility resolver：只产出 `visible/dimmed/revealed`，保留 P6 的 `hidden` extension point；
+- selection/caret/affinity 与 atomic range protocol；
+- source-based plain-text clipboard 与显式 accessibility descriptor；
+- mouse/keyboard/IME/input-rule/Undo/viewport/fallback test harness；
+- per-item flag、owner cleanup 和 E2E debug snapshot。
 
-> 2026-08-29 Program Owner 决定：image、GFM table、Mermaid/PlantUML 富块 widget 移交 [P7](./P7-typora-complete-rich-blocks.md)，移出 P5 关键路径；P4B 期间这些富块保持 exact source fallback（P3 已交付形态）。
+### 3.2 轻量 widgets
 
-每项必须在当前 program 分支建立独立 flag、任务组、evidence run 和验收结论，声明 source range、交互、History、failure fallback、security、accessibility 和 export；不再新建 child Issue/change。
+1. task checkbox；
+2. code fence language/control；
+3. FrontMatter safe projection，复杂 YAML/TOML 回源码；
+4. raw HTML 默认源码或严格 sanitize 的只读 preview。
 
-## 4. AI Coding 验证
+Image、GFM table、Mermaid/PlantUML 移交 P7，但仍属于 Issue #254 必达范围，不再是 program 外 backlog。
 
-每项通用矩阵：
+## 4. 通用交互矩阵
 
-- inactive/active/selected/composing/revealed/fallback states；
-- mouse click/drag/double click；
-- Arrow/Home/End/Shift+Arrow/Tab/Enter/Space/Backspace/Delete；
-- Select All、copy/cut/paste；
-- CJK/emoji/IME；
-- Undo/Redo 与模式切换；
-- read-only、zoom、三主题、high contrast、reduced motion；
-- screen reader role/name/state；
-- async cancel、stale identity、error、Retry；
-- local/core owner handoff；
-- source range 局部 patch 与未触及 bytes；
-- viewport create/dispose 与 memory leak；
-- export/print fallback；
-- security payload 与 URL policy。
+每项必须覆盖：
 
-专项：raw HTML 必测 XSS。table/image/diagram 的专项矩阵随 P7 执行（见 P7 设计 §4），P4B 不再覆盖。
+- inactive/active/selected/composing/empty/fallback/source/read-only；
+- click/drag/double-click、Arrow/Home/End/Shift+Arrow/Tab/Enter/Space/Backspace/Delete；
+- Select All、copy/cut/paste、input rule 形成/拆除 construct；
+- 中文/日文真实 IME、emoji、combining character；
+- Undo/Redo、Source 往返、toolbar/shortcut；
+- 三主题、zoom 200%、high contrast、reduced motion；
+- screen reader role/name/state/focus；
+- stale/cancel/error/Retry、跨文档 identity；
+- source patch、L1 surviving spans、flag rollback；
+- viewport create/dispose、memory、export/print；
+- URL、HTML、SVG 与 payload 安全。
 
-## 5. 独立 Reviewer 验证
+P4B 必须补齐空 heading/list/quote、Select All 不整篇闪烁、Undo 落点在 marker、composition 起始于 marker 邻域和跨 nested construct 选区等场景，即使 hidden 输出尚未开启。
 
-每项独立 review，不接受一次 review 覆盖全部。Reviewer 检查 DOM 不成为正文、所有 commit 走 CM transaction、async identity、资源安全、keyboard/a11y、source fallback 和 flag cleanup。
+## 5. 退出门禁
 
-## 6. 人工验证
+- 共用 interaction harness 在真实 Tauri WebView 通过；
+- 中文与日文 IME 至少在可用平台各有一轮真实证据；
+- 轻量 widgets 各自通过自动化、独立 Reviewer 与人工验收；
+- owner/flag rollback 不改变 doc、History、dirty、revision 或 bytes；
+- P6 可只实现 visibility output 与 construct-specific polish，不需要重建协议。
 
-每项至少一名验收人按同一矩阵实际操作，并记录：编辑是否自然、marker 是否可发现、光标是否可预测、键盘是否能完成、错误后是否能回源码、视觉是否达到默认开启标准。
+任何 selection trap、输入丢失、错误 source patch、安全问题或不可回源码均为单项 No-Go。单项失败保持 source fallback，不阻塞已通过项。
 
-raw HTML 还需安全/资源负责人参与（P7 的 image/table/diagram 届时同样适用）；accessibility 关键 widget 需要 VoiceOver 或等价 screen reader 验证。
+## 6. 回滚
 
-## 7. 必须证据
-
-- 每项 unit/semantic/visual/IME/a11y/security 结果；
-- source before/after byte report；
-- keyboard 与 screen reader 记录；
-- async failure/cancel artifacts；
-- independent review；
-- 人工 Accept/Reject；
-- flag default decision。
-
-## 8. Go/No-Go
-
-单项 Go 才能 default-on。任何 selection trap、输入丢失、错误 source patch、安全问题或不可回源码均 No-Go。单项 No-Go 不阻塞其他项和基础编辑器，但必须保持 default-off/source fallback。
-
-## 9. 回滚
-
-关闭单项 flag，dispose widget/decoration，显示同一 range 的 local projection 或源码。回滚不得改变正文、History、dirty 或 Core revision。
+关闭单项 flag，dispose widget/decoration，显示同一 range 的 dimmed local projection 或完整源码。回滚不得切换正文 owner、重建文档或调用 serializer。

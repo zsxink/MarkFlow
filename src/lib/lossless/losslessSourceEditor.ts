@@ -23,6 +23,11 @@ import { getLanguageExtension } from '../codemirror-languages';
 import { highlightLimitPlugin } from '../codemirror-highlight-limit';
 import { projectionExtension } from './projection';
 import { widgetProjectionExtension } from './widgets/p4bWidgets';
+import { rawHtmlPolicyExtension } from './policy/rawHtmlPolicy';
+// Side-effect import: registers the flag-gated `frontmatter` owner at module
+// init (task 7.7). It needs no extension — no `FrontMatter` Lezer node exists
+// (ADR §3.1), so the only safe projection is exact source by construction.
+import './policy/frontmatterPolicy';
 import { getCachedSettings } from '../storage';
 
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -307,7 +312,7 @@ export function buildLosslessExtensions(
       // selection, or the History — it only adds/removes semantic decorations.
       projectionCompartment.of(
         livePreviewEnabled && (options.mode ?? 'source') === 'preview'
-          ? [projectionExtension(), widgetProjectionExtension()]
+          ? [projectionExtension(), widgetProjectionExtension(), rawHtmlPolicyExtension()]
           : [],
       ),
     ];
@@ -349,7 +354,7 @@ export function createLosslessSourceEditor(
       view.dispatch({
         effects: built.projectionCompartment.reconfigure(
           built.livePreviewEnabled && mode === 'preview'
-            ? [projectionExtension(), widgetProjectionExtension()]
+            ? [projectionExtension(), widgetProjectionExtension(), rawHtmlPolicyExtension()]
             : [],
         ),
       });
@@ -361,7 +366,7 @@ export function createLosslessSourceEditor(
       view.dispatch({
         effects: built.projectionCompartment.reconfigure(
           enabled && mode === 'preview'
-            ? [projectionExtension(), widgetProjectionExtension()]
+            ? [projectionExtension(), widgetProjectionExtension(), rawHtmlPolicyExtension()]
             : [],
         ),
       });

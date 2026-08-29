@@ -23,15 +23,22 @@
 //! replace with displaced-identity verification" requirement (no true CAS
 //! primitive, but an atomic swap is equivalent for this purpose). All three
 //! implementations guarantee the same post-condition: after `atomic_exchange`
-//! returns `Ok`, `target` holds the new payload and `tmp` holds the displaced
-//! original bytes.
+//! returns `Ok(displaced_at)`, `target` holds the new payload and
+//! `displaced_at` holds the displaced original bytes. Callers must use the
+//! returned path, never `tmp`: a platform that cannot restore the displaced
+//! bytes onto `tmp` (Windows, when the post-replace rename fails) returns the
+//! staging path instead, so the recovery copy stays addressable.
 //!
 //! - macOS: `renameatx_np(RENAME_SWAP)` — a single atomic swap of the two
 //!   paths.
 //! - Linux: `renameat2(RENAME_EXCHANGE)` — the same atomic swap semantic.
 //! - Windows: `ReplaceFileW` with a backup file — the replaced target is moved
 //!   to the backup path and the replacement is consumed, so the backup is
-//!   renamed back onto `tmp` to restore the shared post-condition.
+//!   renamed back onto `tmp` to restore the shared post-condition. If that
+//!   rename fails the replace has already landed; the backup path is returned
+//!   as `displaced_at` rather than failing, so the user's pre-save bytes stay
+//!   addressable through the receipt's recovery path instead of becoming an
+//!   unnamed orphan.
 //!
 //! A target expected to be absent (`expectedFileIdentity == None`) uses the
 //! create-if-absent path (`renameatx_np(RENAME_EXCL)` /
@@ -494,6 +501,11 @@ pub fn guarded_atomic_write(
     let tmp = parent.join(format!(".{file_name}.{}.mf-tmp", path_hash(&op_id)));
 
     let mut replacement_completed = false;
+    // Where a completed exchange left the displaced original: `tmp` on the swap
+    // platforms, or a platform-specific staging path (Windows) when it could
+    // not be restored onto `tmp`. Tracked outside the closure so the failure
+    // path can still record those bytes as the recovery copy.
+    let mut displaced_at: Option<PathBuf> = None;
     let write_result = (|| -> Result<GuardedWriteResponse, LosslessError> {
         {
             use std::io::Write;
@@ -516,14 +528,14 @@ pub fn guarded_atomic_write(
                 // lifecycle mutex with reload/close. There is deliberately no
                 // instruction boundary where a discard can arrive after the
                 // validation yet before `renameatx_np` executes.
-                state
+                let exchanged = state
                     .lossless_registry
                     .with_save_lifecycle_lock(&save_lease, || {
-                        atomic_exchange(&tmp, &path).map_err(|e| {
+                        let exchanged = atomic_exchange(&tmp, &path).map_err(|e| {
                             // A failed exchange leaves `tmp` holding our own
                             // payload (on Windows the replace consumed it, so
                             // this is a no-op). Only a *completed* exchange
-                            // turns `tmp` into displaced evidence, and that
+                            // turns the displaced path into evidence, and that
                             // copy must never be deleted here.
                             let _ = std::fs::remove_file(&tmp);
                             if e.kind() == std::io::ErrorKind::Unsupported {
@@ -536,14 +548,17 @@ pub fn guarded_atomic_write(
                             } else {
                                 LosslessError::io(format!("原子替换失败: {e}"))
                             }
-                        })
+                        })?;
+                        Ok(exchanged)
                     })?;
+                displaced_at = Some(exchanged.clone());
                 replacement_completed = true;
-                // Verify displaced identity at the replace point.
-                let displaced = std::fs::read(&tmp).map_err(|e| {
-                    let _ = std::fs::remove_file(&tmp);
-                    LosslessError::io(format!("读取被替换文件失败: {e}"))
-                })?;
+                // Verify displaced identity at the replace point. The displaced
+                // bytes are deliberately NOT deleted when this read fails: they
+                // are the user's pre-save file, and the failure path below
+                // records them at `displaced_at` so they stay addressable.
+                let displaced = std::fs::read(&exchanged)
+                    .map_err(|e| LosslessError::io(format!("读取被替换文件失败: {e}")))?;
                 let displaced_hash = ContentHash::of(&displaced);
                 // The displaced bytes are the pre-replacement target; they must
                 // match the identity the caller expected to be there.
@@ -554,15 +569,17 @@ pub fn guarded_atomic_write(
                     .unwrap_or(false);
                 if !displaced_ok {
                     // External race won at the swap instant: keep the displaced
-                    // bytes as recovery at `tmp`; do NOT delete.
+                    // bytes as recovery at the path the exchange reported;
+                    // do NOT delete.
                     update_receipt(&op_id, |r| {
                         r.state = ReceiptState::Conflict;
-                        r.recovery_path = Some(tmp.to_string_lossy().to_string());
+                        r.recovery_path = Some(exchanged.to_string_lossy().to_string());
                     })?;
                     return Ok(conflict_response(&op_id));
                 }
-                // P1-1: the displaced bytes stay at `tmp` until the Written
-                // receipt (with the recovery path + new identity) is durable.
+                // P1-1: the displaced bytes stay where the exchange left them
+                // until the Written receipt (with the recovery path + new
+                // identity) is durable.
                 // The recovery file is NOT deleted here — the commit finalizes
                 // it. A crash or receipt-write failure therefore always leaves
                 // the displaced original discoverable.
@@ -596,10 +613,13 @@ pub fn guarded_atomic_write(
             r.state = ReceiptState::Written;
             r.new_file_identity = Some(new_identity.clone());
             // P1-1: the displaced original is retained as a recoverable copy
-            // until the operation commits. For a replace, `tmp` holds it; for
-            // a create the path never had a prior version so there is none.
+            // until the operation commits. For a replace the exchange reported
+            // where it put those bytes; for a create the path never had a
+            // prior version so there is none.
             if receipt.expected_file_identity.is_some() {
-                r.recovery_path = Some(tmp.to_string_lossy().to_string());
+                r.recovery_path = displaced_at
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().to_string());
             }
         })?;
         // P1-1: the target directory entry itself (exchange/create) must be
@@ -623,14 +643,17 @@ pub fn guarded_atomic_write(
             // never leave an unaddressable temp copy behind.
             // Before exchange `tmp` contains the application's payload, not
             // a displaced original. Delete it rather than falsely exposing it
-            // as recovery evidence. After exchange it holds the original and
-            // must remain discoverable even if receipt persistence failed.
+            // as recovery evidence. After exchange the original lives wherever
+            // the exchange reported (`tmp` on the swap platforms, a staging
+            // path on Windows) and must remain discoverable even if receipt
+            // persistence failed.
             if !replacement_completed {
                 let _ = std::fs::remove_file(&tmp);
             }
             let recovery_path = replacement_completed
-                .then(|| tmp.exists().then(|| tmp.to_string_lossy().to_string()))
-                .flatten();
+                .then(|| displaced_at.clone().unwrap_or_else(|| tmp.clone()))
+                .filter(|p| p.exists())
+                .map(|p| p.to_string_lossy().to_string());
             let landed_identity = replacement_completed
                 .then(|| {
                     std::fs::read(&path)
@@ -1295,8 +1318,16 @@ fn conflict_response(save_operation_id: &str) -> GuardedWriteResponse {
     }
 }
 
+/// Atomic replace preserving the displaced target.
+///
+/// On success the target holds the new payload and the returned path holds the
+/// displaced original bytes. The swap syscalls leave them at `tmp` itself;
+/// Windows may return a staging path instead (see that implementation). The
+/// caller must treat the returned path — never `tmp` — as the displaced
+/// evidence, so a platform that cannot restore it onto `tmp` still yields an
+/// addressable recovery copy.
 #[cfg(target_os = "macos")]
-fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
+fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<PathBuf> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
 
@@ -1315,7 +1346,7 @@ fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
         )
     };
     if rc == 0 {
-        Ok(())
+        Ok(tmp.to_path_buf())
     } else {
         Err(std::io::Error::last_os_error())
     }
@@ -1358,8 +1389,10 @@ fn create_if_absent(tmp: &Path, target: &Path) -> std::io::Result<bool> {
 /// reported as `Unsupported` so the caller refuses the replace. Plain
 /// `rename(2)` is never used as a fallback: it would silently overwrite a
 /// target replaced at the swap instant.
+///
+/// See the macOS implementation for the `Ok` return value.
 #[cfg(target_os = "linux")]
-fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
+fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<PathBuf> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
 
@@ -1378,7 +1411,7 @@ fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
         )
     };
     if rc == 0 {
-        Ok(())
+        Ok(tmp.to_path_buf())
     } else {
         let err = std::io::Error::last_os_error();
         match err.raw_os_error() {
@@ -1399,10 +1432,20 @@ fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
 /// onto `tmp` to restore the shared post-condition ("the displaced bytes are
 /// readable at `tmp`"). Both the replace and that same-directory rename are
 /// single metadata operations: there is no instant where the target is
-/// truncated or partially overwritten. A crash between them leaves the
-/// displaced original at the `.mf-bak` sibling rather than losing it.
+/// truncated or partially overwritten.
+///
+/// If that rename back onto `tmp` fails, the replace has ALREADY landed: the
+/// target holds the new payload and the displaced original sits at the backup
+/// path. The backup is then returned as the displaced location instead of
+/// failing the exchange — returning `Err` there would make the caller treat a
+/// completed replace as a failed one, leaving the user's pre-save file
+/// unaddressable (no recovery path, no Save Copy degradation) and orphaning
+/// the backup. The caller records the returned path in the receipt's
+/// `recovery_path`, which the commit finalizes. A crash between the replace
+/// and the rename therefore still leaves the displaced original discoverable
+/// through the receipt, not lost.
 #[cfg(target_os = "windows")]
-fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
+fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<PathBuf> {
     use std::os::windows::ffi::OsStrExt;
 
     #[link(name = "kernel32")]
@@ -1432,9 +1475,12 @@ fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
     const ERROR_INVALID_FUNCTION: i32 = 1;
     const ERROR_NOT_SUPPORTED: i32 = 50;
 
-    let mut backup_os = tmp.as_os_str().to_owned();
-    backup_os.push(".mf-bak");
-    let backup = PathBuf::from(backup_os);
+    let backup = displaced_recovery_path(tmp).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "windows displaced recovery path unavailable",
+        )
+    })?;
 
     let replaced = wide(target);
     let replacement = wide(tmp);
@@ -1459,15 +1505,49 @@ fn atomic_exchange(tmp: &Path, target: &Path) -> std::io::Result<()> {
             _ => err,
         });
     }
-    // `tmp` was consumed by the replace; restore the displaced original onto it
-    // so the caller's `read(tmp)` — and the receipt's recovery path — see the
-    // same bytes macOS/Linux leave there.
-    std::fs::rename(&backup, tmp)?;
-    Ok(())
+    // `tmp` was consumed by the replace; restoring the displaced original onto
+    // it lets the caller read — and the receipt record — the same bytes
+    // macOS/Linux leave at `tmp`. When that rename fails the replace has
+    // already landed, so hand the staging path back rather than failing: the
+    // displaced bytes are the user's file and must stay addressable.
+    match std::fs::rename(&backup, tmp) {
+        Ok(()) => Ok(tmp.to_path_buf()),
+        Err(e) => {
+            tracing::warn!(
+                target: "backend.lossless",
+                staging_path = %backup.display(),
+                error = %e,
+                "Displaced original could not be restored onto the temp path; keeping it at the staging path"
+            );
+            Ok(backup)
+        }
+    }
+}
+
+/// Suffix of the staging path Windows `ReplaceFileW` writes the displaced
+/// original to. Referenced only through `displaced_recovery_path` so no
+/// platform-agnostic caller ever has to spell it out.
+#[cfg(target_os = "windows")]
+const WINDOWS_DISPLACED_RECOVERY_SUFFIX: &str = ".mf-bak";
+
+/// Where a completed exchange left the displaced original when it could not be
+/// restored onto `tmp`: the `.mf-bak` sibling of `tmp`.
+///
+/// Windows-only on purpose. The platform-agnostic call site never needs it —
+/// `atomic_exchange` returns the displaced path for every platform — so a
+/// `None`-returning stub on the swap platforms would be dead code. It is kept
+/// as the single place the `.mf-bak` suffix is spelled out so a future startup
+/// sweep (see the F1 note) can look for an unrecorded staging copy without
+/// re-deriving it.
+#[cfg(target_os = "windows")]
+fn displaced_recovery_path(tmp: &Path) -> Option<PathBuf> {
+    let mut staged = tmp.as_os_str().to_owned();
+    staged.push(WINDOWS_DISPLACED_RECOVERY_SUFFIX);
+    Some(PathBuf::from(staged))
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-fn atomic_exchange(_tmp: &Path, _target: &Path) -> std::io::Result<()> {
+fn atomic_exchange(_tmp: &Path, _target: &Path) -> std::io::Result<PathBuf> {
     // No atomic-exchange primitive proven on this platform: refuse rather than
     // degrade to plain rename(2), which would silently overwrite a target
     // replaced at the swap instant.

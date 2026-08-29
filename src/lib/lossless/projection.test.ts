@@ -105,9 +105,45 @@ import {
   PROJECTION_CLASSES,
   resetProjectionSnapshot,
   setProjectionTestFailMode,
+  type ConstructRange,
 } from './projection';
 
 let dir: string;
+
+// Frozen ConstructRange golden for PARITY_DOC (captured on the pre-registry
+// implementation; see the parity test at the bottom of this file). It covers
+// every locally projected kind (heading h1-h3 + both Setext variants, strong,
+// emphasis, strikethrough, inline code, nested Link/URL, blockquote, list
+// items, fence) and proves the exact-source fallback kinds in the same doc
+// (frontmatter — frozen as the ADR-known SetextHeading2 misjudgment, table,
+// HTML block/comment, image, footnote) produce NO construct. The image URL
+// (mf-link at 156) and the footnote-definition link label (mf-link at 302)
+// are pre-registry legacy shapes — do not "fix" them here.
+const GOLDEN: ConstructRange[] = [
+  { from: 4, to: 21, markers: [[18, 21]], cls: 'mf-h', level: 2 },
+  { from: 23, to: 36, markers: [[23, 24]], cls: 'mf-h', level: 1 },
+  { from: 38, to: 43, markers: [[38, 40]], cls: 'mf-h', level: 2 },
+  { from: 45, to: 51, markers: [[45, 48]], cls: 'mf-h', level: 3 },
+  { from: 53, to: 73, markers: [[64, 73]], cls: 'mf-h', level: 1 },
+  { from: 75, to: 95, markers: [[86, 95]], cls: 'mf-h', level: 2 },
+  { from: 97, to: 107, markers: [[97, 99], [105, 107]], cls: 'mf-strong' },
+  { from: 108, to: 112, markers: [[108, 109], [111, 112]], cls: 'mf-emphasis' },
+  { from: 113, to: 120, markers: [[113, 115], [118, 120]], cls: 'mf-strikethrough' },
+  { from: 121, to: 127, markers: [[121, 122], [126, 127]], cls: 'mf-inline-code' },
+  {
+    from: 128,
+    to: 150,
+    markers: [[128, 129], [130, 131], [131, 132], [149, 150]],
+    cls: 'mf-link',
+  },
+  { from: 132, to: 149, markers: [], cls: 'mf-link' },
+  { from: 156, to: 161, markers: [], cls: 'mf-link' },
+  { from: 164, to: 171, markers: [[164, 165]], cls: 'mf-blockquote' },
+  { from: 173, to: 183, markers: [[173, 174]], cls: 'mf-list-item' },
+  { from: 184, to: 194, markers: [[184, 185]], cls: 'mf-list-item' },
+  { from: 196, to: 218, markers: [], cls: 'mf-fence' },
+  { from: 302, to: 306, markers: [[302, 303], [305, 306]], cls: 'mf-link' },
+];
 
 beforeAll(async () => {
   dir = await nodeFs.mkdtemp(nodePath.join(os.tmpdir(), 'p2-projection-'));
@@ -483,6 +519,69 @@ describe('P2 projection adapter', () => {
     setProjectionTestFailMode('none');
     view.dispatch({ selection: { anchor: md.length } }); // force a rebuild
     expect(getProjectionSnapshot().state).toBe('rendered');
+  });
+
+  // ── Task 6.5 (P4A ADR §3.3): construct owner registry wiring parity ──
+  // The classification decision now goes through the construct owner registry
+  // (renderOwnerRegistry.ts). This is a strict behavior-preservation gate: the
+  // ConstructRange set for a canonical doc containing EVERY construct class
+  // (local kinds + every exact-source fallback kind) is FROZEN below — captured
+  // on the pre-registry implementation — and must stay identical after the
+  // wiring, for the whole {from, to, cls, level, markers} shape.
+  const PARITY_DOC = [
+    '---',
+    'title: golden',
+    '---',
+    '',
+    '# Heading one',
+    '',
+    '## H2',
+    '',
+    '### H3',
+    '',
+    'Setext one',
+    '=========',
+    '',
+    'Setext two',
+    '---------',
+    '',
+    '**strong** *em* ~~del~~ `code` [l](https://u.example) ![a](i.png)',
+    '',
+    '> quote',
+    '',
+    '- item one',
+    '- item two',
+    '',
+    '```js',
+    'const x = 1;',
+    '```',
+    '',
+    '| a | b |',
+    '| --- | --- |',
+    '',
+    '<div>html block</div>',
+    '',
+    '<!-- an html comment -->',
+    '',
+    'Footnote[^1] tail.',
+    '',
+    '[^1]: fn text.',
+    '',
+    'Auto https://ex.example/a tail.',
+    '',
+  ].join('\n');
+
+  it('owner registry wiring keeps the ConstructRange set identical (task 6.5 parity)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const path = await writeFixture('parity.md', PARITY_DOC);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    binding.setMode('preview');
+    const snapshot = getProjectionSnapshot();
+    expect(snapshot.state).toBe('rendered');
+    // Frozen on the pre-registry implementation (see comment above).
+    expect(snapshot.constructs).toEqual(GOLDEN);
   });
 });
 

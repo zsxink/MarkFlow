@@ -9,10 +9,19 @@
 //
 // This module MUST NOT dispatch doc-changing transactions and MUST NOT touch
 // Core IPC. It only builds a `DecorationSet` from the Lezer syntax tree.
+//
+// P4A task 6.5 (ADR §3.3): the construct classification decision below goes
+// through the construct owner registry (renderOwnerRegistry.ts) so every
+// construct kind has exactly ONE owner at any render moment — 'local' (this
+// projection), 'source-fallback' (exact source), a P4B 'widget', or the
+// ADR-reserved 'core' placeholder. No Core-IR request protocol exists (ADR
+// terminal state `SPIKE_COMPLETE_NO_CORE_IR`): viewport rebuild, staleness and
+// degraded fallback stay inside the CM update cycle (P2 tasks 4.5/4.10/4.13).
 
 import { RangeSet, RangeSetBuilder, type Extension } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { getOwnerRegistrySnapshot, resolveConstructOwner, type ConstructKind } from './renderOwnerRegistry';
 
 /** Construct classes exposed for semantic assertions (unit + desktop E2E). */
 export const PROJECTION_CLASSES = {
@@ -70,42 +79,104 @@ export interface ProjectionSnapshot {
   count: number;
 }
 
-// ── Construct classification ──────────────────────────────────────────
+// ── Construct classification (owner-registry wired, task 6.5 / ADR §3.3) ──
 
 /**
- * Map a Lezer node to a semantic construct. Returns null for nodes P2 does not
- * project (HTML blocks, tables, frontmatter, images…) so they stay raw source.
+ * Map a Lezer node name to its semantic construct kind — the registry key
+ * space of renderOwnerRegistry.ts. Fallback-only Lezer nodes (HTML blocks,
+ * tables, images…) are mapped explicitly for P4B cohort-level registry
+ * granularity; their DEFAULT owner is 'source-fallback', so this mapping by
+ * itself changes no behavior versus the pre-registry classifier. Names without
+ * a dedicated mapping — including structural nodes Lezer does not produce
+ * today (FrontMatter, FootnoteDefinition, ADR §3.1) — resolve to 'unknown'.
  */
-function classifyNode(name: string): { cls: string; level?: number } | null {
-  if (name.startsWith('ATXHeading')) {
-    const level = Number(name.slice('ATXHeading'.length)) || 1;
-    return { cls: PROJECTION_CLASSES.heading, level };
-  }
-  if (name.startsWith('SetextHeading')) {
-    return { cls: PROJECTION_CLASSES.heading, level: name.endsWith('2') ? 2 : 1 };
-  }
+function lezerNodeKind(name: string): ConstructKind {
+  if (name.startsWith('ATXHeading') || name.startsWith('SetextHeading')) return 'heading';
   switch (name) {
     // GFM/CommonMark lezer: bold is `StrongEmphasis`, italic is `Emphasis`.
     case 'StrongEmphasis':
-      return { cls: PROJECTION_CLASSES.strong };
+      return 'strong';
     case 'Emphasis':
-      return { cls: PROJECTION_CLASSES.emphasis };
+      return 'emphasis';
     case 'Strikethrough':
-      return { cls: PROJECTION_CLASSES.strikethrough };
+      return 'strikethrough';
     case 'InlineCode':
-      return { cls: PROJECTION_CLASSES.inlineCode };
+      return 'inlineCode';
     case 'Link':
     case 'URL':
-      return { cls: PROJECTION_CLASSES.link };
+      return 'link';
     case 'Blockquote':
-      return { cls: PROJECTION_CLASSES.blockquote };
+      return 'blockquote';
     case 'ListItem':
-      return { cls: PROJECTION_CLASSES.listItem };
+      return 'listItem';
     case 'FencedCode':
-      return { cls: PROJECTION_CLASSES.fence };
+      return 'fence';
+    // Exact-source fallback kinds today (the pre-registry classifier returned
+    // null for them): HTML-ish leaf blocks, GFM tables, images. `FrontMatter`
+    // and `FootnoteDefinition` are never produced by the current Lezer config
+    // (ADR §3.1 known gaps) — mapped for P4B frontmatter/footnote cohorts.
+    case 'HTMLBlock':
+    case 'Comment':
+    case 'ProcessingInstruction':
+      return 'htmlBlock';
+    case 'Table':
+    case 'TableHeader':
+    case 'TableRow':
+    case 'TableCell':
+    case 'TableDelimiter':
+      return 'table';
+    case 'Image':
+      return 'image';
+    case 'FrontMatter':
+      return 'frontmatter';
+    case 'FootnoteDefinition':
+      return 'footnoteDefinition';
     default:
-      return null;
+      return 'unknown';
   }
+}
+
+/** Built-in decoration class per local kind (headings are handled by name). */
+const LOCAL_KIND_CLS: Readonly<Partial<Record<ConstructKind, string>>> = Object.freeze({
+  strong: PROJECTION_CLASSES.strong,
+  emphasis: PROJECTION_CLASSES.emphasis,
+  strikethrough: PROJECTION_CLASSES.strikethrough,
+  inlineCode: PROJECTION_CLASSES.inlineCode,
+  link: PROJECTION_CLASSES.link,
+  blockquote: PROJECTION_CLASSES.blockquote,
+  listItem: PROJECTION_CLASSES.listItem,
+  fence: PROJECTION_CLASSES.fence,
+});
+
+/**
+ * Classify a Lezer node for decoration: resolve the construct kind's OWNER via
+ * the registry and only build decorations when this projection owns it. The
+ * default registry replicates the pre-registry classifier 1:1 (parity oracle
+ * test + frozen ConstructRange golden in projection.test.ts): the nine local
+ * kinds decorate, everything else stays exact source. The `cls`/`level`
+ * METADATA remains owned by this module — the registry decides WHO renders,
+ * never what the decorations look like.
+ *
+ * Exported as the behavior-parity oracle for renderOwnerRegistry.test.ts (the
+ * pre-registry `classifyNode` is frozen verbatim there) and for P4B cohort
+ * assertions on what the local projection will/will not render.
+ */
+export function classifyLezerNode(name: string): { cls: string; level?: number } | null {
+  const kind = lezerNodeKind(name);
+  // Unique-owner invariant (task 6.5): only the 'local' owner decorates here;
+  // 'source-fallback' (and a future 'widget'/'core' owner) keeps raw source.
+  if (resolveConstructOwner(kind).owner !== 'local') return null;
+  if (kind === 'heading') {
+    if (name.startsWith('ATXHeading')) {
+      const level = Number(name.slice('ATXHeading'.length)) || 1;
+      return { cls: PROJECTION_CLASSES.heading, level };
+    }
+    return { cls: PROJECTION_CLASSES.heading, level: name.endsWith('2') ? 2 : 1 };
+  }
+  const cls = LOCAL_KIND_CLS[kind];
+  // Unreachable with the static default registry (fallback kinds return above);
+  // defensive so an owner inconsistency can never fabricate a decoration.
+  return cls ? { cls } : null;
 }
 
 /** Decoration for a construct (level-aware for headings). */
@@ -194,6 +265,9 @@ if (import.meta.env.MODE === 'e2e') {
       setProjectionTestFailMode('none');
       return 'cleared';
     },
+    /** Task 6.5: read-only construct owner registry snapshot (debug/E2E
+     *  assertions; design/05 §9 — kind→owner map and counters only). */
+    ownerRegistry: () => getOwnerRegistrySnapshot(),
   };
   (window as unknown as { __markflowProjection?: typeof projectionHooks }).__markflowProjection = projectionHooks;
 }
@@ -240,7 +314,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         return true;
       }
 
-      const cls = classifyNode(node.name);
+      const cls = classifyLezerNode(node.name);
       if (cls) {
         if (seen.has(nodeFrom)) return true;
         seen.add(nodeFrom);

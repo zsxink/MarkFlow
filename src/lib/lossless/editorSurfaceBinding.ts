@@ -384,11 +384,6 @@ export class EditorSurfaceBinding {
     return !this.disposed && this.externalConflict;
   }
 
-  /** The conflict was resolved (reloaded / saved / copied / force-written). */
-  clearExternalConflict(): void {
-    this.externalConflict = false;
-  }
-
   /** Flush the pipeline and update confirmed revision/hash. */
   async flushNow(): Promise<FlushOutcome> {
     const flush = await this.controller.flush();

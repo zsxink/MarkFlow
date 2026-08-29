@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 pub fn app_config_dir() -> PathBuf {
     #[cfg(feature = "e2e")]
     {
-        return e2e_data_dir(std::env::var_os("MARKFLOW_E2E_DATA_DIR"));
+        e2e_data_dir(std::env::var_os("MARKFLOW_E2E_DATA_DIR"))
     }
 
     #[cfg(not(feature = "e2e"))]
@@ -17,7 +17,7 @@ pub fn app_config_dir() -> PathBuf {
 pub fn app_local_data_dir() -> PathBuf {
     #[cfg(feature = "e2e")]
     {
-        return e2e_data_dir(std::env::var_os("MARKFLOW_E2E_DATA_DIR"));
+        e2e_data_dir(std::env::var_os("MARKFLOW_E2E_DATA_DIR"))
     }
 
     #[cfg(not(feature = "e2e"))]

@@ -90,7 +90,9 @@ pub struct BridgeTextChange {
     pub inserted_line_endings: Vec<String>,
 }
 
-/// Selection-after in UTF-16 coordinates (CodeMirror native).
+/// Selection-after in CodeMirror UTF-16 coordinates **after the submitted
+/// transaction**. The bridge must map these against the candidate next
+/// logical text, never the base revision.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BridgeSelectionAfter {

@@ -5,6 +5,7 @@ use std::{
     fs,
     io::Read,
     path::{Path, PathBuf},
+    time::Duration,
 };
 use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
 
@@ -16,7 +17,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
     },
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 #[cfg(target_os = "macos")]
 use tauri::{Manager, Url};
@@ -30,6 +31,8 @@ use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol};
 
 #[cfg(target_os = "macos")]
 const PDF_PAGE_READY_TIMEOUT: Duration = Duration::from_secs(20);
+#[cfg(any(target_os = "macos", test))]
+const PDF_READY_POLL_ACK_TIMEOUT: Duration = Duration::from_millis(250);
 #[cfg(target_os = "macos")]
 const PDF_NATIVE_TIMEOUT: Duration = Duration::from_secs(30);
 #[cfg(target_os = "macos")]
@@ -38,6 +41,11 @@ const PDF_FILE_READY_TIMEOUT: Duration = Duration::from_secs(5);
 static PDF_JOB_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 #[cfg(target_os = "macos")]
 static PRINT_DELEGATE_ASSOCIATION_KEY: u8 = 0;
+
+#[cfg(any(target_os = "macos", test))]
+fn pdf_ready_poll_ack_timeout(remaining: Duration) -> Duration {
+    remaining.min(PDF_READY_POLL_ACK_TIMEOUT)
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,15 +139,15 @@ pub async fn create_pdf(
 
     let html_path = cache_dir.join(format!("{job_id}.html"));
     let temp_pdf_path = temporary_pdf_path(&output_path, &job_id)?;
-    let ready_url = format!("markflow-pdf-ready://ready/{job_id}");
-    let prepared_html = inject_pdf_ready_script(&html_content, &ready_url);
+    let ready_title = pdf_ready_title(&job_id);
+    let prepared_html = inject_pdf_ready_script(&html_content, &ready_title);
     fs::write(&html_path, prepared_html)
         .map_err(|error| format!("PDF_WRITE_FAILED: cannot write export HTML: {error}"))?;
 
     let result = run_macos_pdf_job(
         &app,
         &job_id,
-        &ready_url,
+        &ready_title,
         &html_path,
         &temp_pdf_path,
         &output_path,
@@ -170,20 +178,13 @@ pub async fn create_pdf(
 async fn run_macos_pdf_job(
     app: &AppHandle,
     job_id: &str,
-    ready_url: &str,
+    ready_title: &str,
     html_path: &Path,
     temp_pdf_path: &Path,
     output_path: &Path,
 ) -> Result<PdfExportResult, String> {
-    use tokio::sync::oneshot;
-
     let page_url = Url::from_file_path(html_path)
         .map_err(|_| "PDF_LOAD_FAILED: cannot convert export HTML path to URL".to_string())?;
-    let (ready_tx, ready_rx) = oneshot::channel::<()>();
-    let ready_sender = Arc::new(Mutex::new(Some(ready_tx)));
-    let expected_ready_url = ready_url.to_string();
-    let navigation_sender = Arc::clone(&ready_sender);
-
     let window = WebviewWindowBuilder::new(
         app,
         format!("pdf-export-{job_id}"),
@@ -198,32 +199,11 @@ async fn run_macos_pdf_job(
     .focused(false)
     .skip_taskbar(true)
     .visible(true)
-    .on_navigation(move |url| {
-        if url.as_str().trim_end_matches('/') == expected_ready_url.trim_end_matches('/') {
-            if let Ok(mut sender) = navigation_sender.lock() {
-                if let Some(sender) = sender.take() {
-                    let _ = sender.send(());
-                }
-            }
-            return false;
-        }
-        true
-    })
     .build()
     .map_err(|error| format!("PDF_LOAD_FAILED: cannot create export WebView: {error}"))?;
 
     let result = async {
-        match tokio::time::timeout(PDF_PAGE_READY_TIMEOUT, ready_rx).await {
-            Ok(Ok(())) => {}
-            Ok(Err(_)) => {
-                return Err(
-                    "PDF_LOAD_FAILED: export page closed before reporting ready".to_string()
-                );
-            }
-            Err(_) => {
-                return Err("PDF_TIMEOUT: export page did not become ready".to_string());
-            }
-        }
+        wait_for_pdf_page_ready(&window, ready_title).await?;
 
         let native_output = generate_pdf_macos(&window, temp_pdf_path).await?;
         let bytes_written = match native_output {
@@ -242,6 +222,53 @@ async fn run_macos_pdf_job(
 
     let _ = window.close();
     result
+}
+
+/// WebKit 26 no longer reliably asks the navigation delegate about unknown
+/// custom URL schemes from an off-screen file webview.  Poll the document title
+/// instead: it is a WKWebView-owned, same-document observable and avoids
+/// replacing the fully-rendered page that the native PDF API will capture.
+#[cfg(target_os = "macos")]
+async fn wait_for_pdf_page_ready(
+    window: &tauri::WebviewWindow,
+    expected_title: &str,
+) -> Result<(), String> {
+    use objc2_web_kit::WKWebView;
+    use tokio::sync::oneshot;
+
+    let deadline = tokio::time::Instant::now() + PDF_PAGE_READY_TIMEOUT;
+    loop {
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
+            return Err("PDF_TIMEOUT: export page did not become ready".to_string());
+        }
+
+        let expected_title = expected_title.to_owned();
+        let (ready_tx, ready_rx) = oneshot::channel::<bool>();
+        window
+            .with_webview(move |platform_webview| {
+                let raw_webview = platform_webview.inner().cast::<WKWebView>();
+                if raw_webview.is_null() {
+                    let _ = ready_tx.send(false);
+                    return;
+                }
+                // SAFETY: Tauri runs this closure on the WebView main thread;
+                // WKWebView owns the title value returned for the active page.
+                let is_ready = unsafe { (&*raw_webview).title() }
+                    .map(|title| title.to_string() == expected_title)
+                    .unwrap_or(false);
+                let _ = ready_tx.send(is_ready);
+            })
+            .map_err(|error| format!("PDF_LOAD_FAILED: cannot read export readiness: {error}"))?;
+        match tokio::time::timeout(pdf_ready_poll_ack_timeout(deadline - now), ready_rx).await {
+            Ok(Ok(true)) => return Ok(()),
+            Ok(Ok(false)) | Err(_) => {}
+            Ok(Err(_)) => {
+                return Err("PDF_LOAD_FAILED: export page closed before reporting ready".to_string())
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -502,9 +529,14 @@ fn unique_pdf_job_id() -> Result<String, String> {
 }
 
 #[cfg(any(target_os = "macos", test))]
-fn inject_pdf_ready_script(html: &str, ready_url: &str) -> String {
-    let encoded_ready_url =
-        serde_json::to_string(ready_url).expect("serializing a URL string cannot fail");
+fn pdf_ready_title(job_id: &str) -> String {
+    format!("markflow-pdf-ready:{job_id}")
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn inject_pdf_ready_script(html: &str, ready_title: &str) -> String {
+    let encoded_ready_title =
+        serde_json::to_string(ready_title).expect("serializing a title string cannot fail");
     let script = format!(
         r#"<script data-markflow-pdf-ready>
 (async () => {{
@@ -515,10 +547,28 @@ fn inject_pdf_ready_script(html: &str, ready_url: &str) -> String {
     image.decode ? image.decode().catch(() => undefined) : Promise.resolve()
   );
   await Promise.all([fonts, ...images]);
-  await new Promise(resolve =>
-    requestAnimationFrame(() => requestAnimationFrame(resolve))
-  );
-  window.location.replace({encoded_ready_url});
+  // An off-screen WKWebView can defer animation frames indefinitely when the
+  // process is occluded. Keep the normal two-frame paint barrier, but retain a
+  // layout-backed escape hatch so a fully decoded document can still become
+  // printable on newer WebKit releases.
+  await new Promise(resolve => {{
+    let settled = false;
+    const finish = () => {{
+      if (settled) return;
+      settled = true;
+      resolve();
+    }};
+    requestAnimationFrame(() => requestAnimationFrame(finish));
+    setTimeout(() => {{
+      void document.documentElement.offsetHeight;
+      setTimeout(() => {{
+        void document.documentElement.offsetHeight;
+        finish();
+      }}, 0);
+    }}, 250);
+  }});
+  document.documentElement.dataset.markflowPdfReady = {encoded_ready_title};
+  document.title = {encoded_ready_title};
 }})();
 </script>"#
     );
@@ -667,16 +717,45 @@ mod tests {
     }
 
     #[test]
-    fn ready_script_waits_for_fonts_images_and_two_frames() {
+    fn ready_script_waits_for_resources_and_has_an_occluded_webkit_paint_fallback() {
         let html = "<html><body><p>report</p></body></html>";
-        let prepared = inject_pdf_ready_script(html, "markflow-pdf-ready://ready/job-1");
+        let ready_title = pdf_ready_title("job-1");
+        let prepared = inject_pdf_ready_script(html, &ready_title);
 
         assert!(prepared.contains("document.fonts.ready"));
         assert!(prepared.contains("image.decode"));
         assert_eq!(prepared.matches("requestAnimationFrame").count(), 2);
-        assert!(prepared.contains("markflow-pdf-ready://ready/job-1"));
+        assert!(prepared.contains("setTimeout(() =>"));
+        assert_eq!(
+            prepared
+                .matches("document.documentElement.offsetHeight")
+                .count(),
+            2
+        );
+        assert!(prepared.contains("document.documentElement.dataset.markflowPdfReady"));
+        assert!(prepared.contains("document.title"));
+        assert!(prepared.contains(&ready_title));
+        assert!(!prepared.contains("window.location.replace"));
         assert!(
             prepared.find("data-markflow-pdf-ready").unwrap() < prepared.find("</body>").unwrap()
+        );
+    }
+
+    #[test]
+    fn ready_title_is_job_scoped_and_cannot_collide_with_page_title() {
+        assert_eq!(pdf_ready_title("42"), "markflow-pdf-ready:42");
+        assert_ne!(pdf_ready_title("42"), pdf_ready_title("43"));
+    }
+
+    #[test]
+    fn readiness_poll_acknowledgment_is_bounded_by_the_remaining_deadline() {
+        assert_eq!(
+            pdf_ready_poll_ack_timeout(Duration::from_secs(2)),
+            PDF_READY_POLL_ACK_TIMEOUT
+        );
+        assert_eq!(
+            pdf_ready_poll_ack_timeout(Duration::from_millis(10)),
+            Duration::from_millis(10)
         );
     }
 

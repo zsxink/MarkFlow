@@ -1,0 +1,55 @@
+Command: npx vitest run src/lib/lossless/structuralInteraction.test.ts src/lib/lossless/commandMatrix.test.ts src/lib/lossless/commandRouter.test.ts src/lib/lossless/sourceSyncController.test.ts
+Started: 2026-08-29T21:41:50.735Z
+Ended: 2026-08-29T21:41:53.333Z
+Exit: 0
+
+npm notice run markflow@0.0.6 npx
+npm notice run 'vitest' run src/lib/lossless/structuralInteraction.test.ts src/lib/lossless/commandMatrix.test.ts src/lib/lossless/commandRouter.test.ts src/lib/lossless/sourceSyncController.test.ts
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/lossless/commandMatrix.test.ts (38 tests) 74ms
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote Enter at contentStart inserts a same-depth quote before it
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote Enter in content continues the same quote depth
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > empty quote line before a following quote removes only its current marker
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > empty inner quote line before a following quote removes only the inner marker
+leaf lmar 2
+leaf lmar 2
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > double quote Enter preserves every outer quote prefix
+leaf lmar 2
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > same-quote cross-line Backspace is one selection transaction with deterministic source and selection
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > full current quote-line selection deletes first then exits that one quote layer
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote continuation line without a current-line marker is exact source fallback, never a structural transaction
+leaf lmar 1
+leaf lmar 1
+
+ ✓ src/lib/lossless/structuralInteraction.test.ts (136 tests) 189ms
+stdout | src/lib/lossless/commandRouter.test.ts > lossless command router — table-driven (task 5.2) > quote toggle on a multi-line selection quotes every line
+leaf lmar 1
+
+ ✓ src/lib/lossless/commandRouter.test.ts (44 tests) 290ms
+ ✓ src/lib/lossless/sourceSyncController.test.ts (20 tests) 1726ms
+   ✓ SourceSyncController > enters blocked after exhausting retries and preserves optimistic text 404ms
+   ✓ SourceSyncController > flush() returns Blocked when the pipeline is blocked 402ms
+
+ Test Files  4 passed (4)
+      Tests  238 passed (238)
+   Start at  05:41:51
+   Duration  2.12s (transform 220ms, setup 0ms, collect 468ms, tests 2.28s, environment 584ms, prepare 180ms)
+
+

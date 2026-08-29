@@ -65,6 +65,8 @@ export interface SyncControllerDeps {
   composePending(): LocalChange[];
   /** Current optimistic document text (CodeMirror doc). */
   currentDoc(): string;
+  /** Current source selection, expressed in the same UTF-16 coordinate space. */
+  selectionAfter?(): { anchorUtf16: number; headUtf16: number } | null;
   /** Drop locally queued changes after resync has captured the optimistic doc. */
   discardPending?(): void;
   /**
@@ -287,6 +289,10 @@ export class SourceSyncController {
         insertedLineEndings: c.insertedLineEndings
           ?? Array(c.insert.split('\n').length - 1).fill('inherit'),
       })),
+      // Selection travels with the same accepted revision as the source patch;
+      // this keeps Core's command/presentation boundary from inventing a
+      // second structural state channel.
+      selectionAfter: this.deps.selectionAfter?.() ?? null,
     };
     this.pendingCount = 0;
     this.inFlight = { patch, txnId, retries: 0, retryTimer: null, attemptGeneration: 0 };
@@ -378,6 +384,11 @@ export class SourceSyncController {
       // would replay their mutations after this rebase.
       this.deps.discardPending?.();
       const txnId = this.nextTxnId++;
+      // Freeze the post-change CM selection at fresh-transaction creation.
+      // Retrying this same bridge payload must not re-read a cursor that may
+      // have moved while the request was in flight (and must therefore retain
+      // the same Core transport fingerprint).
+      const selectionAfter = this.deps.selectionAfter?.() ?? null;
       const patch = {
         bindingGeneration: this.deps.bindingGeneration,
         sessionId: this.deps.sessionId,
@@ -391,6 +402,7 @@ export class SourceSyncController {
           insertedLineEndings: c.insertedLineEndings
             ?? Array(c.insert.split('\n').length - 1).fill('inherit'),
         })),
+        selectionAfter,
       };
       this.confirmedRevision = snapshot.revision;
       this.confirmedHash = snapshot.confirmedHash as string;

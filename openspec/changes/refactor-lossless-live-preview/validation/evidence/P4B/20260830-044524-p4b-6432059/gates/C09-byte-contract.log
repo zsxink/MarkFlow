@@ -1,0 +1,41 @@
+Command: npm run test:byte-contract
+Started: 2026-08-29T20:50:44.480Z
+Ended: 2026-08-29T20:50:45.099Z
+Exit: 0
+
+npm notice run markflow@0.0.6 test:byte-contract
+npm notice run node tests/byte-contract/generate-fixtures.mjs --verify && node tests/byte-contract/l0-harness.mjs --self-check && node tests/byte-contract/l1-harness.mjs --self-check
+{
+  "verified": true,
+  "stable": true,
+  "changed": []
+}
+{
+  "positive": {
+    "pass": true,
+    "count": 24,
+    "failed": []
+  },
+  "negative": {
+    "pass": true,
+    "count": 23,
+    "missed": []
+  },
+  "ok": true,
+  "fixturesDir": "/Users/xian/Project/book/MarkFlow/tests/fixtures/byte-contract/fixtures"
+}
+{
+  "positive": {
+    "pass": true,
+    "count": 95,
+    "failed": []
+  },
+  "negative": {
+    "pass": true,
+    "count": 93,
+    "missed": []
+  },
+  "ok": true,
+  "fixturesRoot": "/Users/xian/Project/book/MarkFlow/tests/fixtures/byte-contract"
+}
+

@@ -1,0 +1,8 @@
+Command: npm run test:e2e:build
+Started: 2026-08-29T20:38:49.423Z
+Ended: 2026-08-29T20:39:26.324Z
+Exit: 0
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 30.49s
+       Built application at: /Users/xian/Project/book/MarkFlow/src-tauri/target/debug/markflow
+

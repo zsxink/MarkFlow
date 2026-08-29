@@ -1,0 +1,92 @@
+Command: node e2e/run.mjs lossless
+Started: 2026-08-29T20:39:41.718Z
+Ended: 2026-08-29T20:42:21.426Z
+Exit: 1
+
+[0-0] Error in "P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV).⑤ fence: caret inside the code reveals the fence; no descent into body"
+Error: element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-fence.md"]") still not displayed after 10000ms
+    at async openFileInTree (file:///Users/xian/Project/book/MarkFlow/e2e/page-objects/app.mjs:40:3)
+    at async openFileAndWait (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:37:3)
+    at async Context.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:152:5)
+[0-0] FAILED in undefined - file:///e2e/specs/lossless/all-lossless.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: 4d399198-be19-44e5-ae3b-8a6d08607301
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » e2e/specs/lossless/all-lossless.e2e.mjs
+[webkit 605.1.15 macos #0-0] P1B lossless desktop lifecycle (flag ON, autosave ENABLED)
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (6 fixtures)
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (7 fixtures)
+[webkit 605.1.15 macos #0-0]    ✓ clean Cmd+S does not write; bytes/hash/mtime unchanged
+[webkit 605.1.15 macos #0-0]    ✓ Source edit → dirty → Save persists; reopen hash matches
+[webkit 605.1.15 macos #0-0]    ✓ CRLF + BOM fixtures survive a real body edit: EOL/BOM bytes preserved, reopen hash matches
+[webkit 605.1.15 macos #0-0]    ✓ A→B switch does not write A and leaves B clean
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] P2 lossless Live Preview (dual flags ON, autosave ENABLED)
+[webkit 605.1.15 macos #0-0]    ✓ mode switching keeps a SINGLE EditorView; doc/selection/scroll survive 100 switches
+[webkit 605.1.15 macos #0-0]    ✓ projects semantic decorations while the source characters remain
+[webkit 605.1.15 macos #0-0]    ✓ 100 mode switches on a clean document: dirty=false, save count=0, bytes unchanged
+[webkit 605.1.15 macos #0-0]    ✓ projection failure degrades to source and the document still saves
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV)
+[webkit 605.1.15 macos #0-0]    ✖ ① headingStrong: a caret in the heading # marker reveals; a far caret weakens it
+[webkit 605.1.15 macos #0-0]    ✖ ② emphasisStrikeInlineCode: a caret in **  reveals; emoji content is UTF-16 safe
+[webkit 605.1.15 macos #0-0]    ✖ ③ links: a caret in a `(` delimiter of [text](url) reveals; Select All fully reveals
+[webkit 605.1.15 macos #0-0]    ✖ ④ quoteLists: a caret on `>` reveals the blockquote; blank line does not
+[webkit 605.1.15 macos #0-0]    ✖ ⑤ fence: caret inside the code reveals the fence; no descent into body
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 10 passing (2m 25.3s)
+[webkit 605.1.15 macos #0-0] 5 failing
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 1) P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV) ① headingStrong: a caret in the heading # marker reveals; a far caret weakens it
+[webkit 605.1.15 macos #0-0] element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-heading.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0] Error: element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-heading.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0]     at async openFileInTree (file:///Users/xian/Project/book/MarkFlow/e2e/page-objects/app.mjs:40:3)
+[webkit 605.1.15 macos #0-0]     at async openFileAndWait (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:37:3)
+[webkit 605.1.15 macos #0-0]     at async Context.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:91:5)
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 2) P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV) ② emphasisStrikeInlineCode: a caret in **  reveals; emoji content is UTF-16 safe
+[webkit 605.1.15 macos #0-0] element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-emoji.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0] Error: element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-emoji.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0]     at async openFileInTree (file:///Users/xian/Project/book/MarkFlow/e2e/page-objects/app.mjs:40:3)
+[webkit 605.1.15 macos #0-0]     at async openFileAndWait (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:37:3)
+[webkit 605.1.15 macos #0-0]     at async Context.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:113:5)
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 3) P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV) ③ links: a caret in a `(` delimiter of [text](url) reveals; Select All fully reveals
+[webkit 605.1.15 macos #0-0] element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-link.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0] Error: element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-link.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0]     at async openFileInTree (file:///Users/xian/Project/book/MarkFlow/e2e/page-objects/app.mjs:40:3)
+[webkit 605.1.15 macos #0-0]     at async openFileAndWait (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:37:3)
+[webkit 605.1.15 macos #0-0]     at async Context.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:127:5)
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 4) P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV) ④ quoteLists: a caret on `>` reveals the blockquote; blank line does not
+[webkit 605.1.15 macos #0-0] element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-quote.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0] Error: element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-quote.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0]     at async openFileInTree (file:///Users/xian/Project/book/MarkFlow/e2e/page-objects/app.mjs:40:3)
+[webkit 605.1.15 macos #0-0]     at async openFileAndWait (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:37:3)
+[webkit 605.1.15 macos #0-0]     at async Context.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:140:5)
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 5) P4B task 7.1/7.2 — per-cohort marker reveal (PENDING-MANUAL/ENV) ⑤ fence: caret inside the code reveals the fence; no descent into body
+[webkit 605.1.15 macos #0-0] element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-fence.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0] Error: element ("[data-testid="file-tree-item"][data-path$="/p4b-cohort-fence.md"]") still not displayed after 10000ms
+[webkit 605.1.15 macos #0-0]     at async openFileInTree (file:///Users/xian/Project/book/MarkFlow/e2e/page-objects/app.mjs:40:3)
+[webkit 605.1.15 macos #0-0]     at async openFileAndWait (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:37:3)
+[webkit 605.1.15 macos #0-0]     at async Context.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/specs/lossless/p4b-cohort-reveal.e2e.mjs:152:5)
+
+
+Spec Files:	 0 passed, 1 failed, 1 total (100% completed) in 00:02:26  
+
+file:///Users/xian/Project/book/MarkFlow/e2e/run.mjs:67
+      else reject(new Error(`${command} ${args.join(' ')} exited with ${signal ?? code}`));
+                  ^
+
+Error: npx wdio run e2e/wdio.conf.mjs --suite lossless exited with 1
+    at ChildProcess.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/run.mjs:67:19)
+    at Object.onceWrapper (node:events:631:26)
+    at ChildProcess.emit (node:events:509:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:295:12)
+
+Node.js v24.17.0
+

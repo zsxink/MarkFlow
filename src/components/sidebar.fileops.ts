@@ -34,10 +34,36 @@ import { getActiveLosslessBinding, rebindActiveLosslessPath } from '../lib/lossl
 // ── Serial save guard ────────────────────────────────────────────────
 
 let savingInProgress = false;
+let transitionCount = 0;
+
+/**
+ * Hold the document-transition barrier across a UI operation that will
+ * eventually call `openFileInEditor`.  A tree click intentionally defers the
+ * actual open for double-click detection, so the barrier must begin at the
+ * click, not 250ms later when `openFileInEditor` starts.
+ *
+ * The returned release is idempotent: cancellation, a thrown open, and a
+ * nested transition can all independently clean up without underflowing the
+ * shared refcount.
+ */
+export function acquireDocumentTransitionGuard(): () => void {
+  transitionCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    transitionCount = Math.max(0, transitionCount - 1);
+  };
+}
 
 /** Returns true if a save operation is currently in progress. */
 export function isSavingInProgress(): boolean {
   return savingInProgress;
+}
+
+/** Returns true while a guarded document transition or nested decision is pending. */
+export function isDocumentTransitionInProgress(): boolean {
+  return transitionCount > 0;
 }
 
 export async function confirmDocumentTransition(): Promise<boolean> {
@@ -50,25 +76,30 @@ export async function confirmDocumentTransition(): Promise<boolean> {
     ? '当前文件已被外部修改。切换到其他文件前希望如何处理？'
     : '有未保存的内容，是否保存？';
 
-  const result = await showDialog({
-    title,
-    body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>`,
-    buttons: [
-      { label: '取消', value: 'cancel' },
-      { label: '不保存', value: 'discard' },
-      { label: '保存', value: 'save', primary: true },
-    ],
-    width: '320px',
-    padding: '12px 20px',
-  });
+  const releaseTransition = acquireDocumentTransitionGuard();
+  try {
+    const result = await showDialog({
+      title,
+      body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);line-height:1.5;">${body}</p>`,
+      buttons: [
+        { label: '取消', value: 'cancel' },
+        { label: '不保存', value: 'discard' },
+        { label: '保存', value: 'save', primary: true },
+      ],
+      width: '320px',
+      padding: '12px 20px',
+    });
 
-  if (result === 'save') {
-    const saved = await saveActiveDocument({ interactive: true });
-    return saved === 'saved';
+    if (result === 'save') {
+      const saved = await saveActiveDocument({ interactive: true });
+      return saved === 'saved';
+    }
+
+    if (result === 'discard') return true;
+    return false;
+  } finally {
+    releaseTransition();
   }
-
-  if (result === 'discard') return true;
-  return false;
 }
 
 function getConflictSavePath(path: string) {
@@ -444,102 +475,107 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
 }
 
 export async function openFileInEditor(path: string) {
-  const activePath = getActiveFilePath();
-  if (path === activePath) {
-    if (hasExternalModification() && !isDocumentDirty()) {
-      const reloaded = await reloadActiveDocumentFromDisk({ force: true });
-      if (reloaded) showToast('已从磁盘重新加载');
-    } else if (hasExternalModification()) {
-      const result = await handleActiveDocumentExternalModification();
-      if (result === 'reloaded') showToast('已加载磁盘版本');
+  const releaseTransition = acquireDocumentTransitionGuard();
+  try {
+    const activePath = getActiveFilePath();
+    if (path === activePath) {
+      if (hasExternalModification() && !isDocumentDirty()) {
+        const reloaded = await reloadActiveDocumentFromDisk({ force: true });
+        if (reloaded) showToast('已从磁盘重新加载');
+      } else if (hasExternalModification()) {
+        const result = await handleActiveDocumentExternalModification();
+        if (result === 'reloaded') showToast('已加载磁盘版本');
+      }
+      return;
     }
-    return;
-  }
-  if (!(await confirmDocumentTransition())) return;
+    if (!(await confirmDocumentTransition())) return;
 
-  // ── Lossless Core path (P1B 3.4) ──────────────────────────────────
-  // Source mode uses Core logical text directly; `setMarkdown` / serializer are
-  // never called for the lossless session (owner isolation).
-  if (isLosslessCoreSessionEnabled()) {
-    await prepareImageLifecycleForOpenedDocument(path);
-    const opened = await openLosslessDocument(path);
-    if (opened) {
+    // ── Lossless Core path (P1B 3.4) ──────────────────────────────────
+    // Source mode uses Core logical text directly; `setMarkdown` / serializer are
+    // never called for the lossless session (owner isolation).
+    if (isLosslessCoreSessionEnabled()) {
+      await prepareImageLifecycleForOpenedDocument(path);
+      const opened = await openLosslessDocument(path);
+      if (opened) {
+        setActiveFilePath(path);
+        resetEditorScroll();
+        refreshOutline();
+        showToast('已打开文件');
+        return;
+      }
+      if (isLosslessOpenRecoveryBlocked()) {
+        showToast('保存恢复尚未完成：已阻止使用旧编辑器写入该文件');
+        return;
+      }
+      // Lossless open failed → dispose any stale binding, then fall through to
+      // legacy so the file still opens.
+      await closeLosslessActiveDocument();
+    }
+
+    try {
+      // Read metadata for tier classification
+      const metadata = await getFileMetadata(path);
+      const tier = determineTier(metadata.size, metadata.lines);
+
+      // Handle Huge tier: confirmation before opening
+      if (tier === 'huge') {
+        const choice = await showDialog({
+          title: '文件过大',
+          body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);">该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p>
+               <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">建议以只读模式预览，或强制打开（部分功能可能受限）。</p>`,
+          buttons: [
+            { label: '取消', value: 'cancel' },
+            { label: '强制打开', value: 'force' },
+            { label: '只读预览', value: 'readonly', primary: true },
+          ],
+          width: '400px',
+        });
+        if (!choice || choice === 'cancel') return;
+
+        if (choice === 'readonly') {
+          const content = await readFile(path);
+          await prepareImageLifecycleForOpenedDocument(path);
+          setActiveDocumentPath(path);
+          setActiveFilePath(path);
+          setMarkdown(content);
+          setReadOnly(true);
+          showDegradationBar({ tier: 'huge', size: formatFileSize(metadata.size), lines: metadata.lines, readOnly: true });
+          resetEditorScroll();
+          refreshOutline();
+          showToast('已以只读模式打开文件');
+          return;
+        }
+        // choice === 'force' — proceed to normal open with degradation bar
+      }
+
+      const content = await readFile(path);
+      await prepareImageLifecycleForOpenedDocument(path);
+      setActiveDocumentPath(path);
       setActiveFilePath(path);
+      setMarkdown(content);
+      // Reset read-only state for normal/large opens
+      setReadOnly(false);
+
+      // Show degradation UI for large files
+      if (tier === 'large') {
+        showDegradationBar({ tier: 'large', size: formatFileSize(metadata.size), lines: metadata.lines });
+      } else {
+        hideDegradationBar();
+      }
+
+      // Record mtime + size for future external-modification checks
+      try {
+        const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path });
+        setLastReadStats(stats.mtime, stats.size);
+      } catch (e) { logDebug('fileops', 'Failed to get file stats after open (non-critical)', { path, error: String(e) }); }
       resetEditorScroll();
       refreshOutline();
       showToast('已打开文件');
-      return;
+    } catch (e) {
+      showToast(`打开失败: ${e}`);
     }
-    if (isLosslessOpenRecoveryBlocked()) {
-      showToast('保存恢复尚未完成：已阻止使用旧编辑器写入该文件');
-      return;
-    }
-    // Lossless open failed → dispose any stale binding, then fall through to
-    // legacy so the file still opens.
-    await closeLosslessActiveDocument();
-  }
-
-  try {
-    // Read metadata for tier classification
-    const metadata = await getFileMetadata(path);
-    const tier = determineTier(metadata.size, metadata.lines);
-
-    // Handle Huge tier: confirmation before opening
-    if (tier === 'huge') {
-      const choice = await showDialog({
-        title: '文件过大',
-        body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);">该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p>
-               <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">建议以只读模式预览，或强制打开（部分功能可能受限）。</p>`,
-        buttons: [
-          { label: '取消', value: 'cancel' },
-          { label: '强制打开', value: 'force' },
-          { label: '只读预览', value: 'readonly', primary: true },
-        ],
-        width: '400px',
-      });
-      if (!choice || choice === 'cancel') return;
-
-      if (choice === 'readonly') {
-        const content = await readFile(path);
-        await prepareImageLifecycleForOpenedDocument(path);
-        setActiveDocumentPath(path);
-        setActiveFilePath(path);
-        setMarkdown(content);
-        setReadOnly(true);
-        showDegradationBar({ tier: 'huge', size: formatFileSize(metadata.size), lines: metadata.lines, readOnly: true });
-        resetEditorScroll();
-        refreshOutline();
-        showToast('已以只读模式打开文件');
-        return;
-      }
-      // choice === 'force' — proceed to normal open with degradation bar
-    }
-
-    const content = await readFile(path);
-    await prepareImageLifecycleForOpenedDocument(path);
-    setActiveDocumentPath(path);
-    setActiveFilePath(path);
-    setMarkdown(content);
-    // Reset read-only state for normal/large opens
-    setReadOnly(false);
-
-    // Show degradation UI for large files
-    if (tier === 'large') {
-      showDegradationBar({ tier: 'large', size: formatFileSize(metadata.size), lines: metadata.lines });
-    } else {
-      hideDegradationBar();
-    }
-
-    // Record mtime + size for future external-modification checks
-    try {
-      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path });
-      setLastReadStats(stats.mtime, stats.size);
-    } catch (e) { logDebug('fileops', 'Failed to get file stats after open (non-critical)', { path, error: String(e) }); }
-    resetEditorScroll();
-    refreshOutline();
-    showToast('已打开文件');
-  } catch (e) {
-    showToast(`打开失败: ${e}`);
+  } finally {
+    releaseTransition();
   }
 }
 

@@ -1,0 +1,6 @@
+Command: cargo fmt --manifest-path markflow-core/Cargo.toml -- --check
+Started: 2026-08-29T21:42:12.245Z
+Ended: 2026-08-29T21:42:12.400Z
+Exit: 0
+
+

@@ -136,7 +136,7 @@
 
 - [ ] 7.1 冻结 `visible/dimmed/hidden/revealed` visibility API、construct descriptor 与 reveal contract；P4B 只输出 visible/dimmed/revealed，hidden 由 P6 独占
 - [ ] 7.2 建立 P6/P7 共用 interaction harness，覆盖空 heading/list/quote、nested selection、Select All、double-click/drag、Arrow/Home/End/Backspace/Delete、input rule、Undo 落点和 viewport 重建
-- [ ] 7.2a 建立 ADR 表驱动 harness；P4B 逐行实现 heading/list/quote 并记录 source before/after、affected ranges、selectionAfter 与单一 History group。Table 在本阶段只冻结 fixtures、widget 接口和预期结果，不实现 table widget
+- [x] 7.2a 建立 ADR 表驱动 harness；P4B 逐行实现 heading/list/quote 并记录 source before/after、affected ranges、selectionAfter 与单一 History group。Table 在本阶段只冻结 fixtures、widget 接口和预期结果，不实现 table widget
 - [ ] 7.3 在真实 Tauri WebView 偿还 P3 IME 证据债：中文与日文 composition start/update/end 邻 marker 不丢字、不取消、一次 Undo
 - [ ] 7.4 建立 widget protocol：source/marker range、atomic/focus、commit/cancel、Undo、reveal、fallback、async identity、安全、a11y、read-only 与 export
 - [ ] 7.5 完成 construct identity 粒度的 `local/widget/source-fallback` runtime owner、父子 editable slot 仲裁、独立 flag、debug snapshot 与 cleanup；历史 `core` 类型位不得成为运行时 owner

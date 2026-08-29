@@ -1,0 +1,41 @@
+Command: bash scripts/check-archive-synced.sh
+Started: 2026-08-29T20:35:12.988Z
+Ended: 2026-08-29T20:35:17.914Z
+Exit: 0
+
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-unify-empty-line-and-block-continuation/specs/source-toolbar-cm6/spec.md: all content synced to main specs/source-toolbar-cm6
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-unify-empty-line-and-block-continuation/specs/codemirror-source-editor/spec.md: all content synced to main specs/codemirror-source-editor
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-unify-empty-line-and-block-continuation/specs/block-continuation-paragraph/spec.md: all content synced to main specs/block-continuation-paragraph
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-unify-empty-line-and-block-continuation/specs/enter-content-integrity/spec.md: all content synced to main specs/enter-content-integrity
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-unify-empty-line-and-block-continuation/specs/empty-line-preservation/spec.md: all content synced to main specs/empty-line-preservation
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-08-13-p0-lossless-byte-contract/specs/byte-contract-harness/spec.md: all content synced to main specs/byte-contract-harness
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-21-update-readme-features/specs/readme-sync/spec.md: all content synced to main specs/readme-sync
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-build-typescript-errors/specs/type-system/spec.md: all content synced to main specs/type-system
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-code-block-trailing-newline/specs/codemirror-source-editor/spec.md: all content synced to main specs/codemirror-source-editor
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-code-block-trailing-newline/specs/code-block-serialization/spec.md: all content synced to main specs/code-block-serialization
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-code-block-trailing-newline/specs/enter-content-integrity/spec.md: all content synced to main specs/enter-content-integrity
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-21-ci-archive-sync-gate/specs/archive-sync-gate/spec.md: all content synced to main specs/archive-sync-gate
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-pdf-export-and-docx/specs/docx-export/spec.md: all content synced to main specs/docx-export
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-pdf-export-and-docx/specs/rendered-document-export/spec.md: all content synced to main specs/rendered-document-export
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-restructure-editor-settings-and-image-storage/specs/dialog-system/spec.md: all content synced to main specs/dialog-system
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-restructure-editor-settings-and-image-storage/specs/image-naming/spec.md: all content synced to main specs/image-naming
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-restructure-editor-settings-and-image-storage/specs/image-storage-engine/spec.md: all content synced to main specs/image-storage-engine
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-restructure-editor-settings-and-image-storage/specs/settings-code-highlight/spec.md: all content synced to main specs/settings-code-highlight
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-restructure-editor-settings-and-image-storage/specs/image-streaming/spec.md: all content synced to main specs/image-streaming
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-markflow-issue-workflow/specs/issue-workflow/spec.md: all content synced to main specs/issue-workflow
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-openspec-validate-deps/specs/ci-openspec-validation/spec.md: all content synced to main specs/ci-openspec-validation
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-add-e2e-test-cases/specs/e2e-test-coverage/spec.md: all content synced to main specs/e2e-test-coverage
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-27-define-m0-architecture-baseline/specs/m0-architecture-baseline/spec.md: all content synced to main specs/m0-architecture-baseline
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-export-pdf-docx-unified-wysiwyg/specs/html-export/spec.md: all content synced to main specs/html-export
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-export-pdf-docx-unified-wysiwyg/specs/docx-export/spec.md: all content synced to main specs/docx-export
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-export-pdf-docx-unified-wysiwyg/specs/rendered-document-export/spec.md: all content synced to main specs/rendered-document-export
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-export-pdf-docx-unified-wysiwyg/specs/export-theme/spec.md: all content synced to main specs/export-theme
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-export-pdf-docx-unified-wysiwyg/specs/pdf-export/spec.md: all content synced to main specs/pdf-export
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-single-file-autosave-workspace/specs/autosave-dirty-guard/spec.md: all content synced to main specs/autosave-dirty-guard
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-fix-single-file-autosave-workspace/specs/write-file-permission/spec.md: all content synced to main specs/write-file-permission
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-22-multi-window-close-crosstalk/specs/multi-window-close-isolation/spec.md: all content synced to main specs/multi-window-close-isolation
+✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-restore-macos-pdf-export/specs/pdf-export/spec.md: all content synced to main specs/pdf-export
+
+(skipped 70 legacy archive(s) predating cutoff 2026-07-21)
+OK: all archived delta specs (on/after 2026-07-21) are synced to main specs
+

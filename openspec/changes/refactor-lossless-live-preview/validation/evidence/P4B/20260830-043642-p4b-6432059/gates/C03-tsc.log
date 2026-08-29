@@ -1,0 +1,8 @@
+Command: npx tsc --noEmit
+Started: 2026-08-29T20:38:01.430Z
+Ended: 2026-08-29T20:38:05.923Z
+Exit: 0
+
+npm notice run markflow@0.0.6 npx
+npm notice run 'tsc' --noEmit
+

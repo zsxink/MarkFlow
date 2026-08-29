@@ -68,6 +68,23 @@ async function clickSource() {
   await (await app.sourceMode()).click();
 }
 
+/** Switch the active lossless surface and wait for the requested mode. */
+async function switchToPreview() {
+  const result = await browser.execute(() => {
+    const binding = window.__markflowLossless;
+    if (!binding?.setMode || !binding.getMode) return 'no-hook';
+    binding.setMode('preview');
+    return binding.getMode();
+  });
+  if (result === 'no-hook') throw new Error('no lossless mode hook');
+  await browser.waitUntil(async () => (
+    await browser.execute(() => window.__markflowLossless?.getMode?.() ?? 'source')
+  ) === 'preview', {
+    timeout: 5_000,
+    timeoutMsg: `Expected lossless preview mode, got ${result}`,
+  });
+}
+
 export function registerLivePreviewTests() {
 describe('P2 lossless Live Preview (dual flags ON, autosave ENABLED)', () => {
   before(async () => {
@@ -107,12 +124,20 @@ describe('P2 lossless Live Preview (dual flags ON, autosave ENABLED)', () => {
     const name = 'p2-live-preview-constructs.md';
     await openFileAndWaitActive(name);
 
-    await clickWysiwyg(); // → Live Preview
-
-    const decorations = await browser.execute(() => window.__markflowLossless?.decorations?.() ?? {});
-    // Every basic construct class must be present.
     const expected = ['mf-h', 'mf-strong', 'mf-emphasis', 'mf-strikethrough',
       'mf-inline-code', 'mf-link', 'mf-blockquote', 'mf-list-item', 'mf-fence'];
+    await switchToPreview();
+    await browser.waitUntil(async () => browser.execute(([classes]) => {
+      const binding = window.__markflowLossless;
+      if (binding?.projectionState?.() !== 'rendered') return false;
+      const decorations = binding.decorations?.() ?? {};
+      return classes.every((cls) => (decorations[cls] ?? 0) > 0);
+    }, [expected]), {
+      timeout: 5_000,
+      timeoutMsg: 'Expected rendered projection with all semantic decoration classes',
+    });
+    const decorations = await browser.execute(() => window.__markflowLossless?.decorations?.() ?? {});
+    // Every basic construct class must be present.
     for (const cls of expected) {
       // WDIO `expect` takes a single argument — no custom message parameter.
       expect(decorations[cls] ?? 0).toBeGreaterThan(0);

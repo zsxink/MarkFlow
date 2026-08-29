@@ -8,7 +8,7 @@
 
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { Compartment, type Extension, type Transaction } from '@codemirror/state';
+import { Compartment, EditorState, type Extension, type Transaction } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
 import { GFM } from '@lezer/markdown';
 import {
@@ -24,6 +24,7 @@ import { highlightLimitPlugin } from '../codemirror-highlight-limit';
 import { projectionExtension } from './projection';
 import { widgetProjectionExtension } from './widgets/p4bWidgets';
 import { rawHtmlPolicyExtension } from './policy/rawHtmlPolicy';
+import { structuralInteractionKeymap } from './structuralInteraction';
 // Side-effect import: registers the flag-gated `frontmatter` owner at module
 // init (task 7.7). It needs no extension — no `FrontMatter` Lezer node exists
 // (ADR §3.1), so the only safe projection is exact source by construction.
@@ -213,6 +214,10 @@ export function buildLosslessExtensions(
     ),
     // `addKeymap` defaults to true → `Prec.high(keymap.of(markdownKeymap))`.
     markdown({ extensions: [GFM], codeLanguages: CODE_LANGUAGES }),
+    // P4B task 7.2a: ADR-defined source commands outrank generic Markdown
+    // continuation. Unsupported, malformed, read-only and composing contexts
+    // decline, preserving the ordinary source fallback.
+    structuralInteractionKeymap,
     EditorView.updateListener.of((update) => {
       if (lifecycle.destroyed) return;
       if (update.docChanged) {
@@ -306,7 +311,10 @@ export function buildLosslessExtensions(
       },
     }),
       highlightLimitPlugin,
-      readOnlyCompartment.of(EditorView.editable.of(!(options.readOnly ?? false))),
+      readOnlyCompartment.of([
+        EditorView.editable.of(!(options.readOnly ?? false)),
+        EditorState.readOnly.of(options.readOnly ?? false),
+      ]),
       // P2 projection compartment: only active in 'preview' mode when the flag
       // is on. Reconfiguring this compartment NEVER changes the doc, the
       // selection, or the History — it only adds/removes semantic decorations.
@@ -373,7 +381,10 @@ export function createLosslessSourceEditor(
     },
     setReadOnly(readOnly: boolean): void {
       view.dispatch({
-        effects: built.readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
+        effects: built.readOnlyCompartment.reconfigure([
+          EditorView.editable.of(!readOnly),
+          EditorState.readOnly.of(readOnly),
+        ]),
       });
     },
     setHighlight(enabled: boolean): void {

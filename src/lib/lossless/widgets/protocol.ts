@@ -67,6 +67,27 @@ export interface SourceRangeSet {
 }
 
 /**
+ * P7 table-cell editor-slot contract.  P4B only freezes this shape so its
+ * interaction fixtures can name the exact Lezer-verified source ranges.  It
+ * deliberately does not add `table` to `WidgetKind`, register a descriptor,
+ * or render a table widget.
+ */
+export interface TableCellSlotProtocol {
+  /** The minimum table source construct trusted as one unit. */
+  table: SourceInterval;
+  /** The GFM delimiter row that made this table trustworthy. */
+  delimiter: SourceInterval;
+  /** Header/data-row source spans, excluding the delimiter row. */
+  rows: readonly SourceInterval[];
+  /** Individual editable cell content spans in source order. */
+  cells: readonly SourceInterval[];
+  /** A P7 slot must retain the standard source/focus/fallback contract. */
+  interaction: Pick<WidgetInteractionContract, 'atomic' | 'revealOnFocus' | 'readOnly'>;
+  /** Untrusted ranges always leave the original source in place. */
+  fallback: 'exact-source';
+}
+
+/**
  * Document-truth rule: a widget commit MUST return a local CodeMirror source
  * patch — NEVER DOM content, NEVER a serializer string (design 05 §3/§4, specs
  * "富块只是 Markdown source 的交互投影"). `TransactionSpec` is the

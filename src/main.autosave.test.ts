@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   isSavingInProgress: vi.fn(),
+  isDocumentTransitionInProgress: vi.fn(),
   isDocumentDirty: vi.fn(),
   hasUnpersistedUserChanges: vi.fn(),
   getActiveFilePath: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('./components/unsavedDialog', () => ({ showUnsavedDialog: mocks.showUnsa
 vi.mock('./components/sidebar', () => ({
   initSidebar: vi.fn(),
   isSavingInProgress: mocks.isSavingInProgress,
+  isDocumentTransitionInProgress: mocks.isDocumentTransitionInProgress,
   getActiveFilePath: mocks.getActiveFilePath,
   saveActiveDocument: mocks.saveActiveDocument,
   switchSidebarTab: vi.fn(),
@@ -41,6 +43,7 @@ import { handleCloseRequested, runAutoSaveTick } from './main';
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.isSavingInProgress.mockReturnValue(false);
+  mocks.isDocumentTransitionInProgress.mockReturnValue(false);
   mocks.isDocumentDirty.mockReturnValue(false);
   mocks.hasUnpersistedUserChanges.mockReturnValue(false);
   mocks.getActiveFilePath.mockReturnValue(null);
@@ -74,6 +77,17 @@ describe('autosave tick', () => {
   it('skips when saving is in progress', async () => {
     mocks.isSavingInProgress.mockReturnValue(true);
     await runAutoSaveTick();
+    expect(mocks.saveActiveDocument).not.toHaveBeenCalled();
+  });
+
+  it('skips while a document transition decision is in progress', async () => {
+    mocks.isDocumentTransitionInProgress.mockReturnValue(true);
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.hasUnpersistedUserChanges.mockReturnValue(true);
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+
+    await runAutoSaveTick();
+
     expect(mocks.saveActiveDocument).not.toHaveBeenCalled();
   });
 

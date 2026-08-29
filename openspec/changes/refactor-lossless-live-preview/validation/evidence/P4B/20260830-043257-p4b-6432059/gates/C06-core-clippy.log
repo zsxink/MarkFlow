@@ -1,0 +1,8 @@
+Command: cargo clippy --manifest-path markflow-core/Cargo.toml --all-targets --all-features -- -D warnings
+Started: 2026-08-29T20:35:12.988Z
+Ended: 2026-08-29T20:35:14.193Z
+Exit: 0
+
+    Checking markflow-core v0.1.0 (/Users/xian/Project/book/MarkFlow/markflow-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.91s
+

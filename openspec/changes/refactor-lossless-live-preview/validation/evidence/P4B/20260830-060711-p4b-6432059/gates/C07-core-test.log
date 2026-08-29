@@ -1,0 +1,151 @@
+Command: cargo test --manifest-path markflow-core/Cargo.toml
+Started: 2026-08-29T22:09:03.337Z
+Ended: 2026-08-29T22:09:03.628Z
+Exit: 0
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (markflow-core/target/debug/deps/markflow_core-33a6e75d186b37b7)
+
+running 40 tests
+test line_ending::tests::eol_widths ... ok
+test patch::tests::selection_helpers ... ok
+test error::tests::error_codes_are_stable_and_mapped ... ok
+test line_ending::tests::kind_at_and_replace ... ok
+test patch::tests::fingerprint_differs_for_different_payload ... ok
+test patch::tests::fingerprint_orders_changes ... ok
+test identity::tests::identity_from_bytes ... ok
+test line_ending::tests::serde_provenance ... ok
+test identity::tests::serde_round_trip_as_hex ... ok
+test position_map::tests::source_byte_bom_geometry ... ok
+test position_map::tests::source_byte_out_of_bounds ... ok
+test position_map::tests::source_byte_crlf_geometry ... ok
+test identity::tests::sha256_matches_empty_and_known_vector ... ok
+test position_map::tests::utf16_inside_surrogate_rejected ... ok
+test position_map::tests::utf16_round_trip_with_emoji ... ok
+test session::tests::apply_patch_failure_leaves_everything_unchanged ... ok
+test session::tests::closed_session_rejects_all_ops ... ok
+test session::tests::apply_patch_advances_revision ... ok
+test session::tests::duplicate_mismatch_rejected ... ok
+test session::tests::mark_persisted_clears_dirty_and_binds_identity ... ok
+test session::tests::high_water_mark_resets_on_reload ... ok
+test session::tests::open_zero_revision_and_clean ... ok
+test session::tests::mark_persisted_rejects_future_revision ... ok
+test session::tests::post_change_utf16_selection_uses_candidate_text_and_is_non_mutating ... ok
+test session::tests::duplicate_retry_is_idempotent ... ok
+test session::tests::prepare_save_rejects_stale_revision_and_conflict ... ok
+test session::tests::prepare_save_returns_original_bytes_zero_patch ... ok
+test session::tests::reload_rejects_delayed_patch_from_previous_binding_generation ... ok
+test session::tests::reload_resets_content_and_revision ... ok
+test session::tests::selection_after_is_committed_with_next_revision ... ok
+test session::tests::stale_revision_rejected_atomically ... ok
+test snapshot::tests::dominant_resolves_tie_via_default ... ok
+test session::tests::transport_retry_ledger_matches_exact_payload_and_resets_on_reload ... ok
+test snapshot::tests::dominant_unique_type_wins ... ok
+test snapshot::tests::trailing_counts ... ok
+test snapshot::tests::snapshot_of_empty_and_bom_only ... ok
+test types::tests::source_range_serde_round_trip ... ok
+test types::tests::offset_newtypes_are_distinct ... ok
+test session::tests::transport_retry_ledger_evicts_with_the_existing_bounded_window ... ok
+test session::tests::retry_window_evicts_oldest ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/eol_provenance.rs (markflow-core/target/debug/deps/eol_provenance-1279662ae7bab08b)
+
+running 18 tests
+test empty_document_insert_uses_frozen_default ... ok
+test inherit_consumes_replaced_then_right ... ok
+test cr_file_edit_preserves_cr ... ok
+test body_replacement_preserves_eol_boundaries ... ok
+test explicit_cr_paste_provenance_wins ... ok
+test deleting_boundary_removes_eol ... ok
+test bom_preserved_after_edit ... ok
+test explicit_crlf_paste_provenance_wins ... ok
+test adjacent_multi_change_mixed_eol_golden ... ok
+test inherit_falls_to_dominant_at_start ... ok
+test inherit_overflow_discriminator_left_vs_dominant ... ok
+test inherit_overflow_uses_right_neighbor_not_dominant ... ok
+test inherit_overflow_right_differs_from_dominant ... ok
+test inherit_uses_frozen_dominant_for_crlf_doc ... ok
+test mixed_paste_provenance_per_newline ... ok
+test multi_change_inherit_uses_base_snapshot_not_reverse_mutation ... ok
+test provenance_count_mismatch_atomic_reject ... ok
+test mixed_fixture_body_edit_preserves_separators ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fixture_l0.rs (markflow-core/target/debug/deps/fixture_l0-f30adf8cbba89ee4)
+
+running 4 tests
+test confirmed_hash_is_sha256_of_source_replay ... ok
+test zero_change_patch_preserves_bytes ... ok
+test clean_save_has_no_parser_or_serializer_dependency ... ok
+test zero_patch_prepare_save_returns_original_bytes_for_every_fixture ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fixture_l1.rs (markflow-core/target/debug/deps/fixture_l1-896466d1bf82d32f)
+
+running 3 tests
+test body_edit_preserves_trailing_boundaries ... ok
+test every_l1_intent_matches_oracle ... ok
+test negative_control_corrupted_surviving_byte_fails ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/negative.rs (markflow-core/target/debug/deps/negative-ff70fa1fd0b81988)
+
+running 17 tests
+test invalid_utf8_open_refused ... ok
+test invalid_utf8_with_bom_refused ... ok
+test closed_session_rejects_patch_and_save ... ok
+test multi_change_patch_all_or_nothing ... ok
+test invalid_utf8_boundary_rejected ... ok
+test failure_leaves_session_unchanged ... ok
+test out_of_bounds_range_rejected ... ok
+test duplicate_mismatch_rejected ... ok
+test inserted_text_with_cr_rejected ... ok
+test duplicate_retry_idempotent ... ok
+test overlapping_changes_rejected_atomically ... ok
+test patch_with_wrong_session_or_document_identity_is_rejected ... ok
+test prepare_save_identity_conflict_rejected ... ok
+test prepare_save_stale_revision_rejected ... ok
+test provenance_count_mismatch_rejected ... ok
+test reversed_range_rejected ... ok
+test stale_revision_rejected ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/property_position.rs (markflow-core/target/debug/deps/property_position-3b729e675aa6e5ea)
+
+running 8 tests
+test position_map_rejects_mismatched_text_geometry_without_panicking ... ok
+test invalid_source_offsets_are_stable_errors ... ok
+test generated_lf_documents_replay_stable ... ok
+test unicode_fixtures_utf16_round_trip ... ok
+test source_logical_round_trip_all_fixture_boundaries ... ok
+test replay_is_self_consistent ... ok
+test utf16_span_maps_to_byte_span ... ok
+test utf16_byte_round_trip_all_fixture_boundaries ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/zz_reviewer_independent.rs (markflow-core/target/debug/deps/zz_reviewer_independent-92409559e4b690d7)
+
+running 6 tests
+test reviewer_surrogate_and_continuation ... ok
+test reviewer_crlf_middle_and_cr_byte_on_empty_lines ... ok
+test reviewer_bom_middle ... ok
+test reviewer_left_neighbor_used ... ok
+test reviewer_multi_change_atomic_eol ... ok
+test reviewer_multi_overflow_order ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests markflow_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+

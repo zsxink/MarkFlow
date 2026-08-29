@@ -129,13 +129,29 @@ describe('P0S dedicated desktop lifecycle (autosave ENABLED)', () => {
   it('immediate A→B switch with discard keeps A content and does not contaminate B', async () => {
     await waitForAppReady();
 
-    // Open A, type without waiting.
-    await openFileInTree('utf8-crlf-tail2.md');
+    // Wait for A's async open to settle before dispatching input; otherwise
+    // the lossless hook can still target the document from the prior test.
+    await openFileAndWaitActive('utf8-crlf-tail2.md');
     const aOriginal = await readFileBytes('utf8-crlf-tail2.md');
-    await typeInWysiwyg('Y');
+    // Keep typing, dirty observation, and the B click in one WebView task so
+    // a 2s autosave interval cannot run between the edit and transition.
+    const immediateSwitch = await browser.execute(() => {
+      const binding = window.__markflowLossless;
+      const typed = binding?.type?.('Y') ?? 'no-hook';
+      const dirty = binding?.isDirty?.() ?? false;
+      const storeDirty = window.__markflowStore?.getState()?.dirty ?? false;
+      const activePath = window.__markflowStore?.getState()?.activeFilePath ?? null;
+      const item = document.querySelector('[data-testid="file-tree-item"][data-path$="/utf8-mixed-tail2.md"]');
+      if (!item) return { typed, dirty, storeDirty, activePath, bExists: false };
+      item.click();
+      return { typed, dirty, storeDirty, activePath, bExists: true };
+    });
+    expect(immediateSwitch.typed).toBe('typed');
+    expect(immediateSwitch.dirty).toBe(true);
+    expect(immediateSwitch.storeDirty).toBe(true);
+    expect(immediateSwitch.bExists).toBe(true);
 
-    // Immediately switch to B → dirty dialog appears → choose "不保存" (discard).
-    await openFileInTree('utf8-mixed-tail2.md');
+    // The same task clicked B → dirty dialog appears → choose "不保存" (discard).
     await browser.waitUntil(async () => {
       const dialogs = await $$('[role="dialog"]');
       return dialogs.length > 0;
@@ -144,7 +160,17 @@ describe('P0S dedicated desktop lifecycle (autosave ENABLED)', () => {
     const discardBtn = await $('[data-dialog-value="discard"]');
     await discardBtn.click();
 
-    // B is now active; A must NOT have been written (bytes unchanged).
+    // B is now active and must not receive the edit; A must NOT have been
+    // written (bytes unchanged).
+    await browser.waitUntil(async () => {
+      const state = await browser.execute(() => window.__markflowStore?.getState()?.activeFilePath ?? null);
+      return state != null && state.endsWith('/utf8-mixed-tail2.md');
+    }, { timeout: 10_000, timeoutMsg: 'Expected B to become active after discard' });
+    await browser.waitUntil(async () => (
+      await browser.execute(() => window.__markflowLossless?.isActive?.() ?? false)
+    ) === true, { timeout: 10_000, timeoutMsg: 'Expected lossless binding for B after discard' });
+    const bDoc = await cmDoc();
+    expect(bDoc).not.toContain('Y');
     const aAfter = await readFileBytes('utf8-crlf-tail2.md');
     expect(aAfter).toBe(aOriginal);
   });

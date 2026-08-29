@@ -1,0 +1,14 @@
+Command: node --test e2e/p4b-cohort-fixtures.test.mjs
+Started: 2026-08-29T22:47:44.395Z
+Exit: 0
+
+✔ P4B cohort fixtures match the desktop suite contract (0.423208ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33.495584
+

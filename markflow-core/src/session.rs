@@ -18,12 +18,13 @@ use std::collections::{HashMap, VecDeque};
 use crate::error::{CoreError, CoreResult};
 use crate::identity::{ContentHash, FileIdentity};
 use crate::line_ending::LineEndingKind;
-use crate::patch::{PatchOutcome, TextPatch};
+use crate::patch::{PatchOutcome, Selection, TextChange, TextPatch};
 use crate::position_map::PositionMap;
 use crate::snapshot::{BomKind, OriginalSnapshot};
 use crate::text_buffer::TextBuffer;
 use crate::types::{
     BindingGeneration, DocumentId, LogicalByteOffset, Revision, SessionId, TransactionId,
+    Utf16Offset,
 };
 
 /// How many applied-transaction entries are retained for idempotent retry
@@ -78,7 +79,10 @@ pub(crate) fn confirmed_hash(text: &TextBuffer, bom: BomKind) -> ContentHash {
 
 #[derive(Debug, Clone)]
 struct AppliedTransaction {
-    fingerprint: u128,
+    /// Optional transport fingerprint. The Tauri bridge uses this for raw
+    /// UTF-16 post-selection retries, whose base map is unavailable after the
+    /// first successful commit.
+    transport_fingerprint: u128,
     outcome: PatchOutcome,
 }
 
@@ -312,6 +316,30 @@ impl LosslessDocumentSession {
         self.max_transaction_id
     }
 
+    /// Resolve a bounded idempotent transport retry before base-coordinate
+    /// conversion. A match returns the original outcome; a same-id mismatch or
+    /// an evicted/high-water id is a conflict, never a blind replay.
+    pub fn retry_outcome_for_transport(
+        &self,
+        transaction_id: TransactionId,
+        transport_fingerprint: u128,
+    ) -> CoreResult<Option<PatchOutcome>> {
+        if let Some(applied) = self.applied_transactions.get(&transaction_id) {
+            return if applied.transport_fingerprint == transport_fingerprint {
+                Ok(Some(applied.outcome.clone()))
+            } else {
+                Err(CoreError::TransactionConflict)
+            };
+        }
+        if self
+            .max_transaction_id
+            .is_some_and(|max| transaction_id.0 <= max)
+        {
+            return Err(CoreError::TransactionConflict);
+        }
+        Ok(None)
+    }
+
     // -- coordinate mapping (facade over PositionMap) ------------------------
 
     pub fn utf16_for_byte(
@@ -326,6 +354,33 @@ impl LosslessDocumentSession {
         offset: crate::types::Utf16Offset,
     ) -> CoreResult<crate::types::LogicalByteOffset> {
         self.position_map.byte_for_utf16(&self.text, offset)
+    }
+
+    /// Translate CodeMirror's **post-transaction** UTF-16 selection into this
+    /// patch's next logical-byte coordinate space without mutating the
+    /// session. Bridge callers must use this rather than `byte_for_utf16`,
+    /// whose map describes the base revision.
+    ///
+    /// This deliberately validates and applies the supplied patch on local
+    /// state using the exact same normalize/apply path as `apply_patch`; an
+    /// overlap, identity, EOL, or invalid post-selection failure therefore
+    /// leaves the real session and retry ledger untouched.
+    pub fn selection_for_post_change_utf16(
+        &self,
+        patch: &TextPatch,
+        anchor: Utf16Offset,
+        head: Utf16Offset,
+    ) -> CoreResult<Selection> {
+        let normalized = patch.normalize_changes(self)?;
+        let next_text = self.next_text_for_normalized(&normalized)?;
+        let next_map = PositionMap::new(&next_text, self.original.bom);
+        Ok(Selection {
+            anchor: next_map.byte_for_utf16(&next_text, anchor)?,
+            head: next_map.byte_for_utf16(&next_text, head)?,
+            // `TextPatch::selection_for_commit` advances this after it
+            // verifies the next-text byte coordinates.
+            revision: self.revision,
+        })
     }
 
     pub fn source_byte_for_byte(
@@ -350,13 +405,24 @@ impl LosslessDocumentSession {
     /// longer in the retry ledger is a stale duplicate and is rejected, never
     /// re-applied.
     pub fn apply_patch(&mut self, patch: TextPatch) -> CoreResult<PatchOutcome> {
+        let transport_fingerprint = patch.fingerprint();
+        self.apply_patch_with_transport_fingerprint(patch, transport_fingerprint)
+    }
+
+    /// Apply a patch with a transport-level fingerprint retained in the same
+    /// bounded retry ledger. The bridge supplies
+    /// this for raw UTF-16 payloads, including post-transaction selection.
+    pub fn apply_patch_with_transport_fingerprint(
+        &mut self,
+        patch: TextPatch,
+        transport_fingerprint: u128,
+    ) -> CoreResult<PatchOutcome> {
         if self.closed {
             return Err(CoreError::SessionClosed);
         }
 
-        let fingerprint = patch.fingerprint();
         if let Some(applied) = self.applied_transactions.get(&patch.transaction_id) {
-            if applied.fingerprint == fingerprint {
+            if applied.transport_fingerprint == transport_fingerprint {
                 return Ok(applied.outcome.clone());
             }
             return Err(CoreError::TransactionConflict);
@@ -374,19 +440,7 @@ impl LosslessDocumentSession {
         let normalized = patch.normalize_changes(self)?;
 
         // Build the next state on locals; fallible steps must not touch self.
-        let mut next_text = self.text.clone();
-        let changes: Vec<_> = normalized
-            .iter()
-            .map(|c| {
-                (
-                    LogicalByteOffset(c.range.start.as_usize())
-                        ..LogicalByteOffset(c.range.end.as_usize()),
-                    c.inserted_logical_text.clone(),
-                    c.inserted_line_endings.clone(),
-                )
-            })
-            .collect();
-        next_text.apply_changes(&changes)?;
+        let next_text = self.next_text_for_normalized(&normalized)?;
 
         let next_revision = Revision(self.revision.0 + 1);
         let selection_after = patch.selection_for_commit(next_revision, &next_text)?;
@@ -400,14 +454,33 @@ impl LosslessDocumentSession {
         self.text = next_text;
         self.revision = next_revision;
         self.position_map = PositionMap::new(&self.text, self.original.bom);
-        self.record_applied(patch.transaction_id, fingerprint, outcome.clone());
+        self.record_applied(patch.transaction_id, transport_fingerprint, outcome.clone());
         Ok(outcome)
+    }
+
+    /// Build the candidate next text for a normalized base-coordinate patch.
+    /// Shared by the bridge post-selection preview and final atomic commit.
+    fn next_text_for_normalized(&self, normalized: &[TextChange]) -> CoreResult<TextBuffer> {
+        let mut next_text = self.text.clone();
+        let changes: Vec<_> = normalized
+            .iter()
+            .map(|c| {
+                (
+                    LogicalByteOffset(c.range.start.as_usize())
+                        ..LogicalByteOffset(c.range.end.as_usize()),
+                    c.inserted_logical_text.clone(),
+                    c.inserted_line_endings.clone(),
+                )
+            })
+            .collect();
+        next_text.apply_changes(&changes)?;
+        Ok(next_text)
     }
 
     fn record_applied(
         &mut self,
         transaction_id: TransactionId,
-        fingerprint: u128,
+        transport_fingerprint: u128,
         outcome: PatchOutcome,
     ) {
         if self.transaction_order.len() == TRANSACTION_RETRY_WINDOW_CAPACITY {
@@ -419,7 +492,7 @@ impl LosslessDocumentSession {
         self.applied_transactions.insert(
             transaction_id,
             AppliedTransaction {
-                fingerprint,
+                transport_fingerprint,
                 outcome,
             },
         );
@@ -549,6 +622,27 @@ mod tests {
     }
 
     #[test]
+    fn post_change_utf16_selection_uses_candidate_text_and_is_non_mutating() {
+        let s = session("a😀中".as_bytes());
+        let p = patch(&s, 1, vec![change(0, 0, "X")]);
+        // `Xa😀中`: UTF-16 position 4 is after emoji, byte position 6.
+        let selection = s
+            .selection_for_post_change_utf16(&p, Utf16Offset(4), Utf16Offset(4))
+            .unwrap();
+        assert_eq!(selection.anchor, LogicalByteOffset(6));
+        assert_eq!(selection.head, LogicalByteOffset(6));
+        assert_eq!(selection.revision, Revision(0));
+        assert_eq!(s.revision(), Revision(0));
+        assert_eq!(s.text().logical_text(), "a😀中");
+        assert_eq!(
+            s.selection_for_post_change_utf16(&p, Utf16Offset(3), Utf16Offset(3)),
+            Err(CoreError::InvalidUtf16Boundary),
+        );
+        assert_eq!(s.revision(), Revision(0));
+        assert_eq!(s.text().logical_text(), "a😀中");
+    }
+
+    #[test]
     fn duplicate_retry_is_idempotent() {
         let mut s = session(b"hello");
         let p = patch(&s, 7, vec![change(0, 5, "world")]);
@@ -557,6 +651,62 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(s.revision(), Revision(1));
         assert_eq!(s.text().logical_text(), "world");
+    }
+
+    #[test]
+    fn transport_retry_ledger_matches_exact_payload_and_resets_on_reload() {
+        let mut s = session(b"hello");
+        let p = patch(&s, 7, vec![change(0, 0, "X")]);
+        let first = s.apply_patch_with_transport_fingerprint(p, 0xfeed).unwrap();
+        assert_eq!(
+            s.retry_outcome_for_transport(TransactionId(7), 0xfeed)
+                .unwrap(),
+            Some(first.clone()),
+        );
+        assert_eq!(
+            s.retry_outcome_for_transport(TransactionId(7), 0xbeef),
+            Err(CoreError::TransactionConflict),
+        );
+        // A stale non-duplicate is not hidden by the ledger.
+        assert_eq!(
+            s.retry_outcome_for_transport(TransactionId(8), 0xfeed)
+                .unwrap(),
+            None
+        );
+        s.reload(b"fresh", LineEndingKind::Lf).unwrap();
+        assert_eq!(
+            s.retry_outcome_for_transport(TransactionId(7), 0xfeed)
+                .unwrap(),
+            None
+        );
+        assert_eq!(s.retained_transaction_count(), 0);
+    }
+
+    #[test]
+    fn transport_retry_ledger_evicts_with_the_existing_bounded_window() {
+        let mut s = session(b"");
+        for index in 0..=TRANSACTION_RETRY_WINDOW_CAPACITY {
+            let transaction = TransactionId(index as u64 + 1);
+            let p = patch(&s, transaction.0, vec![change(0, 0, "x")]);
+            s.apply_patch_with_transport_fingerprint(p, 10_000 + index as u128)
+                .unwrap();
+        }
+        assert_eq!(
+            s.retained_transaction_count(),
+            TRANSACTION_RETRY_WINDOW_CAPACITY
+        );
+        assert_eq!(
+            s.retry_outcome_for_transport(TransactionId(1), 10_000),
+            Err(CoreError::TransactionConflict),
+            "evicted transport retry remains a bounded high-water conflict",
+        );
+        assert!(matches!(
+            s.retry_outcome_for_transport(
+                TransactionId((TRANSACTION_RETRY_WINDOW_CAPACITY + 1) as u64),
+                10_000 + TRANSACTION_RETRY_WINDOW_CAPACITY as u128,
+            ),
+            Ok(Some(_)),
+        ));
     }
 
     #[test]

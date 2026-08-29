@@ -158,8 +158,8 @@ fn read_oversized_file_returns_error() {
 // layer is the only mocked part. No frontend `invoke` is mocked.
 
 use crate::lossless::dto::{
-    BridgeTextChange, BridgeTextPatch, CommitSaveRequest, OpenDocumentRequest, PatchRequest,
-    PrepareSaveRequest, ReloadDocumentRequest, SessionRequest,
+    BridgeSelectionAfter, BridgeTextChange, BridgeTextPatch, CommitSaveRequest,
+    OpenDocumentRequest, PatchRequest, PrepareSaveRequest, ReloadDocumentRequest, SessionRequest,
 };
 use crate::lossless::guarded_write::{
     guarded_atomic_write, list_startup_recovery, reconcile_document_save, resolve_startup_recovery,
@@ -196,6 +196,22 @@ fn bridge_patch(
         changes,
         selection_after: None,
     }
+}
+
+fn bridge_patch_with_post_selection(
+    session_id: u64,
+    document_id: u64,
+    transaction_id: u64,
+    changes: Vec<BridgeTextChange>,
+    anchor_utf16: usize,
+    head_utf16: usize,
+) -> BridgeTextPatch {
+    let mut patch = bridge_patch(session_id, document_id, 0, transaction_id, 0, changes);
+    patch.selection_after = Some(BridgeSelectionAfter {
+        anchor_utf16: anchor_utf16 as u64,
+        head_utf16: head_utf16 as u64,
+    });
+    patch
 }
 
 fn open_req(path: &str) -> OpenDocumentRequest {
@@ -297,6 +313,487 @@ fn bridge_apply_patch_and_snapshot_round_trip() {
 
     eprintln!("[dispatcher] bridge_apply_patch_and_snapshot_round_trip ok");
     fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_post_transaction_selection_uses_next_text_utf16_geometry() {
+    // The frontend's selectionAfter belongs to CodeMirror's post-transaction
+    // document. These cases would either be shifted or rejected if converted
+    // through the base session map.
+    let cases = [
+        // The P4B heading EOF Enter regression: post caret 8 is outside the
+        // base `# title` map (length 7) but valid in `# title\n`.
+        (
+            "heading-eof-enter",
+            "# title",
+            vec![lf_change(7, 7, "\n")],
+            8usize,
+            8usize,
+            "# title\n",
+            8usize,
+            8usize,
+        ),
+        // Inserting before the caret can make a valid post position exceed the
+        // old document end.
+        (
+            "insert",
+            "ab",
+            vec![lf_change(0, 0, "X")],
+            3usize,
+            3usize,
+            "Xab",
+            3usize,
+            3usize,
+        ),
+        // Deleting before the caret changes its logical-byte location.
+        (
+            "delete",
+            "abc",
+            vec![lf_change(0, 2, "")],
+            1usize,
+            1usize,
+            "c",
+            1usize,
+            1usize,
+        ),
+        // Two base-coordinate changes plus a reversed selection, with emoji
+        // (two UTF-16 units/four bytes) and CJK (one UTF-16 unit/three bytes).
+        (
+            "unicode-multi",
+            "ab中😀z",
+            vec![lf_change(0, 0, "X"), lf_change(2, 3, "Q")],
+            7usize,
+            4usize,
+            "XabQ😀z",
+            9usize,
+            4usize,
+        ),
+    ];
+
+    for (
+        index,
+        (
+            name,
+            source,
+            changes,
+            anchor_utf16,
+            head_utf16,
+            expected_text,
+            expected_anchor,
+            expected_head,
+        ),
+    ) in cases.into_iter().enumerate()
+    {
+        let app = build_app();
+        let dir = temp_dir(&format!("post-selection-{name}"));
+        let path = dir.join("doc.md");
+        fs::write(&path, source).expect("stage source");
+        let path_s = path.to_str().expect("utf8 path").to_string();
+        let st = app.state::<AppState>();
+        let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+        let st = app.state::<AppState>();
+        let outcome = apply_document_patch(
+            PatchRequest {
+                patch: bridge_patch_with_post_selection(
+                    opened.session_id,
+                    opened.document_id,
+                    index as u64 + 1,
+                    changes,
+                    anchor_utf16,
+                    head_utf16,
+                ),
+            },
+            st,
+        )
+        .expect("post selection patch");
+        let selection = outcome.selection_after.expect("selection returned");
+        assert_eq!(selection.anchor.0, expected_anchor, "{name}: anchor byte");
+        assert_eq!(selection.head.0, expected_head, "{name}: head byte");
+        assert_eq!(selection.revision.0, 1, "{name}: next revision");
+        let st = app.state::<AppState>();
+        assert_eq!(
+            get_document_snapshot(
+                SessionRequest {
+                    session_id: markflow_core::SessionId(opened.session_id)
+                },
+                st
+            )
+            .expect("snapshot")
+            .logical_text,
+            expected_text,
+            "{name}: committed text",
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[test]
+fn bridge_invalid_post_selection_is_atomic_and_does_not_mutate_session() {
+    let app = build_app();
+    let dir = temp_dir("post-selection-invalid");
+    let path = dir.join("doc.md");
+    fs::write(&path, "ab").expect("stage source");
+    let path_s = path.to_str().expect("utf8 path").to_string();
+    let st = app.state::<AppState>();
+    let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+    let st = app.state::<AppState>();
+    let err = apply_document_patch(
+        PatchRequest {
+            patch: bridge_patch_with_post_selection(
+                opened.session_id,
+                opened.document_id,
+                1,
+                vec![lf_change(0, 0, "X")],
+                4, // next text is only three UTF-16 code units
+                4,
+            ),
+        },
+        st,
+    )
+    .expect_err("invalid post coordinate must reject");
+    assert_eq!(err.code, "invalid-boundary");
+    let st = app.state::<AppState>();
+    let snapshot = get_document_snapshot(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("unchanged snapshot");
+    assert_eq!(snapshot.revision.0, 0);
+    assert_eq!(snapshot.logical_text, "ab");
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_post_selection_retry_is_idempotent_but_any_transport_difference_conflicts() {
+    let app = build_app();
+    let dir = temp_dir("post-selection-retry");
+    let path = dir.join("doc.md");
+    fs::write(&path, "ab").expect("stage source");
+    let path_s = path.to_str().expect("utf8 path").to_string();
+    let st = app.state::<AppState>();
+    let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+    let exact = bridge_patch_with_post_selection(
+        opened.session_id,
+        opened.document_id,
+        1,
+        vec![lf_change(0, 0, "X")],
+        3,
+        3,
+    );
+    let st = app.state::<AppState>();
+    let first = apply_document_patch(
+        PatchRequest {
+            patch: exact.clone(),
+        },
+        st,
+    )
+    .expect("first apply");
+    let st = app.state::<AppState>();
+    let retry =
+        apply_document_patch(PatchRequest { patch: exact }, st).expect("lost-response retry");
+    assert_eq!(
+        retry, first,
+        "exact raw transport retry returns original outcome"
+    );
+
+    let mut changed_selection = bridge_patch_with_post_selection(
+        opened.session_id,
+        opened.document_id,
+        1,
+        vec![lf_change(0, 0, "X")],
+        2,
+        2,
+    );
+    // Deliberately preserve every identity/base/transaction field but alter
+    // post-selection: it must conflict rather than reuse outcome blindly.
+    changed_selection.base_revision = 0;
+    let st = app.state::<AppState>();
+    assert_eq!(
+        apply_document_patch(
+            PatchRequest {
+                patch: changed_selection
+            },
+            st
+        )
+        .unwrap_err()
+        .code,
+        "duplicate-mismatch",
+    );
+    let st = app.state::<AppState>();
+    assert_eq!(
+        apply_document_patch(
+            PatchRequest {
+                patch: bridge_patch_with_post_selection(
+                    opened.session_id,
+                    opened.document_id,
+                    1,
+                    vec![lf_change(0, 0, "Y")],
+                    3,
+                    3,
+                ),
+            },
+            st,
+        )
+        .unwrap_err()
+        .code,
+        "duplicate-mismatch",
+    );
+    let mut changed_eol = bridge_patch_with_post_selection(
+        opened.session_id,
+        opened.document_id,
+        1,
+        vec![lf_change(0, 0, "X")],
+        3,
+        3,
+    );
+    changed_eol.changes[0].inserted_line_endings = vec!["lf".to_string()];
+    let st = app.state::<AppState>();
+    assert_eq!(
+        apply_document_patch(PatchRequest { patch: changed_eol }, st)
+            .unwrap_err()
+            .code,
+        "duplicate-mismatch",
+        "same transaction id with changed EOL transport cannot reuse outcome",
+    );
+    // A different transaction id that merely carries an old base remains a
+    // normal stale request, not a ledger hit.
+    let st = app.state::<AppState>();
+    assert_eq!(
+        apply_document_patch(
+            PatchRequest {
+                patch: bridge_patch_with_post_selection(
+                    opened.session_id,
+                    opened.document_id,
+                    2,
+                    vec![lf_change(0, 0, "X")],
+                    3,
+                    3,
+                ),
+            },
+            st,
+        )
+        .unwrap_err()
+        .code,
+        "stale-revision",
+    );
+    let st = app.state::<AppState>();
+    let snapshot = get_document_snapshot(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("snapshot");
+    assert_eq!(snapshot.revision.0, 1);
+    assert_eq!(snapshot.logical_text, "Xab");
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_evicted_post_selection_retry_conflicts_without_mutating_session() {
+    let app = build_app();
+    let dir = temp_dir("post-selection-evicted-retry");
+    let path = dir.join("doc.md");
+    fs::write(&path, "ab").expect("stage source");
+    let path_s = path.to_str().expect("utf8 path").to_string();
+    let st = app.state::<AppState>();
+    let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+    let original = bridge_patch_with_post_selection(
+        opened.session_id,
+        opened.document_id,
+        1,
+        vec![lf_change(0, 0, "X")],
+        3,
+        3,
+    );
+    let st = app.state::<AppState>();
+    apply_document_patch(
+        PatchRequest {
+            patch: original.clone(),
+        },
+        st,
+    )
+    .expect("first patch");
+    // The Core retry window holds 256 entries. Add 256 later transactions to
+    // evict transaction 1; all have their current base revision.
+    for transaction_id in 2..=(markflow_core::TRANSACTION_RETRY_WINDOW_CAPACITY as u64 + 1) {
+        let st = app.state::<AppState>();
+        apply_document_patch(
+            PatchRequest {
+                patch: bridge_patch(
+                    opened.session_id,
+                    opened.document_id,
+                    0,
+                    transaction_id,
+                    transaction_id - 1,
+                    vec![lf_change(0, 0, "z")],
+                ),
+            },
+            st,
+        )
+        .expect("fill retry window");
+    }
+    let st = app.state::<AppState>();
+    let before = get_document_snapshot(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("before");
+    let st = app.state::<AppState>();
+    assert_eq!(
+        apply_document_patch(PatchRequest { patch: original }, st)
+            .unwrap_err()
+            .code,
+        "duplicate-mismatch",
+    );
+    let st = app.state::<AppState>();
+    let after = get_document_snapshot(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("after");
+    assert_eq!(after.revision, before.revision);
+    assert_eq!(after.logical_text, before.logical_text);
+    fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn bridge_reload_rejects_old_binding_post_selection_retry_without_mutation() {
+    let app = build_app();
+    let dir = temp_dir("post-selection-reload-retry");
+    let path = dir.join("doc.md");
+    fs::write(&path, "ab").expect("stage source");
+    let path_s = path.to_str().expect("utf8 path").to_string();
+    let st = app.state::<AppState>();
+    let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+    let old_payload = bridge_patch_with_post_selection(
+        opened.session_id,
+        opened.document_id,
+        1,
+        vec![lf_change(0, 0, "X")],
+        3,
+        3,
+    );
+    let st = app.state::<AppState>();
+    apply_document_patch(
+        PatchRequest {
+            patch: old_payload.clone(),
+        },
+        st,
+    )
+    .expect("first patch");
+    let st = app.state::<AppState>();
+    reload_lossless_document(
+        ReloadDocumentRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+            path: path_s,
+            default_eol: "lf".to_string(),
+        },
+        st,
+    )
+    .expect("reload");
+    let st = app.state::<AppState>();
+    let before = get_document_snapshot(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("before");
+    let st = app.state::<AppState>();
+    assert_eq!(
+        apply_document_patch(PatchRequest { patch: old_payload }, st)
+            .unwrap_err()
+            .code,
+        "wrong-identity",
+    );
+    let st = app.state::<AppState>();
+    let after = get_document_snapshot(
+        SessionRequest {
+            session_id: markflow_core::SessionId(opened.session_id),
+        },
+        st,
+    )
+    .expect("after");
+    assert_eq!(after.revision, before.revision);
+    assert_eq!(after.logical_text, before.logical_text);
+    fs::remove_dir_all(&dir).ok();
+}
+
+/// P4B task 7.2a: the source command harness emits one local range deletion
+/// for heading Backspace at contentStart (`# ` -> empty).  Exercise that exact
+/// bridge patch through the real dispatcher and Core, rather than treating the
+/// CodeMirror-only command test as byte-contract evidence.  The suffix starts
+/// immediately after the removed marker, so CRLF/CR/mixed EOL bytes are all
+/// surviving spans and must replay unchanged in the prepared payload.
+#[test]
+fn bridge_structural_heading_patch_preserves_untouched_eol_bytes() {
+    let cases = [
+        ("crlf", "# title\r\nunchanged\r\n", "title\r\nunchanged\r\n"),
+        ("cr", "# title\runchanged\r", "title\runchanged\r"),
+        (
+            "mixed",
+            "# title\r\nunchanged\runtouched\n",
+            "title\r\nunchanged\runtouched\n",
+        ),
+    ];
+
+    for (index, (name, original, expected)) in cases.into_iter().enumerate() {
+        let app = build_app();
+        let dir = temp_dir(&format!("structural-heading-{name}"));
+        let path = dir.join("doc.md");
+        fs::write(&path, original).expect("stage source fixture");
+        let path_s = path.to_str().expect("utf8 path").to_string();
+
+        let st = app.state::<AppState>();
+        let opened = open_lossless_document(open_req(&path_s), st).expect("open");
+        let st = app.state::<AppState>();
+        let outcome = apply_document_patch(
+            PatchRequest {
+                patch: bridge_patch(
+                    opened.session_id,
+                    opened.document_id,
+                    0,
+                    1,
+                    0,
+                    vec![lf_change(0, 2, "")],
+                ),
+            },
+            st,
+        )
+        .expect("one heading marker patch");
+        assert_eq!(
+            outcome.revision.0, 1,
+            "{name}: one patch advances one revision"
+        );
+
+        let st = app.state::<AppState>();
+        let prepared = prepare_document_save(
+            PrepareSaveRequest {
+                session_id: markflow_core::SessionId(opened.session_id),
+                document_id: markflow_core::DocumentId(opened.document_id),
+                binding_generation: 0,
+                expected_revision: 1,
+                expected_file_identity: Some(bridge_identity_of(&path)),
+                save_operation_id: operation_id(220 + index as u8),
+                path: path_s,
+            },
+            st,
+        )
+        .expect("prepare real Core payload");
+        assert_eq!(
+            base64_decode(&prepared.payload_base64),
+            expected.as_bytes(),
+            "{name}: only the heading marker changes; all EOL bytes survive",
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
 }
 
 #[test]

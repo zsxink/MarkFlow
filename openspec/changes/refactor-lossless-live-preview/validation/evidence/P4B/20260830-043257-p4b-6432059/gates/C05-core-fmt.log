@@ -1,0 +1,83 @@
+Command: cargo fmt --manifest-path markflow-core/Cargo.toml -- --check
+Started: 2026-08-29T20:35:12.988Z
+Ended: 2026-08-29T20:35:13.331Z
+Exit: 1
+
+Diff in /Users/xian/Project/book/MarkFlow/markflow-core/src/session.rs:23:
+ use crate::snapshot::{BomKind, OriginalSnapshot};
+ use crate::text_buffer::TextBuffer;
+ use crate::types::{
+-    BindingGeneration, DocumentId, LogicalByteOffset, Revision, SessionId, TransactionId, Utf16Offset,
++    BindingGeneration, DocumentId, LogicalByteOffset, Revision, SessionId, TransactionId,
++    Utf16Offset,
+ };
+ 
+ /// How many applied-transaction entries are retained for idempotent retry
+Diff in /Users/xian/Project/book/MarkFlow/markflow-core/src/session.rs:330:
+                 Err(CoreError::TransactionConflict)
+             };
+         }
+-        if self.max_transaction_id.is_some_and(|max| transaction_id.0 <= max) {
++        if self
++            .max_transaction_id
++            .is_some_and(|max| transaction_id.0 <= max)
++        {
+             return Err(CoreError::TransactionConflict);
+         }
+         Ok(None)
+Diff in /Users/xian/Project/book/MarkFlow/markflow-core/src/session.rs:450:
+         self.text = next_text;
+         self.revision = next_revision;
+         self.position_map = PositionMap::new(&self.text, self.original.bom);
+-        self.record_applied(
+-            patch.transaction_id,
+-            transport_fingerprint,
+-            outcome.clone(),
+-        );
++        self.record_applied(patch.transaction_id, transport_fingerprint, outcome.clone());
+         Ok(outcome)
+     }
+ 
+Diff in /Users/xian/Project/book/MarkFlow/markflow-core/src/session.rs:659:
+         let p = patch(&s, 7, vec![change(0, 0, "X")]);
+         let first = s.apply_patch_with_transport_fingerprint(p, 0xfeed).unwrap();
+         assert_eq!(
+-            s.retry_outcome_for_transport(TransactionId(7), 0xfeed).unwrap(),
++            s.retry_outcome_for_transport(TransactionId(7), 0xfeed)
++                .unwrap(),
+             Some(first.clone()),
+         );
+         assert_eq!(
+Diff in /Users/xian/Project/book/MarkFlow/markflow-core/src/session.rs:667:
+             Err(CoreError::TransactionConflict),
+         );
+         // A stale non-duplicate is not hidden by the ledger.
+-        assert_eq!(s.retry_outcome_for_transport(TransactionId(8), 0xfeed).unwrap(), None);
++        assert_eq!(
++            s.retry_outcome_for_transport(TransactionId(8), 0xfeed)
++                .unwrap(),
++            None
++        );
+         s.reload(b"fresh", LineEndingKind::Lf).unwrap();
+-        assert_eq!(s.retry_outcome_for_transport(TransactionId(7), 0xfeed).unwrap(), None);
++        assert_eq!(
++            s.retry_outcome_for_transport(TransactionId(7), 0xfeed)
++                .unwrap(),
++            None
++        );
+         assert_eq!(s.retained_transaction_count(), 0);
+     }
+ 
+Diff in /Users/xian/Project/book/MarkFlow/markflow-core/src/session.rs:682:
+             s.apply_patch_with_transport_fingerprint(p, 10_000 + index as u128)
+                 .unwrap();
+         }
+-        assert_eq!(s.retained_transaction_count(), TRANSACTION_RETRY_WINDOW_CAPACITY);
++        assert_eq!(
++            s.retained_transaction_count(),
++            TRANSACTION_RETRY_WINDOW_CAPACITY
++        );
+         assert_eq!(
+             s.retry_outcome_for_transport(TransactionId(1), 10_000),
+             Err(CoreError::TransactionConflict),
+

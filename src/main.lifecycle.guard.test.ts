@@ -32,6 +32,7 @@ const state = vi.hoisted(() => ({
   writeCount: 0,
   writeLog: [] as string[],
   writeBarrier: null as Promise<void> | null,
+  readBarrier: null as Promise<void> | null,
 }));
 
 vi.mock('@tauri-apps/api/core', async () => {
@@ -41,6 +42,7 @@ vi.mock('@tauri-apps/api/core', async () => {
     invoke: vi.fn(async (cmd: string, args: any = {}) => {
       switch (cmd) {
         case 'read_file':
+          if (state.readBarrier) await state.readBarrier;
           return await nodeFsMod.readFile(args.path, 'utf8');
         case 'write_file': {
           state.writeCount += 1;
@@ -77,7 +79,7 @@ vi.mock('@tauri-apps/api/core', async () => {
 });
 
 // Real modules — imported after the mock.
-import { openFileInEditor, confirmDocumentTransition, saveActiveDocument, isSavingInProgress } from './components/sidebar.fileops';
+import { openFileInEditor, confirmDocumentTransition, saveActiveDocument, isSavingInProgress, isDocumentTransitionInProgress } from './components/sidebar.fileops';
 import { runAutoSaveTick } from './main';
 import { initEditor } from './lib/editor.init';
 import { store } from './lib/store';
@@ -112,6 +114,7 @@ beforeEach(async () => {
   state.writeCount = 0;
   state.writeLog = [];
   state.writeBarrier = null;
+  state.readBarrier = null;
   scheduler.cancelAll();
   resetActiveImageDraftState();
   store.setState({
@@ -303,6 +306,56 @@ describe('P0S: default-on zero-edit open lifecycle stays clean (default green)',
     await openFileInEditor(destB);
 
     expect(store.getState().activeFilePath).toBe(destA);
+    expect(state.writeCount).toBe(0);
+  });
+
+  it('autosave skips while a transition decision is pending and resumes after cancel', async () => {
+    const { dest } = await stageFixture('utf8-lf-tail2');
+    await openFileInEditor(dest);
+    getEditor()!.commands.insertContentAt(0, 'Y');
+    expect(isDocumentDirty()).toBe(true);
+
+    let resolveDialog!: (value: 'cancel') => void;
+    vi.mocked(dialog.showDialog).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveDialog = resolve;
+    }));
+    const transition = confirmDocumentTransition();
+    await Promise.resolve();
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    await runAutoSaveTick();
+    expect(state.writeCount).toBe(0);
+
+    resolveDialog('cancel');
+    await expect(transition).resolves.toBe(false);
+    expect(isDocumentTransitionInProgress()).toBe(false);
+
+    await runAutoSaveTick();
+    expect(state.writeCount).toBe(1);
+  });
+
+  it('keeps autosave blocked through the deferred open after discard', async () => {
+    const { dest: destA } = await stageFixture('utf8-lf-tail2');
+    const { dest: destB } = await stageFixture('utf8-crlf-tail2');
+    await openFileInEditor(destA);
+    getEditor()!.commands.insertContentAt(0, 'Y');
+    expect(isDocumentDirty()).toBe(true);
+
+    let releaseRead!: () => void;
+    state.readBarrier = new Promise<void>((resolve) => { releaseRead = resolve; });
+    vi.mocked(dialog.showDialog).mockResolvedValueOnce('discard');
+
+    const opening = openFileInEditor(destB);
+    await Promise.resolve();
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    await runAutoSaveTick();
+    expect(state.writeCount).toBe(0);
+
+    releaseRead();
+    await opening;
+    expect(store.getState().activeFilePath).toBe(destB);
+    expect(isDocumentTransitionInProgress()).toBe(false);
     expect(state.writeCount).toBe(0);
   });
 

@@ -1,0 +1,6 @@
+Command: cargo clippy --manifest-path markflow-core/Cargo.toml --all-targets --all-features -- -D warnings
+Started: 2026-08-29T22:32:34.948Z
+Exit: 0
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+

@@ -8,7 +8,7 @@ import { initKeyboard } from './utils/keyboard';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
-import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, handleLosslessConflict, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
+import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, handleLosslessConflict, openFileInEditor, saveActiveDocument, isSavingInProgress, isDocumentTransitionInProgress, switchSidebarTab } from './components/sidebar';
 import { closeLosslessActiveDocument, hasLosslessExternalConflict, isActiveLosslessPath, markLosslessExternalModification } from './lib/lossless/integration';
 import { isLosslessCoreSessionEnabled } from './lib/lossless/flag';
 import { showToast } from './components/toast';
@@ -230,7 +230,7 @@ let unsupportedPlatformNotified = false;
 
 /** Single autosave tick — extracted for testability. */
 export async function runAutoSaveTick() {
-  if (isSavingInProgress()) return; // skip — previous save still running
+  if (isSavingInProgress() || isDocumentTransitionInProgress()) return; // skip — save/transition still running
   // ── P0S coordinator clean guard ─────────────────────────────────────
   // Two independent checks: the store dirty flag (UI/programmatic) AND the
   // revision model. Even if a stale `dirty` flag lingers in the store, a

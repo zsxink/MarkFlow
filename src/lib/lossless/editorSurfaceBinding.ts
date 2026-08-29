@@ -192,6 +192,10 @@ export class EditorSurfaceBinding {
       getSnapshot: () => binding!.getSnapshot(),
       composePending: () => binding!.composePending(),
       currentDoc: () => binding!.editor.doc(),
+      selectionAfter: () => {
+        const selection = binding!.editor.view.state.selection.main;
+        return { anchorUtf16: selection.anchor, headUtf16: selection.head };
+      },
       discardPending: () => binding!.discardPendingChanges(),
       annotateChanges: (changes) => binding!.annotatePasteProvenance(changes),
       onStateChange: (state) => {
@@ -722,6 +726,10 @@ export class EditorSurfaceBinding {
       getSnapshot: () => this.getSnapshot(),
       composePending: () => this.composePending(),
       currentDoc: () => this.editor.doc(),
+      selectionAfter: () => {
+        const selection = this.editor.view.state.selection.main;
+        return { anchorUtf16: selection.anchor, headUtf16: selection.head };
+      },
       discardPending: () => this.discardPendingChanges(),
       annotateChanges: (changes) => this.annotatePasteProvenance(changes),
     });

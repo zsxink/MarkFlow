@@ -1,0 +1,71 @@
+Command: npx openspec validate --all
+Started: 2026-08-29T21:11:04.879Z
+Ended: 2026-08-29T21:11:07.114Z
+Exit: 0
+
+npm notice run markflow@0.0.6 npx
+npm notice run 'openspec' validate --all
+- Validating...
+✓ spec/active-document-state
+✓ spec/archive-sync-gate
+✓ spec/atomic-save
+✓ spec/autosave-dirty-guard
+✓ spec/autosave-reliability
+✓ spec/background-task-lifecycle
+✓ spec/block-continuation-paragraph
+✓ spec/bundle-budget
+✓ spec/byte-contract-harness
+✓ spec/ci-openspec-validation
+✓ spec/ci-type-check
+✓ spec/code-block-serialization
+✓ spec/codemirror-source-editor
+✓ spec/context-menu
+✓ spec/crash-logging
+✓ spec/dep-audit-ci
+✓ spec/dialog-system
+✓ spec/document-size-tier
+✓ spec/docx-export
+✓ spec/e2e-test-coverage
+✓ spec/editor-bottom-spacer
+✓ spec/empty-line-preservation
+✓ spec/enter-content-integrity
+✓ spec/error-handling
+✓ spec/expensive-task-scheduling
+✓ spec/export-theme
+✓ spec/export-workspace-bypass
+✓ spec/file-tree-architecture
+✓ spec/file-tree-incremental-update
+✓ change/fix-trailing-newlines-lost
+✓ spec/font-stack
+✓ spec/html-export
+✓ spec/image-naming
+✓ spec/image-storage-engine
+✓ spec/image-streaming
+✓ spec/issue-workflow
+✓ spec/keyboard-shortcuts
+✓ spec/lazy-code-languages
+✓ spec/lazy-mermaid
+✓ spec/m0-architecture-baseline
+✓ spec/multi-window-close-isolation
+✓ spec/pdf-export
+✓ spec/plantuml-export
+✓ spec/plantuml-render
+✓ spec/readme-sync
+✓ change/refactor-lossless-live-preview
+✓ spec/regression-coverage
+✓ spec/rendered-document-export
+✓ spec/safe-dom-construction
+✓ spec/safe-http-fetch
+✓ spec/settings-code-highlight
+✓ spec/sidebar
+✓ spec/source-toolbar-cm6
+✓ spec/statusbar
+✓ spec/toolbar-layout
+✓ spec/trailing-newlines-preservation
+✓ spec/type-system
+✓ spec/ui-aria-attributes
+✓ spec/url-decoration
+✓ spec/vitest-coverage-threshold
+✓ spec/write-file-permission
+Totals: 61 passed, 0 failed (61 items)
+

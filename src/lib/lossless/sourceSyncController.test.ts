@@ -78,6 +78,26 @@ describe('SourceSyncController', () => {
     expect(states[states.length - 1]).toBe('idle');
   });
 
+  it('attaches one current selection to a multi-change frame without altering its change composition', async () => {
+    const selectionAfter = vi.fn(() => ({ anchorUtf16: 9, headUtf16: 4 }));
+    const composePending = vi.fn((): LocalChange[] => [
+      { from: 1, to: 2, insert: 'A' },
+      { from: 7, to: 7, insert: '\nB', insertedLineEndings: ['crlf'] },
+    ]);
+    const { controller, applyPatch } = makeController({ selectionAfter, composePending });
+    controller.onUserEdit();
+    await tick();
+    await tick();
+    expect(applyPatch).toHaveBeenCalledTimes(1);
+    const patch = applyPatch.mock.calls[0][0] as any;
+    expect(patch.changes).toEqual([
+      { fromUtf16: 1, toUtf16: 2, insertedLogicalText: 'A', insertedLineEndings: [] },
+      { fromUtf16: 7, toUtf16: 7, insertedLogicalText: '\nB', insertedLineEndings: ['crlf'] },
+    ]);
+    expect(patch.selectionAfter).toEqual({ anchorUtf16: 9, headUtf16: 4 });
+    expect(selectionAfter).toHaveBeenCalledTimes(1);
+  });
+
   it('retries with the SAME transaction id on a transient error, then succeeds', async () => {
     const applyPatch = vi
       .fn()
@@ -174,6 +194,40 @@ describe('SourceSyncController', () => {
     await tick(80);
     const rebase = (applyPatch.mock.calls[1][0] as any).changes[0];
     expect(rebase).toMatchObject({ fromUtf16: 0, toUtf16: 2, insertedLogicalText: '😁' });
+    expect(controller.pipelineState).toBe('idle');
+  });
+
+  it('freezes a reversed emoji/CJK post-selection once for a fresh stale-resync transaction and its retry', async () => {
+    const selectionAfter = vi
+      .fn()
+      .mockReturnValueOnce({ anchorUtf16: 3, headUtf16: 0 })
+      // `X😀中`: anchor=4 (after CJK), head=1 (before emoji), both valid
+      // next-document UTF-16 boundaries and deliberately reversed.
+      .mockReturnValueOnce({ anchorUtf16: 4, headUtf16: 1 });
+    const applyPatch = vi
+      .fn()
+      .mockRejectedValueOnce({ code: 'stale-revision', message: 'stale' })
+      .mockRejectedValueOnce({ code: 'io', message: 'lost response' })
+      .mockResolvedValueOnce({ revision: 2, confirmedHash: 'h2' });
+    const { controller } = makeController({
+      applyPatch: applyPatch as any,
+      selectionAfter,
+      getSnapshot: async () => ({ revision: 1, logicalText: '😀中', confirmedHash: 'h1' }),
+      currentDoc: () => 'X😀中',
+      composePending: () => [{ from: 0, to: 0, insert: 'X' }],
+    });
+    controller.onUserEdit();
+    await tick(150);
+    expect(applyPatch).toHaveBeenCalledTimes(3);
+    const first = applyPatch.mock.calls[0][0] as any;
+    const rebased = applyPatch.mock.calls[1][0] as any;
+    const retried = applyPatch.mock.calls[2][0] as any;
+    expect(first.transactionId).toBe(1);
+    expect(rebased.transactionId).toBe(2);
+    expect(retried.transactionId).toBe(2);
+    expect(rebased.selectionAfter).toEqual({ anchorUtf16: 4, headUtf16: 1 });
+    expect(retried).toEqual(rebased);
+    expect(selectionAfter).toHaveBeenCalledTimes(2);
     expect(controller.pipelineState).toBe('idle');
   });
 

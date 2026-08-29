@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { cp, mkdtemp, mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeP4bCohortFixtures } from './p4b-cohort-fixtures.mjs';
 
 const suite = process.argv[2] ?? 'smoke';
 if (!['smoke', 'regression', 'p0s', 'lossless'].includes(suite)) {
@@ -131,6 +132,7 @@ try {
   // Written inline: they cover every basic construct for the semantic
   // decoration E2E + a zero-edit mode-switch byte-contract case.
   if (suite === 'lossless') {
+    await writeP4bCohortFixtures(workspace);
     await writeFile(path.join(workspace, 'p2-live-preview-switch.md'),
       '# 切换测试\n\n普通段落。\n');
     await writeFile(path.join(workspace, 'p2-live-preview-constructs.md'),

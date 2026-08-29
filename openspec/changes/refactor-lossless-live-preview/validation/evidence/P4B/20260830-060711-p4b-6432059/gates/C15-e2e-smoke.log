@@ -1,0 +1,156 @@
+Command: node e2e/run.mjs smoke
+Started: 2026-08-29T22:11:59.455Z
+Ended: 2026-08-29T22:12:18.239Z
+Exit: 0
+
+npm notice run markflow@0.0.6 test:e2e:build
+npm notice run tauri build --debug --features e2e --config src-tauri/tauri.e2e.conf.json
+        Info Looking up installed tauri packages to check mismatched versions...
+     Running beforeBuildCommand `npm run build -- --mode e2e`
+npm notice run markflow@0.0.6 build
+npm notice run tsc && vite build --mode e2e
+vite v5.4.21 building for e2e...
+transforming...
+✓ 2512 modules transformed.
+rendering chunks...
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-css/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-javascript/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-markdown/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/imageUtils.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/lossless/editorSurfaceBinding.ts, /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.bubble.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.resolver.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.init.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/plantuml.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/lib/editor.extensions.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/editor.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/degradationBar.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/linkDialog.ts, /Users/xian/Project/book/MarkFlow/src/components/outline.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.conflict.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/statusbar.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, /Users/xian/Project/book/MarkFlow/src/utils/keyboard.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                                10.50 kB │ gzip:   2.69 kB
+dist/assets/SourceSerif4SmText-It.ttf-Bk-HSzgp.woff2           61.67 kB
+dist/assets/SourceSerif4-BoldIt.ttf-1j4hxMHI.woff2             63.46 kB
+dist/assets/SourceSerif4-Regular.ttf-BNbBs0kC.woff2            76.26 kB
+dist/assets/SourceSerif4-Bold.ttf-Csh8T7yr.woff2               81.54 kB
+dist/assets/SourceHanSerifSC-Regular-common-b8OKDD3V.woff2  1,814.15 kB
+dist/assets/SourceHanSerifSC-Bold-common-BQag0cBy.woff2     1,903.70 kB
+dist/assets/index-NkauirQq.css                                 32.04 kB │ gzip:   6.33 kB
+dist/assets/channel-D_rd2J8a.js                                 0.11 kB │ gzip:   0.13 kB
+dist/assets/init-Gi6I4Gst.js                                    0.15 kB │ gzip:   0.13 kB
+dist/assets/chunk-QZHKN3VN-DG9yjS2V.js                          0.19 kB │ gzip:   0.16 kB
+dist/assets/chunk-55IACEB6-Bg0pdvL5.js                          0.24 kB │ gzip:   0.21 kB
+dist/assets/chunk-4BX2VUAB-bEjfAOWc.js                          0.30 kB │ gzip:   0.20 kB
+dist/assets/chunk-FMBD7UC4-B_oY3aYl.js                          0.37 kB │ gzip:   0.27 kB
+dist/assets/stateDiagram-v2-BHNVJYJU-CCzs5f1b.js                0.47 kB │ gzip:   0.32 kB
+dist/assets/chunk-2J33WTMH-CQfK_BsO.js                          0.53 kB │ gzip:   0.38 kB
+dist/assets/classDiagram-4FO5ZUOK-Bgcz6Cak.js                   0.55 kB │ gzip:   0.35 kB
+dist/assets/classDiagram-v2-Q7XG4LA2-Bgcz6Cak.js                0.55 kB │ gzip:   0.35 kB
+dist/assets/infoDiagram-5YYISTIA-CExC7FyD.js                    0.66 kB │ gzip:   0.44 kB
+dist/assets/ordinal-Cboi1Yqb.js                                 1.19 kB │ gzip:   0.57 kB
+dist/assets/chunk-ND2GUHAM-BpIx0AoW.js                          1.86 kB │ gzip:   0.82 kB
+dist/assets/index-DLPSZgS4.js                                   2.47 kB │ gzip:   1.53 kB
+dist/assets/shell-CjFT_Tl9.js                                   2.57 kB │ gzip:   1.21 kB
+dist/assets/diagram-5GNKFQAL-8xPVjPpV.js                        2.84 kB │ gzip:   1.40 kB
+dist/assets/arc-D6JiWRSX.js                                     3.43 kB │ gzip:   1.47 kB
+dist/assets/diagram-LMA3HP47-BYAJOCsL.js                        4.36 kB │ gzip:   1.89 kB
+dist/assets/defaultLocale-DX6XiGOO.js                           4.69 kB │ gzip:   2.18 kB
+dist/assets/pieDiagram-4H26LBE5-CA248kH-.js                     5.44 kB │ gzip:   2.41 kB
+dist/assets/linear-CfqwH5hz.js                                  5.68 kB │ gzip:   2.32 kB
+dist/assets/diagram-2AECGRRQ-BJlVoQig.js                        6.18 kB │ gzip:   2.60 kB
+dist/assets/stateDiagram-AJRCARHV-15IqHAs0.js                  10.44 kB │ gzip:   3.66 kB
+dist/assets/diagram-KO2AKTUF-Ca6VhXak.js                       11.13 kB │ gzip:   4.29 kB
+dist/assets/dagre-BM42HDAG-DOlRJhui.js                         11.48 kB │ gzip:   4.25 kB
+dist/assets/index-CznQJF9b.js                                  12.76 kB │ gzip:   5.63 kB
+dist/assets/index-D0C9Ep6d.js                                  14.84 kB │ gzip:   6.00 kB
+dist/assets/diagram-OG6HWLK6-C2vQUp4n.js                       16.26 kB │ gzip:   5.83 kB
+dist/assets/index-B8SrKjKZ.js                                  17.06 kB │ gzip:   4.80 kB
+dist/assets/ishikawaDiagram-YF4QCWOH-DoHWPWX3.js               17.77 kB │ gzip:   6.78 kB
+dist/assets/kanban-definition-UN3LZRKU-gik__pVm.js             20.85 kB │ gzip:   7.36 kB
+dist/assets/settings-YidbxdDk.js                               21.17 kB │ gzip:   5.13 kB
+dist/assets/mindmap-definition-RKZ34NQL-Clk9Rwif.js            23.55 kB │ gzip:   7.98 kB
+dist/assets/journeyDiagram-JHISSGLW-C8owxvB1.js                23.68 kB │ gzip:   8.41 kB
+dist/assets/sankeyDiagram-5OEKKPKP-DAbWPWdu.js                 23.76 kB │ gzip:   8.76 kB
+dist/assets/graph-Dla4jY_b.js                                  23.95 kB │ gzip:   8.32 kB
+dist/assets/wardleyDiagram-YWT4CUSO-BD3PaUtV.js                26.66 kB │ gzip:   7.19 kB
+dist/assets/erDiagram-TEJ5UH35-Da5FTZ9H.js                     27.12 kB │ gzip:   9.45 kB
+dist/assets/gitGraphDiagram-PVQCEYII-DqZni9cQ.js               30.40 kB │ gzip:   9.02 kB
+dist/assets/index-CHZhxwX-.js                                  30.84 kB │ gzip:  12.67 kB
+dist/assets/requirementDiagram-4Y6WPE33-DX8ov5Sr.js            31.39 kB │ gzip:   9.91 kB
+dist/assets/timeline-definition-PNZ67QCA-nM3fhlHg.js           31.67 kB │ gzip:  10.56 kB
+dist/assets/index-BL3O2iZa.js                                  32.37 kB │ gzip:  13.09 kB
+dist/assets/quadrantDiagram-W4KKPZXB-C_CT54lO.js               34.67 kB │ gzip:  10.22 kB
+dist/assets/layout-DUXn2AVC.js                                 35.84 kB │ gzip:  12.87 kB
+dist/assets/chunk-AQP2D5EJ-CGDHQXjj.js                         37.68 kB │ gzip:  12.28 kB
+dist/assets/xychartDiagram-2RQKCTM6-BlTB_RH7.js                40.49 kB │ gzip:  11.61 kB
+dist/assets/index-BFj30ZTH.js                                  40.78 kB │ gzip:  16.77 kB
+dist/assets/vennDiagram-CIIHVFJN-mk6WoWje.js                   42.11 kB │ gzip:  15.72 kB
+dist/assets/index-BwnDN9KA.js                                  45.15 kB │ gzip:  19.18 kB
+dist/assets/chunk-727SXJPM-CfZgU84s.js                         49.18 kB │ gzip:  15.80 kB
+dist/assets/flowDiagram-I6XJVG4X-CDol2z2K.js                   61.46 kB │ gzip:  19.65 kB
+dist/assets/ganttDiagram-6RSMTGT7-C3RkDpGy.js                  69.49 kB │ gzip:  23.42 kB
+dist/assets/c4Diagram-AAUBKEIU-CQg3OSmr.js                     70.03 kB │ gzip:  19.68 kB
+dist/assets/index-B4Yn3YD2.js                                  70.86 kB │ gzip:  25.87 kB
+dist/assets/blockDiagram-GPEHLZMM-C29YCYZA.js                  75.45 kB │ gzip:  21.81 kB
+dist/assets/cose-bilkent-S5V4N54A-DL5CVlsq.js                  81.70 kB │ gzip:  22.53 kB
+dist/assets/sequenceDiagram-3UESZ5HK-aA3dOx0H.js              117.78 kB │ gzip:  31.39 kB
+dist/assets/architectureDiagram-3BPJPVTR-K9daZ8dn.js          149.77 kB │ gzip:  42.39 kB
+dist/assets/katex-DkKDou_j.js                                 256.23 kB │ gzip:  76.99 kB
+dist/assets/vendor-codemirror-DlhfgU1R.js                     408.53 kB │ gzip: 133.07 kB
+dist/assets/index-DGIbxU7w.js                                 411.10 kB │ gzip: 119.22 kB
+dist/assets/cytoscape.esm-xgCGXJTu.js                         442.64 kB │ gzip: 141.99 kB
+dist/assets/vendor-prosemirror-BuBYajit.js                    506.71 kB │ gzip: 178.78 kB
+dist/assets/mermaid.core-CxHR0Dx8.js                          597.47 kB │ gzip: 140.44 kB
+dist/assets/wardley-L42UT6IY-O0htfixm.js                      616.24 kB │ gzip: 148.86 kB
+dist/assets/index-fiRHmbJ6.js                                 711.96 kB │ gzip: 237.13 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.48s
+   Compiling markflow v0.0.6 (/Users/xian/Project/book/MarkFlow/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.13s
+       Built application at: /Users/xian/Project/book/MarkFlow/src-tauri/target/debug/markflow
+npm notice run markflow@0.0.6 npx
+npm notice run 'wdio' run e2e/wdio.conf.mjs --suite smoke
+
+Execution of 6 workers started at 2026-08-29T22:12:12.967Z
+
+[0-0] RUNNING in undefined - file:///e2e/specs/smoke/all-smoke.e2e.mjs
+[0-0] PASSED in undefined - file:///e2e/specs/smoke/all-smoke.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: c320a872-7ee9-47e6-9076-48ead5899743
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » e2e/specs/smoke/all-smoke.e2e.mjs
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: launch
+[webkit 605.1.15 macos #0-0]    ✓ starts a real Tauri window with an isolated workspace
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: file open
+[webkit 605.1.15 macos #0-0]    ✓ opens welcome.md and displays structured content in the lossless editor
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: editor mode
+[webkit 605.1.15 macos #0-0]    ✓ edits content and preserves it across Source and Live Preview modes
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: edit save reload
+[webkit 605.1.15 macos #0-0]    ✓ edits content, saves to disk, and persists
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] MarkFlow smoke: settings panel
+[webkit 605.1.15 macos #0-0]    ✓ opens settings, switches tabs, toggles theme, and persists state on reopen
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 5 passing (1.5s)
+
+
+Spec Files:	 1 passed, 5 skipped, 6 total (100% completed) in 00:00:04  
+
+

@@ -1,6 +1,6 @@
 import type { FileEntry, DragState } from '../types/fileTree';
 import { readDirPage, readPathEntry, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
-import { openFileInEditor } from './sidebar';
+import { acquireDocumentTransitionGuard, openFileInEditor } from './sidebar';
 import { getActiveFilePath, rewriteActiveDocumentPath } from './activeDocument';
 import { showContextMenu } from './contextMenu';
 import { logException, logInfo } from '../lib/logger';
@@ -140,7 +140,14 @@ export const dragState: DragState = {
 
 // --- Module-level state ---
 
-const dbClickTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
+interface PendingFileOpen {
+  timer: ReturnType<typeof setTimeout>;
+  releaseTransition: () => void;
+}
+
+// This is intentionally a short-lived Map rather than a WeakMap: cleanup and
+// workspace teardown must cancel queued opens and release their guards.
+const dbClickTimers = new Map<Element, PendingFileOpen>();
 const suppressPaths: Map<string, number> = new Map();
 const SUPPRESS_DURATION_MS = 3000;
 let treeState = createFileTreeState();
@@ -461,16 +468,27 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
     if (!path) return;
     const existing = dbClickTimers.get(file);
     if (existing) {
-      clearTimeout(existing);
+      clearTimeout(existing.timer);
+      existing.releaseTransition();
       dbClickTimers.delete(file);
       return;
     }
-    const timer = setTimeout(() => {
+    // The single-click delay distinguishes double-clicks.  Hold the transition
+    // guard *before* scheduling it: otherwise autosave can persist an edit in
+    // this 250ms window and make the later discard prompt disappear.
+    const releaseTransition = acquireDocumentTransitionGuard();
+    const timer = setTimeout(async () => {
       dbClickTimers.delete(file);
-      openFileInEditor(path);
-      updateSelectedAria();
+      try {
+        await openFileInEditor(path);
+        updateSelectedAria();
+      } catch (error) {
+        logException('file-tree.open', 'Failed to open file selected from tree', error, { path });
+      } finally {
+        releaseTransition();
+      }
     }, 250);
-    dbClickTimers.set(file, timer);
+    dbClickTimers.set(file, { timer, releaseTransition });
   });
 
   file.addEventListener('dblclick', (e) => {
@@ -479,7 +497,8 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
     if (!path) return;
     const existing = dbClickTimers.get(file);
     if (existing) {
-      clearTimeout(existing);
+      clearTimeout(existing.timer);
+      existing.releaseTransition();
       dbClickTimers.delete(file);
     }
     openFileInNewWindow(path);
@@ -666,6 +685,7 @@ export function renamePathDom(oldPath: string, newPath: string) {
 
 /** @visibleForTesting */
 export function resetFileTreeStateForTesting() {
+  clearPendingFileOpens();
   treeState = createFileTreeState();
   pendingLoads.clear();
   if (cleanupRafId !== null) {
@@ -682,6 +702,7 @@ export function resetFileTreeStateForTesting() {
 }
 
 export function cleanup() {
+  clearPendingFileOpens();
   // Cancel pending rAF
   if (cleanupRafId !== null) {
     cancelAnimationFrame(cleanupRafId);
@@ -693,6 +714,14 @@ export function cleanup() {
   pendingLoads.clear();
   // Clear suppress paths
   suppressPaths.clear();
+}
+
+function clearPendingFileOpens(): void {
+  for (const pending of dbClickTimers.values()) {
+    clearTimeout(pending.timer);
+    pending.releaseTransition();
+  }
+  dbClickTimers.clear();
 }
 
 /** Drain pendingMutations synchronously (for tests that need DOM updates before rAF fires). */

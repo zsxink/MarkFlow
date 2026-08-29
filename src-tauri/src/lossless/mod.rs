@@ -40,6 +40,54 @@ pub use dto::{
     PrepareSaveRequest, PrepareSaveResponse, ReloadDocumentRequest, SessionRequest,
 };
 
+/// Stable FNV-1a-128 over the complete bridge payload. This is deliberately
+/// transport-level: it retains raw UTF-16 post-selection coordinates and EOL
+/// strings so a lost-response retry can be recognized after the base revision
+/// map has advanced, while any changed payload conflicts.
+fn bridge_transport_fingerprint(patch: &dto::BridgeTextPatch) -> u128 {
+    const OFFSET: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
+    const PRIME: u128 = 0x0000_0000_0100_0000_0000_0000_0000_013b;
+    fn write(hash: &mut u128, bytes: &[u8]) {
+        for byte in bytes {
+            *hash ^= u128::from(*byte);
+            *hash = hash.wrapping_mul(PRIME);
+        }
+    }
+    fn write_u64(hash: &mut u128, value: u64) {
+        write(hash, &value.to_le_bytes());
+    }
+    fn write_bytes(hash: &mut u128, value: &[u8]) {
+        write_u64(hash, value.len() as u64);
+        write(hash, value);
+    }
+
+    let mut hash = OFFSET;
+    write_u64(&mut hash, patch.binding_generation);
+    write_u64(&mut hash, patch.session_id);
+    write_u64(&mut hash, patch.document_id);
+    write_u64(&mut hash, patch.transaction_id);
+    write_u64(&mut hash, patch.base_revision);
+    write_u64(&mut hash, patch.changes.len() as u64);
+    for change in &patch.changes {
+        write_u64(&mut hash, change.from_utf16);
+        write_u64(&mut hash, change.to_utf16);
+        write_bytes(&mut hash, change.inserted_logical_text.as_bytes());
+        write_u64(&mut hash, change.inserted_line_endings.len() as u64);
+        for ending in &change.inserted_line_endings {
+            write_bytes(&mut hash, ending.as_bytes());
+        }
+    }
+    match &patch.selection_after {
+        Some(selection) => {
+            write(&mut hash, &[1]);
+            write_u64(&mut hash, selection.anchor_utf16);
+            write_u64(&mut hash, selection.head_utf16);
+        }
+        None => write(&mut hash, &[0]),
+    }
+    hash
+}
+
 // ── Registry ───────────────────────────────────────────────────────────
 
 /// Host-side registry of live lossless sessions, keyed by `SessionId`.
@@ -357,6 +405,7 @@ pub fn apply_document_patch(
 
     let registry = &state.lossless_registry;
     let bridge = req.patch;
+    let transport_fingerprint = bridge_transport_fingerprint(&bridge);
     let session_id = markflow_core::SessionId(bridge.session_id);
     if !registry.contains(session_id) {
         return Err(LosslessError::session_missing(format!(
@@ -365,9 +414,11 @@ pub fn apply_document_patch(
     }
     let outcome = registry
         .update(session_id, |session| {
-            // Validate the identity matrix and base revision BEFORE converting
-            // coordinates, so a stale patch can never be converted against the
-            // wrong text geometry.
+            // Identity is never bypassed, even for a retry. Once identity is
+            // trusted, consult Core's bounded transport ledger BEFORE the base
+            // revision check: a lost-response retry cannot be re-converted via
+            // the now-advanced PositionMap, but an exact payload may return its
+            // original outcome.
             if session.binding_generation().0 != bridge.binding_generation
                 || session.document_id.0 != bridge.document_id
             {
@@ -379,6 +430,15 @@ pub fn apply_document_patch(
                     bridge.document_id,
                 )));
             }
+            let transaction_id = markflow_core::TransactionId(bridge.transaction_id);
+            if let Some(outcome) = session
+                .retry_outcome_for_transport(transaction_id, transport_fingerprint)
+                .map_err(LosslessError::from)?
+            {
+                return Ok(outcome);
+            }
+            // A ledger miss with a stale base is an actual stale request, not a
+            // retry. Only convert base UTF-16 coordinates after this guard.
             if session.revision().0 != bridge.base_revision {
                 return Err(LosslessError::new(
                     "stale-revision",
@@ -417,33 +477,40 @@ pub fn apply_document_patch(
                     inserted_line_endings: line_endings,
                 });
             }
+            // `selectionAfter` is emitted by CodeMirror after its transaction,
+            // so its UTF-16 offsets address the NEXT logical text. Build and
+            // validate the same candidate patch first; converting through the
+            // base session PositionMap here would shift inserts/deletes and can
+            // even turn valid emoji/CJK positions into invalid byte offsets.
+            let base_patch = markflow_core::TextPatch {
+                binding_generation: markflow_core::BindingGeneration(bridge.binding_generation),
+                session_id,
+                document_id: markflow_core::DocumentId(bridge.document_id),
+                transaction_id,
+                base_revision: markflow_core::Revision(bridge.base_revision),
+                changes,
+                selection_after: None,
+            };
             let selection_after = bridge
                 .selection_after
                 .as_ref()
                 .map(|sel| -> Result<markflow_core::Selection, LosslessError> {
-                    let anchor = session
-                        .byte_for_utf16(markflow_core::Utf16Offset(sel.anchor_utf16 as usize))
-                        .map_err(LosslessError::from)?;
-                    let head = session
-                        .byte_for_utf16(markflow_core::Utf16Offset(sel.head_utf16 as usize))
-                        .map_err(LosslessError::from)?;
-                    Ok(markflow_core::Selection {
-                        anchor,
-                        head,
-                        revision: markflow_core::Revision(bridge.base_revision),
-                    })
+                    session
+                        .selection_for_post_change_utf16(
+                            &base_patch,
+                            markflow_core::Utf16Offset(sel.anchor_utf16 as usize),
+                            markflow_core::Utf16Offset(sel.head_utf16 as usize),
+                        )
+                        .map_err(LosslessError::from)
                 })
                 .transpose()?;
             let patch = markflow_core::TextPatch {
-                binding_generation: markflow_core::BindingGeneration(bridge.binding_generation),
-                session_id,
-                document_id: markflow_core::DocumentId(bridge.document_id),
-                transaction_id: markflow_core::TransactionId(bridge.transaction_id),
-                base_revision: markflow_core::Revision(bridge.base_revision),
-                changes,
                 selection_after,
+                ..base_patch
             };
-            session.apply_patch(patch).map_err(LosslessError::from)
+            session
+                .apply_patch_with_transport_fingerprint(patch, transport_fingerprint)
+                .map_err(LosslessError::from)
         })
         .ok_or_else(|| {
             LosslessError::session_missing(format!("session {session_id:?} not found"))

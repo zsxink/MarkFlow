@@ -12,7 +12,7 @@ vi.mock('../lib/editor', () => ({ getMarkdown: mocks.getMarkdown, hasExternalMod
 vi.mock('../lib/editor.source', () => ({ setSourceReadOnly: vi.fn() })); vi.mock('./toast', () => ({ showToast: mocks.showToast })); vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() })); vi.mock('./outline', () => ({ refreshOutline: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() })); vi.mock('@tauri-apps/plugin-dialog', () => ({ save: mocks.save })); vi.mock('./ui/dialog', () => ({ showDialog: mocks.showDialog })); vi.mock('./activeDocument', () => ({ getActiveFilePath: mocks.getActiveFilePath, setActiveFilePath: mocks.setActiveFilePath })); vi.mock('./sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn() })); vi.mock('../lib/fileSizeTier', () => ({ determineTier: vi.fn(() => 'normal'), formatFileSize: vi.fn() })); vi.mock('./degradationBar', () => ({ showDegradationBar: vi.fn(), hideDegradationBar: vi.fn() })); vi.mock('../lib/store', () => ({ store: { setState: vi.fn() } })); vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 vi.mock('../lib/lossless/integration', () => ({ closeLosslessActiveDocument: vi.fn(), isLosslessOpenRecoveryBlocked: vi.fn(() => false), isLosslessActiveDoc: vi.fn(() => false), openLosslessDocument: mocks.openLosslessDocument, reloadLosslessActiveDocument: vi.fn(), saveLosslessActiveDocument: vi.fn(() => Promise.resolve(null)), saveLosslessActiveDocumentAsNewFile: vi.fn(() => Promise.resolve('failed')) }));
 vi.mock('../lib/lossless/registry', () => ({ getActiveLosslessBinding: vi.fn(() => null) }));
-import { confirmDocumentTransition, openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
+import { acquireDocumentTransitionGuard, confirmDocumentTransition, isDocumentTransitionInProgress, openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
 
 beforeEach(() => {
   vi.clearAllMocks(); mocks.getMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getDocumentGeneration.mockReturnValue(1); mocks.hasUnpersistedUserChanges.mockReturnValue(true); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => ({ markdown, draftId: null })); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
@@ -22,6 +22,79 @@ beforeEach(() => {
 });
 
 describe('document transition save result', () => {
+  it('uses an idempotent acquired guard so cancellation cannot underflow the refcount', () => {
+    const release = acquireDocumentTransitionGuard();
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    release();
+    release();
+
+    expect(isDocumentTransitionInProgress()).toBe(false);
+  });
+
+  it('holds the transition guard while the decision dialog is pending and releases it on cancel', async () => {
+    let resolveDialog!: (value: 'cancel') => void;
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.showDialog.mockReturnValue(new Promise((resolve) => { resolveDialog = resolve; }));
+
+    const pending = confirmDocumentTransition();
+    await Promise.resolve();
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    resolveDialog('cancel');
+    await expect(pending).resolves.toBe(false);
+    expect(isDocumentTransitionInProgress()).toBe(false);
+  });
+
+  it('releases the transition guard when showing the decision dialog throws', async () => {
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.showDialog.mockRejectedValue(new Error('dialog failed'));
+
+    await expect(confirmDocumentTransition()).rejects.toThrow('dialog failed');
+    expect(isDocumentTransitionInProgress()).toBe(false);
+  });
+
+  it('keeps the guard held across an async open after discard', async () => {
+    let releaseAuthorization!: () => void;
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.showDialog.mockResolvedValue('discard');
+    mocks.getActiveFilePath.mockReturnValue('/work/A.md');
+    mocks.authorizeImageStorage.mockReturnValueOnce(new Promise<void>((resolve) => {
+      releaseAuthorization = () => resolve();
+    }));
+    mocks.getFileMetadata.mockResolvedValue({ size: 1, lines: 1 });
+    mocks.readFile.mockResolvedValue('B');
+
+    const opening = openFileInEditor('/work/B.md');
+    await Promise.resolve();
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    releaseAuthorization();
+    await opening;
+    expect(isDocumentTransitionInProgress()).toBe(false);
+  });
+
+  it('uses a refcount so overlapping transition decisions do not release each other', async () => {
+    const releases: Array<(value: 'cancel') => void> = [];
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.showDialog.mockImplementation(() => new Promise((resolve) => {
+      releases.push(resolve);
+    }));
+
+    const first = confirmDocumentTransition();
+    const second = confirmDocumentTransition();
+    await Promise.resolve();
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    releases[0]('cancel');
+    await expect(first).resolves.toBe(false);
+    expect(isDocumentTransitionInProgress()).toBe(true);
+
+    releases[1]('cancel');
+    await expect(second).resolves.toBe(false);
+    expect(isDocumentTransitionInProgress()).toBe(false);
+  });
+
   it('continues only after an actual saved result', async () => {
     mocks.isDocumentDirty.mockReturnValue(true);
     mocks.showDialog.mockResolvedValue('save');

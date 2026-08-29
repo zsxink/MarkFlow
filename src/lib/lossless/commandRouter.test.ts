@@ -23,6 +23,7 @@ import * as os from 'node:os';
 
 const state = vi.hoisted(() => ({
   sessions: new Map<number, any>(),
+  patchCalls: [] as any[],
   nextSession: 1,
   nextDocument: 1,
 }));
@@ -74,9 +75,48 @@ vi.mock('@tauri-apps/api/core', async () => {
           const patch = req.patch;
           const session = sessionState.sessions.get(patch.sessionId);
           if (!session) throw { code: 'session-missing', message: 'missing' };
-          session.revision = (patch.baseRevision ?? 0) + 1;
+          if (patch.bindingGeneration !== session.bindingGeneration || patch.documentId !== session.documentId) {
+            throw { code: 'wrong-identity', message: 'wrong patch identity' };
+          }
+          if (patch.baseRevision !== session.revision) {
+            throw { code: 'stale-revision', message: 'base revision mismatch' };
+          }
+          if (!Array.isArray(patch.changes) || patch.changes.length === 0) {
+            throw { code: 'invalid-dto', message: 'patch requires changes' };
+          }
+          let text = session.logicalText;
+          for (const change of [...patch.changes].sort((a, b) => b.fromUtf16 - a.fromUtf16)) {
+            if (!Number.isInteger(change.fromUtf16) || !Number.isInteger(change.toUtf16)
+              || change.fromUtf16 < 0 || change.toUtf16 < change.fromUtf16 || change.toUtf16 > text.length
+              || !Array.isArray(change.insertedLineEndings)
+              || change.insertedLineEndings.length !== (change.insertedLogicalText.match(/\n/g) ?? []).length) {
+              throw { code: 'invalid-dto', message: 'invalid UTF-16 or EOL patch payload' };
+            }
+            text = text.slice(0, change.fromUtf16) + change.insertedLogicalText + text.slice(change.toUtf16);
+          }
+          if (!patch.selectionAfter || !Number.isInteger(patch.selectionAfter.anchorUtf16)
+            || !Number.isInteger(patch.selectionAfter.headUtf16)) {
+            throw { code: 'invalid-dto', message: 'missing source selection provenance' };
+          }
+          const isUtf16Boundary = (value: string, offset: number) => {
+            if (offset < 0 || offset > value.length) return false;
+            if (offset === 0 || offset === value.length) return true;
+            const before = value.charCodeAt(offset - 1);
+            const after = value.charCodeAt(offset);
+            return !(before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff);
+          };
+          // CodeMirror selectionAfter belongs to the post-transaction source
+          // document. Validate it after applying all base-coordinate changes,
+          // including reversed selections and surrogate-pair boundaries.
+          if (!isUtf16Boundary(text, patch.selectionAfter.anchorUtf16)
+            || !isUtf16Boundary(text, patch.selectionAfter.headUtf16)) {
+            throw { code: 'invalid-dto', message: 'selection is not a next-document UTF-16 boundary' };
+          }
+          sessionState.patchCalls.push(patch);
+          session.logicalText = text;
+          session.revision += 1;
           session.persistedRevision = session.revision;
-          return { revision: session.revision };
+          return { revision: session.revision, confirmedHash: sha256hex(text), selectionAfter: null };
         }
         case 'get_document_snapshot':
           return { text: '', revision: 0, confirmedHash: '' };
@@ -96,8 +136,11 @@ vi.mock('@tauri-apps/api/core', async () => {
 });
 
 import { setLosslessCoreSessionEnabled } from './flag';
+import { resetAllCohortFlags, setP4bFlagEnabled } from './cohortFlags';
 import { openLosslessDocument } from './integration';
 import { getActiveLosslessBinding } from './registry';
+import { undo } from '@codemirror/commands';
+import { runScopeHandlers } from '@codemirror/view';
 import {
   getActiveLosslessView,
   insertHorizontalRule,
@@ -125,6 +168,7 @@ afterAll(async () => {
 beforeEach(() => {
   document.body.innerHTML = '<div id="source-editor-wrapper"></div>';
   vi.clearAllMocks();
+  state.patchCalls = [];
   // happy-dom's focus() collapses range selections and can re-enter the DOM
   // observer mid-update when commands are chained; no-op it for doc assertions.
   vi.spyOn(EditorView.prototype, 'focus').mockImplementation(() => {});
@@ -132,6 +176,7 @@ beforeEach(() => {
 
 afterEach(() => {
   setLosslessCoreSessionEnabled(false);
+  resetAllCohortFlags();
 });
 
 async function writeFixture(name: string, content: string): Promise<string> {
@@ -158,6 +203,72 @@ function suppressFocus(view: { focus(): void }) {
 }
 
 describe('lossless command router', () => {
+  it.each([
+    ['CRLF', '# title\r\nunchanged\r\n', 'title\nunchanged\n', '# title\nunchanged\n'],
+    ['CR', '# title\runchanged\r', 'title\nunchanged\n', '# title\nunchanged\n'],
+    ['mixed EOL', '# title\r\nunchanged\runtouched\n', 'title\nunchanged\nuntouched\n', '# title\nunchanged\nuntouched\n'],
+  ])('P4B heading command uses one real binding patch/revision and Undo follows the same pipeline (%s)', async (_eol, source, afterEdit, afterUndo) => {
+    setP4bFlagEnabled('headingStrong', true);
+    setLosslessCoreSessionEnabled(true);
+    const path = await writeFixture(`structural-${_eol}.md`, source);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    view.dispatch({ selection: { anchor: 2 } });
+
+    expect(runScopeHandlers(view, new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true }), 'editor')).toBe(true);
+    expect(view.state.doc.toString()).toBe(afterEdit);
+    expect(binding.isDirty()).toBe(true);
+    await binding.flushNow();
+    expect(binding.confirmedRevision).toBe(1);
+    expect(binding.isDirty()).toBe(true);
+
+    expect(undo(view)).toBe(true);
+    await binding.flushNow();
+    expect(view.state.doc.toString()).toBe(afterUndo);
+    expect(binding.confirmedRevision).toBe(2);
+    expect(binding.isDirty()).toBe(true);
+  });
+
+  it.each([
+    ['heading/CRLF', 'headingStrong', '# title\r\nunchanged\r\n', 7, '# title\n\nunchanged\n', { fromUtf16: 7, toUtf16: 7, insertedLogicalText: '\n', insertedLineEndings: ['inherit'] }, 8],
+    // The blank CR is deliberate: an unindented following line otherwise
+    // belongs to the ListItem as unproven continuation prose, where P4B must
+    // fail closed rather than place a sibling through its subtree.
+    ['list/CR', 'quoteLists', '- title\r\runchanged\r', 7, '- title\n- \n\nunchanged\n', { fromUtf16: 7, toUtf16: 7, insertedLogicalText: '\n- ', insertedLineEndings: ['inherit'] }, 10],
+    ['quote/mixed', 'quoteLists', '> title\r\nunchanged\rtail\n', 7, '> title\n> \nunchanged\ntail\n', { fromUtf16: 7, toUtf16: 7, insertedLogicalText: '\n> ', insertedLineEndings: ['inherit'] }, 10],
+  ] as const)('P4B structural %s sends the real UTF-16 patch, EOL and selection to Core', async (_name, cohort, rawSource, position, expectedLogical, expectedChange, selectionAfter) => {
+    setP4bFlagEnabled(cohort, true);
+    setLosslessCoreSessionEnabled(true);
+    const path = await writeFixture(`structural-payload-${_name.replace('/', '-')}.md`, rawSource);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    view.dispatch({ selection: { anchor: position } });
+
+    expect(runScopeHandlers(view, new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }), 'editor')).toBe(true);
+    expect(view.state.doc.toString()).toBe(expectedLogical);
+    await binding.flushNow();
+    expect(state.patchCalls).toHaveLength(1);
+    expect(state.patchCalls[0]).toMatchObject({
+      sessionId: binding.sessionId,
+      documentId: binding.documentId,
+      bindingGeneration: binding.bindingGeneration,
+      baseRevision: 0,
+      changes: [expectedChange],
+      selectionAfter: { anchorUtf16: selectionAfter, headUtf16: selectionAfter },
+    });
+    expect(state.sessions.get(binding.sessionId).logicalText).toBe(expectedLogical);
+    expect(binding.confirmedRevision).toBe(1);
+
+    expect(undo(view)).toBe(true);
+    await binding.flushNow();
+    expect(state.patchCalls).toHaveLength(2);
+    expect(state.patchCalls[1]).toMatchObject({ baseRevision: 1, selectionAfter: { anchorUtf16: position, headUtf16: position } });
+    expect(state.sessions.get(binding.sessionId).logicalText).toBe(rawSource.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+    expect(binding.confirmedRevision).toBe(2);
+  });
+
   it('resolves the active lossless binding view', async () => {
     const { binding, view } = await openWithSelection('hello', 0, 0);
     expect(getActiveLosslessView()).toBe(view);

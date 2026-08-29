@@ -1,8 +1,8 @@
-# Parser、Render IR、Widgets 与非功能设计
+# Parser、Local Projection、Widgets 与非功能设计
 
-## 1. Parser spike
+## 1. Parser/source-map 终态
 
-P4A 前比较 CodeMirror Lezer、draft ParseIndex、markdown-rs、pulldown-cmark 及必要候选。统一评估：
+P4A 已完成 CodeMirror Lezer、draft ParseIndex、markdown-rs、pulldown-cmark/comrak 的统一评估：
 
 - CommonMark/GFM/现有 extension 覆盖；
 - source/content/marker range 精度；
@@ -13,37 +13,27 @@ P4A 前比较 CodeMirror Lezer、draft ParseIndex、markdown-rs、pulldown-cmark
 - WASM/IPC payload；
 - 许可、维护活跃度和供应链风险。
 
-Parser 只提供 ranges/structure/diagnostics，不成为保存 serializer。没有胜者时继续使用本地基础投影与复杂源码 fallback。
+Parser 只提供 ranges/structure/diagnostics，不成为保存 serializer。已冻结结论为 `SPIKE_COMPLETE_NO_CORE_IR`：Lezer local ranges 是本 change 唯一受信 source-map；复杂或不可信范围回退源码。
 
-## 2. Render IR
+## 2. Local construct descriptor
 
 ```text
-RenderRequest {
-  bindingGeneration, sessionId, documentId,
-  revision, requestId, sourceHash,
-  viewportUtf16, capabilities
-}
-
-RenderResult {
-  same identities,
-  blocks: [RenderBlock],
-  diagnostics,
-  incompleteRanges
-}
-
-RenderBlock {
-  stableId, kind,
+LocalConstructDescriptor {
+  bindingGeneration, sessionId, documentId, revision,
+  constructId, parentId, kind,
   sourceRange, contentRange, markerRanges,
-  owner, fallbackPolicy,
-  decorations, widgetDescriptor
+  owner: local | widget | source-fallback,
+  editableSlots, fallbackPolicy
 }
 ```
 
-所有 ranges 半开且声明坐标系。结果只有 identities 全匹配才应用。IR 不携带可执行 HTML；raw HTML/diagram 需要经过安全 renderer policy。
+所有 ranges 半开且使用 CodeMirror UTF-16 坐标；跨 Core patch 时经 PositionMap 转换。Descriptor 在同一 EditorState revision 内派生，不经 IPC、不持久化、不携带可执行 HTML。异步 widget result 仍必须校验完整 identity。
 
-## 3. Stable identity
+## 3. Identity 与嵌套 owner
 
-stable block ID 可基于结构 path、source anchor、content hash 与 revision mapping 组合，但不能假设 offset 永不变化。编辑后 adapter 先映射 surviving IDs，再为新增 block 分配 ID。身份不可信时销毁对应 widget 并重建，不能把旧 widget 状态应用到新文本。
+construct ID 可基于结构 path、source anchor、content hash 与 transaction mapping 组合，但不能假设 offset 永不变化。身份不可信时销毁对应 widget 并回退源码，不能把旧 widget 状态应用到新文本。
+
+Owner 唯一性以 construct identity 为粒度，不表示父子 source range 绝对不能包含。Parent 必须声明让出的 child ranges/editable slots：task-in-list 由 list owner 让出 checkbox marker；image-in-paragraph 由 paragraph owner 让出 image range；table widget 只在可信 cell slot 内允许 P6 inline owner。最小 `source-fallback` range 压制其内部全部投影。Owner handoff 必须在一个状态更新内完成，不能出现重复 decoration 帧。
 
 ## 4. Widget protocol
 
@@ -62,22 +52,13 @@ stable block ID 可基于结构 path、source anchor、content hash 与 revision
 
 Widget DOM 永远不是正文。widget commit 只能返回 source changes，由 active binding 校验。
 
-## 5. Cohort 顺序
+## 5. Cohort 与阶段归属
 
-1. heading + strong；
-2. emphasis + strike + inline code；
-3. links；
-4. quote + lists；
-5. fence；
-6. task checkbox；
-7. code fence controls；
-8. image（移交 P7）；
-9. GFM table（移交 P7）；
-10. frontmatter；
-11. Mermaid/PlantUML（移交 P7）；
-12. raw HTML policy。
+1. P4B：owner/visibility/interaction harness、task checkbox、code fence controls、FrontMatter safe projection、raw HTML policy；marker 保持 visible/dimmed。
+2. P6：heading/paragraph/thematic break → inline marks → links → quote/lists/task → fence 的 hidden/reveal cohorts。
+3. P7：P4B 轻量 widget 与 hidden 联动收口 → image → GFM table → Mermaid/PlantUML → 发布支持矩阵。
 
-每项独立 flag。一个 cohort/widget 失败只关闭自身，不能让基础 Live Preview 或保存失效。
+每项独立 projection flag 与 visibility flag。一个 cohort/widget 失败只关闭自身并回到 dimmed/source fallback，不能让基础 Live Preview、其他 construct 或保存失效。
 
 ## 6. 性能等级
 
@@ -87,7 +68,7 @@ Widget DOM 永远不是正文。widget commit 只能返回 source changes，由 
 | Large | 1-10MB 或 5k-50k 行 | viewport-only、扩大 debounce、重型 widget 按需 |
 | Huge | 大于 10MB 或 50k 行 | 默认 Source，禁用重型 widget，保留无损编辑/保存 |
 
-必须记录打开时间、首可输入时间、transaction p50/p95/p99、IR latency、save latency、峰值 RSS、DOM/widget 数、IPC bytes。性能降级不能改变 byte 合同。
+必须记录打开时间、首可输入时间、transaction p50/p95/p99、local projection latency、widget render latency、save latency、峰值 RSS、DOM/widget 数。性能降级不能改变 byte 合同。
 
 以下为初始 release SLO；P0/P1B 可用基线数据提出 ADR 调整，但必须在进入 P4A 前冻结，变更需 Program Owner 与 Reviewer 签字，不能在测试失败后临时放宽：
 
@@ -105,18 +86,18 @@ Widget DOM 永远不是正文。widget commit 只能返回 source changes，由 
 - link/image URL 使用现有安全 URL policy；
 - Mermaid/PlantUML 不执行任意脚本；
 - 外部网络资源受产品设置、CSP、SSRF 与下载策略约束；
-- IR/diagnostic/log 不包含完整正文；
+- widget/diagnostic/log 不包含完整正文；
 - clipboard HTML 必须 sanitize；
 - widget message 必须校验 identity、schema 和长度；
 - fuzz malformed Markdown、超深 nesting、巨大 token 和恶意 URI。
 
 ## 8. Accessibility
 
-每个默认 cohort/widget 验证：keyboard-only、screen reader name/role/value、focus visible、high contrast、reduced motion、zoom 200%、marker reveal 可发现性、atomic range 可绕过、错误状态可读。隐藏 marker 不得让屏幕阅读器丢失正文或让复制结果缺少 Markdown source。
+每个默认 cohort/widget 验证：keyboard-only、screen reader name/role/value、focus visible、high contrast、reduced motion、zoom 200%、marker reveal 可发现性、atomic range 可绕过、错误状态可读。隐藏 marker 不得让屏幕阅读器丢失正文或让复制结果缺少 Markdown source；screen-reader descriptor 与 plain-text copy 必须读取 CodeMirror/Core source range，不能依赖 rendered DOM 是否保留 marker。
 
 ## 9. 观测性
 
-结构化事件：session open/close、patch send/ack/retry/resync/blocked、projection local/core/fallback、IR stale/cancel/error、save prepare/write/commit/conflict、widget create/dispose/error、feature flag snapshot。
+结构化事件：session open/close、patch send/ack/retry/resync/blocked、projection local/widget/fallback、widget stale/cancel/error/create/dispose、save prepare/write/commit/conflict、feature flag snapshot。
 
 日志只记录哈希化 identity、revision、range 长度、计数、耗时、错误码和环境；正文、clipboard 内容、token 与完整私人路径必须脱敏。
 

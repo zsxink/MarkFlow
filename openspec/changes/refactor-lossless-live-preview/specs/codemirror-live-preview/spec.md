@@ -30,13 +30,14 @@ Live Preview SHALL 只使用 CodeMirror decorations、widgets 和事件处理器
 
 ### Requirement: 基础投影不依赖 Rust Render IR 可用性
 
-首批基础 Markdown construct SHALL 使用 CodeMirror 本地语法树提供即时投影。Core Render IR MAY 增强复杂语义，但其失败 MUST NOT 阻止基本 Markdown 显示、输入或保存。
+基础 Markdown construct SHALL 使用 CodeMirror 本地 Lezer 语法树提供即时投影。P4A 已冻结 `SPIKE_COMPLETE_NO_CORE_IR`，本 change MUST NOT 创建 Core Render IR producer、请求协议或运行时 flag；复杂语义使用受信 local ranges/source-backed widget，范围不可信时精确回退源码。
 
 #### Scenario: Render IR 服务不可用
-- **WHEN** Core Render IR 请求超时或返回错误
+- **WHEN** 产品在没有 Core Render IR 服务或 flag 的发布配置运行
 - **THEN** 已支持的 heading、strong、emphasis、inline code、link、quote、list 和 fence 继续由本地投影显示
 - **THEN** 复杂或未知 construct 精确回退源码
 - **THEN** 文档保持可编辑可保存
+- **THEN** 系统不发起 IR IPC 请求，测试不得要求注入不存在的 IR timeout
 
 #### Scenario: 输入立即更新基础投影
 - **WHEN** 用户输入 `**文本**`
@@ -45,12 +46,12 @@ Live Preview SHALL 只使用 CodeMirror decorations、widgets 和事件处理器
 
 ### Requirement: Projection owner 唯一且 revision-bound
 
-每种 construct 在任一 revision 只能由 `local`、`widget`、`core` 或 `source-fallback` 中一个 owner 投影。Core Render IR SHALL 携带 binding generation、session、document、revision、request、viewport 和 source identity；不匹配的结果 MUST 被丢弃。
+每个 construct identity 在任一 revision 只能由 `local`、`widget` 或 `source-fallback` 中一个 owner 投影。父子 construct MAY 在 parent 声明的 editable slot/让出 range 中嵌套；同一 construct 的 owner 不得重叠。异步 widget result SHALL 携带 binding generation、session、document、revision、request、viewport 和 source identity；不匹配的结果 MUST 被丢弃。
 
 #### Scenario: stale IR 返回
-- **WHEN** revision N 的 IR 在文档已更新到 revision N+1 后返回
-- **THEN** 系统不应用该 IR
-- **THEN** 旧 decorations/widgets 被清理或安全映射
+- **WHEN** disabled/experimental extension 返回 revision N 的旧 IR payload
+- **THEN** owner registry 因本 change 不支持 `core` owner而拒绝该 payload
+- **THEN** 当前 local/widget/source-fallback 投影不变
 
 #### Scenario: 文档切换时旧结果返回
 - **WHEN** 用户从文档 A 切换到文档 B
@@ -58,9 +59,19 @@ Live Preview SHALL 只使用 CodeMirror decorations、widgets 和事件处理器
 - **THEN** 结果不得应用到文档 B
 
 #### Scenario: Core owner 接管 construct
-- **WHEN** 某 construct 的 confirmed Core IR 通过 identity 校验
-- **THEN** 系统先移除该范围的 local owner decorations
-- **THEN** 同一范围不得同时叠加 local 与 core 投影
+- **WHEN** 某扩展尝试把 construct owner 设置为 `core`
+- **THEN** 当前 schema/registry 拒绝该 owner，并保持现有 local、widget 或 source-fallback
+- **THEN** 只有新的 ADR/change 重新资格认证后才能扩展 owner 枚举
+
+#### Scenario: Task 嵌套于列表
+- **WHEN** list item 包含 task checkbox
+- **THEN** list local owner 保留容器/列表 marker 投影，并让出 checkbox marker range 给 task widget owner
+- **THEN** 同一 source range 不产生重复 decoration
+
+#### Scenario: Inline Markdown 嵌套于表格 cell
+- **WHEN** table widget 声明可信的 cell content editable slot
+- **THEN** table widget 只拥有结构 shell/delimiter，P6 local owner 可在 slot 内投影 inline Markdown
+- **THEN** slot 或 table range 不可信时最小 table range 整体回退源码
 
 ### Requirement: Marker reveal 按 cohort 安全启用
 
@@ -183,10 +194,10 @@ Source 与 Live Preview SHALL 共享 CodeMirror History。普通输入、composi
 
 ### Requirement: Live Preview 分级与独立回滚
 
-系统 SHALL 为 Live Preview 总入口、Core IR 和 construct cohorts 提供受控 feature flags。关闭任一投影能力时，回滚目标 MUST 是同一 CodeMirror 文本的本地投影或 Source，不能恢复 serializer 保存。
+系统 SHALL 为 Live Preview 总入口、construct cohorts 和 rich widgets 提供受控 feature flags。关闭任一投影能力时，回滚目标 MUST 是同一 CodeMirror 文本的本地投影或 Source，不能恢复 serializer 保存。
 
 #### Scenario: 关闭 Core IR
-- **WHEN** `coreRenderIr` 被关闭
+- **WHEN** 发布配置中不存在 `coreRenderIr` flag
 - **THEN** 基础本地投影继续工作
 - **THEN** 高级 construct 回退精确源码
 - **THEN** Core 文本、patch 和保存链路保持不变

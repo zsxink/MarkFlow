@@ -9,7 +9,7 @@ P4B 是 P6/P7 的基础设施阶段，不是 Typora marker hiding 的交付阶�
 ## 1. 目标
 
 - 冻结 `visible/dimmed/hidden/revealed` 派生状态 API、construct range 与 reveal contract；P4B 不开启 hidden 输出。
-- 建立每个 source range 唯一 `local/widget/core/source-fallback` owner registry。
+- 建立每个 construct identity 唯一 `local/widget/source-fallback` runtime owner registry，并定义父子 editable slot 仲裁。
 - 建立 widget protocol、atomic range、focus/selection、History、async identity、fallback、security、a11y 和 export 合同。
 - 交付 task checkbox、code fence controls、FrontMatter safe projection 与 raw HTML policy。
 - 建立 P6/P7 共用的真实桌面交互矩阵，偿还 P3 的真实 IME 证据债。
@@ -17,7 +17,7 @@ P4B 是 P6/P7 的基础设施阶段，不是 Typora marker hiding 的交付阶�
 ## 2. 输入与依赖
 
 - P3 默认路径候选及 minimum parity 证据；
-- P4A 的最终 parser/source-map ADR；无 Core IR 时使用受信 Lezer local ranges；
+- P4A 的 technical terminal 与 parser/source-map ADR：只使用受信 Lezer local ranges；
 - `specs/typora-wysiwyg-editing/spec.md` 与 `specs/rich-markdown-blocks/spec.md`；
 - [P4B 验证记录](../../validation/phases/P4B.md)。
 
@@ -61,13 +61,14 @@ P4B 必须补齐空 heading/list/quote、Select All 不整篇闪烁、Undo 落�
 
 ## 5. 退出门禁
 
-- 共用 interaction harness 在真实 Tauri WebView 通过；
-- 中文与日文 IME 至少在可用平台各有一轮真实证据；
-- 轻量 widgets 各自通过自动化、独立 Reviewer 与人工验收；
-- owner/flag rollback 不改变 doc、History、dirty、revision 或 bytes；
-- P6 可只实现 visibility output 与 construct-specific polish，不需要重建协议。
+P4B 使用两个不同层级的决定，禁止再写含糊的“P4B Go”：
 
-任何 selection trap、输入丢失、错误 source patch、安全问题或不可回源码均为单项 No-Go。单项失败保持 source fallback，不阻塞已通过项。
+1. `P4B-SUBSTRATE-GO`（P6/P7 强制前置）：共用 interaction harness 在真实 Tauri WebView 通过；中文与日文 IME 至少在可用平台各有一轮真实证据；visibility/atomic/clipboard/a11y、owner registry、widget protocol 与 flag rollback 通过自动化、独立 Reviewer 和人工验收，且不改变 doc、History、dirty、revision 或 bytes。
+2. `P4B-ITEM-<name>-GO/NO-GO`：task checkbox、fence controls、FrontMatter、raw HTML 分别决定 maturity/default/fallback。单项 No-Go 不否定已通过 substrate，也不阻塞 P6；该 item 仍属于 P7 收口与最终支持矩阵，P7 未解决前不能进入 P5。
+
+记录 `P4B-SUBSTRATE-GO` 后，P6 可只实现 visibility output 与 construct-specific polish，不需要重建协议；P7 可消费 widget protocol 并继续未完成轻量 items。
+
+任何 selection trap、输入丢失、错误 source patch、安全问题或不可回源码均阻止 `P4B-SUBSTRATE-GO`；仅限 item 自身的视觉/功能失败则记录为该 item No-Go 并保持 source fallback。
 
 ## 6. 回滚
 

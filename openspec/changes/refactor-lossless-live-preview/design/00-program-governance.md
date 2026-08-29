@@ -13,7 +13,7 @@ Issue #254 是跨多个版本的 program，不是单 PR。治理设计的目标�
 | 人工验收人 | 在真实桌面按脚本操作、判断视觉与编辑手感、批准风险 | 修改代码来让候选版本临时通过 |
 | Program Owner | 批准阶段边界、风险接受、默认 flag 与回滚 | 在关键证据缺失时宣布完成 |
 
-实现 AI 与 Reviewer AI 必须是独立上下文。P1A、P1B、P3、P5 涉及数据一致性，Reviewer 必须检查完整 diff，并重跑 byte/hash 与保存冲突测试。
+实现 AI 与 Reviewer AI 必须是独立上下文。P1A、P1B、P3、P5 涉及数据一致性，P6 涉及 selection/IME，P7 涉及资源与安全；Reviewer 必须按风险检查完整 diff，并重跑 byte/hash、保存冲突、真实交互或安全测试。
 
 ## 3. 阶段状态机
 
@@ -39,7 +39,7 @@ Human-Accepted
 Complete
 ```
 
-P4A parser spike 允许阶段专用完成态 `Spike-Complete-No-IR`：候选淘汰证据、ADR、Reviewer 和人工降级验证全部通过，但产品继续 local projection/source fallback。该状态视为 P4A 已治理完成，不代表 Core IR 实现完成；后续阶段必须把依赖 Core IR 的项标为不适用或保持 default-off。
+P4A parser spike 使用两级状态：`Technical-Terminal-Recorded/Spike-Complete-No-IR` 要求候选淘汰证据、ADR、自动化 gate 与独立 Reviewer 通过，P4B/P6/P7 可以依赖该架构决定；`Program-Accepted` 还要求 Program Owner 完成人工降级/性能验证。当前是前者，后者必须在 P5/归档前完成。任何状态都不代表 Core IR 实现完成；后续阶段不得保留 Core IR 产品分支。
 
 任一状态出现数据损坏、错误写盘、跨文档污染、无法恢复的 blocked pipeline 或真实 UI 只显示源码，立即转为 `No-Go`。No-Go 后只能修复并从失败 gate 重新开始，不能跳过。
 
@@ -47,7 +47,7 @@ P0 是 characterization 特殊阶段：legacy 产品出现预期数据损坏本�
 
 ## 4. Issue #254 单分支持续交付例外
 
-Program Owner 已书面决定：Issue #254 后续不再创建新的 Issue、branch、OpenSpec child change 或阶段 PR。P0 corrective、P0S、P1A–P5 全部在当前分支 `test/issue-255-lossless-byte-contract` 与 umbrella change `refactor-lossless-live-preview` 中连续实施，直到完整重构完成。现有 `p0-lossless-byte-contract` child change 继续保存 P0 已有资产和 corrective 证据，不要求迁移或重建。
+Program Owner 已书面决定：Issue #254 后续不再创建新的 Issue、branch、OpenSpec child change 或阶段 PR。P0 corrective、P0S、P1A–P7 全部在当前分支 `test/issue-255-lossless-byte-contract` 与 umbrella change `refactor-lossless-live-preview` 中连续实施，直到完整重构完成。P6/P7 已提升为必达范围；为保留历史编号，后半程执行顺序为 P4B → P6 → P7 → P5。现有 `p0-lossless-byte-contract` child change 继续保存 P0 已有资产和 corrective 证据，不要求迁移或重建。
 
 该例外只改变 Git/OpenSpec 容器数量，不降低工程隔离：
 
@@ -72,7 +72,7 @@ Program Owner 已书面决定：Issue #254 后续不再创建新的 Issue、bran
 | E4 | visual/IME/accessibility | 人可观察编辑体验和平台差异 |
 | E5 | stability observation | 长时使用、性能和低频竞态 |
 
-P0 至少需要 E1，并为零编辑 open/dirty/autosave/write 生命周期提供 E3；P0S 需要 E1-E3；P1A 需要 E1；P1B 需要 E1-E3；P2/P3/P4B 需要 E1-E4；P5 需要 E1-E5。
+P0 至少需要 E1，并为零编辑 open/dirty/autosave/write 生命周期提供 E3；P0S 需要 E1-E3；P1A 需要 E1；P1B 需要 E1-E3；P2/P3/P4B/P6/P7 需要 E1-E4，其中 P6 必须有真实 IME，P7 高风险 renderer 必须有安全证据；P5 需要 E1-E5。
 
 ## 6. AI 验证通用要求
 
@@ -132,7 +132,7 @@ No-Go 的强制条件：
 
 ## 9. 回滚设计
 
-P1B-P4B 必须保留 feature flag 回滚到上一阶段已验证路径。回滚只改变入口或投影，不得把已打开的 lossless session 临时交给 ProseMirror。安全回滚顺序为：
+P1B-P7 必须保留 feature flag 回滚到上一阶段已验证路径。回滚只改变入口或投影，不得把已打开的 lossless session 临时交给 ProseMirror。安全回滚顺序为：
 
 1. 阻止新文档进入问题 flag；
 2. 对当前 pending pipeline 执行 flush，无法 flush 则阻止保存并提示导出恢复副本；
@@ -145,4 +145,4 @@ P5 删除 legacy 后，回滚单位是应用版本，不再是运行时切回 Pr
 
 ## 10. 完成定义
 
-Program 只有在 P5 完成后才能宣称“完成”。P1B 通过只能宣称“无损 Source 闭环完成”；P2 通过只能宣称“基础 Live Preview 可用”；P3 通过只能宣称“默认编辑路径完成”；不得提前使用“重构完成”措辞。
+Program 只有在 P6 的基础 Typora 式编辑、P7 的发布富块矩阵和最后执行的 P5 legacy 清理全部完成后才能宣称“完成”。P1B 通过只能宣称“无损 Source 闭环完成”；P2 通过只能宣称“基础 Live Preview 可用”；P3 通过只能宣称“默认编辑路径候选完成”；P6 通过只能宣称“基础 Markdown 达到 Typora 式体验”；P7 通过只能宣称“产品支持矩阵收口”；不得提前使用“重构完成”或“Typora 完全体”措辞。

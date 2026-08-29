@@ -12,6 +12,11 @@
 - **THEN** CAS 已证明 expected identity 匹配；exchange 路径则校验 displaced target identity 与 expected identity 相同
 - **THEN** 返回 durable write receipt 与新文件 identity
 
+#### Scenario: 原子写入成功
+- **WHEN** 任意文档或设置 wrapper 请求原子写入完整 payload
+- **THEN** wrapper 使用同一 guarded atomic write 基础设施完成临时文件写入、同步与原子提交
+- **THEN** 成功结果只在完整 payload 已 durable 后返回
+
 #### Scenario: 写入失败保留旧文件
 - **WHEN** 临时文件写入或同步失败
 - **THEN** 目标文件原始 bytes 保持不变
@@ -21,6 +26,11 @@
 - **WHEN** payload 写入成功但目标替换失败
 - **THEN** 目标文件保持完整
 - **THEN** 临时文件被清理或记录为可识别的恢复文件
+
+#### Scenario: 重命名失败清理
+- **WHEN** 平台原子 rename、exchange 或 replace 操作失败
+- **THEN** 原目标文件保持完整
+- **THEN** 临时文件被清理；若无法安全清理则记录为可识别且不参与正常打开的恢复文件
 
 #### Scenario: 父目录自动创建
 - **WHEN** 新文件保存路径的父目录不存在
@@ -39,6 +49,11 @@ lossless 文档保存 SHALL 只把 Core `prepare_save` 为已确认 revision 产
 - **WHEN** active binding 已 flush 且 Core 返回 revision N 的保存 payload
 - **THEN** Host 使用携带 expected identity 与 save operation ID 的 guarded atomic write 写入该 payload
 - **THEN** 成功后 Core 把 persisted revision 标记为 N 并记录新 file identity
+
+#### Scenario: 文档保存是原子的
+- **WHEN** 用户保存 lossless 文档
+- **THEN** Host 只提交 Core 为已确认 revision 准备的完整 payload
+- **THEN** 磁盘只能观察到旧文件或完整新文件，不得观察到部分写入结果
 
 #### Scenario: 保存期间出现新 revision
 - **WHEN** revision N 正在写入且文档确认了 revision N+1

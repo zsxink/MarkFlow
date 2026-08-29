@@ -10,6 +10,11 @@
 - **THEN** Live Preview DOM/decoration 状态包含标题与段落语义，而不只是“区域中有文本”
 - **THEN** 文件 hash 和 mtime 未因打开改变
 
+#### Scenario: 点击 welcome.md 后编辑器显示标题和段落
+- **WHEN** 用户在真实 Tauri WebView 的文件树中点击 `welcome.md`
+- **THEN** 唯一 CodeMirror editor surface 加载完整 fixture
+- **THEN** Live Preview 显示可辨识的标题与段落语义
+
 #### Scenario: 打开多空行 fixture
 - **WHEN** 分别打开包含文中空行以及文末 2/3 个 line-break boundaries 的 fixtures
 - **THEN** CodeMirror document 包含全部逻辑换行
@@ -43,10 +48,20 @@
 - **THEN** 保存 bytes 与基于 patch 生成的 golden bytes 完全一致
 - **THEN** 未触及 prefix/suffix 与输入 fixture 逐字节一致
 
+#### Scenario: 在源码模式编辑保存后磁盘内容一致
+- **WHEN** 用户在 Source 模式执行已知局部编辑并保存
+- **THEN** 磁盘完整 bytes 与预期 golden bytes 一致
+- **THEN** 未触及范围与输入 fixture 逐字节一致
+
 #### Scenario: 模式切换后保存
 - **WHEN** 用户在 Source/Live Preview 间往返切换后保存
 - **THEN** 模式切换未产生额外正文 diff
 - **THEN** 磁盘 bytes 只包含用户编辑
+
+#### Scenario: 保存后 WYSIWYG 模式显示已保存内容
+- **WHEN** 用户保存 confirmed revision 并切换或保持在 Live Preview/WYSIWYG
+- **THEN** 同一 CodeMirror document 的投影显示该 revision 的已保存内容
+- **THEN** 不通过重新序列化或第二正文 editor 恢复内容
 
 ## ADDED Requirements
 
@@ -71,7 +86,7 @@ E2E/regression SHALL 使用覆盖 UTF-8 BOM、LF/CRLF/CR/Mixed EOL、文末 0/1/
 
 ### Requirement: Live Preview 真实语义与降级 E2E
 
-E2E SHALL 验证每个 default-on construct 的语义 projection、marker active/inactive 状态和 exact source fallback。Render IR/Widget 失败必须在真实 WebView 中证明文本仍可编辑保存。
+E2E SHALL 验证每个 default-on construct 的语义 projection、marker active/inactive 状态和 exact source fallback。Local parser/descriptor 异常与异步 widget stale/timeout 必须在真实 WebView 中证明文本仍可编辑保存。
 
 #### Scenario: 基础 Markdown 语义
 - **WHEN** fixture 包含 heading、strong、emphasis、inline code、link、quote、list 与 fence
@@ -79,9 +94,10 @@ E2E SHALL 验证每个 default-on construct 的语义 projection、marker active
 - **THEN** 底层 Markdown 文本未被投影修改
 
 #### Scenario: 投影失败回退
-- **WHEN** 测试注入 Render IR timeout 或 stale response
+- **WHEN** 测试注入 local descriptor invalidation/exception，或异步 widget timeout/stale response
 - **THEN** 失败范围显示源码并可继续输入
 - **THEN** 保存后的 bytes 与用户 transaction 一致
+- **THEN** 测试不创建或假设不存在的 Core IR 请求
 
 ### Requirement: 模式、IME 与 History 完整性 E2E
 

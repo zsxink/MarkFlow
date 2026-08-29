@@ -27,9 +27,9 @@ openspec/changes/refactor-lossless-live-preview/validation/
 │   ├── P3.md
 │   ├── P4A.md
 │   ├── P4B.md
-│   ├── P5.md
-│   ├── P6.md  (BACKLOG — 不属于 Issue #254 当前范围)
-│   └── P7.md  (BACKLOG — P6 之后;Typora 完全体富块,2026-08-29 自 P4B 移入)
+│   ├── P6.md  (IN SCOPE — Typora 式基础编辑)
+│   ├── P7.md  (IN SCOPE — 富块编辑与支持矩阵)
+│   └── P5.md  (最后执行：发布与 legacy 清理)
 ├── fixtures/
 │   └── README.md
 ├── evidence/
@@ -74,12 +74,14 @@ Byte fidelity、错误写盘、安全、跨文档污染和规范 MUST 项不得 
 | --- | --- | --- | --- | --- |
 | P0 | CORRECTIVE AI GATE PASS + 完整人工验收完成 | historical + corrective PASS | ACCEPTED（表征准确，byte fidelity 未通过） | GO → P0S |
 | P0S | AI GATE PASS（final run `20260813-1715-p0s-final-d74a79d`，C01–C13 全 exit 0，manifest 16/16 0 mismatch） | **PASS**（final gate：证据链完整性 + ISSUE closure + 状态一致 + 功能复核 + 红线全过） | ACCEPTED（xian 2026-08-13；适用候选 d74a79d 确认） | **GO**（2026-08-13） |
-| P1A | PASS（Core 92 tests；L0 24/24；L1 95/95） | **GO**（candidate `9ad0513`） | N/A（无产品 UI；AI contract acceptance PASS） | PENDING（待 Program Owner 决定是否启动 P1B） |
-| P1B | READY after P1A Program Go | NOT STARTED | NOT STARTED | NOT STARTED |
-| P2 | BLOCKED by P1B | NOT STARTED | NOT STARTED | NOT STARTED |
-| P3 | BLOCKED by P2 | NOT STARTED | NOT STARTED | NOT STARTED |
-| P4A | BLOCKED by P3 | NOT STARTED | NOT STARTED | NOT STARTED |
-| P4B | BLOCKED by P4A/construct | NOT STARTED | NOT STARTED | NOT STARTED |
-| P5 | BLOCKED by release gates | NOT STARTED | NOT STARTED | NOT STARTED |
+| P1A | PASS（Core 92 tests；L0 24/24；L1 95/95） | **GO**（candidate `9ad0513`） | N/A（无产品 UI；AI contract acceptance PASS） | **GO**（2026-08-14） |
+| P1B | PASS（lossless Source/bridge/sync/save 闭环） | PASS | ACCEPTED | **GO**（2026-08-19） |
+| P2 | PASS（单一 EditorView + 基础 Live Preview） | PASS | ACCEPTED | **GO**（2026-08-19） |
+| P3 | AI gate 与独立 review 已通过，默认路径代码候选已形成 | PASS | PENDING（minimum parity、真实日常流与 IME） | PENDING |
+| P4A | parser/range 两轮 evidence PASS；`SPIKE_COMPLETE_NO_CORE_IR` 已冻结 | PASS | ADR 人工确认待后续界面验收 | **TERMINAL RECORDED** |
+| P4B | BLOCKED by P3 minimum parity；`P4B-SUBSTRATE-GO` NOT STARTED | NOT STARTED | NOT STARTED | NOT STARTED |
+| P6 | BLOCKED by P3 + `P4B-SUBSTRATE-GO`（IN SCOPE） | NOT STARTED | NOT STARTED | NOT STARTED |
+| P7 | BLOCKED by `P4B-SUBSTRATE-GO` + P6（IN SCOPE） | NOT STARTED | NOT STARTED | NOT STARTED |
+| P5 | BLOCKED by P6/P7 + final release gates；最后执行 | NOT STARTED | NOT STARTED | NOT STARTED |
 
-P0 Go 后 P0S 与 P1A 可以在当前分支按不重叠模块推进并使用独立 checkpoint；P0S 是任何继续提供 legacy 默认路径的构建的发布/人工使用门禁，P1A 是 P1B 的架构前置。P1B 必须继承 P0S 的零编辑 lifecycle regression，不能把 legacy safety state 当作 Core revision 真相。Program Owner 参与每个阶段的人工验收，直到 P5 完成。
+P6/P7 已提升为 Issue #254 必达范围，后半程顺序为 P4B → P6 → P7 → P5。P3 的 minimum parity 和真实 IME 仍是未偿还证据债，不能因代码 default-on 或历史 Reviewer PASS 被视为人工完成。Program Owner 参与每个阶段的人工验收，直到最后执行的 P5 完成。

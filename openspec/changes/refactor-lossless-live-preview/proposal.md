@@ -15,7 +15,7 @@ P2/P3 实施后进一步确认：语义样式加 marker 弱化只能达到 Live 
 - 把 Typora 式体验定义为发布合同：支持矩阵内的 construct 在非活动状态隐藏 marker、活动时原位揭示源码；Source 是同一文档上的显式逃生模式，不是第二编辑器。
 - 以统一 `visible/dimmed/hidden/revealed` 状态、replacing decoration、atomic source range 和 source-based clipboard/accessibility 合同实现 marker 显隐；composition 期间强制 reveal 或冻结安全投影。
 - 将 task checkbox、code fence controls、FrontMatter/raw HTML policy、内联图片、GFM table、Mermaid/PlantUML 作为独立富块能力交付；所有 widget 只返回局部 source transaction，失败逐 construct 回退源码。
-- 通过带 revision、viewport 和精确 source/content/marker range 的 Render IR 实现 Live Preview；未知、错误或未验收语法必须原样显示源码并保持可编辑。
+- 通过同一 CodeMirror revision 上的受信 Lezer local ranges 实现 Live Preview；P4A 已冻结 `SPIKE_COMPLETE_NO_CORE_IR`，本 change 不引入 Core Render IR。未知、错误、范围不可信或未验收语法必须原样显示源码并保持可编辑。
 - 所有输入、工具栏命令、粘贴和 widget 操作最终生成局部文本 patch；保存路径禁止调用 ProseMirror serializer、`normalizeImageMarkdown()` 或其他隐式全文归一化。
 - 建立双重保真合同：未编辑文档保存必须与输入逐字节一致；编辑后只允许用户意图覆盖的 byte range 和为该操作新增的字节发生变化，未触及区域保持原字节。
 - 采用 feature flag 和纵向切片迁移：先接入无损 Core 与 CodeMirror 主链，再按语法 cohort 启用 Live Preview，最后才删除 ProseMirror；任一阶段失败均回退为同一 CodeMirror 文本的源码显示，不能回退到 serializer 保存。
@@ -29,7 +29,7 @@ P2/P3 实施后进一步确认：语义样式加 marker 弱化只能达到 Live 
 ### New Capabilities
 
 - `lossless-markdown-session`: 定义原始字节快照、逻辑文本、EOL/BOM 保留、revision-bound 局部 patch、confirmed save payload 与字节级验收合同。
-- `codemirror-live-preview`: 定义单一 CodeMirror 编辑 surface、Render IR 投影、marker reveal、精确源码回退、模式切换及 ProseMirror 迁移门禁。
+- `codemirror-live-preview`: 定义单一 CodeMirror 编辑 surface、Lezer local-range 投影、marker reveal、精确源码回退、模式切换及 ProseMirror 迁移门禁。
 - `typora-wysiwyg-editing`: 定义默认纯渲染编辑面、marker 显隐状态、atomic navigation、空构造、IME、selection、clipboard、结构命令和完成支持矩阵。
 - `rich-markdown-blocks`: 定义 task、image、GFM table、fence/diagram、FrontMatter/raw HTML 的 source-backed widget、资源、安全、回退和独立发布合同。
 - `lossless-refactor-validation`: 定义每阶段 AI 自动验证、独立 Reviewer、人工验收、证据工作区与 Go/No-Go，不允许只凭聊天结论或单元测试宣布完成。
@@ -48,7 +48,7 @@ P2/P3 实施后进一步确认：语义样式加 marker 弱化只能达到 Live 
 
 - 前端：`src/lib/editor.ts`、`editor.init.ts`、`editor.source.ts`、`editor.state.ts`、`editor.serializer.ts`、toolbar/keyboard、sidebar file operations、outline/stats/export、CSS 和 E2E page objects。
 - Rust/Tauri：新增最小 `markflow-core` crate 或等价独立模块；新增 open/apply-patch/snapshot/save/close/render bridge；复用现有原子写入、文件 watcher、图片资源事务与错误模型。
-- 数据流：磁盘字节 → Core session → CodeMirror optimistic mirror → revision-bound patch/Render IR → Core confirmed save payload → 原子写盘。
+- 数据流：磁盘字节 → Core session → CodeMirror optimistic mirror → revision-bound patch；同 revision 的 Lezer local ranges 只负责视觉投影 → Core confirmed save payload → 原子写盘。
 - 依赖：继续使用 CodeMirror 6；ProseMirror/Tiptap 在迁移期仅作为 feature-flagged 兼容视图，完成门禁后移除。Parser 依赖必须通过 source-range、未知语法和性能 spike 后再选定。
 - 测试：新增 canonical byte fixtures、Core property/golden tests、Bridge contract tests、CodeMirror decoration/selection tests，以及真实 macOS/Windows/Linux WebView 的语义和 IME 证据。
 - 交付：Issue #254。Program Owner 已明确批准本 program 使用当前分支 `test/issue-255-lossless-byte-contract` 和 umbrella change `refactor-lossless-live-preview` 连续实施 P0 corrective、P0S、P1A–P7；后续阶段不再新建 Issue、branch、child change 或阶段 PR。P6/P7 已提升为必达范围，剩余执行顺序为 P4B → P6 → P7 → P5，P5 最后完成发布、legacy 清理和归档。该例外只适用于 Issue #254，不修改仓库其他工作的默认 Issue/分支流程。实施仍必须按阶段 checkpoint、验证、独立 Reviewer 和人工验收推进，前一依赖阶段未 Go 不得把后一阶段标记完成。

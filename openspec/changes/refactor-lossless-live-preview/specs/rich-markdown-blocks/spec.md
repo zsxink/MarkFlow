@@ -39,13 +39,19 @@ Task checkbox、code fence controls、FrontMatter、image、GFM table、Mermaid 
 
 ### Requirement: GFM 表格提供可预测的 cell 编辑协议
 
-受支持的 GFM table SHALL 以可编辑表格显示。系统 MUST 定义 mouse、Arrow、Tab/Shift-Tab、Enter、Escape、Home/End、row/column add/delete/move 和 alignment 行为。Cell 内支持的 inline Markdown SHALL 使用同一 marker reveal 规则；复杂或不能安全映射的表格 SHALL 精确回退源码。
+受支持的 GFM table SHALL 以可编辑表格显示，并遵守 `adr/adr-typora-structural-interaction-matrix.md`。Collapsed caret 在 cell 边界的 Left/Right 进入相邻 cell，Up/Down 进入同列相邻 data row；Tab/Shift-Tab 前后导航，最后一个 data cell 的 Tab 追加一行；Enter commit 后进入同列下一行，末行 Enter 追加一行；Escape 返回 table widget，再次 Escape reveal source；Home/End 到当前 cell 首尾。Composition active 期间不得跨 cell；非空 selection 的 Enter/Tab 不删除 selection，commit 后按目标键执行 cell 导航。Cell 内支持的 inline Markdown SHALL 使用同一 marker reveal 规则；复杂或不能安全映射的表格 SHALL 精确回退源码。
 
 #### Scenario: 在 cell 中编辑文本
 - **WHEN** 用户在一个普通 cell 中插入文本
 - **THEN** 系统只修改该 cell 的 content source range
 - **THEN** delimiter row、alignment、其他 cell padding 与未触及 bytes 保持不变
 - **THEN** 一次 Undo 撤销该次 cell 编辑
+
+#### Scenario: 最后一个 cell 按 Tab
+- **WHEN** collapsed caret 位于最后一个 data cell 且用户按 Tab
+- **THEN** 系统以一次结构 transaction 追加一条同列数 source row
+- **THEN** selectionAfter 位于新行第一个 cell 内容开头
+- **THEN** surviving rows、delimiter style 与 EOL bytes 保持不变
 
 #### Scenario: 新增一列
 - **WHEN** 用户通过表格 UI 新增一列

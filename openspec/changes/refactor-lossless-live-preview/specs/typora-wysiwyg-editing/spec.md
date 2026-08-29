@@ -39,12 +39,23 @@
 
 ### Requirement: 隐藏 marker 不改变正文且具有确定的原子边界
 
-隐藏 SHALL 使用 CodeMirror replacing decorations 表达，并以对应 source range 提供 atomic cursor boundary；必要的视觉占位 SHALL 由只读 widget 提供。Replacing decoration、atomic range 和 widget MUST NOT 删除或改写 `EditorState.doc`。复制、剪切、拖拽、辅助技术文本和保存内容 MUST 从 CodeMirror source range/明确的 accessibility descriptor 生成，不得依赖 rendered DOM `textContent` 恰好包含 marker。
+隐藏 SHALL 使用 CodeMirror replacing decorations 表达，并以对应 source range 提供 atomic cursor boundary；必要的视觉占位 SHALL 由只读 widget 提供。Atomic descriptor MUST 区分 `hidden-marker` 与 `atomic-construct/widget`：前者只控制导航，边界删除必须先 reveal 并执行 marker-aware content 语义，绝不能默认删除 delimiter；后者只有显式声明 `deletePolicy=whole` 才能整段删除。Replacing decoration、atomic range 和 widget MUST NOT 自行删除或改写 `EditorState.doc`。复制、剪切、拖拽、辅助技术文本和保存内容 MUST 从 CodeMirror source range/明确的 accessibility descriptor 生成，不得依赖 rendered DOM `textContent` 恰好包含 marker。
 
 #### Scenario: 键盘跨越隐藏 marker
 - **WHEN** 用户使用 Arrow、Home、End、Backspace 或 Delete 跨越隐藏 marker
 - **THEN** caret 只能落在该 atomic range 的明确前后边界，或先 reveal 再进入源码
 - **THEN** 一次删除的 affected source range 可预测且可一次 Undo
+
+#### Scenario: 粗体 closing marker 后按 Backspace
+- **WHEN** `**text**` 的 closing marker 处于 hidden，caret 位于其 source range 后边界并按 Backspace
+- **THEN** owning strong construct 先 reveal
+- **THEN** 同一用户意图只删除 contentRange 末尾的一个 grapheme，paired `**` markers 保持完整
+- **THEN** content 已空时只 reveal 且不删除 delimiter
+
+#### Scenario: 图片 widget 边界删除
+- **WHEN** caret 紧邻 image widget 且 descriptor 明确声明 `deletePolicy=whole`
+- **THEN** Backspace/Delete 可以一次删除完整 image Markdown source range
+- **THEN** 未声明 `deletePolicy=whole` 时只 reveal source，不删除任何隐藏 range
 
 #### Scenario: 复制隐藏内容
 - **WHEN** selection 包含一个或多个隐藏 marker 且用户复制为 `text/plain`
@@ -89,25 +100,37 @@ Marker 显隐、viewport 重建和 fallback MUST 保持 CodeMirror UTF-16 select
 
 Heading、paragraph、quote、ordered/unordered/task list、fence、link 和 inline mark 的 Enter、Backspace/Delete、Tab/Shift-Tab、toolbar、shortcut 和 input rule SHALL 产生局部 CodeMirror transaction。每个用户意图 MUST 具有明确 affected source range、selectionAfter 和单一 Undo boundary；系统不得从 rendered DOM 反推 Markdown。
 
+Heading/list/quote/table 的唯一键盘结果 SHALL 遵守 `adr/adr-typora-structural-interaction-matrix.md`：heading 内容中部 Enter 产生 heading prefix + paragraph suffix，空 heading 转 paragraph；空嵌套 list Enter/Backspace 只 outdent 一级，空顶层 list 退出为 paragraph；quote 退级每次只删除一层 marker。任何不可信上下文必须 reveal source 或 NoOp，不得在多个合法结果中临时选择。
+
 #### Scenario: 活动 heading 按 Enter
 - **WHEN** caret 位于 heading 内容中或行尾并按 Enter
-- **THEN** 系统按冻结的 command matrix 拆分 heading 或创建 paragraph
+- **THEN** 内容中部时 prefix 保持 heading、suffix 成为下一行 paragraph；行尾时创建下一行空 paragraph
 - **THEN** 只修改该 heading 的必要 source range
 - **THEN** 新 caret 所在 construct 以 `revealed` 或可见 placeholder 呈现
 
 #### Scenario: 嵌套列表退级
 - **WHEN** 用户在空嵌套 list item 中按 Enter 或 Backspace
-- **THEN** 系统执行一次可 Undo 的退出/退级 transaction
+- **THEN** 系统执行一次可 Undo 的单级 outdent transaction；只有顶层空 item 才退出为 paragraph
 - **THEN** 未触及 sibling marker 样式、缩进、空行和 EOL bytes 保持不变
 
 ### Requirement: Typora 体验按支持矩阵声明完成
 
-系统 SHALL 维护 construct 支持矩阵，至少区分 `source-fallback`、`dimmed-preview`、`hidden-preview`、`interactive-widget` 和 `default-on`。Program 完成声明 MUST 要求发布范围内的 heading、paragraph、strong、emphasis、strike、inline code、links、quote、ordered/unordered/task list、fence、thematic break、image 和 GFM table 达到其目标状态；Mermaid/PlantUML 仅在产品设置启用且安全 renderer 可用时进入 interactive widget，否则显示可解释的 source fallback。
+系统 SHALL 维护正交的 construct 支持矩阵，分别记录 release class（`WYSIWYG-required`/`policy-required`/`conditional`/`out-of-scope`）、projection maturity（`source-fallback`/`dimmed-preview`/`hidden-preview`/`interactive-widget`）、default state、配置条件、Normal/Large/Huge 降级和证据。`default-on` 不得与 maturity 混为同一状态。Program 完成声明 MUST 要求 `WYSIWYG-required` 的 heading、paragraph、strong、emphasis、strike、inline code、links、quote、ordered/unordered/task list、fence、thematic break、image 和 GFM table 达到目标 maturity，并在 Normal/Large 的默认配置达到规定 ON 状态；`policy-required` 的 FrontMatter/raw HTML 达到声明的安全终态时 MAY 以 source fallback 完成；Mermaid/PlantUML 仅在产品设置启用且安全 renderer/通道可用时进入 interactive widget，否则显示可解释的 source fallback。
 
 #### Scenario: 发布候选仍有必达项为源码
-- **WHEN** 发布支持矩阵中的必达 construct 仍处于 `source-fallback` 或 `dimmed-preview`
+- **WHEN** 发布支持矩阵中的 `WYSIWYG-required` construct 仍低于其声明的 hidden/widget maturity
 - **THEN** Program 不得宣称达到 Typora 式所见所得终态
 - **THEN** 可将该构建标记为中间 Live Preview 里程碑
+
+#### Scenario: 安全策略项以源码为目标终态
+- **WHEN** complex FrontMatter 或 raw HTML 被列为 `policy-required`，其签署目标是安全 `source-fallback`
+- **THEN** 该状态满足对应策略合同，不因显示源码阻止 P7/P5
+- **THEN** 产品不得把该项宣传为所见所得富编辑
+
+#### Scenario: 必达 widget 实现但默认关闭
+- **WHEN** image 或 GFM table 已达到 `interactive-widget` maturity，但 Normal/Large 的 release 默认 flag 仍为 OFF
+- **THEN** P7 与 Program 不得 Go
+- **THEN** 支持矩阵不得用 maturity 掩盖默认用户仍看到源码的事实
 
 #### Scenario: Huge 文档降级
 - **WHEN** 文档进入 Huge 等级且重型投影超过冻结预算

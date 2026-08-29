@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-让 lossless 文档使用单一 EditorView，在 Source 与基础 Live Preview 间无正文 transaction 切换，并真实呈现基础 Markdown 语义。Core IR 不可用时仍可编辑和保存。
+让 lossless 文档使用单一 EditorView，在 Source 与基础 Live Preview 间无正文 transaction 切换，并真实呈现基础 Markdown 语义。Local projection 失败时仍可编辑和保存。
 
 ## 2. 输入与依赖
 
@@ -21,7 +21,7 @@
 - CM selection/affinity/ChangeDesc mapping；
 - outline/stats/status/search/settings 接 active binding；
 - projection debug state 与 source fallback；
-- 不默认隐藏 marker，不实现复杂 widgets，不依赖 Core IR。
+- 不默认隐藏 marker，不实现复杂 widgets，只依赖同 revision Lezer local ranges。
 
 ## 4. AI Coding 验证
 
@@ -83,7 +83,7 @@ AI 必须验证：
 
 Go：真实 UI 呈现语义；单 surface 不变；切换不改变正文/History/dirty 且不触发保存；IME/selection 基线通过；失败可 Source fallback。
 
-No-Go：只显示源码却宣称 Live Preview；光标频繁跳动；marker 隐藏导致不可编辑；projection 改正文；Core IR 故障使基础视图不可用。
+No-Go：只显示源码却宣称 Live Preview；光标频繁跳动；marker 隐藏导致不可编辑；projection 改正文；local projection 故障导致正文不可编辑或不可保存。
 
 ## 9. 回滚
 

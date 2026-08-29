@@ -1,82 +1,95 @@
-# P7:Typora 完全体富块 — 内联图片、GFM 表格编辑、Mermaid/PlantUML 渲染
+# P7：Typora 式富块编辑与支持矩阵收口
 
 ## 0. 状态
 
-> **BACKLOG:不属于 Issue #254 当前交付范围。** 本文是 P6 之后的后续功能点规划。
-> - 来源:2026-08-29 Program Owner 决定,把原 P4B 的 image/GFM table/Mermaid/PlantUML widget(原 tasks 7.5/7.6 的一部分)移出 P5 关键路径,独立为 P7;P4B 只保留轻量控件(task checkbox、code fence controls、FrontMatter)与 raw HTML policy。
-> - 前置:P0–P5 全部 Go(Live Preview 为唯一编辑路径);建议 P6 M1/M2(hidden marker 状态机)Go 后启动,使富块 widget 一步接入 hidden 联动。
-> - 当前:NOT STARTED。P6 Go 之前不得开展实施。
-> - 目标形态:补齐 Typora 完全体差距——表格可视化编辑、图片在文档流内渲染、图表源码渲染预览。
+> **IN SCOPE — PLANNED / NOT STARTED。** P7 是 Issue #254 的必达阶段，不再是 program 外 backlog。
+>
+> 前置：`P4B-SUBSTRATE-GO`（widget protocol/owner/source fallback）已记录；P6 visibility engine 和基础 cohorts 已 Go；P4A 已冻结 `SPIKE_COMPLETE_NO_CORE_IR`。
+>
+> 后续：P7 Go 后进入 P5 最终发布与 legacy 清理。
 
-## 1. 目标
+## 1. 产品目标与边界
 
-把 P3 交付的「exact source fallback」富块升级为 Typora 式渲染编辑:`![alt](src)` 在文档流内显示为图片、GFM 表格渲染为可编辑表格、Mermaid/PlantUML 围栏渲染为图表。
+把仍显示源码的主要富块升级为同一文档流内的渲染与编辑：task checkbox、code fence controls、图片、GFM table、Mermaid/PlantUML、FrontMatter safe projection 和 raw HTML safe fallback。
 
-**不改变底座**:Live Preview 仍是单一 CodeMirror `EditorState.doc`,`doc` 永不因投影而重写;字节无损契约(L0/L1)是 P7 的硬性约束;widget DOM 永远不是正文;每个 item 独立 flag、独立验收、独立回滚,全部沿用 P4B 已验收的 widget protocol / owner registry / source fallback 协议。
+P7 不再使用“Typora 完全体”表示全功能复制。体验对齐不等于覆盖 Typora 的全部扩展；公式、footnotes、TOC、callouts、自定义 HTML 富编辑等只有在 MarkFlow 支持矩阵明确列为 release scope 时才是必达项，否则必须声明为 source fallback。不得用模糊的“完全体”掩盖实际未支持范围。
 
-## 2. 与现有阶段的关系
+## 2. 共用架构
 
-| 阶段 | 关系 |
-| --- | --- |
-| P3 | 复用 image paste/drop 资源事务与精确 source range 管线(`imageSourceRange.ts` 已交付);P7 只把展示从源码升级为内联渲染 |
-| P4A | **不硬依赖**:Table/Image 的 marker/content ranges 可由 Lezer GFM local 树提供,Mermaid/PlantUML 本质是 fenced code + info string,local ranges 足够;Core IR 若 Go,可增强 stable block identity(表格行/列操作的位置重映射) |
-| P4B | 复用 widget protocol、owner registry、source fallback、每项独立 flag 模式;P4B 期间这些富块保持 exact source fallback(P3 形态) |
-| P6 | hidden marker 状态机稳定后,富块 widget 的围栏/marker 隐藏联动一步到位;P6 期间富块保持 fallback,不阻塞 P6 各里程碑 |
+```text
+CodeMirror source range
+  ├─ read-only projection/widget
+  ├─ focus/reveal/edit command
+  └─ local TransactionSpec → History → Core patch
+```
 
-## 3. 分项设计
+- widget DOM 永远不是正文；
+- 同一 construct identity 的 owner 必须是 `local`、`widget` 或 `source-fallback` 之一；父子 overlap 只允许发生在 parent 明确让出的 child range/editable slot；
+- commit 前校验 binding/session/document/revision/source range；
+- failure、stale、unsafe、unsupported 一律回最小可信 source range；
+- 每项独立 flag、evidence、Reviewer、人工验收和回滚。
 
-### 3.1 内联图片(M1,最先)
+Owner 仲裁固定为：最小不可信 `source-fallback` range 压制内部所有投影；list parent 让出 task checkbox marker；paragraph parent 让出 image source range；table widget 拥有结构 shell/delimiter，并只在可信 cell content slot 内允许 P6 inline local owner。Owner handoff 在一个状态更新中完成，不得出现重复 decoration 帧。
 
-- `![alt](src)` 以 replace decoration + image widget 渲染在文档流内;点击/光标进入揭示源码(复用 P6 reveal 模式)以编辑 alt/路径。
-- alt/路径编辑走局部 source transaction;资源迁移复用 P3 image pipeline(design 04 §6):resource preflight → 局部 patch → ack → 原子提交,失败补偿不清文档。
-- 加载失败、broken URL、超大图、非白名单 URL policy → 精确回退源码;alt 文本的 accessibility name 必测。
-- 独立 flag:`livePreview.imageWidget`。
+## 3. M1：Task/Fence/FrontMatter/Raw HTML 收口
 
-### 3.2 GFM 表格编辑(M2)
+复核 P4B 轻量 widgets 与 P6 hidden 联动：task checkbox 点击/Space 局部切换；code fence controls 不遮挡源码入口；复杂 FrontMatter 回源码；raw HTML 默认不执行，sanitize preview 只读且可 reveal source。
 
-- 渲染表格 widget + cell 编辑协议:Arrow/Tab cell 导航、Enter cell 内换行或新行、行/列增删、对齐切换。
-- **全部操作生成为局部 source transaction**:只覆盖目标 cell/行/列的 source range;未触及 cell、分隔行、对齐行的 bytes 必须逐字节保留(L1 surviving-span golden 必测)。
-- escaped pipe(`\|`)、cell 内嵌 HTML/多行内容先精确回退源码,不做半渲染。
-- 独立 flag:`livePreview.tableWidget`。
+## 4. M2：内联图片
 
-### 3.3 Mermaid(M3a)/PlantUML(M3b)
+- 文档流内渲染本地/允许的远程图片；
+- click 选择，显式动作编辑 alt/path/title、替换、删除、复制、打开位置；
+- paste/drop/replace 复用 P3 资源 preflight、binding identity 与补偿协议；
+- 只覆盖目标 alt/path/title source range，不能全文重写；
+- broken URL、缺失文件、超大图、decode/permission/policy 失败显示错误并可 Retry/reveal；
+- alt 是 accessibility name；read-only 不提交；print/export 读取 Core snapshot 与安全 renderer，不读 widget DOM。
 
-- fenced code + info string 识别,渲染为图表 widget。
-- 沙箱渲染:禁止任意脚本、外部网络受产品设置/CSP/SSRF 策略约束(design 05 §7);timeout/cancel;渲染失败或超时精确回退源码并提供 Retry。
-- PlantUML 明确渲染通道(本地/服务端)与网络策略;无可用通道时保持源码,不降级为不安全渲染。
-- 恶意源码 fuzz、恶意 URI、超大 token 为必测项。
-- 独立 flag:`livePreview.mermaidWidget`、`livePreview.plantumlWidget`。
+## 5. M3：GFM 表格编辑
 
-## 4. 通用矩阵(P4B 矩阵之上追加富块专项)
+- 支持 click、Arrow、Tab/Shift-Tab、Enter/Escape、Home/End cell navigation；
+- 支持 cell edit、alignment、row/column add/delete/move；一次 UI 意图一次 Undo；
+- inline Markdown 复用 P6 visibility engine；
+- cell edit 只覆盖 cell content range；结构操作声明所有 affected insertion/replacement ranges；
+- surviving cell、padding、delimiter、EOL 与其他 bytes 逐 span 验证 L1；
+- escaped pipe、多行 cell、嵌套 HTML、malformed delimiter 或 range 不可信时整个最小 table range 回源码，不做半渲染。
 
-每 item 按 P4B §4 通用矩阵全量执行,另加:
+P4A 为 `SPIKE_COMPLETE_NO_CORE_IR` 时，P7 必须证明 Lezer local ranges 足以支撑每项操作；无法证明的结构操作保持 source fallback，不得猜测重写表格。
 
-- image:必测 alt/path/title、pending resource、broken URL、资源失败补偿、大图缩放;
-- table:必测 cell navigation、escaped pipe、alignment、row/column operation、一次操作一次 Undo;
-- diagram:必测恶意源码、timeout、network policy、降级提示;
-- 视觉:三主题、zoom 200%、high contrast、print/export fallback(export 读取 Core snapshot,不读 widget DOM);
-- 性能:Normal/Large/Huge 分级、渲染 debounce、viewport-only、RSS 预算(NFR §6);Huge 档默认源码。
+键盘结果由 [结构编辑与表格键盘 ADR](../../adr/adr-typora-structural-interaction-matrix.md) 唯一规定：cell 边界 Left/Right 前后导航，Up/Down 同列导航，末 cell Tab 或末行 Enter 追加一行，Escape 先退出 cell editor、再次 Escape reveal source。Composition active 期间不跨 cell；非空 selection 的 Enter/Tab 不删除 selection，commit 后按目标键执行 cell 导航。
 
-## 5. 关键风险与应对
+## 6. M4：Mermaid / PlantUML
 
-| 风险 | 应对 |
-| --- | --- |
-| 表格行/列操作改写未触及 bytes | patch 只覆盖目标 range;L1 surviving-span golden 必测;任何未触及 bytes 改变 = 单项 No-Go |
-| 图片资源事务与文档写盘竞争 | 复用 P3 resource preflight/补偿协议(design 04 §2/§6);资源先落地、失败可 GC,文档不引用未落地资源 |
-| Mermaid/PlantUML XSS/SSRF/任意脚本 | 沙箱 + URL/network policy + fuzz;失败一律回退源码 |
-| 大文档渲染卡顿 | viewport-only + debounce + Huge 默认源码(NFR §6) |
-| 与 P6 hidden 状态机冲突 | 复用单 owner registry;P6 状态机 Go 后再接入 hidden 联动;冲突时富块先回退 fallback |
-| widget DOM 被误当正文 | 沿用 P4B 协议:widget commit 只能返回 source changes,经 active binding 校验 |
+- fenced source 与 preview 双态，始终提供 Edit Source、Retry、copy/export；
+- render 请求 debounce、cancel、revision identity、timeout、size/token limit 和 viewport lifecycle；
+- Mermaid 禁止脚本、外部副作用和不安全 SVG；
+- PlantUML 明确本地/用户配置远程通道。远程前提示正文发送第三方，执行 protocol/redirect/DNS/IP/SSRF/CSP/size/timeout/SVG sanitize；
+- 离线、未配置或无安全通道时保持源码，不自动使用公共服务；
+- export/print 使用安全渲染结果或明确 source fallback。
 
-## 6. 里程碑 / 验收 / 回滚
+## 7. 发布支持矩阵
 
-- **里程碑**:M1 内联图片 → M2 GFM 表格编辑 → M3 Mermaid/PlantUML。
-- **验收**:每 item 按 §4 矩阵全过 + source before/after byte report(未触及 bytes 不变)+ 独立 Reviewer + 人工 Accept/Reject。
-- **Go/No-Go**:任何未触及 bytes 改变、XSS/SSRF、selection trap、资源补偿失败、不可回源码 = 单项 No-Go(不阻塞其他项)。
-- **回滚**:关闭单项 flag → 回退 exact source fallback(P3 形态);正文/dirty/Core revision 不变。
+P7 必须生成并由 Program Owner 签署正交的最终矩阵；`projection maturity` 与 `default state` 不得塞入同一枚举：
 
-## 7. 明确不在 P7 范围
+| 构造 | Release scope | Projection maturity | Normal/Large 默认 | Huge 默认 | 配置条件 | Go 证据 |
+| --- | --- | --- | --- | --- | --- | --- |
+| heading/paragraph/inline marks/links/quote/lists | `WYSIWYG-required` | `hidden-preview`（P6） | ON / ON | Source | 无 | P6 全矩阵 |
+| task checkbox | `WYSIWYG-required` | `interactive-widget` | ON / ON | Source | 无 | patch/keyboard/a11y |
+| code fence | `WYSIWYG-required` | `hidden-preview` + source editing；controls 为 widget | ON / ON | Source | 无 | source/IME/fallback |
+| image | `WYSIWYG-required` | `interactive-widget` | ON / ON | Source/按需 | URL/resource policy | resource/L1/a11y |
+| GFM table | `WYSIWYG-required` | `interactive-widget` | ON / ON | Source | range 必须可信 | ADR matrix/L1 |
+| FrontMatter | `policy-required` | safe subset projection；复杂语法 `source-fallback` | ON / ON | Source | safe subset | malformed/fallback |
+| raw HTML | `policy-required` | `source-fallback`；可选安全只读 preview | Source / Source | Source | preview opt-in | XSS/CSP |
+| Mermaid | `conditional` | 安全 renderer 可用时 `interactive-widget` | 设置启用时 ON | Source | renderer + user setting | sandbox/SVG |
+| PlantUML | `conditional` | 安全通道可用时 `interactive-widget` | 设置启用时 ON | Source | local 或用户配置远程 | disclosure/SSRF |
 
-- FrontMatter widget 与 raw HTML policy 仍在 P4B(轻量控件与安全策略,不属富块);
-- 公式渲染(KaTeX/MathJax)、表格合并单元格(GFM 不支持)、cell 内嵌 HTML 富编辑——如需另立功能点;
-- P6 的 marker 隐藏矩阵本身(P7 只消费其状态机,不重复其验收)。
+“ON”指默认用户在满足列出的安全/配置条件时无需再打开实验 flag。`WYSIWYG-required` 的 image/table 若实现达到 widget 但默认仍 OFF，P7 MUST NOT Go；`policy-required` 以签署的安全 source fallback 完成不构成降级。
+
+任何新增必达项必须在 P7 Go 前写入 spec、任务和矩阵；不能在 P5 清理时临时降低目标。
+
+## 8. 验收、Go/No-Go 与回滚
+
+每项执行 P4B 通用矩阵和富块专项：source before/after bytes、keyboard、IME、a11y、visual、security fuzz、offline/timeout、async stale、viewport/performance、export/print。
+
+以下任一为单项 No-Go：未触及 bytes 改变、widget DOM 进入正文、selection trap、资源补偿失败、XSS/SSRF/未授权网络、stale 结果跨文档应用、失败后不可回源码。
+
+P7 Go 要求矩阵所有 release-scope 必达项达到目标状态；可选项必须准确声明 fallback。回滚关闭单项 flag，回到同一 source range，不改变 doc、History、dirty、Core revision 或其他 widget。

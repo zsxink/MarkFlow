@@ -21,20 +21,20 @@ P2 只使用 CodeMirror Markdown/Lezer 本地树投影：heading、strong、emph
 1. 文本始终可读、可选、可编辑；
 2. marker 初期可见但弱化；
 3. 语义字号、字重、颜色和布局正确；
-4. 只有经过 cohort 门禁后才用 replace decoration 隐藏 marker；
+4. P4B 只建立可验证的 visibility/atomic/interaction substrate；通过门禁后由 P6 用 replace decoration 隐藏 marker；
 5. 复杂或未知结构显示源码。
 
-Core Render IR 不得成为 P2 打开、输入和基础投影的硬依赖。
+P4A 已决定本 change 不引入 Core Render IR；所有发布投影使用受信 Lezer local ranges 或精确 source fallback。
 
 ## 3. Projection owner
 
-每个 source range 同一 revision 只能属于：
+每个 construct identity 在同一 revision 只能属于：
 
 - `local`：CodeMirror/Lezer 基础投影；
-- `core`：confirmed Render IR 高级投影；
+- `widget`：source-backed interactive projection；
 - `source-fallback`：原样源码。
 
-owner registry 以 construct type、source range、revision 和 request identity 标识。Core 接管前先清除相同范围 local decoration；stale IR 不能覆盖新 revision。
+owner registry 以 construct type、source range、revision 和 request identity 标识。同一 construct 的 owner handoff 必须在一个 StateEffect/transaction 中先移除旧 owner 再建立新 owner。父子构造的范围允许包含，但 parent 必须显式声明让出的 child range 或 editable slot；`source-fallback` 的最小不可信范围压制其内部所有投影。
 
 ## 4. 失效闭包
 
@@ -50,18 +50,24 @@ owner registry 以 construct type、source range、revision 和 request identity
 
 投影只处理 viewport 加 overscan；不可见复杂 widget 不实例化重型 renderer。
 
-## 5. Marker reveal
+## 5. Marker visibility 与 reveal
 
-marker 状态：`visible`、`dimmed`、`hidden`、`revealed`。Reveal 条件：
+统一状态为 `visible`、`dimmed`、`hidden`、`revealed`；composition 是强制 reveal 或冻结安全投影的条件。P4B 提供状态解析器和交互门禁但不输出 hidden，P6 是唯一 hiding 阶段。
 
-- caret 位于 marker 或 content range；
-- selection 与 construct 相交；
+隐藏使用 `Decoration.replace`，需要原子穿越的 source range 同时提供给 `EditorView.atomicRanges`；空 construct 可用只读 placeholder/glyph。不得使用 CSS 零宽 marker 或假设 rendered DOM `textContent` 含有源码。Plain-text clipboard、save、History、drag source 和 accessibility descriptor 必须从 CodeMirror/Core source range 生成。
+
+Reveal 条件：
+
+- caret 即将进入 marker、content 或 atomic boundary；
+- selection 与 construct 相交，但 Select All 不触发逐 construct 布局闪烁；
 - composition 与 marker 相交或相邻；
-- mouse drag、keyboard selection 即将跨过 atomic range；
-- construct command 即将编辑 source；
+- mouse drag、double-click、keyboard selection 即将跨过 atomic range；
+- construct command/input rule 即将编辑 source；
 - widget focus/cancel 需要回到 source。
 
-Reveal 必须只改变 decorations。隐藏 marker 之前，每个 cohort 单独通过鼠标、键盘、IME、copy、screen reader 和 high contrast 门禁。
+Nested construct 先 reveal 最内层可编辑目标，需要时扩大到共享 marker 的最小闭包。空 heading/list/quote/fence 必须保留可发现 marker、glyph 或 placeholder。Input rule 新形成的 construct 先保持 revealed，caret 离开且 range 稳定后才能 hidden。
+
+Visibility 变化必须只改变 decorations/state effects，不得产生 doc transaction、History、dirty 或 Core revision。隐藏前每个 cohort 单独通过鼠标、键盘、IME、copy、screen reader、high contrast、空构造、Select All、Undo 落点和 viewport 重建门禁。
 
 ## 6. Selection
 
@@ -82,17 +88,19 @@ Widget 必须声明：
 
 命令路由输入：selection、line boundaries、syntax context、construct owner、read-only、composition。输出只能是 `CodeMirror TransactionSpec`、`RevealSource` 或 `NoOp`。
 
+唯一规范行为由 [结构编辑与表格键盘 ADR](../adr/adr-typora-structural-interaction-matrix.md) 冻结，覆盖 paragraph、heading、list、quote、fence、table、atomic、跨块 selection 与 malformed/unknown；下表只是摘要，不得作为实现时重新选择分支的授权。
+
 | 上下文 | Enter | Backspace at start |
 | --- | --- | --- |
 | 普通段落 | 插入继承 EOL 的逻辑换行 | 与前一文本行按普通语义合并 |
-| Heading | 拆分为 heading + paragraph，或行尾创建 paragraph | 行首先移除 heading marker/降级，具体规则由 ADR 固定 |
-| 非空 list item | 创建同级 item 并继承原 marker style | 空内容边界按 nesting 退级或与前项合并 |
-| 空 list item | 退出或降低一级列表 | 移除当前 marker 或退级 |
-| Blockquote | 创建引用 continuation；空引用可退出 | 退级引用 marker 或与前块合并 |
+| Heading | 内容开头插入前置 paragraph；中部拆为 heading + paragraph；行尾新增 paragraph；空 heading 转 paragraph | 内容开头删除 heading marker 转 paragraph |
+| 非空 list item | 中部拆分或末尾新建同级 item，继承 marker family/indent；不重编号旧项 | 内容开头：嵌套 item outdent 一级，顶层 item 转 paragraph |
+| 空 list item | 嵌套 item outdent 一级；顶层 item 删除 marker 退出为 paragraph | 与 Enter 相同的层级决定 |
+| Blockquote | 非空行复制当前 quote depth；空 quote 删除一层 marker | 内容开头只删除一层 quote marker |
 | Fence body | 插入 literal newline | literal delete，不触发结构转换 |
-| Table | 首期 reveal source 并按文本语义；widget 阶段使用 cell protocol | 同左 |
-| Atomic inline/widget | 根据 affinity 移到前后或显式删除整个 source range | 不依赖浏览器 atomic DOM 行为 |
-| 跨块 selection | 先在同一 transaction 删除 selection，再执行目标上下文行为 | 删除 selection，保留一个确定 caret |
+| Table | P7 前 reveal source；P7 后 Enter 移到同列下一行，末行追加一行 | cell 内普通删除；结构删除只能经显式 table command |
+| Hidden marker / atomic construct-widget | marker boundary reveal 后删除 content grapheme并保留 delimiter；widget 仅在 descriptor 声明时 Enter activation | 只有 `deletePolicy=whole` 的 construct/widget 可整段删除，否则只 reveal |
+| 跨块 selection | 用一个继承 EOL 的 line boundary 替换 selection | 只删除 selection并 collapse 到起点 |
 | Malformed/unknown | reveal source，使用普通文本语义 | reveal source，使用普通文本语义 |
 
 所有结构命令必须保留未触及 marker style、缩进、空行和 EOL，不得借 parser serializer 重新生成容器。

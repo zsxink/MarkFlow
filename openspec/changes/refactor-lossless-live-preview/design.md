@@ -34,7 +34,7 @@ P0 真实桌面人工验收还确认了一个更早的故障：`setMarkdown()` �
 - revision-bound `TextPatch` 与 UTF-16/UTF-8 position map。
 - CodeMirror `Decoration`/`Widget` Live Preview 原型。
 - `SourceSyncController` 的单 in-flight、ack、flush、retry、resync 思路。
-- source/session/revision/request identity 检查和 stale Render IR 丢弃。
+- source/session/revision/request identity 检查和 stale async result 丢弃。
 
 不能直接移植的部分包括：
 
@@ -156,12 +156,13 @@ P0 可建立 `ChatGPT Desktop black-box observation` 行为矩阵，作为交互
 - Rust Core confirmed snapshot 是保存与冲突判断的唯一真相；CodeMirror 是低延迟 optimistic mirror。
 - 所有编辑入口产生局部 patch，不进行隐式全文格式化。
 - Live Preview 的失败只影响投影，不影响输入、保存或源码访问。
-- 在移除 ProseMirror 前，用真实桌面证据证明常用 Markdown 编辑体验达到可接受水平。
+- 默认编辑面在发布支持矩阵内达到 Typora 式体验：非活动 marker 隐藏，活动 construct 原地揭示源码，富块在同一文档流内编辑。
+- 在移除 ProseMirror 前，用真实桌面证据证明 P6/P7 的 marker、IME、selection、图片、表格、图表和回退合同达到发布水平。
 
 **Non-Goals:**
 
 - 首期支持任意历史编码或无效 UTF-8 的可写编辑。
-- 首期实现完整 CommonMark/GFM/Pandoc 的所见即所得投影。
+- 复制 Typora 的内部实现或一次覆盖 Typora 全部扩展语法；体验对齐与发布支持矩阵必须和功能全量复制分开表述。
 - 为了“Rust 化”重写 DOM、CSS、图片解码、Mermaid 或系统文件 API。
 - 首期把 Undo/Redo owner 移入 Rust；单一 CodeMirror surface 已能提供跨模式单一 History。
 - 首期实现多人协作、跨窗口实时协同或 CRDT。
@@ -295,7 +296,7 @@ projection compartment per-construct extensions/widgets
 
 模式切换不得替换全文、销毁 EditorView 或调用 ProseMirror；selection、scroll、focus、pending patches 和 History 必须保持。当前 `editor.ts` 暂时保留 facade，逐步把 outline、stats、toolbar、keyboard、autosave 和 export 的读取改到 active binding，避免一次修改所有消费者。
 
-### 7. Live Preview 首批使用 CodeMirror 本地语法树，Core Render IR 后置增强
+### 7. Live Preview 终态使用 CodeMirror 本地语法树
 
 Live Preview 的基本可用性不得依赖一次 Rust IPC 成功。第一批 heading、strong、emphasis、strike、inline code、link、blockquote、list 和 fence 使用 `@codemirror/lang-markdown`/Lezer 可见区语法树生成 decorations：
 
@@ -303,20 +304,17 @@ Live Preview 的基本可用性不得依赖一次 Rust IPC 成功。第一批 he
 - backend render 失败不会使 Markdown 退化为纯文本团块；
 - 所有投影都覆盖同一 CodeMirror source，不改变 document text。
 
-Core Render IR 在 parser/source-map spike 通过后加入，用于：
+P4A 已通过 [parser/source-map ADR](./adr/adr-parser-source-map-render-ir.md) 冻结 `SPIKE_COMPLETE_NO_CORE_IR`：Lezer 是本 change 唯一受信 source-map，Core Render IR 不进入产品、flag、协议、E2E 或发布声明。Table、FrontMatter、image、diagram 等复杂构造由 local ranges 与 source-backed widget protocol 实现；范围不可信时精确回退源码。
 
-- 稳定 block identity；
-- 复杂/跨行 concrete syntax；
-- table、FrontMatter、image、diagram 等 widget descriptors；
-- 大纲、诊断和语义命令。
+每个 construct 只能有一个 projection owner：`local`、`widget` 或 `source-fallback`。父子构造可以在声明的 editable slot 中嵌套，但同一 construct identity/range 不得同时叠加两套 owner。未来若重新引入 `core` owner，必须满足 ADR 的重议条件并建立新的 change/ADR，本 change 不预留可被误开启的运行时路径。
 
-每个 construct 只能有一个 projection owner：`local`、`core` 或 `source-fallback`。Core IR 未确认、stale、失败或不支持时，系统清除该 construct 的 Core decoration，回退本地投影或精确源码，禁止同时叠加两套 range。
+### 8. Marker 先弱化，P6 统一按 cohort 隐藏
 
-这与 draft 的关键区别是：Rust Render IR 是增强协议，不是“能否显示 Markdown”的单点故障。
+首个可用版本只做语义样式和 marker 弱化。P4B 建立 owner、visibility resolver、atomic/navigation、clipboard、a11y 与真实 IME 共用底座，但不输出 hidden；P6 是唯一 marker hiding 交付阶段。隐藏使用 `Decoration.replace`，相同 source range 通过 `EditorView.atomicRanges` 提供确定边界，禁止 CSS 零宽 marker。
 
-### 8. Marker reveal 先弱化，后按 cohort 隐藏
+状态统一为 `visible/dimmed/hidden/revealed`；composition 是强制 reveal 或冻结安全投影的条件。Plain-text clipboard、save、History 和 accessibility descriptor 读取 CodeMirror/Core source range，不依赖 rendered DOM `textContent`。
 
-首个可用版本只做语义样式和 marker 弱化，不用 `Decoration.replace` 隐藏字符。真正隐藏 marker 会影响光标、鼠标拖选、复制、IME 和无障碍，必须逐 cohort 开启：
+P6 逐 cohort 开启：
 
 1. heading + strong；
 2. emphasis + strike + inline code；
@@ -324,7 +322,7 @@ Core Render IR 在 parser/source-map spike 通过后加入，用于：
 4. quote + list/task；
 5. fence/thematic break。
 
-每个 cohort 必须先通过：selection、Home/End、Shift+Arrow、Select All、clipboard、CJK composition、emoji boundary 和 Source fallback。失败的 construct 保持 marker 可见，不影响其他 construct 发布。
+每个 cohort 必须先通过：selection、Home/End、Shift+Arrow、Select All、clipboard、CJK/Japanese composition、emoji boundary、空 construct、input rule、Undo 落点、viewport 重建和 Source fallback。失败的 construct 回到 dimmed/source fallback，不影响其他 construct 发布。
 
 ### 9. 保存只接受 Core confirmed payload
 
@@ -372,8 +370,9 @@ dirty = local optimistic doc differs from confirmed persisted state
 
 - `losslessCoreSession`：按文档选择 legacy 或 lossless 打开链路；默认关闭到 Slice 1 验收完成。
 - `codemirrorLivePreview`：在 lossless session 内开启投影；关闭时仍是同一 CodeMirror Source surface。
-- `livePreview.<construct>`：逐 cohort 开关。
-- `coreRenderIr`：启用 confirmed IR 增强；关闭时使用本地投影/源码。
+- `livePreview.<construct>`：逐 construct projection 开关。
+- `livePreview.<construct>.hidden`：P6 visibility 开关；关闭只回到 dimmed，不关闭 construct。
+- `livePreview.<widget>`：P4B/P7 rich widget 开关；关闭回到 local/source fallback。
 - `legacyProseMirror`：仅供尚未迁移用户主动回退；一旦某文档由 lossless session 打开，当前会话内不得切到 PM owner。
 
 flag 组合必须写入日志和 E2E evidence。回滚 Live Preview 只能退到 CodeMirror Source，不能退到 ProseMirror serializer 保存。
@@ -414,6 +413,8 @@ Spike 没有胜者时，Live Preview 继续使用 CodeMirror 本地树，复杂 
 ProseMirror/Tiptap 的删除条件不是“CodeMirror 页面能打开”，而是：
 
 - lossless path 默认开启并经过稳定观察；
+- P6 发布必达 cohorts 已达到 hidden-preview；
+- P7 发布支持矩阵中的 task/image/table/diagram 等目标已达到，非必达项已准确声明 fallback；
 - 常用输入/工具栏/图片/链接/列表/代码块能力已迁移；
 - Source/Live Preview 切换、autosave、external reload、export 均不读取 PM；
 - canonical fixtures 和真实桌面测试通过；
@@ -513,7 +514,7 @@ get_render_blocks(...)  // 后续增强，不是打开/保存前置
 | `markflow-core/src/document/text_buffer.rs`、`line_ending_map.rs` | 优先精选移植并重新做 Mixed EOL/L1 property tests |
 | `position_map.rs`、`patch.rs`、`session.rs` | 参考显式坐标、原子 patch、revision/idempotency；裁掉首期无关 History/semantic commands |
 | `src/lib/SourceSyncController.ts` | 参考单 in-flight/flush/retry/resync；常量和状态机必须重新基准验证 |
-| `src/editor-adapter/codemirror/wysiwygRenderExtension.ts` | 参考 decoration/widget/identity；首批基础投影改为本地语法树，Core IR 不作硬前置 |
+| `src/editor-adapter/codemirror/wysiwygRenderExtension.ts` | 只参考 decoration/widget/identity；发布投影改为本地 Lezer ranges，不移植 Core IR 路径 |
 | `docs/superpowers/specs/2026-07-31-core-backed-open-newline-design.md` | 保留“Core session 唯一正文来源”；修正打开链必须依赖 Core Render IR 的风险 |
 | `.workbuddy/issue-246-overview.md` | 作为“移除 parser 但未切默认挂载导致只显示源码”的反例与 E2E 用例来源 |
 | `docs/markflow-core-phase2/*` | 吸收输入完整性、stale identity 和证据分层；不沿用 119 项/15 阶段的交付粒度 |
@@ -584,17 +585,37 @@ P0 Go 后建立独立安全 child change：
 
 退出条件：canonical workflow、图片生命周期、Undo/Redo、CJK IME 和跨模式 E2E 通过。
 
-### Slice 4：Confirmed Render IR 与高级投影
+### Slice 4A/4B：Parser 决策、投影交互底座与轻量 Widgets
 
 - 完成 parser/source-map spike；
-- 引入 versioned Render IR、stale identity、viewport/cancel/degraded；
-- 按 cohort 隐藏 marker；
-- 依次实现 task、code fence controls、FrontMatter widgets；image、table、diagram 富块 widget 移交 Slice 7/P7（2026-08-29 Program Owner 决定）；
-- 每个 widget 独立 feature flag、source fallback 和安全/无障碍门禁。
+- 已记录 `SPIKE_COMPLETE_NO_CORE_IR`；后续阶段只允许 local ranges/widget/source fallback，不再保留 Core IR 实现分支；
+- P4B 建立 visibility/atomic/selection/clipboard/IME harness、owner registry 与 widget protocol；
+- 实现 task、code fence controls、FrontMatter safe projection 与 raw HTML policy；
+- marker 保持 visible/dimmed，image、table、diagram 进入 P7。
 
-退出条件：每个默认开启 construct 单独有 desktop semantic、visual、selection、IME 证据。
+退出条件：共用 interaction substrate 单独记录 `P4B-SUBSTRATE-GO`；轻量 widgets 各自记录 item Go/No-Go。Substrate 的 desktop semantic、selection、真实 IME、a11y、security 和回滚证据不得被单项 widget 代替。
 
-### Slice 5：默认发布、观察与 legacy 清理
+### Slice 6：Typora 式基础 Markdown 编辑
+
+- 使用 replacing decoration + atomic source range 隐藏 marker；
+- 统一 `visible/dimmed/hidden/revealed` 状态与 construct-specific reveal；
+- 按 heading/inline/link/quote-list/fence cohorts 交付；
+- 补空构造、nested selection、Select All、input rule、composition 和 Undo 落点；
+- 每项独立 projection/hidden flag、证据、Reviewer 与人工默认决定。
+
+退出条件：发布必达基础 constructs 达到 hidden-preview；Normal/Large 真桌面手感、IME、keyboard、a11y 和 byte gates 通过。
+
+### Slice 7：富块编辑与发布支持矩阵
+
+- 收口 task/fence/FrontMatter/raw HTML；
+- 实现 inline image、GFM table、Mermaid/PlantUML source-backed widgets；
+- 表格结构操作声明 affected ranges 并验证 surviving bytes；
+- 图表执行 sandbox、offline/timeout/cancel、CSP/SSRF/SVG sanitize；
+- 生成并签署正交 construct 支持矩阵，分列 scope、maturity、default、配置条件、尺寸降级与证据；image/table 在 Normal/Large 默认 ON。
+
+退出条件：所有 release-scope 必达项达到目标 maturity 和 default state；失败均能回最小源码范围；资源/安全/selection/byte gates 通过。
+
+### Slice 5：最终发布、观察与 legacy 清理（最后执行）
 
 - 三平台验证、性能和安全回归；
 - 冻结同一 release candidate 进行稳定观察；
@@ -602,11 +623,11 @@ P0 Go 后建立独立安全 child change：
 - 独立 agent 复核后删除 legacy；
 - sync specs、archive change 并运行全部 archive gate。
 
-退出条件：产品不再有 ProseMirror 文档真相或 serializer 保存路径。
+退出条件：P6/P7 产品目标已验收，产品不再有 ProseMirror 文档真相或 serializer 保存路径。
 
 ### 单分支持续实施规则
 
-Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-contract` 持续实施到 P5 完成，不再为后续 Slice 新建 Issue、branch、OpenSpec child change 或阶段 PR。现有 P0 child change 保留，后续产品实现、阶段设计、任务与证据统一由 umbrella change 管理。
+Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-contract` 持续实施 P0 corrective、P0S、P1A–P7，并在最后执行 P5 完成，不再为后续 Slice 新建 Issue、branch、OpenSpec child change 或阶段 PR。现有 P0 child change 保留，后续产品实现、阶段设计、任务与证据统一由 umbrella change 管理。
 
 单分支必须保留阶段隔离：每个 Slice 记录 start/end commit、flags、fixtures、自动化结果、真实桌面证据、Reviewer、人工验收、rollback 和未完成项；前一阶段未 Go 时可以在同分支准备明确允许并行的代码，但不得启用、宣称或验收后续阶段。P4B cohort/widget 仍使用独立 feature flag、evidence run 和 Go/No-Go，只是不再创建独立 Git/OpenSpec 容器。
 
@@ -640,7 +661,9 @@ Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-co
 7. 写盘期间继续输入：已保存 revision 正确，新输入仍 dirty。
 8. 外部进程修改文件后 autosave：不覆盖，进入冲突流程。
 9. 中文/日文/韩文 composition：不丢字、一次 Undo、保存 bytes 正确。
-10. Render IR timeout/stale/错误：同一源码仍可编辑，保存不受影响。
+10. Local projection descriptor 异常与 async widget timeout/stale/错误：最小范围回源码且仍可编辑，保存不受影响。
+11. P6 每个 hidden cohort：inactive 隐藏、active reveal、空构造可发现、Select All/drag/Arrow/Home/End/Backspace/Delete 无 trap，plain-text copy 含 source。
+12. P7 image/table/task/diagram：一次操作一次 transaction/Undo，未触及 bytes 不变，失败/离线/unsafe 精确回源码。
 
 ### 证据层级
 
@@ -656,7 +679,13 @@ Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-co
 ## Risks / Trade-offs
 
 - [Risk] CodeMirror Live Preview 的编辑质感短期不如 ProseMirror。  
-  → Mitigation：先做语义样式和 marker 弱化；按 construct 验收后才隐藏；legacy 在发布门禁前保留。
+  → Mitigation：P4B 先冻结交互底座，P6/P7 按 construct 验收；P5 只在 Typora 支持矩阵通过后删除 legacy。
+
+- [Risk] `Decoration.replace` + atomic ranges 造成不可见 caret、selection trap 或 IME 中断。
+  → Mitigation：单一 ADR、source-based clipboard/a11y、空构造 placeholder、真实 WebView IME 与完整导航矩阵；失败回 dimmed。
+
+- [Risk] 富块视觉可用但局部 source patch 改写未触及 bytes。
+  → Mitigation：widget 只能返回声明 affected ranges 的 CM transaction；table/image 每个操作运行 surviving-span golden。
 
 - [Risk] UTF-16、UTF-8 byte 和 source EOL 三套坐标错位。  
   → Mitigation：集中 PositionMap；所有 boundary 使用 property tests；DTO 明确坐标单位，禁止裸 `number` 混用。
@@ -664,8 +693,8 @@ Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-co
 - [Risk] optimistic CodeMirror 与 Core confirmed revision 分叉。  
   → Mitigation：单 in-flight、幂等 transaction、flush barrier、blocked 状态和可验证 resync；blocked 时禁止保存。
 
-- [Risk] 本地 Lezer 与 Core parser 对同一 construct 产生不同 range。  
-  → Mitigation：construct owner registry；同一范围只允许一个 owner；Core 未确认时清除而不是叠加。
+- [Risk] parent/child local projection 与 widget 对相交 range 产生重复 decoration。
+  → Mitigation：construct identity 粒度 owner registry；parent 显式让出 child range/editable slot；最小 source-fallback range 压制内部投影，handoff 在单一状态更新中完成。
 
 - [Risk] Mixed EOL 在跨行替换时“未触及”边界定义含糊。  
   → Mitigation：冻结 replacement range 与 EOL inheritance ADR；golden test 精确声明每个新增/复用边界。
@@ -674,7 +703,7 @@ Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-co
   → Mitigation：资源事务返回显式局部 patch，先进入 CM History/Core revision，再原子提交资源与文档；禁止字符串全文 normalize。
 
 - [Risk] feature flags 造成组合爆炸。  
-  → Mitigation：只支持文档入口 flag、Live Preview 总 flag、construct cohort flag 和 Core IR flag；CI 固定受支持组合。
+  → Mitigation：只支持文档入口、Live Preview、construct projection、construct hidden 与 rich widget 分层；CI 固定受支持组合和回滚链。
 
 - [Risk] 大文件 Core/CM 双份文本占用内存。  
   → Mitigation：先测真实峰值；viewport-only projection；后续再评估 rope/piece table 和同进程 save，不能用牺牲保真换性能。
@@ -685,8 +714,8 @@ Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-co
 - [Trade-off] 首期保留 CodeMirror History，而不是 Core History。  
   → 收益是显著降低输入和 Undo 时序风险；代价是跨客户端共享 History 延后，但当前桌面单 surface 不需要该能力。
 
-- [Trade-off] 首批 Live Preview 使用前端本地 parser。  
-  → 收益是即时渲染和无 IPC 单点故障；代价是复杂语义仍需 Core IR，必须维护清晰 owner 边界。
+- [Trade-off] Live Preview 使用前端本地 Lezer parser。
+  → 收益是即时渲染、同 revision ranges 和无 IPC 单点故障；代价是无法可靠映射的复杂语义必须保持 source fallback，不能猜测性重写。
 
 ## Open Questions
 
@@ -696,7 +725,7 @@ Program Owner 决定 Issue #254 从当前分支 `test/issue-255-lossless-byte-co
 2. 大 payload 保存由 Core 返回 bytes/base64，还是 Runtime 在同一 Rust 进程内持有 session 并直接原子写盘？倾向后者，需明确 Core/Host 边界测试方式。
 3. FileIdentity 是否必须从第一版包含 content hash，还是 mtime+size 快速检查后按需 hash？数据安全倾向保存前 hash。
 4. CodeMirror transaction batching 的窗口、队列和 timeout 应以现有桌面测量确定，不能沿用 draft 常量而无基准。
-5. Parser/source-map 终态选型。该问题不阻塞 Slice 1/2，但阻塞 Core Render IR 和高级 widgets。
+5. P7 的 table/image/diagram 哪些操作可由受信 Lezer local ranges 完成；P4A 已选择 `SPIKE_COMPLETE_NO_CORE_IR` 时，无法证明 affected ranges 的操作必须保持 source fallback。
 6. 非 UTF-8 文件的产品行为：拒绝打开、只读显示或显式转码副本。禁止静默 replacement character 后覆盖。
 7. Save As 是否保留原 BOM/EOL，还是以用户配置生成新文件；倾向“已有文件继承原格式，新文件使用显式默认”。
 8. Export 是否直接读取 Core confirmed snapshot，还是先保持现有只读 renderer；必须保证 export 不反向修改正文。

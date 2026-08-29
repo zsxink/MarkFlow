@@ -15,6 +15,10 @@
 - **AND** confirmed revision 高于 persisted revision
 - **THEN** 调用一次 lossless save coordinator
 
+#### Scenario: 脏文档触发保存
+- **WHEN** 自动保存 tick 触发且 session 存在 pending change 或 confirmed revision 高于 persisted revision
+- **THEN** 系统 flush pending change，并在成功后调用一次 lossless save coordinator
+
 #### Scenario: pending 输入先 flush
 - **WHEN** 自动保存 tick 触发且存在 pending changes
 - **THEN** coordinator 先执行有界 flush
@@ -28,10 +32,24 @@
 - **WHEN** 自动保存因 session 干净而跳过
 - **THEN** `autosaveErrorCount` 不增加
 
+#### Scenario: 干净文档跳过不增加错误计数
+- **WHEN** 自动保存因 session 干净而跳过
+- **THEN** `autosaveErrorCount` 不增加
+
 #### Scenario: 保存进行中跳过
 - **WHEN** 上一次保存仍在进行中
 - **THEN** 新 tick 不启动并发保存
 - **THEN** `autosaveErrorCount` 不增加
+
+#### Scenario: 保存进行中跳过不增加错误计数
+- **WHEN** 上一次保存仍在进行中而新 tick 到达
+- **THEN** 新 tick 不启动并发保存
+- **THEN** `autosaveErrorCount` 不增加
+
+#### Scenario: 连续 tick 不产生并发保存
+- **WHEN** 多个自动保存 tick 在一次保存完成前连续到达
+- **THEN** 同一 session 同时最多存在一个 save coordinator 操作
+- **THEN** 后续 tick 被合并或以可解释状态跳过
 
 #### Scenario: 外部冲突跳过
 - **WHEN** file identity 检测到外部修改
@@ -43,10 +61,19 @@
 - **THEN** `autosaveErrorCount` 增加 1
 - **THEN** persisted revision 保持不变
 
+#### Scenario: 实际写入失败增加错误计数
+- **WHEN** flush、prepare、atomic write 或 commit 实际失败
+- **THEN** `autosaveErrorCount` 增加 1
+- **THEN** persisted revision 保持不变
+
 #### Scenario: 保存成功
 - **WHEN** 指定 confirmed revision 写入并 commit 成功
 - **THEN** `autosaveErrorCount` 清零
 - **THEN** 只有该 revision 被标记 persisted
+
+#### Scenario: 保存成功清零错误计数
+- **WHEN** 指定 confirmed revision 写入并 commit 成功
+- **THEN** `autosaveErrorCount` 清零
 
 ## ADDED Requirements
 

@@ -40,7 +40,7 @@ P4B 全部 cohort/widget（tasks §7）基于受信 local Lezer ranges 实施。
 
 判据链（全部有可复现证据，无一项是"感觉不行"）：
 
-1. **Rust 侧无合格 producer**：三个 Rust 候选分别被性能/鲁棒性（markdown-rs）或 marker 粒度（pulldown-cmark、comrak）淘汰；无 marker 粒度的 producer 无法服务 P4B cohort 的核心诉求（marker replace/reveal + atomic range）。
+1. **Rust 侧无合格 producer**：三个 Rust 候选分别被性能/鲁棒性（markdown-rs）或 marker 粒度（pulldown-cmark、comrak）淘汰；无 marker 粒度的 producer 无法服务 P6 marker replace/reveal/atomic range 与 P7 精确 widget source ranges。
 2. **唯一合格 parser 在 UI 进程**：Lezer 无法在 Rust Core 侧运行；把它包装成 Core IR 意味着 UI 解析 → 序列化 → IPC → 前端反序列化的完整链路，保真零增益（本地投影本就增量、viewport 感知、同树消费），纯增 staleness/cancel/延迟成本。
 3. **既有架构分工不需要它**：design README §7 冻结的分工是"Core 是持久化字节真相；CodeMirror 是低延迟交互真相"。投影失败只降级为同一 CM 文本的 Source（P2 任务 4.13 已验证），Core IR 在该数据流中没有第二个消费者。export 走同 revision Core snapshot 只读 renderer（P3 任务 5.8），也不依赖 IR。
 
@@ -51,8 +51,8 @@ P4B 全部 cohort/widget（tasks §7）基于受信 local Lezer ranges 实施。
 | 6.1 候选比较 | DONE | run `20260829-035314-p4a-f189b0c`，Reviewer PASS |
 | 6.2 property tests | DONE | run `20260829-055341-p4a-5ac06b5`，Reviewer PASS |
 | 6.3 本 ADR | DONE | 终态 `SPIKE_COMPLETE_NO_CORE_IR` |
-| 6.4 versioned Render IR | **NOT APPLICABLE** | 无 producer；仅定义 schema 是无消费者的死代码。P7 任务 10.1（"确认 P4A 终态（local ranges 是否足够、Core IR 是否可用）"）为本 ADR 的内建复查点 |
-| 6.5 协议 + owner registry | **部分实施** | Core-IR 请求协议（viewport/cancel/stale 的 IPC 机制）NOT APPLICABLE——local projection 已在 CM 事务内处理可见区重建/staleness/degraded（P2 任务 4.5/4.10/4.13 证据）。**construct owner registry 按本地形态实施**：保证 local/source-fallback/widget 每 construct 唯一 owner，保留 `core` owner 扩展位；P4B 7.1/7.3 消费 |
+| 6.4 versioned Render IR | **NOT APPLICABLE** | 无 producer；仅定义 schema 是无消费者的死代码。P7 任务 10.3/10.4 对表格 cell/结构操作的 local-range 证明是本 ADR 的内建复查点 |
+| 6.5 协议 + owner registry | **部分实施** | Core-IR 请求协议（viewport/cancel/stale 的 IPC 机制）NOT APPLICABLE——local projection 已在 CM 事务内处理可见区重建/staleness/degraded（P2 任务 4.5/4.10/4.13 证据）。**construct owner registry 按本地形态实施**：保证 local/source-fallback/widget 每 construct 唯一 runtime owner；既有 `core` 类型位仅是历史占位，运行时拒绝注册，P5 若无新 ADR 则删除；P4B 7.1/7.3 消费 |
 | 6.6 Core IR 增强投影接入 | **NOT APPLICABLE** | 无 Core IR 可接入。"IR 关闭时 P3 编辑保存不回归"由 6.8 全 gate 复核等效覆盖 |
 | 6.7 dispatcher/benchmark/reconciliation/E2E | **NOT APPLICABLE** | 四个子项（Core dispatcher、IR payload benchmark、local→core adapter reconciliation、IR degraded/retry E2E）均为 Core IR 专属；desktop degraded 投影 E2E 已由 P2/P3 覆盖并在 6.8 复跑 |
 | 6.8 全 gate + 终态记录 | DONE（见 P4A.md） | 终态 `SPIKE_COMPLETE_NO_CORE_IR`；`coreRenderIr` flag 无需存在（未实现即 default-off 的最强形式） |

@@ -6,7 +6,7 @@
 
 当前分支 `test/issue-255-lossless-byte-contract` 已有完整的 P0/P0S/P1A/P1B 纵向闭环。P1B（无损 Source 纵向闭环）已通过三轮独立复核（最后一轮是我在 `20260817-053048-independent-review-a16e575` 对候选 `a16e575` 的独立 Reviewer #3），但 **Program Owner 人工验收尚未完成**——这是 P1B 剩余的唯一 gate。
 
-本项目使用 **OpenSpec** 管理规范；执行受 `tasks.md` 顶部的“执行约束”管辖（Program Owner 已批准在**单一分支 + umbrella change 内连续完成** P0–P5，不新建分支/issue/child change/阶段 PR，但每个 Slice 仍需独立 commit checkpoint、evidence run、独立 Reviewer、人工验收与 Go/No-Go）。
+本项目使用 **OpenSpec** 管理规范；执行受 `tasks.md` 顶部的“执行约束”管辖（Program Owner 已批准在**单一分支 + umbrella change 内连续完成** P0 corrective、P0S、P1A–P7，并在最后执行 P5；不新建分支/issue/child change/阶段 PR，但每个 Slice 仍需独立 commit checkpoint、evidence run、独立 Reviewer、人工验收与 Go/No-Go）。
 
 ## 第 0 步：先确认 P1B 遗留人工验收
 

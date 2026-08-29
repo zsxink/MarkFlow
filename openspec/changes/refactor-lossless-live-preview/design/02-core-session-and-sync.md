@@ -25,11 +25,11 @@ Core 不管理 DOM、selection UI、decorations 或 CodeMirror History。前端�
 | 操作 | 必需 identity | 不作为该操作 stale 条件 |
 | --- | --- | --- |
 | text patch/ack | `bindingGeneration`、`sessionId`、`documentId`、`baseRevision/resultRevision`、`transactionId` | `fileIdentity`；保存改变磁盘身份不能使合法编辑 ack 失效 |
-| Render IR | `bindingGeneration`、`sessionId`、`documentId`、`revision`、`requestId`、`sourceHash` | `fileIdentity` |
+| async widget/renderer | `bindingGeneration`、`sessionId`、`documentId`、`revision`、`requestId`、目标 source range/hash | `fileIdentity` |
 | save | `sessionId`、`documentId`、`expectedRevision`、`expectedFileIdentity`、`saveOperationId` | 新输入产生的更高 optimistic revision |
 | resource | `bindingGeneration`、`sessionId`、`documentId`、目标 source range/revision、`resourceOperationId` | 无关文件的 identity |
 
-每种 request/response DTO 必须显式包含本行字段。旧文档 A 的 ack、IR、资源结果或 save completion 不得应用到文档 B；但 revision N 保存更新 file identity 后，合法的 N+1 patch/ack 仍可继续收敛。
+每种 request/response DTO 必须显式包含本行字段。旧文档 A 的 ack、widget/renderer、资源结果或 save completion 不得应用到文档 B；但 revision N 保存更新 file identity 后，合法的 N+1 patch/ack 仍可继续收敛。
 
 ## 3. TextPatch
 

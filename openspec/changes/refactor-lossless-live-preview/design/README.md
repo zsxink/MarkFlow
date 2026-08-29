@@ -2,7 +2,7 @@
 
 ## 1. 文档目的
 
-本目录把 umbrella `design.md` 拆成可由 AI Coding Agent 分阶段执行、由 Program Owner 逐阶段人工验收的设计包。Issue #254 使用 Program Owner 批准的单分支连续交付例外：从当前分支 `test/issue-255-lossless-byte-contract` 和 umbrella change `refactor-lossless-live-preview` 持续完成 P0 corrective、P0S、P1A–P5，不再为后续阶段建立新 Issue、branch、child change 或阶段 PR。单分支不等于无阶段门禁；每个阶段仍必须形成可审查 commit checkpoint、独立 evidence run、Reviewer 结论、人工验收和 Go/No-Go，直到全部重构完成。
+本目录把 umbrella `design.md` 拆成可由 AI Coding Agent 分阶段执行、由 Program Owner 逐阶段人工验收的设计包。Issue #254 使用 Program Owner 批准的单分支连续交付例外：从当前分支 `test/issue-255-lossless-byte-contract` 和 umbrella change `refactor-lossless-live-preview` 持续完成 P0 corrective、P0S、P1A–P7，不再为后续阶段建立新 Issue、branch、child change 或阶段 PR。P6/P7 已由 backlog 提升为 Typora 目标的必达阶段；为保留历史编号，最终执行顺序为 P4B → P6 → P7 → P5。单分支不等于无阶段门禁；每个阶段仍必须形成可审查 commit checkpoint、独立 evidence run、Reviewer 结论、人工验收和 Go/No-Go，直到全部重构完成。
 
 ## 2. 规范优先级
 
@@ -25,7 +25,7 @@
 | [02-core-session-and-sync.md](./02-core-session-and-sync.md) | Core session、revision、patch、bridge、optimistic/confirmed 同步和 resync |
 | [03-editor-live-preview-and-interactions.md](./03-editor-live-preview-and-interactions.md) | 单一 CodeMirror、投影、selection、marker、Enter/Backspace、paste、History |
 | [04-save-resource-conflict.md](./04-save-resource-conflict.md) | 原子保存、autosave、外部冲突、图片资源事务、reload/close/save-as |
-| [05-render-ir-widgets-nfr.md](./05-render-ir-widgets-nfr.md) | parser spike、Render IR、widgets、性能、安全、可访问性和观测性 |
+| [05-render-ir-widgets-nfr.md](./05-render-ir-widgets-nfr.md) | parser 终态、local projection、widgets、性能、安全、可访问性和观测性 |
 
 ## 4. 阶段设计
 
@@ -37,11 +37,11 @@
 | P1B | [P1B-source-vertical-slice.md](./phases/P1B-source-vertical-slice.md) | lossless Source flag | 真实桌面 Source 打开、编辑、保存、重开闭环 |
 | P2 | [P2-live-preview-surface.md](./phases/P2-live-preview-surface.md) | CodeMirror Live Preview flag | 单一 EditorView 提供基础 Markdown 语义投影 |
 | P3 | [P3-default-editing-path.md](./phases/P3-default-editing-path.md) | lossless path 默认开启 | 常用编辑、资源、保存、History 进入默认路径 |
-| P4A | [P4A-render-ir.md](./phases/P4A-render-ir.md) | Core IR 增强 flag | `GO_CORE_IR`，或以 `SPIKE_COMPLETE_NO_CORE_IR` 保持 local/source fallback |
-| P4B | [P4B-widgets-cohorts.md](./phases/P4B-widgets-cohorts.md) | widget/cohort 独立 flag | 高级投影逐项通过交互与保真门禁 |
-| P5 | [P5-release-legacy-cleanup.md](./phases/P5-release-legacy-cleanup.md) | 新路径稳定发布 | 删除 legacy 产品真相与 serializer 保存链 |
-| P6 | [P6-true-wysiwyg-hidden-markers.md](./phases/P6-true-wysiwyg-hidden-markers.md) | **BACKLOG — 不属于 Issue #254 当前范围** | Typora 式隐藏 marker;P5 Go 后 NOT STARTED |
-| P7 | [P7-typora-complete-rich-blocks.md](./phases/P7-typora-complete-rich-blocks.md) | **BACKLOG — 不属于 Issue #254 当前范围** | Typora 完全体富块(表格编辑/内联图片/Mermaid/PlantUML);P6 Go 后 NOT STARTED |
+| P4A | [P4A-render-ir.md](./phases/P4A-render-ir.md) | parser/source-map terminal | 已冻结 `SPIKE_COMPLETE_NO_CORE_IR`；Lezer local ranges + source fallback |
+| P4B | [P4B-widgets-cohorts.md](./phases/P4B-widgets-cohorts.md) | 投影交互底座 + 轻量 widgets | owner/widget/IME/interaction harness Go；marker 仍 dimmed |
+| P6 | [P6-true-wysiwyg-hidden-markers.md](./phases/P6-true-wysiwyg-hidden-markers.md) | **IN SCOPE** Typora 式基础编辑 | 支持范围内 marker 默认隐藏、活动时原地揭示 |
+| P7 | [P7-typora-complete-rich-blocks.md](./phases/P7-typora-complete-rich-blocks.md) | **IN SCOPE** 富块编辑收口 | task/image/table/diagram 等达到发布支持矩阵 |
+| P5 | [P5-release-legacy-cleanup.md](./phases/P5-release-legacy-cleanup.md) | 最终稳定发布 | P6/P7 后删除 legacy 产品真相与 serializer 保存链 |
 
 ## 5. 每阶段固定产物
 

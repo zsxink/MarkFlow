@@ -1,4 +1,4 @@
-> 执行约束：本 checklist 是 Issue #254 的 program 级实施顺序。Program Owner 已批准全部任务在当前分支 `test/issue-255-lossless-byte-contract` 与 umbrella change `refactor-lossless-live-preview` 中连续完成；后续不新建 Issue、branch、child change 或阶段 PR。每个 Slice 仍必须建立独立 commit checkpoint、evidence run、独立 Reviewer、Program Owner 人工验收和 Go/No-Go，并保留可运行产品与 feature flag 回滚。该例外只适用于 Issue #254。
+> 执行约束：本 checklist 是 Issue #254 的 program 级实施顺序。Program Owner 已批准 P0 corrective、P0S、P1A–P7 全部任务在当前分支 `test/issue-255-lossless-byte-contract` 与 umbrella change `refactor-lossless-live-preview` 中连续完成；后续不新建 Issue、branch、child change 或阶段 PR。为保留历史编号，后半程按 P4B → P6 → P7 → P5 执行。每个 Slice 仍必须建立独立 commit checkpoint、evidence run、独立 Reviewer、Program Owner 人工验收和 Go/No-Go，并保留可运行产品与 feature flag 回滚。该例外只适用于 Issue #254。
 >
 > 验证记录约束：实现 AI 在每个阶段开始前更新本 change 的 `validation/ENVIRONMENT.md` 和 `validation/phases/<phase>.md`，每次运行建立 `validation/evidence/<phase>/<run-id>/RUN.md`，同时写入不可变的同目录 `ENVIRONMENT.md` 与 hash，并保存证据索引。阶段只有在 AI gate、独立 Reviewer、人工验收和 Program Owner 决定全部记录后才可勾选完成。`/Users/xian/markflow-test` 只作为人工打开 Markdown 测试文档的目录，不存放任务、spec、报告或日志。
 
@@ -93,7 +93,7 @@
 - [x] 5.1 建立统一 CodeMirror command router，toolbar/menu/keyboard/input rule 均依赖 active binding 和 selection
 - [x] 5.2 迁移 bold/italic/strike/link/heading/quote/list/code fence 命令为局部、可 Undo 的 CodeMirror transaction
 - [x] 5.3 迁移图片插入/替换/删除与资源事务，确保仅修改对应 source range 且相邻空行不被隐式整理
-- [x] 5.4 建立 Enter/Backspace command matrix：普通文本、空/非空 list item、quote、heading、fence、table、atomic inline、跨块 selection；不安全上下文揭示源码或退回原生 CM 文本语义
+- [x] 5.4 建立 P3 Source/basic-preview 的 Enter/Backspace baseline：普通文本、list、quote、heading、fence、atomic inline、跨块 selection；table 在 P3 只 reveal source。不安全上下文揭示源码或退回原生 CM 文本语义；Typora 最终唯一行为由后续结构 ADR、P4B 7.2a 与 P7 10.3/10.4 验收
 - [x] 5.5 迁移 paste/drop/clipboard：同步冻结 selection/MIME，区分 literal/HTML/plain/file/image，上下文转换后以一次局部 transaction 和显式 History boundary 提交
 - [x] 5.6 明确 CodeMirror History grouping：composition、连续输入、paste、Enter、结构命令、widget commit、bulk replace；Undo/Redo 后通过同一 patch pipeline 收敛 Core revision
 - [x] 5.7 迁移 autosave、external reload/conflict、document transition、save-as/new file 到 lossless 默认路径
@@ -113,7 +113,7 @@
     （`evidence/P3/20260829-p3-closeout-90081fc/RUN.md` §3：guard 19 + lifecycle 23 +
     flagRollback 4 + byte-contract 95/93 + 桌面 E2E 30 用例）；该清单即人工照跑脚本
 
-## 6. Slice 4A — Parser/Source Map Spike 与 Confirmed Render IR
+## 6. Slice 4A — Parser/Source Map Spike 与 Core IR 终态决定
 
 - [x] 6.1 用统一 fixtures 比较 CodeMirror Lezer、draft ParseIndex、markdown-rs/pulldown-cmark 等候选的 source/content/marker ranges、unknown fallback、性能、维护和许可
   - run `20260829-035314-p4a-f189b0c`（Reviewer PASS）：Lezer 唯一原生 markerRanges 且 0 INVALID；markdown-rs 性能不可用；pulldown-cmark/comrak 无定界符 span；draft ParseIndex 排除（无 JVM）
@@ -121,62 +121,68 @@
   - run `20260829-055341-p4a-5ac06b5`（Reviewer PASS）：Lezer 0 range 失败；markdown-rs 深嵌套 TIMEOUT 11.1s + SIGABRT 淘汰证据；顺带修复 6.1 harness QuoteMark 归因缺陷
 - [x] 6.3 冻结 parser/source-map ADR；无合格胜者时在当前分支把 P4A 标记为 `SPIKE_COMPLETE_NO_CORE_IR`，保留本地基础投影和复杂源码 fallback，并标记后续依赖项，不阻塞默认编辑
   - ADR 已冻结：`adr/adr-parser-source-map-render-ir.md`（终态 `SPIKE_COMPLETE_NO_CORE_IR`；Lezer 为唯一受信 local source-map；Core IR 无合格 Rust producer）<!-- PENDING-MANUAL: ADR 由 AI 依据两轮独立复核证据冻结，Program Owner 确认待界面人工验证阶段 -->
-- [x] 6.4 定义 versioned Render IR：binding/session/document/revision/request/source hash/viewport、stable block identity、ranges、fallback/widget descriptors
-  <!-- NOT APPLICABLE（P4A 终态 SPIKE_COMPLETE_NO_CORE_IR，见 ADR §3.3：无 producer，schema 为死代码；P7 任务 10.1 为内建复查点） -->
-- [x] 6.5 实现 viewport/cancel/stale/degraded 协议与 construct owner registry，保证 local/core/source-fallback 唯一 owner
+- [x] 6.4 评估 versioned Render IR schema 与 producer 可行性，并记录不引入决定
+  <!-- NOT APPLICABLE（P4A 终态 SPIKE_COMPLETE_NO_CORE_IR，见 ADR §3.3：无 producer，schema 为死代码；P7 任务 10.3/10.4 为 local-range 能力复查点） -->
+- [x] 6.5 评估 Core IR 协议并实现 local construct owner registry，保证 local/widget/source-fallback 每 construct 唯一 owner
   - 部分实施：Core-IR 请求协议 NOT APPLICABLE（local projection 已在 CM 事务内处理，P2 任务 4.5/4.10/4.13 证据）；construct owner registry 按本地形态实施（ADR §3.3）；`renderOwnerRegistry.ts` + projection 接线已提交并测试（提交 `4116632`）
-- [x] 6.6 接入 Core IR 作为增强投影，验证 IR timeout/stale/跨文档结果不会影响本地基础投影、输入和保存
+- [x] 6.6 记录 Core IR 接入为 NOT APPLICABLE，并验证没有它时本地基础投影、输入和保存不回归
   <!-- NOT APPLICABLE（无 Core IR 可接入，ADR §3.3；"IR 关闭不影响 P3"由 6.8 全 gate 复核等效覆盖） -->
-- [x] 6.7 添加真实 dispatcher、payload benchmark、adapter reconciliation 和 desktop degraded/retry E2E
+- [x] 6.7 记录 Core IR dispatcher/benchmark/reconciliation 为 NOT APPLICABLE，并复用本地投影 degraded E2E
   <!-- NOT APPLICABLE（四个子项均 Core IR 专属，ADR §3.3；desktop degraded 投影 E2E 已由 P2/P3 覆盖并在 6.8 复跑） -->
-- [x] 6.8 运行全 gate 与独立 reviewer；记录 `GO_CORE_IR`、`SPIKE_COMPLETE_NO_CORE_IR` 或 `NO-GO` 终态；未通过 identity/range 门禁时 `coreRenderIr` 保持 default-off
+- [x] 6.8 运行全 gate 与独立 reviewer；冻结 `SPIKE_COMPLETE_NO_CORE_IR` 终态，确认产品不包含 `coreRenderIr` flag
   - run `20260829-175840-p4a-d864cc9`：12/12 gate exit 0（npm test 572、cargo 153、openspec strict+all、archive-sync、byte-contract、e2e smoke 5 / regression 1）；独立 Reviewer PASS；**终态 `SPIKE_COMPLETE_NO_CORE_IR`**；`coreRenderIr` 产品侧 0 命中（未实现 = 最强 default-off）
 
-## 7. Slice 4B — Marker Cohorts 与高级 Widgets
+## 7. Slice 4B — 投影交互底座与轻量 Widgets
 
-- [ ] 7.1 按 heading+strong、emphasis+strike+inline-code、links、quote+lists、fence 五个 cohort 分别实现 marker replace/reveal 与 atomic range
-- [ ] 7.2 每个 cohort 独立通过鼠标/键盘 selection、Home/End、Shift+Arrow、Select All、clipboard、CJK IME、emoji 和 accessibility 后才 default-on
-- [ ] 7.3 建立 widget protocol：source range、focus、commit/cancel、Undo、reveal、fallback、async identity、安全与 read-only 约束
-- [ ] 7.4 先实现 task checkbox 与 code fence widget pilot，验证局部 patch 和单一 History
-- [ ] 7.5 image 与 GFM table widgets **移交 Slice 7/P7**（2026-08-29 Program Owner 决定，移出 P5 关键路径）；P4B 期间二者保持 exact source fallback（P3 已交付形态）
-- [ ] 7.6 FrontMatter 与 raw HTML policy 留在 P4B；Mermaid/PlantUML 渲染 **移交 Slice 7/P7**；复杂/不安全内容精确回退源码
-- [ ] 7.7 对每个 widget 单独添加 unit、desktop semantic、visual、IME、keyboard-only、安全和 failure injection 证据
-- [ ] 7.8 按 Normal/Large/Huge 验证 viewport-only projection、重型 widget 降级与内存/延迟预算
-- [ ] 7.9 每个 cohort/widget 使用独立 flag、evidence run 与验收结论；一个失败不得被“整体 Live Preview 通过”掩盖
+- [ ] 7.1 冻结 `visible/dimmed/hidden/revealed` visibility API、construct descriptor 与 reveal contract；P4B 只输出 visible/dimmed/revealed，hidden 由 P6 独占
+- [ ] 7.2 建立 P6/P7 共用 interaction harness，覆盖空 heading/list/quote、nested selection、Select All、double-click/drag、Arrow/Home/End/Backspace/Delete、input rule、Undo 落点和 viewport 重建
+- [ ] 7.2a 建立 ADR 表驱动 harness；P4B 逐行实现 heading/list/quote 并记录 source before/after、affected ranges、selectionAfter 与单一 History group。Table 在本阶段只冻结 fixtures、widget 接口和预期结果，不实现 table widget
+- [ ] 7.3 在真实 Tauri WebView 偿还 P3 IME 证据债：中文与日文 composition start/update/end 邻 marker 不丢字、不取消、一次 Undo
+- [ ] 7.4 建立 widget protocol：source/marker range、atomic/focus、commit/cancel、Undo、reveal、fallback、async identity、安全、a11y、read-only 与 export
+- [ ] 7.5 完成 construct identity 粒度的 `local/widget/source-fallback` runtime owner、父子 editable slot 仲裁、独立 flag、debug snapshot 与 cleanup；历史 `core` 类型位不得成为运行时 owner
+- [ ] 7.6 实现 task checkbox 与 code fence controls pilot，验证局部 patch、source-based clipboard、单一 History 和 read-only
+- [ ] 7.7 实现 FrontMatter safe projection 与 raw HTML policy；复杂/不安全内容精确回退源码，raw HTML 默认不执行
+- [ ] 7.8 image、GFM table、Mermaid/PlantUML 移交 P7，但仍属于 Issue #254 必达范围；P4B 期间保持 exact source fallback
+- [ ] 7.9 每项独立运行 unit/desktop semantic/visual/IME/keyboard/a11y/security/failure injection/L1/rollback，并由独立 Reviewer 与人工验收决定 Go
+- [ ] 7.10 单独记录 `P4B-SUBSTRATE-GO`；task/fence/FrontMatter/raw HTML 分别记录 `P4B-ITEM-<name>-GO/NO-GO`，不得用单项失败或通过代替 substrate checkpoint
 
-## 8. Slice 5 — 发布门禁、稳定观察与 Legacy 清理
+## 9. Slice 6 — IN SCOPE：Typora 式基础 Markdown 编辑
 
-- [ ] 8.1 在 macOS、Windows、Linux 运行 canonical byte、Source/Live Preview、autosave、external conflict、IME、widgets 和 export 工作流
-- [ ] 8.2 建立 light/dark/sepia、active/inactive/composing/selected/degraded/source fallback 的视觉基线与批准流程
-- [ ] 8.3 对冻结 release candidate 执行量化稳定观察：三平台各 ≥8 小时/≥2 sessions，达到人工操作矩阵与 10k transaction/1k save-reconcile/1k mode-switch/100 failure-injection 自动 soak；所有证据记录 commit、flags、OS/WebView/IME、fixture hash 与日志
-- [ ] 8.4 审计产品代码中 ProseMirror/Tiptap、serializer、`getMarkdown/setMarkdown`、`trailingNewlines` 和 `normalizeImageMarkdown` 的剩余消费者
-- [ ] 8.5 删除 legacy ProseMirror 产品路径、隐藏 DOM、无效 CSS/dependencies/tests；保留的只读 renderer 必须明确不参与正文真相
-- [ ] 8.6 重跑 canonical byte/property、TS/build、Core/Tauri、desktop semantic、visual、IME、security、performance 和 archive gates
-- [ ] 8.6.1 在三平台对最终默认配置执行零编辑打开、两个 autosave tick、Ctrl+S、关闭和重开，记录 save count/hash/length/mtime，作为删除 legacy 前不可豁免证据
-- [ ] 8.7 派独立 reviewer 做静态走查与全测试；存在任何 serializer 保存、双 owner 或数据完整性阻塞则拒绝清理合入
+> 本 Slice 是 Issue #254 必达范围。前置为 P3 minimum parity、P4A 终态和 `P4B-SUBSTRATE-GO`；后续进入 P7，P5 最后执行。
+
+- [ ] 9.1 按 ADR 实现 `Decoration.replace` + `EditorView.atomicRanges`，禁止 CSS 零宽 marker；clipboard/a11y/save/History 均读取 source range
+- [ ] 9.2 实现统一 visibility resolver：visible/dimmed/hidden/revealed；composition 强制 reveal 或冻结安全投影，不作为独立正文状态
+- [ ] 9.3 M1：heading/paragraph/thematic break，包含空 heading placeholder、Enter/Backspace 与块级布局稳定性
+- [ ] 9.4 M2a：strong/emphasis/strike/inline code，包含 nested construct、input rule、double-click 与跨 marker selection
+- [ ] 9.5 M2b：inline/reference/autolink，活动时可编辑 destination/title，malformed link 精确回源码
+- [ ] 9.6 M3：quote + ordered/unordered/task list + fence，与 P4B task/fence/FrontMatter 联动；空构造保持可发现
+- [ ] 9.7 为 projection 与 hidden 分离 flag（如 `livePreview.heading` / `.hidden`）；关闭 hidden 回 dimmed，关闭 construct 回 source，不改变 doc/History/dirty/revision
+- [ ] 9.8 每 cohort 覆盖 P4B 矩阵、Select All 不闪烁、plain-text copy/cut 含 source、真实 CJK IME、screen reader、Normal/Large SLO、L0/L1 与独立回滚；分别验证 strong/emphasis/link hidden-marker boundary delete 保留 paired syntax，以及 image/widget 仅在 `deletePolicy=whole` 时整段删除
+- [ ] 9.9 生成基础 construct 支持矩阵并由独立 Reviewer、人工和 Program Owner 决定 P6 Go；P6 Go 不等于 program 完成
+
+## 10. Slice 7 — IN SCOPE：富块编辑与支持矩阵收口
+
+> 本 Slice 是 Issue #254 必达范围。前置为 `P4B-SUBSTRATE-GO` 和 P6 visibility engine Go；P4B 单项 widget 在本阶段收口。完成后才允许进入 P5。
+
+- [ ] 10.1 收口 task/fence/FrontMatter/raw HTML 与 P6 hidden 联动；复杂 FrontMatter/raw HTML 继续可解释 source fallback
+- [ ] 10.2 内联图片 widget：文档流渲染、click/select、alt/path/title/replace/delete、资源事务、broken URL/权限/大图失败回退、alt a11y
+- [ ] 10.3 实现并逐行验证 ADR 的 GFM table cell 矩阵：Arrow/Tab/Enter/Escape/Home/End、selection/composition、inline Markdown、一次操作一次 Undo、cell edit 只改 content range
+- [ ] 10.4 GFM table 结构操作：alignment、row/column add/delete/move；声明全部 affected ranges，对 surviving cell/delimiter/padding/EOL 做 L1 golden；不可信结构回源码
+- [ ] 10.5 Mermaid：source/preview 双态、sandbox、CSP、timeout/cancel/stale、恶意源码/SVG fuzz、Retry/export 与失败回退
+- [ ] 10.6 PlantUML：明确本地/用户配置远程通道、第三方发送提示、offline、redirect/DNS/IP/SSRF/size/timeout/SVG sanitize；无安全通道保持源码
+- [ ] 10.7 每 item 独立 flag、owner、P4B 通用矩阵 + 富块专项、Normal/Large/Huge、独立 Reviewer、人工验收和回滚
+- [ ] 10.8 生成正交发布支持矩阵，分列 release class（WYSIWYG-required/policy-required/conditional/out-of-scope）、projection maturity、default state、配置条件、Normal/Large/Huge 降级与证据；image/table 为 WYSIWYG-required 且 Normal/Large 默认 ON；FrontMatter/raw HTML 可按签署安全策略以 source fallback 完成；公式/footnotes/TOC/callouts 等非范围项明确声明，禁止称“Typora 完全体”
+- [ ] 10.9 Program Owner 签署所有 release-scope 必达项；任何未触及 bytes 改变、widget DOM 入正文、XSS/SSRF、selection trap、资源补偿失败或不可回源码 = 单项 No-Go
+
+## 8. Slice 5 — 最终发布门禁、稳定观察与 Legacy 清理（最后执行）
+
+- [ ] 8.1 前置：P3 Go、P4A `Program-Accepted`、`P4B-SUBSTRATE-GO`、P6 Go、P7 Go 均已记录；P7 发布支持矩阵已签署且必达项达到目标 maturity/default
+- [ ] 8.2 在 macOS、Windows、Linux 运行 canonical byte、Typora marker、task/image/table/diagram、autosave、external conflict、真实 IME、a11y、security 和 export 工作流
+- [ ] 8.3 建立 light/dark/sepia、visible/dimmed/hidden/revealed/composing/empty/degraded/source fallback 与富块的视觉基线
+- [ ] 8.4 对冻结 release candidate 执行三平台各 ≥8 小时/≥2 sessions 的稳定观察与 10k transaction/1k save-reconcile/1k mode-switch/100 projection-widget failure-injection soak
+- [ ] 8.5 审计并删除 ProseMirror/Tiptap、serializer、`getMarkdown/setMarkdown`、`trailingNewlines`、`normalizeImageMarkdown`、隐藏 DOM、无效 CSS/dependencies/tests；保留 renderer 必须只读
+- [ ] 8.6 重跑 canonical L0/L1、TS/build、Core/Tauri、desktop semantic、P6/P7 visual/IME/keyboard/a11y/security/performance 与 archive gates
+- [ ] 8.6.1 三平台最终默认配置执行零编辑打开、两个 autosave tick、Ctrl+S、关闭和重开，记录 dirty/save count/hash/length/mtime
+- [ ] 8.7 派独立 Reviewer 静态走查 cleanup diff 并重跑 `npm test`、`npx tsc --noEmit`、关键 Rust/E2E；serializer、双 owner、必达体验回退或数据安全问题均拒绝合入
 - [ ] 8.8 将全部 delta specs 同步到 main specs，运行 `npx openspec validate --all` 与 `bash scripts/check-archive-synced.sh`
-- [ ] 8.9 将现有 P0 child delta 与 program delta 同步到 main specs，归档现有 changes，更新 Issue #254/追踪文档并明确产品已验收范围与仍为 source fallback 的 constructs
-
-## 9. Slice 6 — BACKLOG（P5 之后，当前不启动）
-
-> **当前状态：NOT STARTED — BACKLOG。** 本 slice 记录 P5 之后的后续功能点，**不属于 Issue #254 当前交付范围**；P5 Go 之前不得开展实施。设计见 [design/phases/P6-true-wysiwyg-hidden-markers.md](./design/phases/P6-true-wysiwyg-hidden-markers.md)，验证记录见 [validation/phases/P6.md](./validation/phases/P6.md)。目标：Typora 式所见即所得（正常仅显示渲染视图，鼠标点击/光标进入才短暂显示 Markdown 标记）。
-
-- [ ] 9.1 前置：P0–P5 全部 Go，legacy 编辑器/serializer/双正文状态已删除
-- [ ] 9.2 三级 marker 状态机（hidden / revealed / composing）+ ghost caret 通道
-- [ ] 9.3 heading 块级 cohort（M1，最先）
-- [ ] 9.4 行内 cohort：strong/emphasis/strike/inline code（M2）
-- [ ] 9.5 links、quote+lists、fence（M2–M3）
-- [ ] 9.6 与 P4B 轻量 widget（task/fence controls）的 hidden 联动（M3）；图片/表格/图表 widget 已移交 P7，随 P7 落地后再联动
-- [ ] 9.7 每 cohort 按 P4B 矩阵独立验证、独立 flag、独立回滚；（将在 P5 Go 后按 Issue #254 之外的流程启用）
-
-## 10. Slice 7 — BACKLOG（P6 之后，当前不启动）：Typora 完全体富块
-
-> **当前状态：NOT STARTED — BACKLOG。** 本 slice 记录 P6 之后的后续功能点，**不属于 Issue #254 当前交付范围**；P6 Go 之前不得开展实施。2026-08-29 Program Owner 决定：把原 P4B 的 image/GFM table/Mermaid/PlantUML widget（原 7.5/7.6 的一部分）移出 P5 关键路径，独立为 P7；P4B 只保留轻量控件（task checkbox/code fence controls/FrontMatter）与 raw HTML policy。设计见 [design/phases/P7-typora-complete-rich-blocks.md](./design/phases/P7-typora-complete-rich-blocks.md)，验证记录见 [validation/phases/P7.md](./validation/phases/P7.md)。目标：补齐 Typora 完全体差距——表格可视化编辑、图片文档流内渲染、Mermaid/PlantUML 图表渲染。
-
-- [ ] 10.1 前置：P0–P5 全部 Go（Live Preview 为唯一编辑路径）；建议 P6 M1/M2（hidden marker 状态机）Go 后启动，使富块 widget 一步接入 hidden 联动；确认 P4A 终态（local ranges 是否足够、Core IR 是否可用）
-- [ ] 10.2 内联图片 widget（M1，最先）：文档流内渲染、点击编辑 alt/路径、复用 P3 资源事务与 source range 管线、broken URL/加载失败精确回退源码
-- [ ] 10.3 GFM 表格编辑 widget（M2）：cell 导航/编辑、行/列增删、对齐、escaped pipe；全部操作为局部 source transaction，未触及 cell/分隔行 bytes L1 保真
-- [ ] 10.4 Mermaid 渲染（M3a）：沙箱渲染、timeout/cancel、恶意源码策略（fuzz 必测）、失败回退源码
-- [ ] 10.5 PlantUML 渲染（M3b）：同 10.4 + 明确渲染通道与网络策略（design 05 §7）；无可用通道时保持源码
-- [ ] 10.6 每 item 独立 flag、P4B 通用矩阵 + 富块专项矩阵（P7 设计 §4）、独立 Reviewer、人工验收、独立回滚；与 P6 hidden 状态机联动
-- [ ] 10.7 每 item 按 Normal/Large/Huge 验证 viewport-only、渲染降级与内存预算；任何未触及 bytes 改变、XSS/SSRF、selection trap 或不可回源码 = 单项 No-Go
+- [ ] 8.9 归档 umbrella change，更新 Issue #254/追踪文档与最终支持矩阵；此时才可宣称重构完成和达到定义内的 Typora 式体验

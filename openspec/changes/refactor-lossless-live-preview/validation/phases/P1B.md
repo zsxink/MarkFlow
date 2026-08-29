@@ -77,12 +77,7 @@
   - 证据：`evidence/P1B/20260817-053048-independent-review-a16e575/`
 - Program Go/No-Go：**GO（2026-08-19，xian）**。P1B 人工验收已在 2026-08-18 补验 ACCEPTED（8 PASS + 2 依赖自动化证据，由 Program Owner 代理经 WebDriver 驱动真实桌面应用执行）；`tasks.md` 3.11 已勾选完成，记录 Slice 1B Go checkpoint。不归档 umbrella change（后续 P2-P5 继续在同一 change）。
 
-> **Program Owner 决定记录（2026-08-18，xian）**：P1B 人工验收经权衡后**推迟**
-> （跳过先执行），进入 P2 编码。候选锁定冻结候选 `a16e575`（HEAD `8bbcb79`，
-> Reviewer #3 已复核，fixtures 基线已复核一致）。**此决定不改变 P1B gate 状态**：
-> `tasks.md` 3.11 保持 `[ ]` 未勾选，本行 Program Go/No-Go 仍为 NOT STARTED；
-> P2 完成后的最终 Go/No-Go 必须先补 P1B 人工验收。任何 corrective / 归档都
-> 不得在验收完成前进行。
+> **历史决定（2026-08-18，已被 2026-08-19 决定取代）**：Program Owner 当时推迟 P1B 人工验收并先进入 P2。随后已补验 ACCEPTED，`tasks.md` 3.11 已勾选，权威状态以上方 2026-08-19 `GO` 为准。此历史记录仅解释时间线，不再构成阻塞条件。
 
 ## P1B 后 corrective 待办
 

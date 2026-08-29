@@ -145,6 +145,6 @@ lossless session 的打开、dirty、模式切换、自动保存、手动保存�
 - **THEN** 图片和未知语法的未触及源字节保持不变
 
 #### Scenario: 投影服务失败
-- **WHEN** Live Preview parser 或 Render IR 请求失败
+- **WHEN** Live Preview local parser/descriptor 异常，或异步 widget 请求失败/stale
 - **THEN** lossless session 仍可继续编辑和保存
 - **THEN** 保存内容不受投影失败影响

@@ -10,6 +10,11 @@
 - **THEN** LineEndingMap 包含两个 LF 边界
 - **THEN** CodeMirror document 包含两个真实尾随换行
 
+#### Scenario: File with 2 trailing newlines is opened
+- **WHEN** 用户打开恰有两个尾部 line-break boundaries 的文件
+- **THEN** Core 与 CodeMirror 均保留两个真实尾随换行
+- **THEN** 每个边界的原始 EOL 类型记录在 LineEndingMap
+
 #### Scenario: File with 2 visually blank rows after content is opened
 - **WHEN** 用户打开 bytes 为 `hello\n\n\n` 的文件
 - **THEN** Core 与 CodeMirror 均包含三个真实尾随 line-break boundaries
@@ -33,6 +38,10 @@
 - **THEN** 保存结果仍以两个 LF 换行结尾
 - **THEN** 两个换行不属于正文编辑 patch
 
+#### Scenario: Save preserves trailing newlines
+- **WHEN** 用户只修改正文并保存
+- **THEN** 所有未被 patch 覆盖的尾部换行边界及其 EOL 类型保持不变
+
 #### Scenario: Editing body preserves 2 visually blank rows
 - **WHEN** 用户打开 `hello\n\n\n` 并只修改 `hello`
 - **THEN** 保存结果仍以三个 LF line-break boundaries 结尾
@@ -45,6 +54,10 @@
 #### Scenario: Save file without trailing newline
 - **WHEN** 用户打开末尾无换行的文件并修改正文
 - **THEN** 系统不自动追加文末换行
+
+#### Scenario: Save file without trailing newlines
+- **WHEN** 用户打开末尾无换行的文件并只修改正文
+- **THEN** 保存 payload 仍不包含自动追加的文末换行
 
 ## REMOVED Requirements
 

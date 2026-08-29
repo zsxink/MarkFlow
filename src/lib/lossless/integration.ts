@@ -376,6 +376,14 @@ if (import.meta.env.MODE === 'e2e') {
       binding.setMode(mode);
       return 'set';
     },
+    // P4B 7.1/7.2: place a collapsed caret at `pos` (selection-driven reveal
+    // E2E). Pure selection — the projection rebuilds on the selectionSet.
+    caret: (pos: number) => {
+      const binding = getActiveLosslessBinding();
+      if (!binding) return 'no-binding';
+      binding.editor.view.dispatch({ selection: { anchor: pos } });
+      return 'set';
+    },
     getMode: () => getActiveLosslessBinding()?.editor.getMode() ?? 'source',
     projectionState: () => getProjectionSnapshot().state,
     /** Semantic construct counts keyed by class (e.g. `{ 'mf-h1': 2, 'mf-strong': 1 }`). */

@@ -7,6 +7,12 @@
 // overscan), and an active selection / composition reveals the marker of an
 // intersecting construct (marker stays weak otherwise — never hidden in P2).
 //
+// P4B task 7.1: the reveal decision is refined PER MARKER COHORT behind five
+// independent default-OFF flags (cohortFlags.ts). When a flag is OFF the reveal
+// is byte-for-byte the P2 radius logic; when ON it switches to a precise
+// content-containment reveal (see `isConstructRevealed`). The construct/marker
+// set itself is unchanged and stays frozen by the task 6.5 parity oracle.
+//
 // This module MUST NOT dispatch doc-changing transactions and MUST NOT touch
 // Core IPC. It only builds a `DecorationSet` from the Lezer syntax tree.
 //
@@ -22,6 +28,13 @@ import { RangeSet, RangeSetBuilder, type Extension } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { getOwnerRegistrySnapshot, resolveConstructOwner, type ConstructKind } from './renderOwnerRegistry';
+import {
+  isEmphasisStrikeInlineCodeEnabled,
+  isFenceEnabled,
+  isHeadingStrongEnabled,
+  isLinksEnabled,
+  isQuoteListsEnabled,
+} from './cohortFlags';
 
 /** Construct classes exposed for semantic assertions (unit + desktop E2E). */
 export const PROJECTION_CLASSES = {
@@ -183,6 +196,89 @@ export function classifyLezerNode(name: string): { cls: string; level?: number }
 function decorationFor(cls: string, level?: number): Decoration {
   const levelCls = level != null && level >= 1 && level <= 6 ? ` ${PROJECTION_CLASSES[`h${level}` as 'h1']}` : '';
   return Decoration.mark({ class: `mf-construct ${cls}${levelCls}` });
+}
+
+// ── P4B task 7.1: per-cohort marker reveal refinement ────────────────────
+//
+// The base reveal (design 03 §2 / P2) weakens a construct's delimiter markers
+// (`.mf-marker`) and promotes the WHOLE construct to `mf-active` when the
+// selection intersects it within a fixed `radius = 2`. Task 7.1 divides this
+// single behaviour into five independent, default-OFF marker cohorts
+// (headingStrong, emphasisStrikeInlineCode, links, quoteLists, fence — gated by
+// cohortFlags.ts). When a cohort flag is OFF (the default and the parity
+// baseline) `isConstructRevealed` must be BYTE-IDENTICAL to the pre-7.1 radius
+// logic. When a cohort flag is ON, that cohort's constructs switch to a precise
+// reveal rule:
+//
+//   - a NON-EMPTY selection (mouse-drag range, Shift+Arrow, Home/End sweep,
+//     Select All) ALWAYS fully reveals every construct it overlaps — identical
+//     to base (Select All never leaves a marker ghosted);
+//   - a COLLAPSED caret reveals ONLY when it sits strictly inside the construct
+//     content range `(from, to)` (which covers the delimiter markers, since they
+//     live inside content). This removes the base radius-2 "fringe": a caret up
+//     to two code units OUTSIDE a construct (e.g. on the neighbouring blank line
+//     after a heading, or just before its `#`) no longer lights up the marker.
+//
+// Reveal is a PURE function of (construct, selection, doc length, flag state) —
+// never of DOM textContent — so it holds identically in read-only mode (only
+// the selection drives it). CJK/emoji positions are UTF-16 safe: Lezer never
+// splits a surrogate pair, so content containment is stable across emoji.
+
+/** True when this construct's cohort flag is ON (task 7.1 per-cohort gate). */
+function cohortRevealActive(cls: string, markers: Array<[number, number]>): boolean {
+  switch (cls) {
+    case PROJECTION_CLASSES.heading:
+    case PROJECTION_CLASSES.strong:
+      return isHeadingStrongEnabled();
+    case PROJECTION_CLASSES.emphasis:
+    case PROJECTION_CLASSES.strikethrough:
+    case PROJECTION_CLASSES.inlineCode:
+      return isEmphasisStrikeInlineCodeEnabled();
+    case PROJECTION_CLASSES.link:
+      // Task 7.1 ③: the refined reveal applies ONLY to the real `[text](url)`
+      // Link delimiter construct — the one that owns the four `[ ] ( )` marker
+      // spans. Naked URL / image-URL / legacy link-label `mf-link` shapes (0 or
+      // non-4 markers, e.g. the GOLDEN from:156 / from:302 legacy entries) keep
+      // the base radius reveal — their construct/markers are frozen, untouched.
+      return markers.length === 4 && isLinksEnabled();
+    case PROJECTION_CLASSES.blockquote:
+    case PROJECTION_CLASSES.listItem:
+      return isQuoteListsEnabled();
+    case PROJECTION_CLASSES.fence:
+      return isFenceEnabled();
+    default:
+      return false;
+  }
+}
+
+/**
+ * Decide whether `range` gets the full `mf-active` reveal for the current main
+ * selection. P4B task 7.1: per-cohort refinement while a cohort flag is ON;
+ * otherwise byte-identical to the pre-7.1 radius-2 logic (the parity baseline —
+ * task 6.5 parity keeps the construct set frozen, and this keeps the reveal
+ * frozen for all flags-OFF runs). Exported for direct unit testing of the
+ * per-cohort interaction matrix (7.2) without driving the editor/DOM.
+ */
+export function isConstructRevealed(
+  range: ConstructRange,
+  selection: { from: number; to: number; empty: boolean },
+  docLength: number,
+): boolean {
+  // Range selection / Select All: every overlapping construct fully reveals —
+  // identical for every cohort, ON or OFF (a sweep must never ghost a marker).
+  if (!selection.empty) {
+    return range.from <= selection.to && range.to >= selection.from;
+  }
+  // Collapsed caret: per-cohort precise reveal when the cohort is ON.
+  if (cohortRevealActive(range.cls, range.markers)) {
+    const caret = selection.from;
+    return range.from < caret && caret < range.to;
+  }
+  // Base radius-2 reveal — cohort OFF (default). Exactly the pre-7.1 logic.
+  const radius = 2;
+  const revealFrom = Math.max(0, selection.from - radius);
+  const revealTo = Math.min(docLength, selection.to + radius);
+  return range.from <= revealTo && range.to >= revealFrom;
 }
 
 // ── ViewPlugin: build + hold the DecorationSet ────────────────────────
@@ -351,12 +447,10 @@ function buildDecorations(view: EditorView): DecorationSet {
   // Active reveal: when the current selection (or a small neighborhood around a
   // collapsed caret / composition) intersects a construct, promote that
   // construct to `mf-active` (full marker visibility). Selection is the ONLY
-  // cursor state that drives reveal — never DOM textContent.
+  // cursor state that drives reveal — never DOM textContent. P4B task 7.1: the
+  // reveal decision is a per-cohort pure function (`isConstructRevealed`); when
+  // all cohort flags are OFF it is byte-identical to the pre-7.1 radius logic.
   const selection = state.selection.main;
-  const radius = 2;
-  const revealFrom = Math.max(0, selection.from - (selection.empty ? radius : 0));
-  const revealTo = Math.min(doc.length, selection.to + (selection.empty ? radius : 0));
-  const intersects = (r: ConstructRange) => r.from <= revealTo && r.to >= revealFrom;
 
   const finalBuilder = new RangeSetBuilder<Decoration>();
   const markerDeco = Decoration.mark({ class: 'mf-marker' });
@@ -369,7 +463,7 @@ function buildDecorations(view: EditorView): DecorationSet {
   // geometry, not from insertion order, so this re-order is purely additive.
   const additions: Array<{ from: number; to: number; deco: Decoration }> = [];
   for (const range of constructs) {
-    const active = intersects(range);
+    const active = isConstructRevealed(range, selection, doc.length);
     additions.push({
       from: range.from,
       to: range.to,

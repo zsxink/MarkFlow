@@ -4,6 +4,11 @@
 
 import { registerLosslessLifecycleTests } from './lossless-lifecycle.e2e.mjs';
 import { registerLivePreviewTests } from './live-preview.e2e.mjs';
+import { registerP4bCohortRevealTests } from './p4b-cohort-reveal.e2e.mjs';
 
 registerLosslessLifecycleTests();
 registerLivePreviewTests();
+// P4B task 7.1/7.2 per-cohort reveal — PENDING-MANUAL/ENV (see the file header):
+// requires a real Tauri e2e build + operator confirmation; unit equivalents are
+// locked headlessly in projection.test.ts.
+registerP4bCohortRevealTests();

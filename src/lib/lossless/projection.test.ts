@@ -103,10 +103,15 @@ import { getActiveLosslessBinding } from './registry';
 import {
   getProjectionSnapshot,
   PROJECTION_CLASSES,
+  isConstructRevealed,
   resetProjectionSnapshot,
   setProjectionTestFailMode,
   type ConstructRange,
 } from './projection';
+import {
+  resetAllCohortFlags,
+  setP4bFlagEnabled,
+} from './cohortFlags';
 
 let dir: string;
 
@@ -584,4 +589,414 @@ describe('P2 projection adapter', () => {
     expect(snapshot.constructs).toEqual(GOLDEN);
   });
 });
+
+// ── P4B task 7.1/7.2 — per-cohort marker reveal refinement ─────────────────
+//
+// New independent describe. The construct/marker set (GOLDEN above) is
+// FROZEN and untouched: these tests only cover the REVEAL decision
+// (`isConstructRevealed`), which is a pure function of (construct, selection,
+// doc length, cohort-flag state). Each marker cohort is independently
+// flag-gated (default OFF); when a cohort flag is ON, a collapsed caret reveals
+// a construct only when it sits strictly INSIDE the construct content range,
+// and any non-empty selection / Select All fully reveals. When all flags are
+// OFF, `isConstructRevealed` must be byte-identical to the pre-7.1 radius-2
+// logic (locked by the parity sweep test).
+
+const h1 = { from: 6, to: 12, markers: [[6, 7]], cls: PROJECTION_CLASSES.heading, level: 1 } as ConstructRange;
+const strong = { from: 0, to: 8, markers: [[0, 2], [6, 8]], cls: PROJECTION_CLASSES.strong } as ConstructRange;
+const emphasis = { from: 0, to: 6, markers: [[0, 1], [5, 6]], cls: PROJECTION_CLASSES.emphasis } as ConstructRange;
+const strike = { from: 0, to: 8, markers: [[0, 2], [6, 8]], cls: PROJECTION_CLASSES.strikethrough } as ConstructRange;
+const code = { from: 0, to: 8, markers: [[0, 1], [7, 8]], cls: PROJECTION_CLASSES.inlineCode } as ConstructRange;
+// [text](url): `[` 0  `]` 5  `(` 6  `)` 16 — the four-delimiter Outer Link.
+const link = { from: 0, to: 17, markers: [[0, 1], [5, 6], [6, 7], [16, 17]], cls: PROJECTION_CLASSES.link } as ConstructRange;
+// Naked URL (image/auto-link URL, GOLDEN 156-style): NO delimiter markers.
+const nakedUrl = { from: 7, to: 24, markers: [], cls: PROJECTION_CLASSES.link } as ConstructRange;
+const blockquote = { from: 0, to: 14, markers: [[0, 1]], cls: PROJECTION_CLASSES.blockquote } as ConstructRange;
+const listItem = { from: 0, to: 12, markers: [[0, 1]], cls: PROJECTION_CLASSES.listItem } as ConstructRange;
+const fence = { from: 12, to: 30, markers: [], cls: PROJECTION_CLASSES.fence } as ConstructRange;
+
+/** Collapsed caret selection at `caret`. */
+const caret = (pos: number): { from: number; to: number; empty: boolean } => ({ from: pos, to: pos, empty: true });
+/** Non-empty range selection [from,to]. */
+const rangeSel = (from: number, to: number): { from: number; to: number; empty: boolean } => ({ from, to, empty: false });
+
+/** Every cohort-class construct used by the 7.2 matrix, keyed by class. */
+const COHORT_CONSTRUCTS: Record<string, ConstructRange> = {
+  h: h1,
+  strong,
+  emphasis,
+  strike,
+  code,
+  link,
+  nakedUrl,
+  blockquote,
+  listItem,
+  fence,
+};
+
+describe('P4B task 7.1 — isConstructRevealed default (all cohort flags OFF) matches pre-7.1 radius logic', () => {
+  beforeEach(() => {
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllCohortFlags();
+  });
+
+  it('is byte-identical to the legacy radius-2 formula for every cohort class and a caret sweep', () => {
+    // The EXACT pre-7.1 reveal formula (clamped to the doc): for a collapsed
+    // caret `revealFrom = max(0, caret-2)`, `revealTo = min(docLen, caret+2)`,
+    // reveal iff `from <= revealTo && to >= revealFrom`.
+    const legacy = (r: ConstructRange, caretPos: number, docLen: number): boolean => {
+      const revealFrom = Math.max(0, caretPos - 2);
+      const revealTo = Math.min(docLen, caretPos + 2);
+      return r.from <= revealTo && r.to >= revealFrom;
+    };
+    const docLen = 40;
+    for (const [, r] of Object.entries(COHORT_CONSTRUCTS)) {
+      for (let pos = -2; pos <= docLen + 4; pos++) {
+        expect(isConstructRevealed(r, caret(pos), docLen)).toBe(legacy(r, pos, docLen));
+      }
+    }
+  });
+
+  it('range selection and Select All fully reveal every overlapping construct (OFF path)', () => {
+    // A range [0, docLen] = Select All reveal everything.
+    expect(isConstructRevealed(fence, rangeSel(0, 40), 40)).toBe(true);
+    // A caret range over just the heading content.
+    expect(isConstructRevealed(h1, rangeSel(6, 11), 40)).toBe(true);
+    // Non-overlapping range does not reveal.
+    expect(isConstructRevealed(h1, rangeSel(20, 30), 40)).toBe(false);
+  });
+});
+
+describe('P4B task 7.1 ① — heading+strong cohort (headingStrong)', () => {
+  beforeEach(() => {
+    resetAllCohortFlags();
+    setP4bFlagEnabled('headingStrong', true);
+  });
+  afterEach(() => resetAllCohortFlags());
+
+  it('collapsed caret inside heading content or # marker reveals; the radius fringe does not', () => {
+    // Caret inside the content (e.g. mid "Head").
+    expect(isConstructRevealed(h1, caret(9), 40)).toBe(true);
+    // Caret on the # delimiter position (inside content too).
+    expect(isConstructRevealed(h1, caret(7), 40)).toBe(true);
+    // Just outside the construct (fringe the base radius would reveal).
+    expect(isConstructRevealed(h1, caret(4), 40)).toBe(false); // from-2
+    expect(isConstructRevealed(h1, caret(5), 40)).toBe(false); // from-1
+    expect(isConstructRevealed(h1, caret(13), 40)).toBe(false); // to+1
+    // Far away.
+    expect(isConstructRevealed(h1, caret(30), 40)).toBe(false);
+  });
+
+  it('strong uses the same content-containment reveal and never ghosts on a range sweep', () => {
+    expect(isConstructRevealed(strong, caret(1), 40)).toBe(true); // inside **
+    expect(isConstructRevealed(strong, caret(4), 40)).toBe(true); // mid "bold"
+    expect(isConstructRevealed(strong, caret(3), 40)).toBe(true);
+    expect(isConstructRevealed(strong, caret(9), 40)).toBe(false); // to+1 (base radius reveals)
+    expect(isConstructRevealed(strong, rangeSel(6, 8), 40)).toBe(true); // range over **
+    expect(isConstructRevealed(strong, rangeSel(0, 40), 40)).toBe(true); // select all
+  });
+
+  it('turning the cohort off restores the base radius reveal on the same positions', () => {
+    setP4bFlagEnabled('headingStrong', false);
+    // Base radius-2 reveals the heading even from 2 code units outside.
+    expect(isConstructRevealed(h1, caret(5), 40)).toBe(true); // from-1 → base reveals
+    expect(isConstructRevealed(strong, caret(9), 40)).toBe(true); // to+1 → base reveals
+  });
+});
+
+describe('P4B task 7.1 ② — emphasis+strike+inline-code cohort (emphasisStrikeInlineCode)', () => {
+  beforeEach(() => {
+    resetAllCohortFlags();
+    setP4bFlagEnabled('emphasisStrikeInlineCode', true);
+  });
+  afterEach(() => resetAllCohortFlags());
+
+  it('emphasis / strikethrough / inline-code reveal on a collapsed caret inside content', () => {
+    for (const c of [emphasis, strike, code]) {
+      expect(isConstructRevealed(c, caret(c.from + 1), 40)).toBe(true); // inside an opener
+      expect(isConstructRevealed(c, caret(c.from + 3), 40)).toBe(true); // mid content
+      expect(isConstructRevealed(c, caret(c.to - 1), 40)).toBe(true); // inside closer
+    }
+    if (emphasis) {
+      // single-* emphasis has no room for a marker-adjacent surrogate to split;
+      // the reveal stays within content.
+      expect(isConstructRevealed(emphasis, caret(7), 40)).toBe(false); // outside
+    }
+  });
+
+  it('collapsed caret in the radius fringe does NOT reveal under the cohort (base would)', () => {
+    expect(isConstructRevealed(strike, caret(9), 40)).toBe(false); // to+1
+    expect(isConstructRevealed(strike, caret(-1), 40)).toBe(false); // from-1 (clamped)
+    resetAllCohortFlags(); // restore
+    expect(isConstructRevealed(strike, caret(9), 40)).toBe(true); // base radius reveals
+  });
+});
+
+// The CJK/emoji paths are exercised at the DOM level below (real editor) so a
+// surrogate pair inside `**加粗🚀**` is mapped and revealed without splitting.
+
+describe('P4B task 7.1 ③ — links cohort (links, four-delimiter Link only)', () => {
+  beforeEach(() => {
+    resetAllCohortFlags();
+    setP4bFlagEnabled('links', true);
+  });
+  afterEach(() => resetAllCohortFlags());
+
+  it('the [text](url) Link reveals for a caret inside any of its 4 delimiters or content', () => {
+    // Inside `[`, `]`, `(`, `)` positions.
+    expect(isConstructRevealed(link, caret(1), 40)).toBe(true);
+    expect(isConstructRevealed(link, caret(6), 40)).toBe(true);
+    expect(isConstructRevealed(link, caret(7), 40)).toBe(true);
+    expect(isConstructRevealed(link, caret(16), 40)).toBe(true);
+    // Inside the link text / url content.
+    expect(isConstructRevealed(link, caret(3), 40)).toBe(true);
+    expect(isConstructRevealed(link, caret(12), 40)).toBe(true);
+    // Just outside (fringe) → not revealed under the cohort.
+    expect(isConstructRevealed(link, caret(18), 40)).toBe(false);
+    // Range / Select All fully reveal.
+    expect(isConstructRevealed(link, rangeSel(0, 40), 40)).toBe(true);
+  });
+
+  it('naked URL / legacy mf-link shapes keep the BASE reveal (not 4 markers → gate inactive)', () => {
+    // nakedUrl has markers=[] → the links gate is OFF → the base radius applies,
+    // so a caret just OUTSIDE (from-1) still reveals it under the cohort flag —
+    // exactly the base behaviour, NOT the ref 4-delimiter Link refinement.
+    expect(isConstructRevealed(nakedUrl, caret(6), 40)).toBe(true); // from-1 → base radius reveals
+    expect(isConstructRevealed(nakedUrl, caret(8), 40)).toBe(true); // inside
+    expect(isConstructRevealed(nakedUrl, caret(30), 40)).toBe(false); // far
+    // The legacy 2-marker link-label shape (GOLDEN 302-style) is NOT gated either.
+    const legacyLabel = { from: 10, to: 14, markers: [[10, 11], [13, 14]], cls: PROJECTION_CLASSES.link } as ConstructRange;
+    expect(isConstructRevealed(legacyLabel, caret(12), 40)).toBe(true); // inside reveals
+    expect(isConstructRevealed(legacyLabel, caret(9), 40)).toBe(true); // from-1 → base radius reveals
+  });
+});
+
+describe('P4B task 7.1 ④ — quote+lists cohort (quoteLists)', () => {
+  beforeEach(() => {
+    resetAllCohortFlags();
+    setP4bFlagEnabled('quoteLists', true);
+  });
+  afterEach(() => resetAllCohortFlags());
+
+  it('blockquote and list-item reveal for a caret inside their marker or content', () => {
+    expect(isConstructRevealed(blockquote, caret(1), 40)).toBe(true); // on `>`
+    expect(isConstructRevealed(blockquote, caret(5), 40)).toBe(true); // mid quote text
+    expect(isConstructRevealed(listItem, caret(1), 40)).toBe(true); // on `-`
+    expect(isConstructRevealed(listItem, caret(4), 40)).toBe(true);
+  });
+
+  it('collapsed caret on the blank line / fringe does not reveal under the cohort', () => {
+    expect(isConstructRevealed(blockquote, caret(15), 40)).toBe(false);
+    expect(isConstructRevealed(listItem, caret(13), 40)).toBe(false);
+    // Range select-all still fully reveals.
+    expect(isConstructRevealed(listItem, rangeSel(0, 40), 40)).toBe(true);
+  });
+});
+
+describe('P4B task 7.1 ⑤ — fence cohort (fence, markers frozen empty)', () => {
+  beforeEach(() => {
+    resetAllCohortFlags();
+    setP4bFlagEnabled('fence', true);
+  });
+  afterEach(() => resetAllCohortFlags());
+
+  it('a caret inside the fence content reveals the fence; the trailing blank line does not', () => {
+    expect(isConstructRevealed(fence, caret(14), 40)).toBe(true); // inside code
+    expect(isConstructRevealed(fence, caret(20), 40)).toBe(true); // deep inside
+    expect(isConstructRevealed(fence, caret(31), 40)).toBe(false); // just past closing
+    expect(isConstructRevealed(fence, caret(40), 40)).toBe(false); // far
+    // Range sweep over the fence fully reveals.
+    expect(isConstructRevealed(fence, rangeSel(10, 32), 40)).toBe(true);
+  });
+
+  it('the frozen empty marker set is untouched (fence `` ``` `` never weakened as a marker)', () => {
+    // Fence markers are frozen to [] by GOLDEN — a fence shows its delimiters
+    // as full construct, never as a separate .mf-marker weak span.
+    expect(fence.markers).toEqual([]);
+  });
+});
+
+// ── P4B task 7.2 — interaction matrix over the REAL editor (DOM reveal) ───
+
+describe('P4B task 7.2 — per-cohort reveal over the real editor (DOM)', () => {
+  beforeEach(() => resetAllCohortFlags());
+  afterEach(() => resetAllCohortFlags());
+
+  it('headingStrong ON vs OFF changes whether the fringe caret leaves the marker weak', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** here\n\nplain paragraph far away\n';
+    const path = await writeFixture('reveal-strong-cohort.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+
+    // Caret just after the strong construct (`**bold** ` → pos 9), the radius-2
+    // fringe that the BASE reveal would light up.
+    view.dispatch({ selection: { anchor: md.indexOf('here') } });
+
+    // OFF (default): strong construct is ACTIVE (mf-active, no weak markers).
+    const off = getRevealState(view);
+    expect(off.activeCount).toBeGreaterThan(0);
+    expect(off.markerCount).toBe(0);
+
+    // Flip headingStrong ON: the same fringe caret no longer reveals strong.
+    setP4bFlagEnabled('headingStrong', true);
+    view.dispatch({ selection: { anchor: md.indexOf('here') + 1 } }); // force rebuild
+    const on = getRevealState(view);
+    expect(on.activeCount).toBe(0);
+    expect(on.markerCount).toBeGreaterThan(0);
+  });
+
+  it('a caret INSIDE the strong content still reveals under headingStrong ON', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** here\n\nplain paragraph far away\n';
+    const path = await writeFixture('reveal-strong-inside.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    setP4bFlagEnabled('headingStrong', true);
+
+    view.dispatch({ selection: { anchor: md.indexOf('bold') + 1 } }); // inside bold
+    const reveal = getRevealState(view);
+    expect(reveal.activeCount).toBeGreaterThan(0);
+    expect(reveal.markerCount).toBe(0);
+    // The source characters remain byte-for-byte.
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('fence cohort: caret inside code reveals the fence; trailing blank line does not; no descent', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '```js\nconst x = 1;\n```\n\nplain\n';
+    const path = await writeFixture('reveal-fence-cohort.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    setP4bFlagEnabled('fence', true);
+
+    // Caret inside the fence code line.
+    view.dispatch({ selection: { anchor: md.indexOf('const x') + 1 } });
+    let reveal = getRevealState(view);
+    expect(reveal.activeCount).toBeGreaterThan(0);
+    // No construct descends into the fence body (only the fence itself decorates).
+    const snap = getProjectionSnapshot();
+    expect(snap.constructs.filter((c) => c.cls === PROJECTION_CLASSES.fence).length).toBe(1);
+    // No inner *construct* decoration appears between the open and close code.
+    expect(
+      snap.constructs.some((c) => c.cls !== PROJECTION_CLASSES.fence && c.from > 3 && c.to < 24),
+    ).toBe(false);
+
+    // Caret on the blank line after the fence → not active.
+    view.dispatch({ selection: { anchor: md.indexOf('plain') } });
+    reveal = getRevealState(view);
+    expect(reveal.activeCount).toBe(0);
+    // The source (incl. the fence body) is unchanged.
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('CJK/emoji: a caret inside **加粗🚀** reveals and never splits the surrogate pair', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**加粗🚀** more text\n';
+    const path = await writeFixture('reveal-emoji-cohort.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    setP4bFlagEnabled('headingStrong', true);
+
+    // Caret inside the CJK/emoji bold content (uses UTF-16 index arithmetic;
+    // emoji is surrogate-pair wide in UTF-16 but Lezer keeps positions aligned).
+    const inside = md.indexOf('**') + 2; // right after `**`
+    view.dispatch({ selection: { anchor: inside } });
+    let reveal = getRevealState(view);
+    // Content containment fires with no crash; the construct is revealed.
+    expect(reveal.activeCount).toBeGreaterThan(0);
+
+    // Caret at the construct end + 1 (just outside, past the closer) → weak.
+    const strongEnd = md.indexOf('**', md.indexOf('加粗')) + 2; // end of `**加粗🚀**`
+    view.dispatch({ selection: { anchor: strongEnd + 1 } });
+    reveal = getRevealState(view);
+    expect(reveal.activeCount).toBe(0);
+    expect(reveal.markerCount).toBeGreaterThan(0);
+    // No marker span ever splits a surrogate pair (each marker is exactly `**`
+    // or a CJK char boundary — never half an emoji).
+    for (const el of Array.from(view.contentDOM.querySelectorAll('span.mf-marker'))) {
+      const t = el.textContent ?? '';
+      // Surrogate-pair safety: no marker text ends with a lone high surrogate.
+      expect(t.charCodeAt(t.length - 1) >= 0xd800 && t.charCodeAt(t.length - 1) <= 0xdbff).toBe(false);
+    }
+  });
+
+  it('read-only: reveal is purely selection-driven and identical in read-only mode', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** here\n';
+    const path = await writeFixture('reveal-readonly.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    setP4bFlagEnabled('headingStrong', true);
+
+    // A caret inside the strong content reveals while editable.
+    view.dispatch({ selection: { anchor: md.indexOf('bold') + 1 } });
+    const editableOn = getRevealState(view);
+    expect(editableOn.activeCount).toBeGreaterThan(0);
+
+    // Make the view read-only (same editor surface); selection still drives reveal.
+    const { EditorState, StateEffect } = await import('@codemirror/state');
+    view.dispatch({ effects: StateEffect.appendConfig.of(EditorState.readOnly.of(true)) });
+    view.dispatch({ selection: { anchor: md.indexOf('bold') + 2 } }); // move caret
+    const readOnly = getRevealState(view);
+    expect(readOnly.activeCount).toBeGreaterThan(0);
+    // The doc is unchanged by the whole interaction.
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('Select All fully reveals every cohort construct (7.2 Select All gate)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = ['# H', '', '**bold**', '', '- item'].join('\n');
+    const path = await writeFixture('reveal-selectall.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    // Turn on two cohorts to prove per-cohort Select All independence.
+    setP4bFlagEnabled('headingStrong', true);
+    setP4bFlagEnabled('quoteLists', true);
+
+    view.dispatch({ selection: { anchor: 0, head: md.length } }); // Select All
+    const reveal = getRevealStateMany(view, [PROJECTION_CLASSES.heading, PROJECTION_CLASSES.strong, PROJECTION_CLASSES.listItem]);
+    for (const count of reveal) {
+      expect(count).toBeGreaterThan(0);
+    }
+    expect(view.state.doc.toString()).toBe(md);
+  });
+});
+
+/** Count `.mf-active` constructs and `.mf-marker` weak spans for reveal tests. */
+function getRevealState(view: {
+  contentDOM: HTMLElement;
+}): { activeCount: number; markerCount: number } {
+  const activeCount = view.contentDOM.querySelectorAll('span.mf-active').length;
+  const markerCount = view.contentDOM.querySelectorAll('span.mf-marker').length;
+  return { activeCount, markerCount };
+}
+
+/** Per-class `.mf-active` construct counts for the given classes. */
+function getRevealStateMany(
+  view: { contentDOM: HTMLElement },
+  classes: string[],
+): number[] {
+  return classes.map((cls) => view.contentDOM.querySelectorAll(`span.mf-active.mf-${cls.replace('mf-', '')}`).length);
+}
 

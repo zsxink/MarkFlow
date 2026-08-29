@@ -22,6 +22,7 @@ import { tags } from '@lezer/highlight';
 import { getLanguageExtension } from '../codemirror-languages';
 import { highlightLimitPlugin } from '../codemirror-highlight-limit';
 import { projectionExtension } from './projection';
+import { widgetProjectionExtension } from './widgets/p4bWidgets';
 import { getCachedSettings } from '../storage';
 
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -306,7 +307,7 @@ export function buildLosslessExtensions(
       // selection, or the History — it only adds/removes semantic decorations.
       projectionCompartment.of(
         livePreviewEnabled && (options.mode ?? 'source') === 'preview'
-          ? projectionExtension()
+          ? [projectionExtension(), widgetProjectionExtension()]
           : [],
       ),
     ];
@@ -347,7 +348,9 @@ export function createLosslessSourceEditor(
       mode = nextMode;
       view.dispatch({
         effects: built.projectionCompartment.reconfigure(
-          built.livePreviewEnabled && mode === 'preview' ? projectionExtension() : [],
+          built.livePreviewEnabled && mode === 'preview'
+            ? [projectionExtension(), widgetProjectionExtension()]
+            : [],
         ),
       });
     },
@@ -357,7 +360,9 @@ export function createLosslessSourceEditor(
       // and in preview mode the projection turns on; otherwise it stays off.
       view.dispatch({
         effects: built.projectionCompartment.reconfigure(
-          enabled && mode === 'preview' ? projectionExtension() : [],
+          enabled && mode === 'preview'
+            ? [projectionExtension(), widgetProjectionExtension()]
+            : [],
         ),
       });
     },

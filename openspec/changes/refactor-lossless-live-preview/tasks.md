@@ -119,17 +119,18 @@
   - run `20260829-035314-p4a-f189b0c`（Reviewer PASS）：Lezer 唯一原生 markerRanges 且 0 INVALID；markdown-rs 性能不可用；pulldown-cmark/comrak 无定界符 span；draft ParseIndex 排除（无 JVM）
 - [x] 6.2 对 CJK、emoji、escape、nested、malformed 与随机 boundary 做 range→source slice property tests；任一 lossless/range 失败淘汰候选
   - run `20260829-055341-p4a-5ac06b5`（Reviewer PASS）：Lezer 0 range 失败；markdown-rs 深嵌套 TIMEOUT 11.1s + SIGABRT 淘汰证据；顺带修复 6.1 harness QuoteMark 归因缺陷
-- [ ] 6.3 冻结 parser/source-map ADR；无合格胜者时在当前分支把 P4A 标记为 `SPIKE_COMPLETE_NO_CORE_IR`，保留本地基础投影和复杂源码 fallback，并标记后续依赖项，不阻塞默认编辑
+- [x] 6.3 冻结 parser/source-map ADR；无合格胜者时在当前分支把 P4A 标记为 `SPIKE_COMPLETE_NO_CORE_IR`，保留本地基础投影和复杂源码 fallback，并标记后续依赖项，不阻塞默认编辑
   - ADR 已冻结：`adr/adr-parser-source-map-render-ir.md`（终态 `SPIKE_COMPLETE_NO_CORE_IR`；Lezer 为唯一受信 local source-map；Core IR 无合格 Rust producer）<!-- PENDING-MANUAL: ADR 由 AI 依据两轮独立复核证据冻结，Program Owner 确认待界面人工验证阶段 -->
-- [ ] 6.4 定义 versioned Render IR：binding/session/document/revision/request/source hash/viewport、stable block identity、ranges、fallback/widget descriptors
+- [x] 6.4 定义 versioned Render IR：binding/session/document/revision/request/source hash/viewport、stable block identity、ranges、fallback/widget descriptors
   <!-- NOT APPLICABLE（P4A 终态 SPIKE_COMPLETE_NO_CORE_IR，见 ADR §3.3：无 producer，schema 为死代码；P7 任务 10.1 为内建复查点） -->
-- [ ] 6.5 实现 viewport/cancel/stale/degraded 协议与 construct owner registry，保证 local/core/source-fallback 唯一 owner
-  - 部分实施：Core-IR 请求协议 NOT APPLICABLE（local projection 已在 CM 事务内处理，P2 任务 4.5/4.10/4.13 证据）；construct owner registry 按本地形态实施（ADR §3.3）
-- [ ] 6.6 接入 Core IR 作为增强投影，验证 IR timeout/stale/跨文档结果不会影响本地基础投影、输入和保存
+- [x] 6.5 实现 viewport/cancel/stale/degraded 协议与 construct owner registry，保证 local/core/source-fallback 唯一 owner
+  - 部分实施：Core-IR 请求协议 NOT APPLICABLE（local projection 已在 CM 事务内处理，P2 任务 4.5/4.10/4.13 证据）；construct owner registry 按本地形态实施（ADR §3.3）；`renderOwnerRegistry.ts` + projection 接线已提交并测试（提交 `4116632`）
+- [x] 6.6 接入 Core IR 作为增强投影，验证 IR timeout/stale/跨文档结果不会影响本地基础投影、输入和保存
   <!-- NOT APPLICABLE（无 Core IR 可接入，ADR §3.3；"IR 关闭不影响 P3"由 6.8 全 gate 复核等效覆盖） -->
-- [ ] 6.7 添加真实 dispatcher、payload benchmark、adapter reconciliation 和 desktop degraded/retry E2E
+- [x] 6.7 添加真实 dispatcher、payload benchmark、adapter reconciliation 和 desktop degraded/retry E2E
   <!-- NOT APPLICABLE（四个子项均 Core IR 专属，ADR §3.3；desktop degraded 投影 E2E 已由 P2/P3 覆盖并在 6.8 复跑） -->
-- [ ] 6.8 运行全 gate 与独立 reviewer；记录 `GO_CORE_IR`、`SPIKE_COMPLETE_NO_CORE_IR` 或 `NO-GO` 终态；未通过 identity/range 门禁时 `coreRenderIr` 保持 default-off
+- [x] 6.8 运行全 gate 与独立 reviewer；记录 `GO_CORE_IR`、`SPIKE_COMPLETE_NO_CORE_IR` 或 `NO-GO` 终态；未通过 identity/range 门禁时 `coreRenderIr` 保持 default-off
+  - run `20260829-175840-p4a-d864cc9`：12/12 gate exit 0（npm test 572、cargo 153、openspec strict+all、archive-sync、byte-contract、e2e smoke 5 / regression 1）；独立 Reviewer PASS；**终态 `SPIKE_COMPLETE_NO_CORE_IR`**；`coreRenderIr` 产品侧 0 命中（未实现 = 最强 default-off）
 
 ## 7. Slice 4B — Marker Cohorts 与高级 Widgets
 

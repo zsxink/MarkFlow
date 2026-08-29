@@ -18,11 +18,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   CONSTRUCT_KINDS,
+  arbitrateNestedOwner,
+  editableSlotFor,
   getOwnerRegistrySnapshot,
   registerConstructOwner,
   resetOwnerRegistry,
   resolveConstructOwner,
   type ConstructKind,
+  type EditableSlot,
 } from './renderOwnerRegistry';
 import { classifyLezerNode, PROJECTION_CLASSES } from './projection';
 
@@ -335,5 +338,195 @@ describe('renderOwnerRegistry — projection wiring parity (task 6.5)', () => {
     expect(classifyLezerNode('Table')).toBeNull();
     expect(classifyLezerNode('Image')).toBeNull();
     expect(classifyLezerNode('Paragraph')).toBeNull();
+  });
+});
+
+describe('renderOwnerRegistry — task 7.5 parent/child editable-slot arbitration', () => {
+  it('a listItem task widget owns ONLY the 3-byte marker, so an inner strong stays local (the key scenario)', () => {
+    // `- [ ] **bold**`  — Task node `[0, 13)`, marker `[ ]` = `[2, 5)`.
+    // The task widget's editable slot is the marker ONLY (SourceRangeSet.markers),
+    // NOT the whole list item source. Register the listItem owner as the widget.
+    registerConstructOwner('listItem', 'widget', { label: 'p4b.task-checkbox' });
+
+    // The widget's declared editable span: the 3 marker bytes.
+    const parentSlot: EditableSlot = { owner: 'widget', source: 'p4b.task-checkbox', from: 2, to: 5 };
+    // The inner **bold** strong is strictly OUTSIDE the marker slot.
+    const childSlot = editableSlotFor('strong', 6, 13);
+    expect(childSlot.owner).toBe('local');
+
+    // Not nested in the widget's editable span → no conflict → child stays local.
+    expect(arbitrateNestedOwner(parentSlot, childSlot)).toEqual(childSlot);
+    expect(arbitrateNestedOwner(parentSlot, childSlot).owner).toBe('local');
+  });
+
+  it('same listItem widget — inner emphasis/inlineCode/link also stay local (outside the marker slot)', () => {
+    // `- [ ] `em` and `code` and [l](u)` — those inline marks are all in the item
+    // text, strictly after the 3-byte `[ ]` marker `[2,5)`.
+    registerConstructOwner('listItem', 'widget', { label: 'p4b.task-checkbox' });
+    const parentSlot: EditableSlot = { owner: 'widget', source: 'p4b.task-checkbox', from: 2, to: 5 };
+    for (const span of [
+      [6, 11] /* emphasis */,
+      [16, 24] /* inlineCode */,
+      [29, 34] /* link text */,
+    ] as const) {
+      const result = arbitrateNestedOwner(parentSlot, {
+        owner: 'local',
+        source: 'default',
+        from: span[0],
+        to: span[1],
+      });
+      expect(result.owner).toBe('local');
+      expect(result.from).toBe(span[0]);
+      expect(result.to).toBe(span[1]);
+    }
+  });
+
+  it('blockquote containing listItem — both local by default → no arbitration (both decorate)', () => {
+    const parent = editableSlotFor('blockquote', 0, 20);
+    const child = editableSlotFor('listItem', 2, 18);
+    expect(parent.owner).toBe('local');
+    expect(child.owner).toBe('local');
+    // Neither is a widget → child unchanged; projection decorates both.
+    expect(arbitrateNestedOwner(parent, child)).toEqual(child);
+    expect(arbitrateNestedOwner(parent, child).owner).toBe('local');
+  });
+
+  it('fence widget owns only the opening CodeMark slot; the code body has nothing interactive → no conflict', () => {
+    // ` ```js\nbody\n``` ` — fence widget editable slot = the opening marker.
+    registerConstructOwner('fence', 'widget', { label: 'p4b.code-fence-controls' });
+    const parentSlot: EditableSlot = { owner: 'widget', source: 'p4b.code-fence-controls', from: 0, to: 3 };
+    // The body span is strictly outside the opening-marker slot.
+    const bodySlot: EditableSlot = { owner: 'local', source: 'default', from: 4, to: 20 };
+    expect(arbitrateNestedOwner(parentSlot, bodySlot)).toEqual(bodySlot);
+    expect(arbitrateNestedOwner(parentSlot, bodySlot).owner).toBe('local');
+  });
+
+  it('a link widget owned concurrently with the 4-marker reveal still keeps url/text source-editable as local', () => {
+    // `[text](url)` — a link cohort widget owns the construct while the reveal
+    // is active; its DECLARED editable slot is the delimiter marker(s) only, so
+    // the link text and url remain plain local source-editable (they are NOT the
+    // widget's editable span, even though the `link` KIND resolves to widget).
+    registerConstructOwner('link', 'widget', { label: 'p4b.link-cohort' });
+    expect(resolveConstructOwner('link').owner).toBe('widget');
+    // The declared widget slot is, say, the opening `[` delimiter `[0,1)`.
+    const widgetSlot: EditableSlot = { owner: 'widget', source: 'p4b.link-cohort', from: 0, to: 1 };
+    // The link text and url live OUTSIDE the widget's declared marker slot and
+    // stay source-editable as plain local (the widget owns only its declared slot).
+    const textSlot: EditableSlot = { owner: 'local', source: 'default', from: 1, to: 5 };
+    const urlSlot: EditableSlot = { owner: 'local', source: 'default', from: 6, to: 9 };
+    // Neither is inside the widget's declared slot → both stay local.
+    expect(arbitrateNestedOwner(widgetSlot, textSlot)).toEqual(textSlot);
+    expect(arbitrateNestedOwner(widgetSlot, urlSlot)).toEqual(urlSlot);
+  });
+
+  it('two NESTED whole-span widgets: the PARENT widget wins the editable region', () => {
+    // Forward-looking: a future blockquote widget owning the whole construct and
+    // a list widget inside it — both whole-span. Parent must win (block the child).
+    const parentWidget: EditableSlot = { owner: 'widget', source: 'p4b.blockquote-widget', from: 0, to: 20 };
+    const childWidget: EditableSlot = { owner: 'widget', source: 'p4b.list-widget', from: 2, to: 18 };
+    expect(arbitrateNestedOwner(parentWidget, childWidget)).toEqual(parentWidget);
+    expect(arbitrateNestedOwner(parentWidget, childWidget).owner).toBe('widget');
+  });
+
+  it('parentYieldsTo lets a parent widget hand its region to a specific nested widget', () => {
+    const parentWidget: EditableSlot = { owner: 'widget', source: 'p4b.blockquote-widget', from: 0, to: 20 };
+    const childWidget: EditableSlot = { owner: 'widget', source: 'p4b.list-widget', from: 2, to: 18 };
+    const yieldToList = { parentYieldsTo: (s: string) => s === 'p4b.list-widget' };
+    expect(arbitrateNestedOwner(parentWidget, childWidget, yieldToList)).toEqual(childWidget);
+    // A different child label is NOT yielded → parent still wins.
+    const otherChild: EditableSlot = { owner: 'widget', source: 'p4b.other-widget', from: 3, to: 17 };
+    expect(arbitrateNestedOwner(parentWidget, otherChild, yieldToList)).toEqual(parentWidget);
+  });
+
+  it('a widget parent consumes a nested LOCAL child (one widget → the widget wins)', () => {
+    const parentWidget: EditableSlot = { owner: 'widget', source: 'p4b.blockquote-widget', from: 0, to: 20 };
+    const childLocal: EditableSlot = { owner: 'local', source: 'default', from: 2, to: 18 };
+    expect(arbitrateNestedOwner(parentWidget, childLocal)).toEqual(parentWidget);
+  });
+
+  it('a child widget over a LOCAL parent keeps its own slot (one widget → the widget wins)', () => {
+    const parentLocal: EditableSlot = { owner: 'local', source: 'default', from: 0, to: 20 };
+    const childWidget: EditableSlot = { owner: 'widget', source: 'p4b.list-widget', from: 2, to: 18 };
+    expect(arbitrateNestedOwner(parentLocal, childWidget)).toEqual(childWidget);
+  });
+
+  it('children of a source-fallback parent degrade to exact source — a widget child NEVER gets widget DOM', () => {
+    const fallbackParent: EditableSlot = { owner: 'source-fallback', source: 'default', from: 0, to: 20 };
+    const childWidget: EditableSlot = { owner: 'widget', source: 'p4b.some-widget', from: 2, to: 18 };
+    const result = arbitrateNestedOwner(fallbackParent, childWidget);
+    expect(result.owner).toBe('source-fallback');
+    expect(result.source).toBe('default');
+    expect(result.from).toBe(2);
+    expect(result.to).toBe(18);
+  });
+
+  it('is pure and returns exactly one slot without mutating inputs (unique-owner invariant preserved)', () => {
+    const parentWidget: EditableSlot = { owner: 'widget', source: 'p4b.parent', from: 0, to: 20 };
+    const childWidget: EditableSlot = { owner: 'widget', source: 'p4b.child', from: 2, to: 18 };
+    const before = [parentWidget, childWidget];
+    const out = arbitrateNestedOwner(parentWidget, childWidget);
+    // Inputs untouched.
+    expect([parentWidget, childWidget]).toEqual(before);
+    // Exactly one owner in the result (never two owners over one region).
+    expect(out.owner).toBe('widget');
+    expect(out).toEqual(parentWidget);
+  });
+});
+
+describe('renderOwnerRegistry — task 7.5 "core" is never a runtime owner', () => {
+  it("resolveConstructOwner never returns 'core' for ANY kind", () => {
+    for (const kind of CONSTRUCT_KINDS) {
+      expect(resolveConstructOwner(kind).owner).not.toBe('core');
+    }
+  });
+
+  it('the debug snapshot never contains core as an owner', () => {
+    const owners = Object.values(getOwnerRegistrySnapshot().owners);
+    expect(owners).not.toContain('core');
+    expect(owners.every((o) => o !== 'core')).toBe(true);
+  });
+});
+
+describe('renderOwnerRegistry — task 7.5 debug snapshot coverage', () => {
+  it('snapshot owners flip widget/local across flag ON/OFF transitions', () => {
+    let flagOn = false;
+    const teardown = registerConstructOwner('fence', 'widget', {
+      label: 'p4b.fence-cohort',
+      flag: () => flagOn,
+    });
+    expect(getOwnerRegistrySnapshot().owners.fence).toBe('local');
+    flagOn = true;
+    expect(getOwnerRegistrySnapshot().owners.fence).toBe('widget');
+    flagOn = false;
+    expect(getOwnerRegistrySnapshot().owners.fence).toBe('local');
+    teardown();
+    expect(getOwnerRegistrySnapshot().owners.fence).toBe('local');
+  });
+
+  it('conflict counter increments when a same-kind widget registration overrides an existing one', () => {
+    const first = registerConstructOwner('link', 'widget', { label: 'cohort-a' });
+    expect(getOwnerRegistrySnapshot().conflicts).toBe(0);
+    const second = registerConstructOwner('link', 'widget', { label: 'cohort-b' });
+    const snap = getOwnerRegistrySnapshot();
+    expect(snap.conflicts).toBe(1);
+    expect(snap.lastConflict).toEqual({ kind: 'link', supersededSource: 'cohort-a', source: 'cohort-b' });
+    expect(snap.owners.link).toBe('widget');
+    expect(snap.active).toBe(2);
+    second();
+    expect(getOwnerRegistrySnapshot().owners.link).toBe('widget'); // first still active
+    first();
+    expect(getOwnerRegistrySnapshot().owners.link).toBe('local'); // teardown restores default
+  });
+
+  it('teardown restores the default owner in the snapshot', () => {
+    const teardown = registerConstructOwner('emphasis', 'widget', { label: 'p4b.em' });
+    expect(getOwnerRegistrySnapshot().owners.emphasis).toBe('widget');
+    expect(getOwnerRegistrySnapshot().registered).toBe(1);
+    teardown();
+    const snap = getOwnerRegistrySnapshot();
+    expect(snap.owners.emphasis).toBe('local');
+    expect(snap.registered).toBe(0);
+    expect(snap.active).toBe(0);
+    expect(snap.conflicts).toBe(0);
   });
 });

@@ -278,6 +278,109 @@ export function resolveConstructOwner(kind: ConstructKind): OwnerResolution {
   return { owner: DEFAULT_OWNERS[kind], source: 'default' };
 }
 
+// ── Task 7.5: parent/child editable-slot arbitration ─────────────────────────
+//
+// `resolveConstructOwner(kind)` answers WHO owns a construct kind at a render
+// moment. The arbitration below answers a second, orthogonal question: given a
+// CHILD construct nested strictly inside a PARENT construct's editable span,
+// who owns the editable region? This is needed because a widget that owns a
+// source span must yield/block a nested child widget ownership inside that
+// span — otherwise two active widgets whose DOM ranges nest would fight over
+// the same editable region.
+//
+// The unit of arbitration is an `EditableSlot`: an owner + the UTF-16
+// `[from, to)` span (EditorState.doc coords) that owner actually edits. A
+// widget's editable span is its DECLARED marker/interaction slot
+// (widget protocol SourceRangeSet.markers), NOT its whole `source` construct
+// range — so the task-checkbox widget owning `listItem` owns only the 3-byte
+// `[ ]` marker, and the item's inner strong/emphasis/link (strictly OUTSIDE the
+// marker slot) stay local-decorated, with no conflict at all.
+//
+// This helper is PURE (registry owners + spans only — no DOM, no module state)
+// and returns exactly ONE slot per call, so it cannot break the unique-owner
+// invariant. It is NOT wired into projection.ts: the projection's per-kind
+// single-owner gate (classifyLezerNode returns null for every non-local owner)
+// already prevents local double-decoration, and a child construct inside a
+// widget-owned span is only ever reached through that widget's own DOM — see the
+// arbitration tests for the concrete pilot cases.
+
+/** An OWNER plus the UTF-16 `[from, to)` editable region it claims. */
+export interface EditableSlot {
+  owner: ConstructOwner;
+  /** Which registry entry produced the owner (label or 'default'). */
+  source: string;
+  from: number;
+  to: number;
+}
+
+/**
+ * Resolve the editable slot a construct KIND claims at `[from, to)` using the
+ * registry's CURRENT owner (flag closures evaluated at call time). Pure.
+ */
+export function editableSlotFor(kind: ConstructKind, from: number, to: number): EditableSlot {
+  const { owner, source } = resolveConstructOwner(kind);
+  return { owner, source, from, to };
+}
+
+export interface ArbitrateNestedOptions {
+  /**
+   * Child-yielding exemption: a PARENT widget may opt to hand its editable
+   * region to a nested child widget whose registry `source` label matches. This
+   * is the ONLY way a nested widget beats a parent widget. Default: never yield.
+   */
+  parentYieldsTo?: (childSource: string) => boolean;
+}
+
+/**
+ * Arbitrate the effective editable slot for `child` given that it nests inside
+ * `parent`'s editable span (task 7.5). Pure; returns exactly one slot.
+ *
+ * Rule (precedence order):
+ *   1. NOT nested: if `child` does not lie properly inside `parent`'s span the
+ *      editable regions don't overlap → no arbitration → child unchanged. This
+ *      is the listItem case: the task widget's editable slot is only the 3-byte
+ *      marker, so an inner strong/emphasis/link is NOT inside it → stays local.
+ *   2. source-fallback parent: children of exact-source NEVER get widget DOM
+ *      (nor local decoration) — the child degrades to exact source.
+ *   3. BOTH widget: the PARENT widget wins the editable region
+ *      (`{widget, parent.source, parent.from, parent.to}`) unless
+ *      `parentYieldsTo(child.source)` → child wins.
+ *   4. Exactly one widget: the widget wins. A parent widget consumes a local
+ *      child (returns the parent widget slot); a child widget keeps its own
+ *      slot over a local parent.
+ *   5. Neither is a widget: both stay their default owners → child unchanged.
+ */
+export function arbitrateNestedOwner(
+  parent: EditableSlot,
+  child: EditableSlot,
+  options?: ArbitrateNestedOptions,
+): EditableSlot {
+  const nested =
+    child.from >= parent.from &&
+    child.to <= parent.to &&
+    !(child.from === parent.from && child.to === parent.to);
+  // 1. Not nested → no conflict.
+  if (!nested) return child;
+  // 2. source-fallback parent never grants widget (or local) DOM to a child.
+  if (parent.owner === 'source-fallback') {
+    return { owner: 'source-fallback', source: 'default', from: child.from, to: child.to };
+  }
+  // 3. Both widget: parent by default; a declared yield flips to the child.
+  if (parent.owner === 'widget' && child.owner === 'widget') {
+    if (options?.parentYieldsTo?.(child.source)) return child;
+    return { owner: parent.owner, source: parent.source, from: parent.from, to: parent.to };
+  }
+  // 4. Exactly one widget: the widget owns the editable region.
+  if (parent.owner === 'widget') {
+    return { owner: parent.owner, source: parent.source, from: parent.from, to: parent.to };
+  }
+  if (child.owner === 'widget') {
+    return child;
+  }
+  // 5. Neither widget → default owners, no change.
+  return child;
+}
+
 /** Read-only debug/E2E snapshot — kind→owner map and counters, no body text. */
 export function getOwnerRegistrySnapshot(): OwnerRegistrySnapshot {
   const owners = {} as Record<ConstructKind, ConstructOwner>;

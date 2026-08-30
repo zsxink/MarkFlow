@@ -42,11 +42,13 @@ composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 
 ## 每项 AI 编码验证
 
 > 以下勾选依据 C01（433 unit）/ C10（byte contract）/ C15（28 desktop）中**实际存在并通过**的用例。
-> 独立 Reviewer 需逐一复核断言强度，尤其是**剪贴板**（source-based clipboard 的桌面断言未确认存在）与 **a11y**。
+> 独立 Reviewer 需逐一复核断言强度，尤其是**剪贴板**（见「已知缺口 2」：widget copy 按钮已断言，
+> 选区 copy 无证据）与 **a11y**。
 
 - [x] interaction states 与 source fallback
 - [x] empty heading/list/quote/fence 与 input-rule transition
-- [ ] mouse/keyboard/selection/clipboard —— **剪贴板子项待复核**
+- [ ] mouse/keyboard/selection/clipboard —— **选区 copy 子项缺证据**（widget copy 按钮已通过；
+      合成 `ClipboardEvent` 断言已起草，待 Reviewer 结论后落盘 + 新建 run-id 重跑）
 - [x] Select All/double-click/drag/nested selection/Undo landing
 - [x] 真实 CJK/Japanese IME start/update/end
 - [x] Undo/Redo 与模式切换
@@ -73,17 +75,32 @@ composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 
 1. **各 item 缺少独立 RUN 叙事**：7.9/7.10 要求「每项独立运行并记录 maturity/default/fallback」，
    目前证据散落在 C01/C10/C15 的 gate 日志中，没有 per-item 的 RUN 记录。属**记录缺口**，
    不是验证缺口；但必须先补上才谈得上 per-item Go。
-2. **source-based clipboard 断言未确认**：C15 覆盖了 task/fence/FrontMatter/failure-injection/
-   rollback/themes/zoom/dispose/export，但未找到明确断言「plain-text copy/cut 含 source」的用例。
-3. **`20260830-080554-p4b-widgets-a8c73de` 状态仍为 IN PROGRESS**，未封存；其与
-   `20260830-083435-p4b-corrective-a8c73de` 的覆盖关系需 Reviewer 确认。
+2. **source-based clipboard 只覆盖到 widget 按钮，选区 copy 无证据**（2026-08-30 缩小范围后重述）：
+   - **已有**：`e2e/specs/lossless/p4b-widgets.e2e.mjs:199` 与 `:233` 断言 fence widget 的
+     copy 按钮（点击与 Enter 两种激活方式）写入 `const x = 1;`，即 fence 的 **source 内容**。
+     这是一条真实存在的 source-based clipboard 断言，此前记成「未确认」是不准确的。
+   - **缺失**：**基于选区的 copy/cut（Cmd+C / Cmd+X）plain-text payload 是否为完整 Markdown
+     source** —— `src/lib/lossless/` 下无任何剪贴板单元测试，桌面 suite 中亦无对应断言。
+   - **为什么这条不能只靠推理**：CodeMirror 的 `handlers.copy` 用
+     `copiedRange()` → `state.sliceDoc()`，P4B 又不输出 `hidden`，所以**结构上**选区 copy
+     天然产出 source。但「结构上应当如此」不等于「有证据」，而 P6 的
+     `typora-wysiwyg-editing`「复制隐藏内容」场景（`specs/typora-wysiwyg-editing/spec.md:62`）
+     与 `tasks.md` §7.6 的 "source-based clipboard" 都直接依赖这个合同。
+   - **处置**：已起草选区 copy 断言（合成 `ClipboardEvent` + `DataTransfer`，走 CodeMirror
+     真实 `handlers.copy` 路径），待独立 Reviewer 结论后落盘并**新建 run-id 重跑全 gate**。
+3. **`20260830-080554-p4b-widgets-a8c73de` 已封存为 SUPERSEDED**（2026-08-30 处理）：补记了
+   封存附录。结论是该 run 的 19 个 gate **日志内容一致显示成功，但退出码从未捕获**
+   （`gates/` 只有 `.log` 无 `.exit`），因此**不作正式 gate run**，其 widget/策略项只作
+   探索性证据；正式 gate 证据为 `20260830-102354-p4b-ime-7869de8`（20/20，含退出码）。
+   同时记录了 smoke `5 skipped` / p0s `1 skipped` 的口径：那是聚合入口
+   （`all-smoke.e2e.mjs` / `all-p0s.e2e.mjs`）导致被聚合文件顶层零测试，**不是覆盖缺口**。
 
 ## Program decision
 
 ### Substrate checkpoint
 
 - [x] interaction harness / visibility / atomic navigation（AI gate 全绿）
-- [x] source clipboard / accessibility descriptor（AI gate 全绿；剪贴板断言强度待 Reviewer 复核）
+- [x] source clipboard / accessibility descriptor（AI gate 全绿；**剪贴板仅覆盖 widget copy 按钮，选区 copy 无证据，见「已知缺口 2」**）
 - [x] real CJK/Japanese IME baseline（中/日文均 GO）
 - [x] owner registry / nesting arbitration / source fallback（AI gate 全绿）
 - [x] widget protocol / stale identity / rollback（AI gate 全绿）

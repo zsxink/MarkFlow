@@ -1,6 +1,57 @@
 # P4B Widget/Policy Candidate Validation Run
 
-状态：IN PROGRESS
+状态：**SUPERSEDED — 未封存（gate 退出码未捕获，不作正式 gate run）**
+
+> ## 封存附录（2026-08-30 补记；历史正文不回写）
+>
+> 本 run 在 `08:14` 之后被搁置，**从未封存**：`RUN.md` 的 gate 表格停留在 `NOT STARTED`，
+> 且**所有 gate 均未捕获退出码**（`gates/` 下只有 `.log`，没有 `.exit`）。
+>
+> 因此本 run **不作为正式 gate run 计入 P4B**。下面「Commands」表格的 `NOT STARTED`
+> 是当时的真实记录状态，现按证据不可变原则原样保留，不回填、不改写。
+>
+> ### gate 日志的实测内容（可查，但退出码缺失）
+>
+> | ID | 日志内容摘要 |
+> | --- | --- |
+> | C01 | 8 files / 279 tests passed |
+> | C02 | `tsc --noEmit` 无错误输出 |
+> | C03 | 51 files / 843 tests passed |
+> | C04 | `✓ built in 4.15s` |
+> | C05 | core `test result: ok. 0 passed; 0 failed`（该 crate 无测试） |
+> | C06 | tauri `test result: ok. 0 passed; 0 failed`（无测试） |
+> | C07 | byte-contract `"pass": true`、`"failed": []` |
+> | C08 | `Change 'refactor-lossless-live-preview' is valid` |
+> | C09 | `Totals: 61 passed, 0 failed (61 items)` |
+> | C10 | `OK: all archived delta specs … are synced to main specs` |
+> | C11 | `Built application at: …/src-tauri/target/debug/…` |
+> | C12 | lossless `Spec Files: 1 passed, 1 total` |
+> | C13 | smoke `1 passed, 5 skipped, 6 total`（见下方口径说明） |
+> | C14 | regression `1 passed, 1 total` |
+> | C15 | p0s `1 passed, 1 skipped, 2 total`（同口径） |
+> | C16 | `git diff --check` 输出为空（无空白错误） |
+> | C17 | core `cargo fmt --check` 输出为空 |
+> | C18 | core clippy `Finished dev profile` |
+> | C19 | tauri clippy `Finished dev profile` |
+>
+> 日志内容一致指向成功，但**退出码未落盘 = 不可复核**，故只作探索性证据。
+>
+> ### 「skipped」口径说明（避免后续误读为覆盖不足）
+>
+> `smoke` 报 `5 skipped`、`p0s` 报 `1 skipped`，**不是测试被跳过**。
+> `e2e/specs/smoke/all-smoke.e2e.mjs` 是聚合入口，把 5 个模块以 `register*Tests()`
+> 形式导入并在同一 Tauri session 内串行执行；被聚合的 5 个文件自身没有顶层测试，
+> 因此被 WDIO 计为 skipped。同理 `p0s/all-p0s.e2e.mjs` 聚合 `p0s-lifecycle.e2e.mjs`。
+> 即：**smoke 与 p0s 的实际覆盖是完整的**，skip 计数是聚合设计的显示副作用。
+>
+> ### 与本 run 相关的结论处置
+>
+> - 本 run 的 **7.3（真实 IME）FAIL** 结论：根因是锁屏会话，已在
+>   `20260830-102354-p4b-ime-7869de8` 中通过真实解锁 GUI 会话解决，中/日文均通过。
+>   本 run 的 FAIL 观察保持原样，不因后续成功而改写。
+> - 本 run 的 widget/策略项（task/fence/owner/FrontMatter/raw HTML）**只有探索性 PASS**，
+>   正式 gate 证据见 `20260830-102354-p4b-ime-7869de8`（20/20，含退出码）。
+> - `FAILURES.md` 中 fence boundary 的修正与复测记录保持原样。
 
 ## Identity
 

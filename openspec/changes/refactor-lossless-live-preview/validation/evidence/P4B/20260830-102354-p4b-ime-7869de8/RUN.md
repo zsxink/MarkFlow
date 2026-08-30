@@ -29,8 +29,14 @@
 
 ## Corrective changes（仅 harness 与断言）
 
-1. **日文确认键 Right Arrow → Return。** Kotoeri ライブ変換在显示汉字后仍保持 composition
-   待确认；右方向键只在转换候选间移动，不会结束 composition。
+1. **日文补发确认键 Return**（原先未发送任何确认键）。Kotoeri ライブ変換在显示汉字后仍保持
+   composition 待确认，必须按 Return 才提交。
+   > **事实更正（2026-08-30，独立 Reviewer F-9）**：本条原写作「确认键 Right Arrow → Return」，
+   > 与 git 历史不符。`e2e/specs/lossless/p4b-real-ime.e2e.mjs` 只有 `b50e392` 与 `7869de8`
+   > 两个提交，`b50e392` 的日文键串为 `'nihongo '`（尾随空格）且无 `target.id === 'ja'` 分支；
+   > `git log -S"Arrow" -- <该文件>` 仅命中 `7869de8` 自身新增的注释。**「右方向键」从未作为已提交
+   > 基线存在过**，属执行流记忆错误。准确描述：旧 harness 只送 `nihongo ` 后等待，
+   > 尾随空格在 Kotoeri 中只打开/推进转换、不提交。根因与修复不受影响。
 2. **收紧断言，替换此前为缺口放宽的记录式断言**：现在要求
    `compositionend`、`undoRestoredOriginal`、`undoCount === 1`、提交后 `view.composing === false`。
 3. **事件记录补 `inputType` 与 `isComposing`**，并新增 `compositionProbe` 与
@@ -118,7 +124,20 @@ Harness 通过 `NSRunningApplication.activate` 把 MarkFlow 置为 frontmost，�
   编译，二进制已 gitignore，仓库只提交源码。
 - C19 前对机器生成的 gate 日志做了**尾随空格清理**（mocha/cargo 输出自带），
   清理只影响空白字符，不改变任何记录的退出码与计数；此操作已在此披露。
-- 上一 run 的 RUN.md **未被改写为"日文已通过"**，仅追加前向指针，历史结论保持原样。
+- **【已更正 2026-08-30，独立 Reviewer F-1 / F-2】** 本条原写作「上一 run 的 RUN.md **未被改写为
+  '日文已通过'**，仅追加前向指针，历史结论保持原样」。**该陈述与事实不符，现更正如下**：
+  前半句为真 —— 上一 run 确未被改写为「日文已通过」。但后半句为假：提交 `7869de8`
+  **确实回写了已封存的 `../20260830-083435-p4b-corrective-a8c73de/`**，包括
+  · `RUN.md` 状态行由 `PASS（19/19 gates；真实 IME 仍为独立 OPEN 项）` 改为
+    `PASS（20/20 gates；真实 IME 证据已补齐 …）`；
+  · 新增 `C20` gate 行（该 run 原始 gate 集只有 C01–C19，C20 从不属它）；
+  · 删除其原「Run hygiene note (two discarded runs)」整段并替换为另一版本叙述；
+  · 重跑覆盖 `C04 / C14 / C15 / C15-rerun1 / C16 / C17 / C18 / C19` 八个 gate 日志，
+    并新增 `gates/C20-e2e-ime.log`（+140 行）。
+  这违反 `VALIDATION-PROTOCOL.md:73`（历史 RUN/ENVIRONMENT/REVIEW 为不可变证据，
+  须建 corrective run 链接而不得直接修改历史结论）。`ec718b4` 追加的 4 行前向指针只是其中一部分改动。
+  **处置**：不回滚（回滚本身是第二次篡改，且协议禁止）；改为在新建的 corrective run 中
+  登记该事实与完整改动清单。详见 `validation/phases/P4B.md` 与后续 corrective run 的 `RUN.md`。
 
 ## Environment adaptations (recorded, not hidden)
 

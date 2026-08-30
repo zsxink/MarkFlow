@@ -3,8 +3,11 @@
 状态：**RESOLVED — GUI 会话解锁问题已解决；中文与日文真实 IME 均完全通过**
 
 > **结论修正（2026-08-30 后续）**：本 issue 曾记载日文为「product gap」，该结论**已被推翻**。
-> 日文 composition 不结束的根因是 harness 用错确认键（Kotoeri ライブ変換需按 **Return** 确认，
-> 此前按的是右方向键），**产品源码零改动**。详见
+> 日文 composition 不结束的根因是 harness **未发送确认键**（Kotoeri ライブ変換需按 **Return** 确认，
+> 旧 harness 只送 `nihongo ` 尾随空格后等待），**产品源码零改动**。
+> **事实更正（2026-08-30，独立 Reviewer F-9）**：此前本文件称「按的是右方向键」，该叙述与 git 历史
+> 不符——`p4b-real-ime.e2e.mjs` 的 `b50e392` 版无方向键、无 `target.id === 'ja'` 分支，
+> `git log -S"Arrow"` 仅命中修复提交自身的注释。「右方向键」从未作为已提交基线存在。详见
 > `20260830-p4b-ja-kotoeri-undo-compositionend-gap.md` 与
 > `../evidence/P4B/20260830-102354-p4b-ime-7869de8/RUN.md`。
 
@@ -73,7 +76,8 @@ Original blocker: host GUI session state, not product code. Corrective run used 
 
 Post-unlock finding (**已修正**): 日文当时不结束 composition 并非产品缺陷。Kotoeri ライブ変換
 在显示汉字后仍保持 composition 待确认（末次提交的 `isComposing` 仍为 `true`），必须按 **Return**
-确认才会触发真正的 `compositionend`。原 harness 按右方向键，仅在转换候选间移动。
+确认才会触发真正的 `compositionend`。原 harness **未发送任何确认键**，只送 `nihongo `（尾随空格）
+后等待（事实更正：此前所称「按右方向键」与 git 历史不符，见文首 F-9 更正）。
 期间 CodeMirror 的 `InputState.ignoreDuringComposition()` 因 `composing > 0` 吞掉所有真实按键，
 故 Undo 失效——对一个确实仍打开的 composition，这是正确行为。
 
@@ -81,7 +85,7 @@ Post-unlock finding (**已修正**): 日文当时不结束 composition 并非产
 
 GUI session blocker: run validation in an unlocked GUI session with the app capable of becoming frontmost.
 
-日文「gap」: **harness 修复**（确认键 Right Arrow → Return），**不需要产品修复**。
+日文「gap」: **harness 修复**（补发确认键 Return；原先未发送任何确认键），**不需要产品修复**。
 harness 仍然严格：不接受 WebDriver 文本注入、合成 `CompositionEvent` 或 `postToPid` 作为证据；
 断言反而被收紧（要求 `compositionend`、`undoCount === 1`、提交后 `view.composing === false`）。
 

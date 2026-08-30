@@ -23,6 +23,53 @@ async function sourceText() {
   });
 }
 
+// P4B 的 source-based clipboard 合同此前只有一条证据：fence widget 的显式 copy 按钮
+// 写入 source（`__p4bCopied === 'const x = 1;'`）。基于**选区**的 copy/cut 的
+// clipboard 载荷从未被回读过——CodeMirror 的 handlers.copy 走 copiedRange() → sliceDoc()，
+// 所以「结构上必然产出 source」，但推理不是证据，而 P6 的
+// `specs/typora-wysiwyg-editing/spec.md:62`「复制隐藏内容」场景直接依赖这个合同。
+// 这里用合成 ClipboardEvent + DataTransfer 走 CodeMirror 真实的 copy/cut handler 并回读载荷。
+async function clipboardRoundTrip(type, from, to) {
+  await browser.execute(([f, t]) => {
+    const el = document.querySelector('.source-editor-wrapper .cm-content');
+    const view = el?.cmTile?.view ?? el?.cmView?.view ?? null;
+    view.focus();
+    view.dispatch({ selection: { anchor: f, head: t } });
+  }, [from, to]);
+  // handlers.copy/cut 的前置条件是 hasSelection(view.contentDOM, observer.selectionRange)，
+  // 即 DOM 选区的 anchorNode 必须落在 contentDOM 内。DOM 选区由 observer 异步同步，
+  // 未同步时 handler 会静默 return false 且不写 clipboardData —— 必须等，否则测的是 harness。
+  await browser.waitUntil(async () => await browser.execute(() => {
+    const el = document.querySelector('.source-editor-wrapper .cm-content');
+    const sel = document.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !sel.anchorNode) return false;
+    return el.contains(sel.anchorNode);
+  }), { timeout: 5_000, timeoutMsg: `DOM selection never synced inside .cm-content before ${type}` });
+  return browser.execute((eventType) => {
+    const el = document.querySelector('.source-editor-wrapper .cm-content');
+    const view = el?.cmTile?.view ?? el?.cmView?.view ?? null;
+    if (!view) return { ok: false, reason: 'no-view' };
+    if (typeof DataTransfer !== 'function') return { ok: false, reason: 'no-DataTransfer' };
+    const range = view.state.selection.main;
+    const expected = view.state.doc.sliceString(range.from, range.to);
+    const dt = new DataTransfer();
+    const event = new ClipboardEvent(eventType, { bubbles: true, cancelable: true, clipboardData: dt });
+    el.dispatchEvent(event);
+    // CodeMirror 的 doc 是不可变对象：cut 的 dispatch 会产生一个新的 Text，
+    // `view.state.doc` 指向新对象。这里必须重新读取 view.state —— 若沿用
+    // dispatch 前捕获的引用，读到的是裁剪前的内容，断言会自欺欺人地通过。
+    return {
+      ok: true,
+      defaultPrevented: event.defaultPrevented,
+      payload: dt.getData('text/plain'),
+      expected,
+      domText: el.textContent,
+      selection: { from: range.from, to: range.to },
+      docAfter: view.state.doc.toString(),
+    };
+  }, type);
+}
+
 async function refreshProjection() {
   await browser.execute(() => {
     const b = window.__markflowLossless;
@@ -204,6 +251,59 @@ export function registerP4bWidgetTests() {
       await browser.keys(['Meta', 'z']);
       await browser.waitUntil(async () => (await sourceText()) === before, { timeout: 5_000 });
       await saveRestoredSource('p4b-widget-fence.md', originalBytes);
+    });
+
+    it('selection copy on the rendered surface yields exact Markdown source, not DOM text', async () => {
+      await openLossless('p4b-widget-fence.md');
+      await setFlag('codeFenceControls', true);
+      const before = await sourceText();
+      const originalBytes = await fixtureBytes('p4b-widget-fence.md');
+
+      const copy = await clipboardRoundTrip('copy', 0, before.length);
+      expect(copy.ok).toBe(true);
+      // defaultPrevented 证明是 CodeMirror 的 handlers.copy 接管了事件并写入 clipboardData；
+      // 若为 false 说明 handler 没跑，payload 为空，后面的相等断言就毫无意义。
+      expect(copy.defaultPrevented).toBe(true);
+      expect(copy.payload).toBe(before);
+      expect(copy.payload).toBe(copy.expected);
+      expect(copy.payload).toContain('```js title="keep"');
+      expect(copy.payload).toContain('const x = 1;');
+      // 渲染 DOM 里带着 widget chrome（badge「js」、按钮「复制」/「语言」），
+      // 这些文案绝不能进入 clipboard payload —— 这是「不是从 DOM 取的」的实证。
+      expect(copy.domText).toContain('复制');
+      expect(copy.domText).not.toBe(copy.payload);
+
+      expect(await sourceText()).toBe(before);
+      expect((await fixtureBytes('p4b-widget-fence.md')).equals(originalBytes)).toBe(true);
+    });
+
+    it('selection cut payload is source, removes the range, and one Undo restores bytes', async () => {
+      await openLossless('p4b-widget-fence.md');
+      await setFlag('codeFenceControls', true);
+      const before = await sourceText();
+      const originalBytes = await fixtureBytes('p4b-widget-fence.md');
+      const body = 'const x = 1;\n';
+      const from = before.indexOf(body);
+      expect(from).toBeGreaterThan(0);
+
+      // cut 会真的改动文档，所以还原必须放在 finally 里、断言之前完成：
+      // 若断言先跑并在中途抛出，文档会一直保持被裁剪状态，后续用例将在残缺
+      // 文档上执行并级联失败（已实测：一次断言失败拖垮 fence keyboard-only
+      // 与 HTML export 两条用例）。先安全还原，再断言已捕获的结果。
+      let cut;
+      try {
+        cut = await clipboardRoundTrip('cut', from, from + body.length);
+      } finally {
+        await browser.keys(['Meta', 'z']);
+        await browser.waitUntil(async () => (await sourceText()) === before, { timeout: 5_000 });
+        await saveRestoredSource('p4b-widget-fence.md', originalBytes);
+      }
+
+      expect(cut.ok).toBe(true);
+      expect(cut.defaultPrevented).toBe(true);
+      expect(cut.payload).toBe(body);
+      expect(cut.docAfter).toBe(before.slice(0, from) + before.slice(from + body.length));
+      expect(cut.docAfter).not.toContain(body);
     });
 
     it('fence language control is absent in read-only and cannot change source', async () => {

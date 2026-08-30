@@ -31,8 +31,12 @@
 
 **结论修正（重要）**：`20260830-083435-p4b-corrective-a8c73de` 曾把日文记为「产品缺陷：不触发
 `compositionend`」。根因实为 **harness 用错确认键**——Kotoeri ライブ変換显示汉字后仍保持
-composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 **Return** 确认；此前按的是
-右方向键，只在转换候选间移动。产品源码零改动。详见
+composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 **Return** 确认；而旧 harness
+**从未发送任何确认键**，只送 `nihongo `（尾随空格）后等待。
+> **事实更正（2026-08-30，独立 Reviewer F-9）**：此前本文称「按的是右方向键」，该叙述与 git 历史不符
+> ——`p4b-real-ime.e2e.mjs` 的 `b50e392` 版无方向键、无 `target.id === 'ja'` 分支，
+> `git log -S"Arrow"` 仅命中修复提交自身新增的注释。「右方向键」从未作为已提交基线存在过。
+产品源码零改动。详见
 `../issues/20260830-p4b-ja-kotoeri-undo-compositionend-gap.md`（已改 RESOLVED，保留设计事实）。
 
 **对 P6 有约束力的设计事实**：composition 处于打开状态时，CodeMirror 的
@@ -69,6 +73,33 @@ composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 
 - [ ] 视觉达到默认开启标准
 - [ ] screen reader/keyboard-only 完成
 - [ ] 安全/资源负责人已参与高风险 widget
+
+## 证据不可变性问题登记（F-1，独立 Reviewer 发现，执行流确认属实）
+
+**事实**：提交 `7869de8` 回写了**已封存**的 run `20260830-083435-p4b-corrective-a8c73de/`。
+执行流已用 `git show 7869de8 --stat` 亲自核实，改动清单如下：
+
+| 改动 | 内容 |
+| --- | --- |
+| `RUN.md` | 状态行由 `PASS（19/19 gates；真实 IME 仍为独立 OPEN 项）` 改为 `PASS（20/20 gates；真实 IME 证据已补齐 …）` |
+| `RUN.md` | 新增 `C20` gate 行 —— 该 run 原始 gate 集只有 C01–C19，C20 从不属它 |
+| `RUN.md` | 删除原「Run hygiene note (two discarded runs)」整段，替换为另一版本叙述 |
+| gate 日志 | 重跑覆盖 `C04 / C14 / C15 / C15-rerun1 / C16 / C17 / C18 / C19` 八个 |
+| gate 日志 | 新增 `gates/C20-e2e-ime.log`（+140 行） |
+
+违反 `VALIDATION-PROTOCOL.md:73`（历史 RUN/ENVIRONMENT/REVIEW 为不可变证据；须建 corrective run
+链接，不得直接修改历史结论）。
+
+**定性**：改动方向是「补记一个缺口」，**不是**把失败伪装成通过（`083435/RUN.md` 现在把日文记为
+product gap，而非通过）。但它确实改变了已封存 run 的结论与 gate 集。
+
+**处置**：**不回滚。** 回滚本身构成第二次篡改，且协议禁止。改为：
+1. 在本阶段文档登记该事实与完整改动清单（即本节）；
+2. 在 `20260830-102354-p4b-ime-7869de8/RUN.md` 的「Run hygiene」段更正不实陈述（已完成）；
+3. 新建 corrective run，在其 `RUN.md` 中再次登记并链接本节。
+
+**教训**：corrective run 的目录一旦建立，后续任何提交都不得再触碰它。
+写证据时若同时需要改历史 run，说明流程本身就走错了。
 
 ## 已知缺口（交独立 Reviewer 判定，不由执行流自行关闭）
 

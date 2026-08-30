@@ -152,12 +152,16 @@
 > 本 Slice 是 Issue #254 必达范围。前置为 P3 minimum parity、P4A 终态和 `P4B-SUBSTRATE-GO`；后续进入 P7，P5 最后执行。
 
 - [ ] 9.1 按 ADR 实现 `Decoration.replace` + `EditorView.atomicRanges`，禁止 CSS 零宽 marker；clipboard/a11y/save/History 均读取 source range
+  - 已实现（M1 候选 `20260830-173622-p6-m1-8ba0f44`）：`projection.ts` 接入 `hidden` 状态 + `hiddenAtomicRanges`（atomic）到 `EditorView.atomicRanges`；AI gate 绿，Reviewer/人工/Program Owner Go 待记录
 - [ ] 9.2 实现统一 visibility resolver：visible/dimmed/hidden/revealed；composition 强制 reveal 或冻结安全投影，不作为独立正文状态
+  - 已实现（M1 候选 `20260830-173622-p6-m1-8ba0f44`）：`resolveConstructVisibility` 现返回 `hidden`（仅当 `isLivePreviewHiddenOn`）；composition 邻域强制 reveal；单测覆盖。四者验收待记录
 - [ ] 9.3 M1：heading/paragraph/thematic break，包含空 heading placeholder、Enter/Backspace 与块级布局稳定性
+  - M1 候选 `20260830-173622-p6-m1-8ba0f44`（AI gate 绿）：heading/thematic break 实现隐藏 marker（atomic），空 heading 保持可发现（不隐藏）；paragraph 无 marker 归入 M1 范围。关闭 hidden 回 dimmed、关闭 construct 回 source，doc/History/dirty/revision/bytes 不变（单测）。真实 CJK/日文 IME、screen reader、视觉基线、长时稳定为 PENDING-MANUAL（桌面）；Reviewer/人工/Program Owner Go 待记录
 - [ ] 9.4 M2a：strong/emphasis/strike/inline code，包含 nested construct、input rule、double-click 与跨 marker selection
 - [ ] 9.5 M2b：inline/reference/autolink，活动时可编辑 destination/title，malformed link 精确回源码
 - [ ] 9.6 M3：quote + ordered/unordered/task list + fence，与 P4B task/fence/FrontMatter 联动；空构造保持可发现
 - [ ] 9.7 为 projection 与 hidden 分离 flag（如 `livePreview.heading` / `.hidden`）；关闭 hidden 回 dimmed，关闭 construct 回 source，不改变 doc/History/dirty/revision
+  - 已实现（M1 候选 `20260830-173622-p6-m1-8ba0f44`）：新增 `src/lib/lossless/livePreviewFlags.ts`，`livePreview.<construct>`（projection）与 `livePreview.<construct>.hidden`（hiding）分离；默认 OFF。单测覆盖 rollback（hidden→dimmed、construct→source 不改 doc）。四者验收待记录
 - [ ] 9.8 每 cohort 覆盖 P4B 矩阵、Select All 不闪烁、plain-text copy/cut 含 source、真实 CJK IME、screen reader、Normal/Large SLO、L0/L1 与独立回滚；分别验证 strong/emphasis/link hidden-marker boundary delete 保留 paired syntax，以及 image/widget 仅在 `deletePolicy=whole` 时整段删除
 - [ ] 9.9 生成基础 construct 支持矩阵并由独立 Reviewer、人工和 Program Owner 决定 P6 Go；P6 Go 不等于 program 完成
 

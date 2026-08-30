@@ -50,6 +50,7 @@ const FALLBACK_KINDS: ConstructKind[] = [
   'frontmatter',
   'image',
   'footnoteDefinition',
+  'thematicBreak',
   'unknown',
 ];
 

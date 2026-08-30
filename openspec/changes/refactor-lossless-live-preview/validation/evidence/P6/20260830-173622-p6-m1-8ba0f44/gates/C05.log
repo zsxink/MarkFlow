@@ -1,0 +1,2 @@
+=== C05: cargo clippy --manifest-path markflow-core/Cargo.toml --all-targets --all-features -- -D warnings ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s

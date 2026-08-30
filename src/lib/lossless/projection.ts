@@ -24,8 +24,8 @@
 // terminal state `SPIKE_COMPLETE_NO_CORE_IR`): viewport rebuild, staleness and
 // degraded fallback stay inside the CM update cycle (P2 tasks 4.5/4.10/4.13).
 
-import { RangeSet, RangeSetBuilder, type Extension } from '@codemirror/state';
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
+import { RangeSet, RangeSetBuilder, type Extension, type Text } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType, type ViewUpdate } from '@codemirror/view';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { getOwnerRegistrySnapshot, resolveConstructOwner, type ConstructKind } from './renderOwnerRegistry';
 import {
@@ -35,6 +35,11 @@ import {
   isLinksEnabled,
   isQuoteListsEnabled,
 } from './cohortFlags';
+import {
+  clsToLivePreviewConstruct,
+  isLivePreviewHiddenOn,
+  isLivePreviewProjectionOn,
+} from './livePreviewFlags';
 
 /** Construct classes exposed for semantic assertions (unit + desktop E2E). */
 export const PROJECTION_CLASSES = {
@@ -53,6 +58,7 @@ export const PROJECTION_CLASSES = {
   blockquote: 'mf-blockquote',
   listItem: 'mf-list-item',
   fence: 'mf-fence',
+  hr: 'mf-hr',
   active: 'mf-active',
 } as const;
 
@@ -84,6 +90,8 @@ export interface ConstructRange {
   cls: string;
   /** Heading level (1-6) when this construct is a heading; undefined otherwise. */
   level?: number;
+  /** Resolved visual state for the most recent build (P6 hidden-marker owner). */
+  visibility?: ConstructVisibility;
 }
 
 /**
@@ -107,6 +115,8 @@ export interface ProjectionSnapshot {
   state: ProjectionState;
   constructs: ConstructRange[];
   count: number;
+  /** UTF-16 source ranges that are currently hidden as atomic marker units (P6). */
+  hiddenAtomic: Array<[number, number]>;
 }
 
 // ── Construct classification (owner-registry wired, task 6.5 / ADR §3.3) ──
@@ -146,6 +156,12 @@ function lezerNodeKind(name: string): ConstructKind {
       return 'taskCheckbox';
     case 'FencedCode':
       return 'fence';
+    // Thematic break (`---` / `***` / `___`): exact-source fallback by default;
+    // P6 M1 promotes it to a local projected construct ONLY when
+    // `livePreview.thematicBreak` is ON (gated below in classifyLezerNode, so
+    // this mapping never changes behavior while the flag is OFF).
+    case 'HorizontalRule':
+      return 'thematicBreak';
     // Exact-source fallback kinds today (the pre-registry classifier returned
     // null for them): HTML-ish leaf blocks, GFM tables, images. `FrontMatter`
     // and `FootnoteDefinition` are never produced by the current Lezer config
@@ -198,6 +214,12 @@ const LOCAL_KIND_CLS: Readonly<Partial<Record<ConstructKind, string>>> = Object.
  */
 export function classifyLezerNode(name: string): { cls: string; level?: number } | null {
   const kind = lezerNodeKind(name);
+  // P6 M1: a thematic break is promoted to a local projected construct (rendered
+  // as a rule) ONLY when its projection flag is ON. While OFF it stays exact
+  // source (default 'source-fallback' owner) — parity with the pre-P6 baseline.
+  if (kind === 'thematicBreak' && isLivePreviewProjectionOn('thematicBreak')) {
+    return { cls: PROJECTION_CLASSES.hr };
+  }
   // Unique-owner invariant (task 6.5): only the 'local' owner decorates here;
   // 'source-fallback' (and a future 'widget'/'core' owner) keeps raw source.
   if (resolveConstructOwner(kind).owner !== 'local') return null;
@@ -218,6 +240,92 @@ export function classifyLezerNode(name: string): { cls: string; level?: number }
 function decorationFor(cls: string, level?: number): Decoration {
   const levelCls = level != null && level >= 1 && level <= 6 ? ` ${PROJECTION_CLASSES[`h${level}` as 'h1']}` : '';
   return Decoration.mark({ class: `mf-construct ${cls}${levelCls}` });
+}
+
+// ── P6 hidden-marker engine (ADR §2; sole owner of `hidden`) ────────────────
+//
+// When a P6-capable construct is inactive and its `livePreview.<c>.hidden`
+// switch is ON, its marker is replaced (zero-width visible glyph) and the
+// source range is published as an atomic unit via `EditorView.atomicRanges`
+// (see `hiddenAtomicRanges` + `projectionExtension`). The source `EditorState.doc`
+// is NEVER rewritten; save/clipboard/History read the unchanged source text.
+
+/** Current atomic hidden-marker ranges (queried by `EditorView.atomicRanges`). */
+let hiddenAtomicRanges: RangeSet<Decoration> = RangeSet.empty;
+
+/**
+ * Read-only thematic-break placeholder (ADR §2 allows a read-only glyph for an
+ * empty/structural construct). It is NOT the save body — export and save read
+ * the source `---` / `***` / `___` from `EditorState.doc`, never this widget.
+ */
+class ThematicBreakWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = PROJECTION_CLASSES.hr;
+    el.setAttribute('aria-hidden', 'true');
+    return el;
+  }
+  eq(): boolean {
+    return true;
+  }
+  ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/**
+ * Build the hidden (replacing + atomic) decorations for ONE P6 construct and
+ * push them into `additions`. Returns `'hidden'` when the construct was hidden
+ * (caller skips the normal path); otherwise it returns the safe fallback state
+ * the caller must apply instead — `'visible'` for an empty heading that must
+ * stay discoverable, `'dimmed'` for a construct whose markers cannot be hidden
+ * (e.g. a setext heading's underline), so it keeps the weak-marker projection.
+ */
+function buildHiddenConstruct(
+  range: ConstructRange,
+  doc: Text,
+  additions: Array<{ from: number; to: number; deco: Decoration }>,
+  hiddenAtomicSpans: Array<[number, number]>,
+): ConstructVisibility {
+  // Thematic break: replace the whole `---`/`***`/`___` with a read-only rule.
+  if (range.cls === PROJECTION_CLASSES.hr) {
+    hiddenAtomicSpans.push([range.from, range.to]);
+    additions.push({
+      from: range.from,
+      to: range.to,
+      deco: Decoration.replace({ widget: new ThematicBreakWidget(), atomic: true }),
+    });
+    return 'hidden';
+  }
+  // Heading: hide the `#`(+ space) marker and mark the content. An EMPTY heading
+  // (marker with no text) stays visible so it remains discoverable/editable.
+  if (range.cls === PROJECTION_CLASSES.heading) {
+    if (range.markers.length === 0) return 'visible'; // malformed header, no marker
+    const markerFrom = range.markers[0][0];
+    const markerTo = range.markers[0][1];
+    // Setext headings (`Title\n===`) carry the underline as their HeaderMark,
+    // not a leading `#`. The M1 hidden path is ATX-only; a setext heading must
+    // fall back to the dimmed/visible path (ADR §7 source fallback) — treating
+    // the underline as hideable would slice past the marker line and throw.
+    if (!doc.sliceString(markerFrom, markerTo).startsWith('#')) return 'dimmed';
+    const spaceLen = doc.sliceString(markerTo, markerTo + 1) === ' ' ? 1 : 0;
+    const hideFrom = markerFrom;
+    const hideTo = markerTo + spaceLen;
+    const lineEnd = doc.lineAt(range.from).to;
+    if (doc.sliceString(hideTo, lineEnd).trim() === '') return 'visible'; // empty → visible
+    hiddenAtomicSpans.push([hideFrom, hideTo]);
+    // Replace the marker (hidden, no widget → geometry stays cursor-atomic via facet).
+    additions.push({ from: hideFrom, to: hideTo, deco: Decoration.replace({}) });
+    // Mark the heading content (after the marker) with the semantic class.
+    const levelCls = range.level != null ? ` ${PROJECTION_CLASSES[`h${range.level}` as 'h1']}` : '';
+    additions.push({
+      from: hideTo,
+      to: range.to,
+      deco: Decoration.mark({ class: `mf-construct ${range.cls}${levelCls}` }),
+    });
+    return 'hidden';
+  }
+  return 'dimmed';
 }
 
 // ── P4B task 7.1: per-cohort marker reveal refinement ────────────────────
@@ -306,10 +414,13 @@ export function isConstructRevealed(
 /**
  * Resolve one construct's visual state without changing its source bytes.
  *
- * P4B is deliberately limited to visible/dimmed/revealed. A caller may carry
- * a future P6 `hiddenRequested` bit through the shared API, but P4B refuses
- * it: only P6 may install replacing/atomic hidden-marker decorations. During
- * IME composition we take the conservative safe path and reveal rather than
+ * P6 is the SOLE owner of `hidden`: a construct is hidden only when its
+ * `livePreview.<construct>.hidden` switch is ON (gated by `hiddenRequested`,
+ * which the projection sets for P6-capable kinds), the caret/selection does
+ * not intersect it, and no IME composition is active. P4B callers that pass
+ * `hiddenRequested: true` for a NON-P6 kind (e.g. `strong`) safely degrade to
+ * `dimmed` — they never own replacing/atomic hidden decorations. During IME
+ * composition we take the conservative safe path and reveal rather than
  * moving any marker geometry.
  */
 export function resolveConstructVisibility(
@@ -317,7 +428,7 @@ export function resolveConstructVisibility(
   selection: { from: number; to: number; empty: boolean },
   docLength: number,
   options: ConstructVisibilityOptions = {},
-): P4bConstructVisibility {
+): ConstructVisibility {
   if (isConstructRevealed(range, selection, docLength)) return 'revealed';
   // Composition reveals only the construct intersecting or immediately
   // adjacent to the active source caret. Revealing every visible construct
@@ -328,8 +439,14 @@ export function resolveConstructVisibility(
       return 'revealed';
     }
   }
-  // P4B intentionally ignores hiddenRequested. Keeping the branch explicit
-  // makes a premature P6 caller degrade safely instead of hiding source.
+  // P6 hidden-marker owner (ADR §2): the ONLY place replacing/atomic hidden
+  // decorations are sanctioned. `hiddenRequested` is set by the projection for
+  // P6-capable kinds; `isLivePreviewHiddenOn` enforces the per-construct
+  // `.hidden` switch, so a flag-OFF (default) or non-P6 kind degrades safely.
+  const kind = clsToLivePreviewConstruct(range.cls);
+  if (options.hiddenRequested && kind && isLivePreviewHiddenOn(kind)) {
+    return 'hidden';
+  }
   if (options.hiddenRequested) return range.markers.length === 0 ? 'visible' : 'dimmed';
   if (range.markers.length === 0) return 'visible';
   return 'dimmed';
@@ -337,19 +454,21 @@ export function resolveConstructVisibility(
 
 // ── ViewPlugin: build + hold the DecorationSet ────────────────────────
 
-let lastSnapshot: ProjectionSnapshot = { state: 'source', constructs: [], count: 0 };
+let lastSnapshot: ProjectionSnapshot = { state: 'source', constructs: [], count: 0, hiddenAtomic: [] };
 
 export function getProjectionSnapshot(): ProjectionSnapshot {
   return lastSnapshot;
 }
 
 export function resetProjectionSnapshot(): void {
-  lastSnapshot = { state: 'source', constructs: [], count: 0 };
+  lastSnapshot = { state: 'source', constructs: [], count: 0, hiddenAtomic: [] };
+  hiddenAtomicRanges = RangeSet.empty;
 }
 
 /** Reflect a binding teardown in the debug state (task 4.9 `disposed`). */
 export function setProjectionDisposed(): void {
-  lastSnapshot = { state: 'disposed', constructs: [], count: 0 };
+  lastSnapshot = { state: 'disposed', constructs: [], count: 0, hiddenAtomic: [] };
+  hiddenAtomicRanges = RangeSet.empty;
 }
 
 // ── Test-only failure injection (P2 §4.9 覆盖) ────────────────────────
@@ -512,6 +631,10 @@ function buildDecorations(view: EditorView): DecorationSet {
 
   const finalBuilder = new RangeSetBuilder<Decoration>();
   const markerDeco = Decoration.mark({ class: 'mf-marker' });
+  // UTF-16 source ranges hidden as atomic marker units this build (P6). Fed to
+  // `EditorView.atomicRanges` so the caret crosses each hidden marker as a
+  // single unit (ADR §2) — the cursor never lands inside the invisible source.
+  const hiddenAtomicSpans: Array<[number, number]> = [];
   // Collect every decoration (construct + its discrete marker delimiters) and
   // add them in ascending `from` order. Nested constructs (e.g. a Link
   // containing a URL, or emphasis inside bold) can place a later construct
@@ -521,10 +644,26 @@ function buildDecorations(view: EditorView): DecorationSet {
   // geometry, not from insertion order, so this re-order is purely additive.
   const additions: Array<{ from: number; to: number; deco: Decoration }> = [];
   for (const range of constructs) {
-    const visibility = resolveConstructVisibility(range, selection, doc.length, {
+    // P6-capable kinds are allowed to request the hidden state; the resolver
+    // only returns `hidden` when the per-construct `.hidden` switch is ON.
+    const hiddenRequested = clsToLivePreviewConstruct(range.cls) != null;
+    let visibility = resolveConstructVisibility(range, selection, doc.length, {
       composing: view.composing,
-      hiddenRequested: false,
+      hiddenRequested,
     });
+    range.visibility = visibility;
+    if (visibility === 'hidden') {
+      const hiddenOutcome = buildHiddenConstruct(range, doc, additions, hiddenAtomicSpans);
+      if (hiddenOutcome === 'hidden') {
+        // Hidden decorations were added; skip the normal visible/dimmed path.
+        continue;
+      }
+      // The hide was declined (an empty heading must stay discoverable; a
+      // setext underline cannot be hidden): fall back to the safe state the
+      // builder chose — visible for an empty construct, dimmed otherwise.
+      visibility = hiddenOutcome;
+      range.visibility = visibility;
+    }
     const active = visibility === 'revealed';
     additions.push({
       from: range.from,
@@ -547,7 +686,18 @@ function buildDecorations(view: EditorView): DecorationSet {
     finalBuilder.add(from, to, deco);
   }
 
-  lastSnapshot = { state: degraded ? 'degraded' : 'rendered', constructs, count };
+  // Publish the atomic hidden-marker set for `EditorView.atomicRanges`. The
+  // facet only uses each range's from/to (cursor atomicity); the value is a
+  // real `Decoration` so the RangeSet builds (CM reads `.point` off the value).
+  hiddenAtomicRanges =
+    hiddenAtomicSpans.length > 0
+      ? RangeSet.of(
+          hiddenAtomicSpans.map(([f, t]) => ({ from: f, to: t, value: Decoration.replace({}) })),
+          true,
+        )
+      : RangeSet.empty;
+
+  lastSnapshot = { state: degraded ? 'degraded' : 'rendered', constructs, count, hiddenAtomic: hiddenAtomicSpans };
   return finalBuilder.finish();
 }
 
@@ -561,7 +711,8 @@ export const projectionPlugin = ViewPlugin.fromClass(
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
-      lastSnapshot = { state: 'projecting', constructs: [], count: 0 };
+      lastSnapshot = { state: 'projecting', constructs: [], count: 0, hiddenAtomic: [] };
+      hiddenAtomicRanges = RangeSet.empty;
       try {
         this.decorations = buildDecorations(view);
       } catch {
@@ -569,7 +720,8 @@ export const projectionPlugin = ViewPlugin.fromClass(
         // parser hiccup) must NOT crash the plugin: degrade to an empty
         // decoration set and keep the same EditorView mountable/editable.
         this.decorations = RangeSet.empty;
-        lastSnapshot = { state: 'degraded', constructs: [], count: 0 };
+        lastSnapshot = { state: 'degraded', constructs: [], count: 0, hiddenAtomic: [] };
+        hiddenAtomicRanges = RangeSet.empty;
       }
     }
 
@@ -595,7 +747,8 @@ export const projectionPlugin = ViewPlugin.fromClass(
           // Projection failure must never break input or save: degrade to raw
           // source (empty decoration set) and keep the plugin alive.
           this.decorations = RangeSet.empty;
-          lastSnapshot = { state: 'degraded', constructs: [], count: 0 };
+          lastSnapshot = { state: 'degraded', constructs: [], count: 0, hiddenAtomic: [] };
+          hiddenAtomicRanges = RangeSet.empty;
         }
       }
     }
@@ -604,7 +757,8 @@ export const projectionPlugin = ViewPlugin.fromClass(
       // Switching back to Source (or closing the binding) removes this plugin.
       // The snapshot must reflect that the projection is off — never reuse a
       // stale rendered/stale/composing state for the next enable cycle.
-      lastSnapshot = { state: 'source', constructs: [], count: 0 };
+      lastSnapshot = { state: 'source', constructs: [], count: 0, hiddenAtomic: [] };
+      hiddenAtomicRanges = RangeSet.empty;
     }
   },
   {
@@ -616,7 +770,15 @@ export const projectionPlugin = ViewPlugin.fromClass(
  * Full projection extension (plugin only; the GFM extension must be part of the
  * `markdown({ extensions: [GFM] })` language config for `Strikethrough` nodes
  * to appear — see losslessSourceEditor.ts).
+ *
+ * P6 appends `EditorView.atomicRanges`: the hidden-marker source spans are
+ * published here so the caret crosses each replaced marker as a single unit
+ * (ADR §2) — the cursor never lands inside invisible source characters, which
+ * CSS zero-width markers could not guarantee.
  */
 export function projectionExtension(): Extension {
-  return [projectionPlugin];
+  return [
+    projectionPlugin,
+    EditorView.atomicRanges.of(() => hiddenAtomicRanges),
+  ];
 }

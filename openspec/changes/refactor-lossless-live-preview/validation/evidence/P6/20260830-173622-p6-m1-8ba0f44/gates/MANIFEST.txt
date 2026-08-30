@@ -1,0 +1,17 @@
+C01      exit=0 |  Test Files  1 passed (1)|      Tests  43 passed (43)|
+C02      exit=0 |  Test Files  51 passed (51)|      Tests  854 passed (854)|
+C03      exit=0 | 
+C04      exit=0 | 
+C05      exit=0 | 
+C06      exit=0 | test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s|test invalid_utf8_with
+C07      exit=0 | test commands::export::tests::invalid_temp_file_does_not_replace_existing_destination ... ok|test commands::export::tests::validates_pdf_header_and_length ... ok|test commands::files::tests::extract_pid_from_tmp_valid ... ok|test commands::export::tests::valid_temp_file_replaces_destination_and_cleanup_is_idempotent ... ok|test commands::files_image::tests::local_image_source_requires_valid_image_
+C08      exit=0 | 
+C09      exit=0 | === C09: npx openspec validate refactor-lossless-live-preview --strict ===|Change 'refactor-lossless-live-preview' is valid|
+C10      exit=0 | === C10: npx openspec validate --all ===|✓ spec/ci-openspec-validation|Totals: 61 passed, 0 failed (61 items)|
+C11      exit=0 | 
+C12      exit=0 | 
+C13      exit=0 | [webkit 605.1.15 macos #0-0] 5 passing (1.4s)|Spec Files:	 1 passed, 5 skipped, 6 total (100% completed) in 00:00:08  |
+C14      exit=1 | [webkit 605.1.15 macos #0-0] 29 passing (1m 42s)|Spec Files:	 0 passed, 1 failed, 1 total (100% completed) in 00:01:43  |
+C15      exit=0 | ✓ /Users/xian/Project/book/MarkFlow/openspec/changes/archive/2026-07-23-fix-openspec-validate-deps/specs/ci-openspec-validation/spec.md: all content synced to main specs/ci-openspec-validation|
+C16      exit=0 | 
+C14b     exit=0 | 30 passing (retry of C14 flake; WebDriver click JS exception = infra)

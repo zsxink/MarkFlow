@@ -1,0 +1,11 @@
+=== C01: npx vitest run src/lib/lossless/projection.test.ts ===
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/lossless/projection.test.ts (43 tests) 273ms
+
+ Test Files  1 passed (1)
+      Tests  43 passed (43)
+   Start at  17:40:20
+   Duration  1.71s (transform 199ms, setup 0ms, collect 370ms, tests 273ms, environment 626ms, prepare 102ms)
+

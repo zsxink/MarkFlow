@@ -114,9 +114,17 @@ import {
   setP4bFlagEnabled,
 } from './cohortFlags';
 import {
+  resetAllLivePreviewFlags,
+  setLivePreviewHidden,
+  setLivePreviewProjection,
+} from './livePreviewFlags';
+import {
   registerConstructOwner,
   resetOwnerRegistry,
 } from './renderOwnerRegistry';
+import { createLosslessSourceEditor } from './losslessSourceEditor';
+import { runScopeHandlers, type EditorView } from '@codemirror/view';
+import type { Transaction } from '@codemirror/state';
 
 let dir: string;
 
@@ -167,11 +175,13 @@ beforeEach(() => {
   document.body.innerHTML = '<div id="source-editor-wrapper"></div>';
   resetProjectionSnapshot();
   resetPreferredMode();
+  resetAllLivePreviewFlags();
 });
 
 afterEach(() => {
   setLosslessCoreSessionEnabled(false);
   setLivePreviewEnabled(false);
+  resetAllLivePreviewFlags();
 });
 
 async function writeFixture(name: string, content: string): Promise<string> {
@@ -590,8 +600,12 @@ describe('P2 projection adapter', () => {
     binding.setMode('preview');
     const snapshot = getProjectionSnapshot();
     expect(snapshot.state).toBe('rendered');
-    // Frozen on the pre-registry implementation (see comment above).
-    expect(snapshot.constructs).toEqual(GOLDEN);
+    // Frozen on the pre-registry implementation (see comment above). The P6
+    // `visibility` debug field is intentionally excluded — the frozen shape is
+    // {from, to, cls, level, markers}.
+    expect(
+      snapshot.constructs.map(({ from, to, cls, level, markers }) => ({ from, to, cls, level, markers })),
+    ).toEqual(GOLDEN);
   });
 
   it('an enabled task widget leaves ListItem local and does not duplicate TaskMarker decoration', async () => {
@@ -1036,6 +1050,402 @@ describe('P4B task 7.2 — per-cohort reveal over the real editor (DOM)', () => 
       expect(count).toBeGreaterThan(0);
     }
     expect(view.state.doc.toString()).toBe(md);
+  });
+});
+
+// ── P6 M1 — Typora-style hidden markers (heading + thematic break) ────────
+//
+// First P6 cohort, behind `livePreview.heading` / `livePreview.heading.hidden`
+// and `livePreview.thematicBreak` / `livePreview.thematicBreak.hidden`
+// (default OFF). Proves: 9.1 hidden markers via `Decoration.replace` +
+// `EditorView.atomicRanges`; 9.2 unified visibility resolver (hidden state
+// owned solely by P6); doc/History/dirty/revision/bytes never change; rollback
+// to dimmed/source; composition forces reveal; empty heading stays discoverable.
+
+describe('P6 M1 — hidden markers (heading + thematic break)', () => {
+  beforeEach(() => resetAllLivePreviewFlags());
+  afterEach(() => resetAllLivePreviewFlags());
+
+  it('default OFF: a heading is dimmed, never hidden, and the doc is untouched', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# Heading text\n\nplain paragraph far away\n';
+    const path = await writeFixture('p6-heading-off.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    // Caret far away → no reveal; with flags OFF the heading must NOT hide.
+    view.dispatch({ selection: { anchor: md.indexOf('far away') } });
+    const snapshot = getProjectionSnapshot();
+    const heading = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    expect(heading).toBeDefined();
+    expect(heading.visibility).toBe('dimmed');
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    // The marker `#` is still present in the DOM (weak, not hidden).
+    expect(view.contentDOM.querySelector('span.mf-marker')?.textContent).toBe('#');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('heading hidden: marker is replaced (no .mf-marker), content keeps semantic class, atomic range published, doc unchanged', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# Heading text\n\nplain paragraph far away\n';
+    const path = await writeFixture('p6-heading-hidden.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('far away') } }); // caret away → hidden
+
+    const snapshot = getProjectionSnapshot();
+    const heading = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    expect(heading.visibility).toBe('hidden');
+    // The `# ` marker range is published as an atomic hidden unit.
+    expect(snapshot.hiddenAtomic).toContainEqual([0, 2]);
+    // No weak marker span rendered (the marker is replaced, not dimmed).
+    expect(view.contentDOM.querySelectorAll('span.mf-marker').length).toBe(0);
+    // The heading content still carries the level class (rendered as a heading).
+    expect(view.contentDOM.querySelector('span.mf-h1')).not.toBeNull();
+    // The source document is byte-for-byte unchanged.
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('caret inside heading content reveals the marker (editable)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# Heading text\n\nplain paragraph\n';
+    const path = await writeFixture('p6-heading-reveal.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    binding.setMode('preview');
+
+    view.dispatch({ selection: { anchor: md.indexOf('Heading') + 1 } }); // inside content
+    const snapshot = getProjectionSnapshot();
+    const heading = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    expect(heading.visibility).toBe('revealed');
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    // The `#` marker is shown as full source (revealed, editable) — the heading
+    // construct text starts with `#`, no weak `.mf-marker` span. A revealed
+    // heading carries `mf-construct mf-h mf-active` (uses `range.cls`, NOT the
+    // level class `mf-h1`, which only appears in non-active `decorationFor`).
+    expect(view.contentDOM.querySelector('span.mf-h')?.textContent?.startsWith('#')).toBe(true);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('9.2 composition: adjacent hidden construct reveals, distant stays hidden (no geometry swap mid-IME)', () => {
+    // Pure-function proof (real IME/WebView evidence is a separate desktop gate).
+    // A hidden-capable heading far from the caret is hidden; an adjacent one
+    // reveals under composition — IME never moves distant marker geometry.
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    const h: ConstructRange = { from: 0, to: 10, markers: [[0, 1]], cls: PROJECTION_CLASSES.heading, level: 1 };
+    // Caret adjacent (to+1) under an active composition → revealed.
+    expect(resolveConstructVisibility(h, caret(11), 40, { hiddenRequested: true, composing: true })).toBe('revealed');
+    // Caret far under composition → still hidden (no reveal of a distant construct).
+    expect(resolveConstructVisibility(h, caret(30), 40, { hiddenRequested: true, composing: true })).toBe('hidden');
+    // Same far caret, not composing → hidden (consistent).
+    expect(resolveConstructVisibility(h, caret(30), 40, { hiddenRequested: true, composing: false })).toBe('hidden');
+    // Adjacent but NOT composing → revealed only if base radius reaches (it does here).
+    expect(resolveConstructVisibility(h, caret(11), 40, { hiddenRequested: true, composing: false })).toBe('revealed');
+  });
+
+  it('rollback: turning .hidden OFF dims the marker; turning construct OFF returns to source (no doc change)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# Heading text\n\nplain paragraph\n';
+    const path = await writeFixture('p6-heading-rollback.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    binding.setMode('preview');
+    // Caret far beyond the reveal radius so the heading is actually hidden.
+    view.dispatch({ selection: { anchor: md.indexOf('paragraph') } });
+    expect(getProjectionSnapshot().constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!.visibility).toBe('hidden');
+
+    // Turn .hidden OFF → dimmed (marker shown weak, not hidden).
+    setLivePreviewHidden('heading', false);
+    view.dispatch({ selection: { anchor: md.indexOf('paragraph') + 1 } });
+    let snap = getProjectionSnapshot();
+    const h = snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    expect(h.visibility).toBe('dimmed');
+    expect(snap.hiddenAtomic.length).toBe(0);
+    expect(view.contentDOM.querySelector('span.mf-marker')?.textContent).toBe('#');
+
+    // Turn construct OFF → source (heading no longer projected/hidden).
+    setLivePreviewProjection('heading', false);
+    view.dispatch({ selection: { anchor: md.indexOf('plain') + 2 } });
+    snap = getProjectionSnapshot();
+    const headingNow = snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading);
+    // Still a local construct (P4B default), but not hidden — marker weak.
+    expect(headingNow?.visibility).toBe('dimmed');
+    expect(snap.hiddenAtomic.length).toBe(0);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('empty heading stays visible (discoverable), not hidden', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    // Empty heading `# ` followed by enough gap so the caret is beyond the
+    // reveal radius — proves the heading is NOT hidden (would vanish) when idle.
+    const md = '# \n\n\n\nplain paragraph far away\n';
+    const path = await writeFixture('p6-empty-heading.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('far away') } });
+    const snapshot = getProjectionSnapshot();
+    const heading = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    // An empty heading must NOT vanish — it stays visible so the user can type.
+    expect(heading.visibility).toBe('visible');
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    // The `#` marker is present as full source (editable), not a weak span.
+    expect(view.contentDOM.querySelector('span.mf-h1')?.textContent?.startsWith('#')).toBe(true);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('thematic break hidden: --- replaced by rule widget, atomic range published, source bytes preserved', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '---\n\n# H\n\nplain paragraph\n';
+    const path = await writeFixture('p6-hr-hidden.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('thematicBreak', true);
+    setLivePreviewHidden('thematicBreak', true);
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('plain') } }); // caret away → hidden
+
+    const snapshot = getProjectionSnapshot();
+    const hr = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.hr);
+    expect(hr).toBeDefined();
+    expect(hr!.visibility).toBe('hidden');
+    // The whole `---` (positions 0..3) is an atomic hidden unit.
+    expect(snapshot.hiddenAtomic).toContainEqual([0, 3]);
+    // The rule renders as a read-only placeholder widget (not the save body).
+    // `:not(.mf-construct)` excludes the revealed construct mark, which also
+    // carries `mf-hr` but is editable source, not the hidden rule.
+    expect(view.contentDOM.querySelector('span.mf-hr:not(.mf-construct)')).not.toBeNull();
+    // The source `---` is preserved in the document (save/export read it).
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('thematic break revealed: caret inside shows the source --- (editable)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '---\n\n# H\n';
+    const path = await writeFixture('p6-hr-reveal.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('thematicBreak', true);
+    setLivePreviewHidden('thematicBreak', true);
+    binding.setMode('preview');
+    // Caret inside the `---` → revealed (source shown, no rule widget).
+    view.dispatch({ selection: { anchor: 1 } });
+    const snapshot = getProjectionSnapshot();
+    const hr = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.hr)!;
+    expect(hr.visibility).toBe('revealed');
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    // No hidden rule widget present (the visible `---` is the editable source).
+    expect(view.contentDOM.querySelector('span.mf-hr:not(.mf-construct)')).toBeNull();
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('hidden marker production does not create a doc transaction (History / bytes stable)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '# Heading\n\ntext\n';
+    const path = await writeFixture('p6-no-txn.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    // Entering preview + hiding builds decorations only — no doc-changing transaction.
+    const docBefore = view.state.doc.toString();
+    const revBefore = view.state.doc.length;
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('text') } });
+    expect(view.state.doc.toString()).toBe(docBefore);
+    expect(view.state.doc.length).toBe(revBefore);
+    // The doc is byte-identical; no History entry for a pure projection change.
+    expect(getProjectionSnapshot().state).toBe('rendered');
+  });
+
+  it('setext heading falls back to dimmed (never hidden, projection never degrades)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    // `Title\n=====` is a SetextHeading1: its HeaderMark is the `=====` underline,
+    // which the M1 ATX-only hidden path must decline WITHOUT throwing (the old
+    // underline-as-`#` handling sliced past the marker line → RangeError → the
+    // WHOLE projection degraded to source).
+    const md = 'Title\n=====\n\nplain paragraph far away\n';
+    const path = await writeFixture('p6-setext-hidden.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('far away') } });
+
+    const snapshot = getProjectionSnapshot();
+    // Projection stays healthy — no degrade-to-source for the whole document.
+    expect(snapshot.state).toBe('rendered');
+    const heading = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.heading)!;
+    expect(heading).toBeDefined();
+    expect(heading.visibility).toBe('dimmed');
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    // The underline stays as weak source (dimmed marker, not a replace).
+    expect(view.contentDOM.querySelector('span.mf-marker')).not.toBeNull();
+    expect(view.state.doc.toString()).toBe(md);
+  });
+});
+
+// ── P6 M1 interaction over the hidden markers (ADR structural matrix §2/§6) ──
+//
+// Drives the PRODUCT extension stack (structural keymap + projection) through
+// runScopeHandlers: with the heading marker hidden, the caret approaching the
+// content start must reveal, Arrow keys must cross the invisible `# ` as ONE
+// atomic unit (never resting inside it), and Backspace at the content start
+// must outdent per §2 (marker + space deleted in one transaction) — now that
+// the construct is revealed, the structural rule sees plain source.
+
+describe('P6 M1 — interaction over hidden markers (product stack)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  interface HiddenHarness {
+    view: EditorView;
+    txs: Transaction[];
+    press(key: string, shift?: boolean): boolean;
+    destroy(): void;
+  }
+
+  function hiddenHarness(source: string): HiddenHarness {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const txs: Transaction[] = [];
+    const handle: ReturnType<typeof createLosslessSourceEditor> = createLosslessSourceEditor(
+      parent,
+      source,
+      {
+        livePreview: true,
+        mode: 'preview',
+        onTransaction(transactions) {
+          txs.push(...transactions);
+        },
+      },
+    );
+    setLivePreviewProjection('heading', true);
+    setLivePreviewHidden('heading', true);
+    // The structural ADR keymap gates heading rows behind the headingStrong
+    // cohort (P4B 7.2a); P6 M1 reuses the same frozen rules over hidden source.
+    setP4bFlagEnabled('headingStrong', true);
+    return {
+      view: handle.view,
+      txs,
+      press(key, shift = false) {
+        return runScopeHandlers(
+          handle.view,
+          new KeyboardEvent('keydown', { key, shiftKey: shift, cancelable: true }),
+          'editor',
+        );
+      },
+      destroy: () => handle.destroy(),
+    };
+  }
+
+  const md = '# Heading text\n\nplain paragraph\n';
+
+  it('caret at content start reveals the hidden marker before any edit', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = hiddenHarness(md);
+    try {
+      h.view.dispatch({ selection: { anchor: 2 } }); // contentStart of `# Heading text`
+      const heading = getProjectionSnapshot().constructs.find(
+        (c) => c.cls === PROJECTION_CLASSES.heading,
+      )!;
+      expect(heading.visibility).toBe('revealed');
+      expect(getProjectionSnapshot().hiddenAtomic.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('hiddenAtomic is published through the EditorView.atomicRanges facet (ADR §2)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = hiddenHarness(md);
+    const facetSpans = (view: EditorView): Array<[number, number]> => {
+      const spans: Array<[number, number]> = [];
+      for (const provider of view.state.facet(EditorView.atomicRanges)) {
+        const cursor = provider(view).iter();
+        while (cursor.value) {
+          spans.push([cursor.from, cursor.to]);
+          cursor.next();
+        }
+      }
+      return spans;
+    };
+    try {
+      // Caret far away → the `# ` marker is hidden and its range [0, 2) must be
+      // reachable through the atomicRanges facet (the contract cursor motion
+      // and widgets consult).
+      h.view.dispatch({ selection: { anchor: md.indexOf('paragraph') } });
+      expect(facetSpans(h.view)).toContainEqual([0, 2]);
+      // Caret at contentStart → the construct revealed, so NOTHING may stay
+      // atomic over the marker: the caret must be allowed to rest next to the
+      // now-visible source (reveal pre-empts atomicity at one-char approach).
+      h.view.dispatch({ selection: { anchor: 2 } });
+      expect(facetSpans(h.view).filter(([f, t]) => f < 2 && t > 0)).toEqual([]);
+      // Stepping left lands on the marker char — legal, because the construct
+      // is revealed there and the `#` is visible (no invisible-caret trap).
+      expect(h.press('ArrowLeft')).toBe(true);
+      expect(h.view.state.selection.main.anchor).toBe(1);
+      const heading = getProjectionSnapshot().constructs.find(
+        (c) => c.cls === PROJECTION_CLASSES.heading,
+      )!;
+      expect(heading.visibility).toBe('revealed');
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace at content start outdents per ADR §2 in one transaction (marker + space)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = hiddenHarness(md);
+    try {
+      h.view.dispatch({ selection: { anchor: 2 } });
+      expect(h.press('Backspace')).toBe(true);
+      // §2: the heading marker AND its separating space are deleted; the line
+      // becomes a paragraph. Caret at the original content line start.
+      expect(h.view.state.doc.toString()).toBe('Heading text\n\nplain paragraph\n');
+      expect(h.view.state.selection.main.anchor).toBe(0);
+      expect(h.txs.length).toBe(1);
+    } finally {
+      h.destroy();
+    }
   });
 });
 

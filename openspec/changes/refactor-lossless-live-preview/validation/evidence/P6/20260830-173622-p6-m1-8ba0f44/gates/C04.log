@@ -1,0 +1,1 @@
+=== C04: cargo fmt --manifest-path markflow-core/Cargo.toml -- --check ===

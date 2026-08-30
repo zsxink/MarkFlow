@@ -755,6 +755,17 @@
   color: var(--fg);
 }
 
+/* ── P6 hidden-marker (Typora-style) ───────────────────────────────────── */
+/* Thematic break renders as a rule via a read-only placeholder widget (not the
+   save body — export/save read the source `---` / `***` / `___`). */
+.source-editor-wrapper .cm-editor .mf-hr {
+  display: block;
+  height: 0;
+  border-top: 2px solid var(--border);
+  margin: 0.6em 0;
+  box-sizing: border-box;
+}
+
 /* Marker weak by default — the construct is always fully editable. */
 .source-editor-wrapper .cm-editor .mf-construct .mf-marker {
   opacity: 0.45;

@@ -73,6 +73,7 @@ export type ConstructKind =
   | 'taskCheckbox'
   | 'fence'
   | 'codeFenceControls'
+  | 'thematicBreak'
   | 'htmlBlock'
   | 'table'
   | 'frontmatter'
@@ -93,6 +94,7 @@ export const CONSTRUCT_KINDS: readonly ConstructKind[] = [
   'taskCheckbox',
   'fence',
   'codeFenceControls',
+  'thematicBreak',
   'htmlBlock',
   'table',
   'frontmatter',
@@ -123,6 +125,10 @@ const DEFAULT_OWNERS: Readonly<Record<ConstructKind, ConstructOwner>> = Object.f
   // Controls are a child slot at the opening fence marker, not a replacement
   // for the locally projected FencedCode construct.
   codeFenceControls: 'source-fallback',
+  // Thematic break (`---` / `***` / `___`) is exact-source fallback by default;
+  // P6 M1 promotes it to a local projected construct (rendered as a rule) ONLY
+  // when `livePreview.thematicBreak` is ON (gated in projection.ts classify).
+  thematicBreak: 'source-fallback',
   htmlBlock: 'source-fallback',
   table: 'source-fallback',
   frontmatter: 'source-fallback',

@@ -39,6 +39,7 @@ import {
   clsToLivePreviewConstruct,
   isLivePreviewHiddenOn,
   isLivePreviewProjectionOn,
+  PAIRED_INLINE_CONSTRUCTS,
 } from './livePreviewFlags';
 
 /** Construct classes exposed for semantic assertions (unit + desktop E2E). */
@@ -274,10 +275,40 @@ class ThematicBreakWidget extends WidgetType {
 }
 
 /**
+ * M2a paired-inline geometry: `[[openFrom, openTo], [closeFrom, closeTo]]` plus
+ * the content range between them. Returns `null` when the construct is not a
+ * well-formed pair (a malformed/incomplete emphasis carries no balanced pair, and
+ * hiding half of it would strand a lone delimiter in the source).
+ */
+export interface PairedInlineGeometry {
+  openFrom: number;
+  openTo: number;
+  closeFrom: number;
+  closeTo: number;
+  contentFrom: number;
+  contentTo: number;
+}
+
+/**
+ * Resolve the paired-marker geometry of an M2a inline construct. Requires exactly
+ * TWO discrete marker spans (Lezer always produces `EmphasisMark`/`StrikethroughMark`/
+ * `CodeMark` in pairs for a complete construct) and a NON-EMPTY content range.
+ * Returns `null` otherwise, so the caller keeps the weak-marker projection
+ * instead of hiding a half-formed pair.
+ */
+export function pairedInlineGeometry(range: ConstructRange): PairedInlineGeometry | null {
+  if (range.markers.length !== 2) return null;
+  const [openFrom, openTo] = range.markers[0];
+  const [closeFrom, closeTo] = range.markers[1];
+  if (openTo > closeFrom) return null; // overlapping/misordered markers
+  return { openFrom, openTo, closeFrom, closeTo, contentFrom: openTo, contentTo: closeFrom };
+}
+
+/**
  * Build the hidden (replacing + atomic) decorations for ONE P6 construct and
  * push them into `additions`. Returns `'hidden'` when the construct was hidden
  * (caller skips the normal path); otherwise it returns the safe fallback state
- * the caller must apply instead — `'visible'` for an empty heading that must
+ * the caller must apply instead — `'visible'` for an empty construct that must
  * stay discoverable, `'dimmed'` for a construct whose markers cannot be hidden
  * (e.g. a setext heading's underline), so it keeps the weak-marker projection.
  */
@@ -287,6 +318,26 @@ function buildHiddenConstruct(
   additions: Array<{ from: number; to: number; deco: Decoration }>,
   hiddenAtomicSpans: Array<[number, number]>,
 ): ConstructVisibility {
+  // M2a paired inline constructs (`**bold**`, `*it*`, `~~s~~`, `` `c` ``): each
+  // delimiter is replaced and published as its OWN atomic unit, and the content
+  // between them keeps the semantic class. Nested constructs compose naturally —
+  // an inner construct's replaced markers live inside the outer construct's
+  // content mark, and CodeMirror allows a mark to span a replaced range.
+  const kind = clsToLivePreviewConstruct(range.cls);
+  if (kind && PAIRED_INLINE_CONSTRUCTS.includes(kind)) {
+    const geo = pairedInlineGeometry(range);
+    if (!geo) return 'dimmed'; // malformed pair — never hide half of it
+    if (geo.contentTo <= geo.contentFrom) return 'visible'; // empty → discoverable
+    hiddenAtomicSpans.push([geo.openFrom, geo.openTo], [geo.closeFrom, geo.closeTo]);
+    additions.push({ from: geo.openFrom, to: geo.openTo, deco: Decoration.replace({}) });
+    additions.push({ from: geo.closeFrom, to: geo.closeTo, deco: Decoration.replace({}) });
+    additions.push({
+      from: geo.contentFrom,
+      to: geo.contentTo,
+      deco: Decoration.mark({ class: `mf-construct ${range.cls}` }),
+    });
+    return 'hidden';
+  }
   // Thematic break: replace the whole `---`/`***`/`___` with a read-only rule.
   if (range.cls === PROJECTION_CLASSES.hr) {
     hiddenAtomicSpans.push([range.from, range.to]);
@@ -621,6 +672,25 @@ function buildDecorations(view: EditorView): DecorationSet {
   for (const range of constructs) {
     range.markers = markerSpans
       .filter(([mf, mt]) => mf >= range.from && mt <= range.to)
+      // M2a: a marker belongs to the INNERMOST construct that contains it, never
+      // to an ancestor. `**`code`**` puts four spans inside StrongEmphasis, but
+      // only the two EmphasisMarks are the strong's own delimiters — the two
+      // CodeMarks belong to the nested InlineCode. Leaving them on the ancestor
+      // would (a) misreport the outer construct's paired geometry so the M2a
+      // hide path would decline it, and (b) apply `.mf-marker` twice to the same
+      // backticks in the dimmed path.
+      .filter(
+        ([mf, mt]) =>
+          !constructs.some(
+            (inner) =>
+              inner !== range &&
+              inner.from >= range.from &&
+              inner.to <= range.to &&
+              (inner.from > range.from || inner.to < range.to) &&
+              mf >= inner.from &&
+              mt <= inner.to,
+          ),
+      )
       .sort((a, b) => a[0] - b[0]);
   }
 

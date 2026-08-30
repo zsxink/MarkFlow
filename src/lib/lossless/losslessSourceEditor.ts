@@ -25,6 +25,7 @@ import { projectionExtension } from './projection';
 import { widgetProjectionExtension } from './widgets/p4bWidgets';
 import { rawHtmlPolicyExtension } from './policy/rawHtmlPolicy';
 import { structuralInteractionKeymap } from './structuralInteraction';
+import { hiddenMarkerInteractionKeymap } from './hiddenMarkerInteraction';
 // Side-effect import: registers the flag-gated `frontmatter` owner at module
 // init (task 7.7). It needs no extension — no `FrontMatter` Lezer node exists
 // (ADR §3.1), so the only safe projection is exact source by construction.
@@ -218,6 +219,12 @@ export function buildLosslessExtensions(
     // continuation. Unsupported, malformed, read-only and composing contexts
     // decline, preserving the ordinary source fallback.
     structuralInteractionKeymap,
+    // P6 M2a: boundary deletion over a hidden inline marker must not eat one
+    // half of a `**` pair. Installed unconditionally but INERT by default — the
+    // handler declines unless the owning construct's `livePreview.<c>.hidden`
+    // switch is ON (default OFF), so source behaviour is byte-identical when the
+    // cohort is rolled back.
+    hiddenMarkerInteractionKeymap,
     EditorView.updateListener.of((update) => {
       if (lifecycle.destroyed) return;
       if (update.docChanged) {

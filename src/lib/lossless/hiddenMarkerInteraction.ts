@@ -1,0 +1,168 @@
+// P6 M2a — boundary deletion over hidden inline markers (ADR structural
+// interaction matrix; design/phases/P6-true-wysiwyg-hidden-markers.md §4).
+//
+// A hidden marker is a `Decoration.replace` over source the user cannot see. If
+// Backspace/Delete behaved like ordinary source deletion at a marker boundary,
+// one keystroke would silently eat a `*` of `**bold**` and leave an unbalanced
+// pair in the saved bytes — an invisible edit that corrupts the document. The
+// ADR therefore defines the boundary contract:
+//
+//   | Backspace at the AFTER boundary of the closing marker | reveal the owning
+//     construct, delete one grapheme from the END of the content range; the
+//     paired markers stay intact. Empty content → NoOp.
+//   | Delete at the BEFORE boundary of the opening marker | reveal the owning
+//     construct, delete one grapheme from the START of the content range; the
+//     paired markers stay intact. Empty content → NoOp.
+//   | Backspace just after the opening marker, or Delete just before the closing
+//     marker (the INNER boundaries) | reveal and NoOp — a delimiter is never
+//     removed on its own.
+//
+// This module is the ONLY place that implements it. It stays faithful to the P6
+// single-source-of-truth rule: it never rewrites markers into the doc, never
+// touches CSS, and never reads DOM text — every decision is made from the
+// projection's `ConstructRange` geometry (source offsets), and the resulting
+// change is one ordinary CodeMirror transaction over the source range.
+//
+// Rollback: the handler declines outright unless the owning construct's
+// `livePreview.<c>.hidden` switch is ON (default OFF). With the flag OFF the
+// keymap is inert and Backspace/Delete stay byte-for-byte the pre-P6 behaviour.
+
+import { EditorState, Prec, type Extension } from '@codemirror/state';
+import { isolateHistory } from '@codemirror/commands';
+import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
+import { getProjectionSnapshot, pairedInlineGeometry, type ConstructRange } from './projection';
+import { clsToLivePreviewConstruct, isLivePreviewHiddenOn } from './livePreviewFlags';
+
+/** The resolved boundary hit for a keystroke (source offsets, never DOM). */
+type BoundaryHit =
+  /** Delete one grapheme from the end of the content range (Backspace outside the closing marker). */
+  | { kind: 'delete-content-end'; contentFrom: number; contentTo: number }
+  /** Delete one grapheme from the start of the content range (Delete outside the opening marker). */
+  | { kind: 'delete-content-start'; contentFrom: number; contentTo: number }
+  /** Inside the pair at a delimiter — reveal only, never delete the delimiter. */
+  | { kind: 'noop' };
+
+/** Backspace steps backwards over one grapheme; Delete steps forwards. */
+function stepGrapheme(text: string, offset: number, backwards: boolean): number {
+  if (!backwards) {
+    if (offset >= text.length) return offset;
+    // Keep a surrogate pair together: never land between a high and low half.
+    const hi = text.charCodeAt(offset);
+    if (hi >= 0xd800 && hi <= 0xdbff && offset + 1 < text.length) {
+      const lo = text.charCodeAt(offset + 1);
+      if (lo >= 0xdc00 && lo <= 0xdfff) return offset + 2;
+    }
+    return offset + 1;
+  }
+  if (offset <= 0) return 0;
+  const lo = text.charCodeAt(offset - 1);
+  if (lo >= 0xdc00 && lo <= 0xdfff && offset - 2 >= 0) {
+    const hi = text.charCodeAt(offset - 2);
+    if (hi >= 0xd800 && hi <= 0xdbff) return offset - 2;
+  }
+  return offset - 1;
+}
+
+/**
+ * True when this construct's markers are hidden-capable RIGHT NOW. The check is
+ * on the switch, not on the last-resolved visibility: a construct adjacent to the
+ * caret is `revealed`, yet it is the hidden marker that makes the boundary rule
+ * necessary — the keystroke is what must not eat the delimiter.
+ */
+function hiddenCapable(range: ConstructRange): boolean {
+  const kind = clsToLivePreviewConstruct(range.cls);
+  return kind !== null && isLivePreviewHiddenOn(kind);
+}
+
+/**
+ * Find the paired inline construct whose marker boundary the caret sits at.
+ * Returns `null` when the caret is at an ordinary source position, so Backspace/
+ * Delete fall through to the default (exact-source) behaviour.
+ */
+function boundaryHitAt(view: EditorView, pos: number, backwards: boolean): BoundaryHit | null {
+  const snapshot = getProjectionSnapshot();
+  // Only trust snapshot geometry when the projection actually rendered it. In
+  // Source mode the plugin is absent (`source`), and a huge doc degrades to
+  // source fallback — in both cases no marker is hidden on screen, so the
+  // boundary rule must not fire.
+  if (snapshot.state !== 'rendered') return null;
+  // Staleness guard: the snapshot is a module singleton, so refuse to act on
+  // geometry that cannot belong to this document. A mismatch means the snapshot
+  // predates the current doc — fall through to ordinary source deletion rather
+  // than deleting at offsets computed for a different document.
+  const docLength = view.state.doc.length;
+  if (!snapshot.constructs.every((c) => c.from >= 0 && c.to <= docLength)) return null;
+  // Innermost first: with `**`code`**` the inner construct owns its own boundary.
+  const candidates = snapshot.constructs.filter(hiddenCapable).sort((a, b) => b.from - a.from);
+  for (const range of candidates) {
+    const geo = pairedInlineGeometry(range);
+    if (!geo) continue;
+    if (backwards) {
+      // After the closing marker → delete the content's last grapheme.
+      if (pos === geo.closeTo) {
+        return { kind: 'delete-content-end', contentFrom: geo.contentFrom, contentTo: geo.contentTo };
+      }
+      // Just after the opening marker (the inner boundary) → reveal, no delete.
+      if (pos === geo.contentFrom) return { kind: 'noop' };
+    } else {
+      // Before the opening marker → delete the content's first grapheme.
+      if (pos === geo.openFrom) {
+        return { kind: 'delete-content-start', contentFrom: geo.contentFrom, contentTo: geo.contentTo };
+      }
+      // Just before the closing marker (the inner boundary) → reveal, no delete.
+      if (pos === geo.contentTo) return { kind: 'noop' };
+    }
+  }
+  return null;
+}
+
+function handleDelete(view: EditorView, backwards: boolean): boolean {
+  // Read-only, composing, and range selections keep ordinary source behaviour:
+  // an IME session owns its own composition, and a non-empty selection is an
+  // explicit user sweep that the ADR treats as a plain source delete.
+  if (view.state.facet(EditorState.readOnly)) return false;
+  if (view.composing) return false;
+  const sel = view.state.selection.main;
+  if (!sel.empty) return false;
+  const hit = boundaryHitAt(view, sel.head, backwards);
+  if (!hit) return false;
+  // `noop` returns true (handled): the keystroke is consumed so the delimiter
+  // survives, and the construct is already revealed by the adjacent caret.
+  if (hit.kind === 'noop') return true;
+  const text = view.state.doc.sliceString(hit.contentFrom, hit.contentTo);
+  if (text === '') return true; // empty content → reveal only, per ADR
+  if (backwards) {
+    const from = stepGrapheme(text, text.length, true);
+    if (from === text.length) return true; // nothing left to step over
+    const absFrom = hit.contentFrom + from;
+    view.dispatch({
+      changes: { from: absFrom, to: hit.contentTo, insert: '' },
+      selection: { anchor: absFrom },
+      userEvent: 'delete.structure',
+      annotations: isolateHistory.of('full'),
+    });
+    return true;
+  }
+  const to = stepGrapheme(text, 0, false);
+  if (to === 0) return true;
+  view.dispatch({
+    changes: { from: hit.contentFrom, to: hit.contentFrom + to, insert: '' },
+    selection: { anchor: hit.contentFrom },
+    userEvent: 'delete.structure',
+    annotations: isolateHistory.of('full'),
+  });
+  return true;
+}
+
+/**
+ * P6 M2a command layer: Backspace/Delete over a hidden inline marker boundary.
+ * Installed at `Prec.highest` alongside the P4B structural keymap so it is seen
+ * before generic source deletion. It declines (returns false) for every position
+ * that is not a hidden-marker boundary, so the ordinary source path is unchanged.
+ */
+export const hiddenMarkerInteractionKeymap: Extension = Prec.highest(
+  keymap.of([
+    { key: 'Backspace', run: (view) => handleDelete(view, true) },
+    { key: 'Delete', run: (view) => handleDelete(view, false) },
+  ] satisfies readonly KeyBinding[]),
+);

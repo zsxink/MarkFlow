@@ -1469,3 +1469,436 @@ function getRevealStateMany(
 ): number[] {
   return classes.map((cls) => view.contentDOM.querySelectorAll(`span.mf-active.mf-${cls.replace('mf-', '')}`).length);
 }
+
+// ── P6 M2a — hidden markers for the paired inline constructs ──────────────
+//
+// Second P6 cohort, behind `livePreview.strong` / `.emphasis` / `.strikethrough`
+// / `.inlineCode` plus each one's `.hidden` switch (all default OFF). Proves the
+// same contract as M1 — `Decoration.replace` + `EditorView.atomicRanges`, doc
+// bytes untouched, independent rollback — and adds what only a PAIRED inline
+// marker introduces: nested constructs, the input rule that forms the pair,
+// double-click / cross-marker selection, and the ADR boundary-delete rule that
+// keeps the pair intact when one side is deleted.
+
+const M2A_CONSTRUCTS = ['strong', 'emphasis', 'strikethrough', 'inlineCode'] as const;
+
+function enableAllM2aHidden(): void {
+  for (const c of M2A_CONSTRUCTS) {
+    setLivePreviewProjection(c, true);
+    setLivePreviewHidden(c, true);
+  }
+}
+
+/**
+ * Trailing gap after the constructs. The base (cohort-OFF) reveal uses a radius
+ * of 2, so the caret must sit more than 2 units past the LAST construct for it
+ * to stay hidden — otherwise it is legitimately revealed and proves nothing.
+ */
+const FAR = '\n\n\n\n\ntail text\n';
+
+interface M2aHarness {
+  view: EditorView;
+  txs: Transaction[];
+  press(key: string, shift?: boolean): boolean;
+  destroy(): void;
+}
+
+/**
+ * Product-stack harness: the real editor + keymaps. `enableFlags` defaults to
+ * true (M2a hidden ON); pass false for the rollback/inertness proof, where every
+ * switch must stay at its default OFF so the keymap cannot fire.
+ */
+function m2aHarness(source: string, enableFlags = true): M2aHarness {
+  const parent = document.createElement('div');
+  document.body.appendChild(parent);
+  const txs: Transaction[] = [];
+  const handle: ReturnType<typeof createLosslessSourceEditor> = createLosslessSourceEditor(
+    parent,
+    source,
+    {
+      livePreview: true,
+      mode: 'preview',
+      onTransaction(transactions) {
+        txs.push(...transactions);
+      },
+    },
+  );
+  if (enableFlags) enableAllM2aHidden();
+  return {
+    view: handle.view,
+    txs,
+    press(key, shift = false) {
+      return runScopeHandlers(
+        handle.view,
+        new KeyboardEvent('keydown', { key, shiftKey: shift, cancelable: true }),
+        'editor',
+      );
+    },
+    destroy: () => handle.destroy(),
+  };
+}
+
+describe('P6 M2a — hidden markers (strong / emphasis / strike / inline code)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  it('default OFF: every paired inline construct is dimmed, never hidden, doc untouched', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** and *it* and ~~s~~ and `c`' + FAR;
+    const path = await writeFixture('p6-m2a-off.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } }); // caret far away
+    const snapshot = getProjectionSnapshot();
+    for (const cls of [
+      PROJECTION_CLASSES.strong,
+      PROJECTION_CLASSES.emphasis,
+      PROJECTION_CLASSES.strikethrough,
+      PROJECTION_CLASSES.inlineCode,
+    ]) {
+      const c = snapshot.constructs.find((x) => x.cls === cls)!;
+      expect(c, `missing construct ${cls}`).toBeDefined();
+      expect(c.visibility, `${cls} must not hide while its flag is OFF`).toBe('dimmed');
+    }
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    // Markers still render as weak source spans, not replaced.
+    expect(view.contentDOM.querySelectorAll('span.mf-marker').length).toBeGreaterThan(0);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('hidden: each paired construct replaces BOTH markers, publishes two atomic spans, keeps content class', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** and *it* and ~~s~~ and `c`' + FAR;
+    const path = await writeFixture('p6-m2a-hidden.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableAllM2aHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } }); // caret far away
+
+    const snapshot = getProjectionSnapshot();
+    const expectPair = (cls: string, spans: Array<[number, number]>) => {
+      const c = snapshot.constructs.find((x) => x.cls === cls)!;
+      expect(c, `missing ${cls}`).toBeDefined();
+      expect(c.visibility).toBe('hidden');
+      for (const span of spans) expect(snapshot.hiddenAtomic).toContainEqual(span);
+    };
+    // `**bold**` → [0,2) + [6,8); `*it*` → [13,14)+[16,17);
+    // `~~s~~` → [22,24)+[25,27); `` `c` `` → [32,33)+[34,35).
+    expectPair(PROJECTION_CLASSES.strong, [[0, 2], [6, 8]]);
+    expectPair(PROJECTION_CLASSES.emphasis, [[13, 14], [16, 17]]);
+    expectPair(PROJECTION_CLASSES.strikethrough, [[22, 24], [25, 27]]);
+    expectPair(PROJECTION_CLASSES.inlineCode, [[32, 33], [34, 35]]);
+    // No weak marker span remains (every marker is replaced, not dimmed).
+    expect(view.contentDOM.querySelectorAll('span.mf-marker').length).toBe(0);
+    // Each content range keeps its semantic class, and the source is untouched.
+    expect(view.contentDOM.querySelector('span.mf-strong')?.textContent).toBe('bold');
+    expect(view.contentDOM.querySelector('span.mf-inline-code')?.textContent).toBe('c');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('nested construct: ** `code` ** hides the outer pair and the inner pair independently', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**`code`**' + FAR;
+    const path = await writeFixture('p6-m2a-nested.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableAllM2aHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    // Projection must stay healthy — nested replaces must not degrade it.
+    expect(snapshot.state).toBe('rendered');
+    const strong = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!;
+    const code = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.inlineCode)!;
+    expect(strong).toBeDefined();
+    expect(code).toBeDefined();
+    // The outer construct owns ONLY its own two delimiters — the two backticks
+    // belong to the nested inline code (an ancestor must never claim them).
+    expect(strong.markers).toEqual([[0, 2], [8, 10]]);
+    expect(code.markers).toEqual([[2, 3], [7, 8]]);
+    expect(strong.visibility).toBe('hidden');
+    expect(code.visibility).toBe('hidden');
+    expect(snapshot.hiddenAtomic).toEqual(
+      expect.arrayContaining([[0, 2], [8, 10], [2, 3], [7, 8]]),
+    );
+    // The inner content is still rendered inside the outer semantic mark.
+    expect(view.contentDOM.querySelector('span.mf-inline-code')?.textContent).toBe('code');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('input rule: typing the closing ** forms the pair, then it hides once the caret leaves', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    // `**bold` is NOT yet a construct — an unclosed delimiter is literal text.
+    const md = '**bold' + FAR;
+    const path = await writeFixture('p6-m2a-inputrule.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableAllM2aHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+    expect(getProjectionSnapshot().constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)).toBeUndefined();
+
+    // Type the closing `**` — the pair is completed by user input.
+    view.dispatch({ changes: { from: 6, to: 6, insert: '**' }, selection: { anchor: 8 } });
+    const completed = getProjectionSnapshot();
+    const strong = completed.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!;
+    expect(strong).toBeDefined();
+    // Caret sits on the closing boundary → revealed, so the user keeps editing
+    // the source they just typed rather than having it vanish under them.
+    expect(strong.visibility).toBe('revealed');
+    expect(completed.hiddenAtomic.length).toBe(0);
+    expect(view.state.doc.toString()).toBe('**bold**' + FAR);
+
+    // Move the caret away → the freshly typed pair hides, bytes unchanged.
+    view.dispatch({ selection: { anchor: view.state.doc.toString().indexOf('tail') } });
+    const away = getProjectionSnapshot();
+    expect(away.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('hidden');
+    expect(away.hiddenAtomic).toEqual(expect.arrayContaining([[0, 2], [6, 8]]));
+    expect(view.state.doc.toString()).toBe('**bold**' + FAR);
+  });
+
+  it('double-click and cross-marker selections reveal the construct (no caret in invisible source)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** tail\n';
+    const path = await writeFixture('p6-m2a-selection.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableAllM2aHidden();
+    binding.setMode('preview');
+
+    // Double-click inside the content selects the word → the pair reveals.
+    view.dispatch({ selection: { anchor: 2, head: 6 } });
+    let snap = getProjectionSnapshot();
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('revealed');
+    expect(snap.hiddenAtomic.length).toBe(0);
+
+    // A selection crossing the closing marker (inside → outside) also reveals,
+    // so the caret/selection never rests inside an invisible marker range.
+    view.dispatch({ selection: { anchor: 4, head: 10 } });
+    snap = getProjectionSnapshot();
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('revealed');
+    expect(snap.hiddenAtomic.length).toBe(0);
+
+    // Selection entirely away from the construct → hidden again.
+    view.dispatch({ selection: { anchor: 9, head: 13 } });
+    snap = getProjectionSnapshot();
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('hidden');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('rollback: .hidden OFF dims the markers, construct OFF returns to source — bytes never change', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** and `c`' + FAR;
+    const path = await writeFixture('p6-m2a-rollback.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableAllM2aHidden();
+    binding.setMode('preview');
+    const away = md.indexOf('tail');
+
+    view.dispatch({ selection: { anchor: away } });
+    let snap = getProjectionSnapshot();
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('hidden');
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.inlineCode)!.visibility).toBe('hidden');
+    expect(snap.hiddenAtomic.length).toBe(4);
+
+    // ONE construct's `.hidden` OFF → only that construct degrades to dimmed;
+    // the other stays hidden (the switches are genuinely independent).
+    setLivePreviewHidden('strong', false);
+    view.dispatch({ selection: { anchor: away + 1 } });
+    snap = getProjectionSnapshot();
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('dimmed');
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.inlineCode)!.visibility).toBe('hidden');
+    // Only the inline code's two markers remain atomic; the strong's are gone.
+    expect(snap.hiddenAtomic).toHaveLength(2);
+    expect(snap.hiddenAtomic).not.toEqual(expect.arrayContaining([[0, 2]]));
+    expect(view.contentDOM.querySelector('span.mf-marker')?.textContent).toBe('**');
+
+    // The construct switch OFF → source fallback for it (no projection/hiding).
+    setLivePreviewProjection('strong', false);
+    view.dispatch({ selection: { anchor: away + 2 } });
+    snap = getProjectionSnapshot();
+    expect(snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!.visibility).toBe('dimmed');
+    // Bytes are identical after every rollback step.
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('hiding the four constructs dispatches no doc-changing transaction (History / bytes stable)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '**bold** and *it* and ~~s~~ and `c`' + FAR;
+    const path = await writeFixture('p6-m2a-no-txn.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    const docBefore = view.state.doc;
+    enableAllM2aHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+    // `EditorState.doc` is immutable: CodeMirror reuses the identical instance
+    // across every transaction that does not change the document, so object
+    // identity here proves NO docChanged transaction was dispatched — and
+    // therefore that no History entry was created by hiding the markers.
+    expect(view.state.doc).toBe(docBefore);
+    expect(getProjectionSnapshot().hiddenAtomic.length).toBe(8);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+});
+
+describe('P6 M2a — boundary delete keeps the paired syntax intact (ADR matrix)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  // `**bold** tail` → StrongEmphasis [0,8), markers [0,2) + [6,8), content [2,6).
+  const SOURCE = '**bold** tail';
+
+  it('Backspace after the closing ** deletes one content grapheme and keeps BOTH ** markers', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness(SOURCE);
+    try {
+      h.view.dispatch({ selection: { anchor: 8 } }); // after the closing marker
+      expect(h.press('Backspace')).toBe(true);
+      // The paired `**` survives; only the content's last grapheme is removed.
+      expect(h.view.state.doc.toString()).toBe('**bol** tail');
+      expect(h.view.state.selection.main.anchor).toBe(5);
+      expect(h.txs.length).toBe(1);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Delete before the opening ** deletes one content grapheme and keeps BOTH ** markers', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness(SOURCE);
+    try {
+      h.view.dispatch({ selection: { anchor: 0 } }); // before the opening marker
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('**old** tail');
+      expect(h.view.state.selection.main.anchor).toBe(2);
+      expect(h.txs.length).toBe(1);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace just after the opening ** is a NoOp — a delimiter is never deleted alone', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness(SOURCE);
+    try {
+      h.view.dispatch({ selection: { anchor: 2 } }); // inner boundary (contentStart)
+      expect(h.press('Backspace')).toBe(true);
+      // Consumed, but the document is byte-for-byte unchanged.
+      expect(h.view.state.doc.toString()).toBe(SOURCE);
+      expect(h.view.state.selection.main.anchor).toBe(2);
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Delete just before the closing ** is a NoOp — a delimiter is never deleted alone', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness(SOURCE);
+    try {
+      h.view.dispatch({ selection: { anchor: 6 } }); // inner boundary (contentEnd)
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe(SOURCE);
+      expect(h.view.state.selection.main.anchor).toBe(6);
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('emphasis follows the same rule: *it* loses a grapheme, never one * of the pair', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness('a *it* b');
+    try {
+      // `*it*` → Emphasis [2,6), markers [2,3) + [5,6), content [3,5).
+      h.view.dispatch({ selection: { anchor: 6 } }); // after the closing `*`
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('a *i* b');
+      expect(h.view.state.selection.main.anchor).toBe(4);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('a surrogate pair is deleted as one grapheme (no lone half survives)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness('**a🚀** tail');
+    try {
+      // `**a🚀**` → StrongEmphasis [0,7): `a` at 2..3, the emoji at 3..5 (two
+      // UTF-16 units), closing marker [5,7). Content [2,5).
+      h.view.dispatch({ selection: { anchor: 7 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('**a** tail');
+      expect(h.view.state.selection.main.anchor).toBe(3);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('flag OFF leaves plain source deletion (one * really is deleted) — the handler is inert', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness(SOURCE, false);
+    try {
+      // Every M2a switch stays OFF (the default): Backspace at the closing
+      // boundary is ordinary source deletion, byte-identical to pre-P6.
+      h.view.dispatch({ selection: { anchor: 8 } });
+      h.press('Backspace');
+      expect(h.view.state.doc.toString()).toBe('**bold* tail');
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('a non-empty selection is ordinary source deletion, not the boundary rule', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m2aHarness(SOURCE);
+    try {
+      // Sweeping across the whole construct is an explicit user selection; the
+      // ADR treats it as a plain source delete (no grapheme rewriting).
+      h.view.dispatch({ selection: { anchor: 0, head: 8 } });
+      h.press('Backspace');
+      expect(h.view.state.doc.toString()).toBe(' tail');
+    } finally {
+      h.destroy();
+    }
+  });
+});

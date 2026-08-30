@@ -9,17 +9,43 @@
 //     rewrites `EditorState.doc`, the History, or the Core byte session.
 //
 // M1 (heading / paragraph / thematic break) is wired first. `paragraph` has no
-// marker to hide, so it needs no switch; `heading` and `thematicBreak` do. Future
-// cohorts (M2a/M2b/M3a/M3b) extend this registry but are delivered INDEPENDENTLY
-// (own flag set, evidence, Reviewer, human acceptance), so this file only
-// ENABLES the cohorts it implements.
+// marker to hide, so it needs no switch; `heading` and `thematicBreak` do.
+// M2a adds the four PAIRED INLINE constructs (strong/emphasis/strikethrough/
+// inline code), each with its own independent switch pair. Future cohorts
+// (M2b/M3a/M3b) extend this registry but are delivered INDEPENDENTLY (own flag
+// set, evidence, Reviewer, human acceptance), so this file only ENABLES the
+// cohorts it implements.
 
 /** Constructs that P6 is allowed to project + hide. */
-export type LivePreviewConstruct = 'heading' | 'thematicBreak';
+export type LivePreviewConstruct =
+  | 'heading'
+  | 'thematicBreak'
+  | 'strong'
+  | 'emphasis'
+  | 'strikethrough'
+  | 'inlineCode';
 
 export const LIVE_PREVIEW_CONSTRUCTS: readonly LivePreviewConstruct[] = Object.freeze([
   'heading',
   'thematicBreak',
+  'strong',
+  'emphasis',
+  'strikethrough',
+  'inlineCode',
+]);
+
+/**
+ * The M2a constructs whose source syntax is a PAIRED delimiter around a content
+ * range (`**bold**`, `*it*`, `~~s~~`, `` `c` ``). Their markers are hidden as two
+ * discrete atomic units, and their boundary-delete contract (ADR structural
+ * interaction matrix) keeps the pair intact — deleting one `**` never orphans
+ * the other.
+ */
+export const PAIRED_INLINE_CONSTRUCTS: readonly LivePreviewConstruct[] = Object.freeze([
+  'strong',
+  'emphasis',
+  'strikethrough',
+  'inlineCode',
 ]);
 
 /** localStorage key for a P6 construct switch (`markflow.livePreview.<c>[.hidden]`). */
@@ -147,12 +173,17 @@ if (import.meta.env.MODE === 'e2e') {
 
 /**
  * Map a projection `cls` to its P6 construct identity. Returns `null` for any
- * construct P6 does not yet own (everything except the M1 heading / thematic
- * break). Used by the projection engine to decide whether a construct may
- * enter the hidden-marker state at all.
+ * construct P6 does not yet own (everything outside M1 heading / thematic break
+ * and the M2a paired inline constructs). Used by the projection engine to decide
+ * whether a construct may enter the hidden-marker state at all.
  */
 export function clsToLivePreviewConstruct(cls: string): LivePreviewConstruct | null {
   if (cls === 'mf-h') return 'heading';
   if (cls === 'mf-hr') return 'thematicBreak';
+  // M2a paired inline constructs.
+  if (cls === 'mf-strong') return 'strong';
+  if (cls === 'mf-emphasis') return 'emphasis';
+  if (cls === 'mf-strikethrough') return 'strikethrough';
+  if (cls === 'mf-inline-code') return 'inlineCode';
   return null;
 }

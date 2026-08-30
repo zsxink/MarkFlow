@@ -557,26 +557,48 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 - [~] 人工验收已签署（2026-08-30，独立验收代理，6+1 项）——
       **出处已补齐**：`20260830-134007-p4b-acceptance-full-b1e4c05` 以改后 spec 重跑
       三 spec 全量，EXIT=0，13 用例全过（见 N-3 修正版）
-- [~] 独立 Reviewer 对**当前候选**签署 —— **已刷新，B-1/B-2/B-3 已闭合，新增 B-4**（见下）
+- [~] 独立 Reviewer 对**当前候选**签署 —— **已闭合**：B-1/B-2/B-3/B-4 四轮复核全部闭合（见 `REVIEW-ROUND4.md`）；仅 PO 可批准最终 Go
 
-决定：`P4B-SUBSTRATE-GO` **PENDING**（blocker B-1/B-2 已由执行流处置完毕，
-需 Reviewer 确认后 + Program Owner 裁决）。
+决定：`P4B-SUBSTRATE-GO` **GO（2026-08-30，Program Owner xian 记录）**。独立 Reviewer 四轮复核后
+B-1/B-2/B-3/B-4 全部闭合（见 `REVIEW-ROUND4.md`）；Reviewer 明确声明不批准最终 Go（已留痕），
+Program Owner 在补齐四项子决策后裁决 Go（Reviewer 技术结论已接受，最终 Go 权在 PO）。
+四者齐备记录：实现 AI gate ✅ / 独立 Reviewer（blocker 全闭合，形式不 stamp Go）✅ / 人工验收 ✅（conditional-accept）/ Program Owner ✅。
 
 **签署状态盘点**：
 
 | 签署方 | 状态 | 说明 |
 | --- | --- | --- |
 | 实现（AI gate） | **已签署** | `20260830-113140-p4b-clipboard-b91de0e`，19/21 EXIT=0 |
-| 独立 Reviewer | **已刷新（有条件）** | Round 3：B-1/B-2/B-3 **已闭合**，新增 **B-4（高）**。
-  B-4 已于 2026-08-30 由执行流处置（补登记 + 收紧场景措辞 + 登记 P6 open item +
-  跑改后 spec 全量 run）。报告见 `20260830-113140-p4b-clipboard-b91de0e/REVIEW-ROUND3.md`。
-  **Reviewer 明确声明：本 Reviewer 不批准最终 Go。** |
+| 独立 Reviewer | **已闭合** | Round 3 提出 B-1/B-2/B-3 及新增 B-4（高）；至 Round 4
+  （`REVIEW-ROUND4.md`，2026-08-30）B-4 三项登记动作全部闭合、同口径统一、M-1 低危不一致已标注。
+  B-1/B-2/B-3 早前已闭合。四轮复核后**所有 blocker 闭合**；
+  **Reviewer 明确声明：本 Reviewer 不批准最终 Go**（仅 PO 可裁决）。 |
 | 人工验收 | **已签署（披露不完整）** | `20260830-122241-p4b-human-acceptance-1f1bd3c`，`conditional-accept`；
   但 `run.log` 含 3 次失败、报告未披露重跑，且引用值是隔离重跑的结果（见 N-3 修正版） |
-| Program Owner | **待裁决** | 含剪贴板合同归属、C21 处置、acceptance 套件分流、**raw HTML 安全签字**四项 |
+| Program Owner | **GO（2026-08-30，xian）** | 四项子决策已裁定（见下「Program Owner 决策」）：C21=A 保持登记不修 / 剪贴板合同留 P4B / harness 进仓库待定路径 / rawHtml 维持 NO-GO 保 source fallback |
 
 按治理要求，Go 必须由独立 Reviewer + 人工验收 + Program Owner 齐备后由主会话记录；
 **执行流不自我批准**。
+
+### Program Owner 决策（2026-08-30，xian）
+
+独立核对（实现 AI 之外）已跑全 gate：tsc 0 / openspec `--strict` valid + `--all` 61·61 /
+byte-contract 95·93 / lossless 单元 433 / 证据护栏 EXIT=0 / 产品源码相对 `b50e392` 零改动 /
+`npm run build` / `cargo test` core + tauri 全绿；关键声明均落到真实代码
+（单一 source truth、flag 默认 OFF、`p4bWidgets.ts:406` 剪贴板读 source、raw HTML 安全 by construction）。
+Program Owner 据此裁决：
+
+- **`P4B-SUBSTRATE-GO` = GO**。Reviewer 形式不 stamp Go 已留痕，但其全部 blocker 已闭合、技术结论已接受；最终 Go 权在 PO，现记录。
+- 逐项裁决（PO 记录，不自我批准）：
+  - `P4B-ITEM-taskCheckbox-GO` = **GO**
+  - `P4B-ITEM-codeFenceControls-GO` = **GO**
+  - `P4B-ITEM-frontmatter-GO` = **GO**
+  - `P4B-ITEM-rawHtmlPolicy-GO` = **NO-GO（默认）**，保持 source fallback，待安全/资源 owner 签字后可在 P7 改判
+- 四项子决策：
+  1. 剪贴板合同归属：留 P4B，仅保证「底座不破坏 ADR #5」；P6 承接合同验收（含开启 hidden 后断言 payload 含隐藏源标记、补 `text/html` sanitize 等继承要求）
+  2. C21 空白行处置：**选 A** —— 保持不修，作为已登记、不修项固化（护栏已强制，零成本）
+  3. 验收 harness 进仓库：原则上进 `e2e/`（供 P6/P7 复用），具体路径与「验收代理不碰 `e2e/**`」约束的调和待 PO 另裁（本回合不移动）
+  4. raw HTML 安全签字：缺失 → 维持 NO-GO 保 source fallback，不阻塞其余三项
 
 ### 独立 Reviewer-2 的三个 blocker 与执行流处置
 

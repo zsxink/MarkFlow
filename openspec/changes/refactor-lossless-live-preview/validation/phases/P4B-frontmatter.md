@@ -56,6 +56,7 @@ L0 `24/23`、L1 `95/93`、`"pass": true`。FrontMatter 为精确源码，不产�
 | 角色 | 结论 |
 | --- | --- |
 | AI 编码验证 | PASS（C01 / C15 / C10 全绿） |
-| 独立 Reviewer | **PENDING** |
+| 独立 Reviewer | **已闭合**（Round 4：B-1/B-2/B-3/B-4 全闭合；形式不 stamp 最终 Go） |
 | 人工验收 | **ACCEPT** —— `20260830-122241-p4b-human-acceptance-1f1bd3c`（视觉/键盘/Undo/export 实测）。注意：本项的**选区 copy 仍未闭合** —— 人工验收的 pasteboard 端到端用的是 fence fixture，未覆盖本 construct 区域 |
-| `P4B-ITEM-frontmatterPolicy-GO/NO-GO` | **PENDING —— 不自我批准** |
+| Program Owner | **GO（2026-08-30，xian）** |
+| `P4B-ITEM-frontmatterPolicy-GO/NO-GO` | **GO（2026-08-30 记录）** |

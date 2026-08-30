@@ -60,6 +60,7 @@ L0 `24/23`、L1 `95/93`、`"pass": true`。raw HTML 以精确源码保存，无�
 | 角色 | 结论 |
 | --- | --- |
 | AI 编码验证 | PASS（C01 / C15 / C10 全绿） |
-| 独立 Reviewer | **PENDING** |
+| 独立 Reviewer | **已闭合**（Round 4：B-1/B-2/B-3/B-4 全闭合；形式不 stamp 最终 Go） |
 | 人工验收 | **技术 ACCEPT / 治理 CANNOT-VERIFY** —— `20260830-122241-p4b-human-acceptance-1f1bd3c`；raw HTML 实测 inert（scriptExecuted=false、liveDivs=[]），但仓库内无安全/资源负责人签字记录 |
-| `P4B-ITEM-rawHtmlPolicy-GO/NO-GO` | **PENDING —— 不自我批准** |
+| Program Owner | **NO-GO（默认，2026-08-30，xian）** —— 安全/资源 owner 签字缺失，维持 source fallback，可在 P7 收口时改判 |
+| `P4B-ITEM-rawHtmlPolicy-GO/NO-GO` | **NO-GO（默认，2026-08-30 记录）** 保持 source fallback |

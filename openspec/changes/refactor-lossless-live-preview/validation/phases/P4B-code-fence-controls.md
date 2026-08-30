@@ -74,6 +74,7 @@ L0 `24/23`、L1 `95/93`、`"pass": true`、`"failed": []`。language patch 后
 | 角色 | 结论 |
 | --- | --- |
 | AI 编码验证 | PASS（C01 / C15 / C10 全绿；剪贴板有 widget 按钮断言） |
-| 独立 Reviewer | **PENDING** |
+| 独立 Reviewer | **已闭合**（Round 4：B-1/B-2/B-3/B-4 全闭合；形式不 stamp 最终 Go） |
 | 人工验收 | **ACCEPT** —— `20260830-122241-p4b-human-acceptance-1f1bd3c`（视觉/键盘/Undo/export 实测）。**本项是 pasteboard 端到端直接覆盖的一项** —— 该验证用的正是本项 fixture `p4b-widget-fence.md`（51 bytes，pastedSha256 `faeda8ae…` 与 source 逐字节一致），故本项选区 copy/cut 已闭合 |
-| `P4B-ITEM-codeFenceControls-GO/NO-GO` | **PENDING —— 不自我批准** |
+| Program Owner | **GO（2026-08-30，xian）** |
+| `P4B-ITEM-codeFenceControls-GO/NO-GO` | **GO（2026-08-30 记录）** |

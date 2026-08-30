@@ -13,8 +13,8 @@
 | **Default** | **OFF** |
 | Maturity | **pilot** —— 7.4 试点项，未申请默认开启 |
 | Fallback | flag OFF 或 widget 失败 → `source-fallback`，fence 以源码呈现 |
-| Run ID | `20260830-102354-p4b-ime-7869de8` |
-| Commit | `7869de8` / `ec718b4` |
+| Run ID | `20260830-113140-p4b-clipboard-b91de0e`（最新全 gate run） |
+| Commit | `b91de0e`（最新，仅补证据）；历史 `7869de8` / `ec718b4` |
 | Branch | `test/issue-255-lossless-byte-contract` |
 
 ## 历史修正（不可回写，仅前向记录）
@@ -32,7 +32,7 @@ language control 在 `openMark.from` 处解析 Lezer，落在 `FencedCode` 之�
 同 task checkbox 项；fence 特有的局部 patch 与 Undo 回归在
 `src/lib/lossless/widgets/p4bWidgets.test.ts` 与 `commandMatrix.test.ts` 内。
 
-### 桌面 E2E（C15，EXIT=0；28 passing，真实 Tauri WebKit）
+### 桌面 E2E（C15，EXIT=0；30 passing，真实 Tauri WebKit）
 
 直接命中本项：
 
@@ -60,9 +60,12 @@ L0 `24/23`、L1 `95/93`、`"pass": true`、`"failed": []`。language patch 后
 
 ## 已知缺口
 
-1. **选区 copy 仍无证据**：上面两条断言只覆盖 **widget 的显式 copy 按钮**，
-   不等于「用户选中 fence 后按 Cmd+C」走同一路径。后者无任何断言（详见 P4B.md 已知缺口 2）。
-   本项是 P4B 中剪贴板覆盖**最完整**的一项，但同样未闭合选区路径。
+1. **选区 copy/cut 已闭合**（2026-08-30，run `20260830-113140-p4b-clipboard-b91de0e`）：
+   C15 新增的两条断言 `selection copy on the rendered surface yields exact Markdown source, not DOM text`
+   与 `selection cut payload is source, removes the range, and one Undo restores bytes`
+   用的正是本项的 fixture `p4b-widget-fence.md`，走 CodeMirror 真实 `handlers.copy/cut` 并回读
+   `DataTransfer` 载荷。因此**本项是 P4B 中剪贴板覆盖最完整的一项，且选区路径已闭合**。
+   残余：系统 pasteboard 端到端（Cmd+C → 外部应用粘贴）仍需人工验收。
 2. **`mf-widget-fence-copy` 写的是 `navigator.clipboard.writeText`**，不是 `text/plain`
    clipboard 事件负载；P6「复制隐藏内容」场景要求的是后者。两者不可互相替代。
 

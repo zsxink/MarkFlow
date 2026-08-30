@@ -1,6 +1,9 @@
 # P4B 验证记录：投影交互底座与轻量 Widgets
 
-总体状态：`P4B-SUBSTRATE-GO` 待裁决 —— 20/20 gate 全绿、真实中/日文 IME 均通过；**独立 Reviewer 与人工验收未完成，执行流不自我批准 Go**
+总体状态：`P4B-SUBSTRATE-GO` 待裁决 —— 最新 run `20260830-113140-p4b-clipboard-b91de0e` **19/21 gate EXIT=0**，
+两条 FAIL 均已取证且非产品缺陷（`lossless-acceptance` 为 P2 遗留腐烂、`git diff --check` 为 F-1 遗留空白行）；
+真实中/日文 IME 均通过，选区 copy/cut 剪贴板证据已补齐。
+**独立 Reviewer 与人工验收未完成，执行流不自我批准 Go**
 
 正式设计：[P4B：Widgets 与 Cohorts](../../design/phases/P4B-widgets-cohorts.md)
 
@@ -11,7 +14,7 @@
 | Construct | Flag | AI | Reviewer | Human | Default | Run |
 | --- | --- | --- | --- | --- | --- | --- |
 | visibility/interaction harness | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-064651-p4b-6432059` |
-| source clipboard/a11y/atomic protocol | OFF | EVIDENCE RECORDED（剪贴板断言待复核） | PENDING | PENDING | OFF | `20260830-064651-p4b-6432059` |
+| source clipboard/a11y/atomic protocol | OFF | EVIDENCE RECORDED（**选区 copy/cut 已回读证实**，见下） | PENDING | PENDING | OFF | `20260830-113140-p4b-clipboard-b91de0e` |
 | **real CJK/Japanese IME baseline** | — | **EVIDENCE RECORDED — 中文 GO / 日文 GO** | PENDING | PENDING | — | `20260830-102354-p4b-ime-7869de8` |
 | task checkbox | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-083435-p4b-corrective-a8c73de` |
 | code fence controls | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-083435-p4b-corrective-a8c73de` |
@@ -45,14 +48,14 @@ composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 
 
 ## 每项 AI 编码验证
 
-> 以下勾选依据 C01（433 unit）/ C10（byte contract）/ C15（28 desktop）中**实际存在并通过**的用例。
-> 独立 Reviewer 需逐一复核断言强度，尤其是**剪贴板**（见「已知缺口 2」：widget copy 按钮已断言，
-> 选区 copy 无证据）与 **a11y**。
+> 以下勾选依据 C01（433 unit）/ C08（96 core）/ C10（byte contract）/ C15（**30** desktop）中
+> **实际存在并通过**的用例。独立 Reviewer 需逐一复核断言强度，尤其是**剪贴板**与 **a11y**。
 
 - [x] interaction states 与 source fallback
 - [x] empty heading/list/quote/fence 与 input-rule transition
-- [ ] mouse/keyboard/selection/clipboard —— **选区 copy 子项缺证据**（widget copy 按钮已通过；
-      合成 `ClipboardEvent` 断言已起草，待 Reviewer 结论后落盘 + 新建 run-id 重跑）
+- [x] mouse/keyboard/selection/clipboard —— **选区 copy/cut 已回读证实**（`20260830-113140` run
+      C15 新增 2 条断言，走 CodeMirror 真实 `handlers.copy/cut` 并回读 `DataTransfer` 载荷；
+      cut 为全项目首条覆盖。系统级 pasteboard 端到端仍需人工验收）
 - [x] Select All/double-click/drag/nested selection/Undo landing
 - [x] 真实 CJK/Japanese IME start/update/end
 - [x] Undo/Redo 与模式切换
@@ -101,6 +104,38 @@ product gap，而非通过）。但它确实改变了已封存 run 的结论与 
 **教训**：corrective run 的目录一旦建立，后续任何提交都不得再触碰它。
 写证据时若同时需要改历史 run，说明流程本身就走错了。
 
+### F-1 的可检测残留：候选 diff 存在空白行缺陷（C21 FAIL，EXIT=2）
+
+`20260830-113140-p4b-clipboard-b91de0e` 的 C21 把 `git diff --check` 的口径从
+「工作区 vs 索引」改为「候选范围 `b50e392..b91de0e`」（独立 Reviewer F-7 的修正），
+于是检测到了**已提交文件**里的空白问题：
+
+```
+openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
+  20260830-083435-p4b-corrective-a8c73de/gates/C20-e2e-ime.log:140: new blank line at EOF.
+```
+
+该文件正是 F-1 中 `7869de8` 回写进已封存 run 的那一个 —— **F-1 的伤疤可被机器检测**。
+
+**处置：不修。** 修它必须写入已封存 run 目录，与 F-1 的「不回滚/不回写」处置和本文件自己记下的
+教训直接冲突。改为如实记为 FAIL，并把处置权交 Program Owner（保持不修 / 授权一次性卫生修复）。
+执行流不自行选择后者。
+
+**教训**：F-7 那条「低优先级」的口径修正换来了真实发现。gate 口径的"小"修正不该被跳过。
+
+### 记录准确性缺陷：上一 run 的 C08 把 96 个测试记成了 0
+
+`20260830-102354-p4b-ime-7869de8/RUN.md` 的 C08 行写作
+「PASS (**0 tests**；core 当前无 test target)」。回读其 `gates/C08-core-test.log`（7022 字节）
+后确认：日志里实际有 **96 passed**（40+18+4+3+17+8+6，7 个 target + doc-tests 0）。
+
+- **不是回归**：本 run 同命令逐 target 复现，同样 96。
+- **是记录缺陷**：只读了 doc-tests 尾部那行 `0 passed` 就汇总，方向是**低估**覆盖。
+- **处置**：不改写历史 RUN.md（协议禁止），在此与新 run 的 RUN.md 中登记。
+
+**教训**：多 target 命令（cargo / 多 project / 多 spec file）聚合 gate 结果时，
+必须遍历**全部** `test result:` 行，不能只看日志尾部。
+
 ## 已知缺口（交独立 Reviewer 判定，不由执行流自行关闭）
 
 1. **各 item 缺少独立 RUN 叙事**：7.9/7.10 要求「每项独立运行并记录 maturity/default/fallback」，
@@ -117,8 +152,11 @@ product gap，而非通过）。但它确实改变了已封存 run 的结论与 
      天然产出 source。但「结构上应当如此」不等于「有证据」，而 P6 的
      `typora-wysiwyg-editing`「复制隐藏内容」场景（`specs/typora-wysiwyg-editing/spec.md:62`）
      与 `tasks.md` §7.6 的 "source-based clipboard" 都直接依赖这个合同。
-   - **处置**：已起草选区 copy 断言（合成 `ClipboardEvent` + `DataTransfer`，走 CodeMirror
-     真实 `handlers.copy` 路径），待独立 Reviewer 结论后落盘并**新建 run-id 重跑全 gate**。
+   - **处置（2026-08-30 已关闭）**：选区 copy **与 cut** 断言已落盘
+     （`e2e/specs/lossless/p4b-widgets.e2e.mjs` 的 `clipboardRoundTrip()`），并在
+     **新建 run-id** `20260830-113140-p4b-clipboard-b91de0e` 下重跑全 gate：
+     C15 由 28 passing 增至 **30 passing**，两条新用例均 ✓，退出码 0。
+     残余：桌面 WebView 内无法可靠回读**系统 pasteboard**，故「Cmd+C → 外部应用粘贴」仍列为人工验收项。
 3. **`20260830-080554-p4b-widgets-a8c73de` 已封存为 SUPERSEDED**（2026-08-30 处理）：补记了
    封存附录。结论是该 run 的 19 个 gate **日志内容一致显示成功，但退出码从未捕获**
    （`gates/` 只有 `.log` 无 `.exit`），因此**不作正式 gate run**，其 widget/策略项只作
@@ -131,7 +169,8 @@ product gap，而非通过）。但它确实改变了已封存 run 的结论与 
 ### Substrate checkpoint
 
 - [x] interaction harness / visibility / atomic navigation（AI gate 全绿）
-- [x] source clipboard / accessibility descriptor（AI gate 全绿；**剪贴板仅覆盖 widget copy 按钮，选区 copy 无证据，见「已知缺口 2」**）
+- [x] source clipboard / accessibility descriptor（AI gate 全绿；**选区 copy/cut 已回读证实**，
+      系统 pasteboard 端到端仍为人工验收项）
 - [x] real CJK/Japanese IME baseline（中/日文均 GO）
 - [x] owner registry / nesting arbitration / source fallback（AI gate 全绿）
 - [x] widget protocol / stale identity / rollback（AI gate 全绿）

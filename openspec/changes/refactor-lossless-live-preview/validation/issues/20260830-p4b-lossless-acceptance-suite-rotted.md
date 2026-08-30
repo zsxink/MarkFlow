@@ -6,7 +6,7 @@
 | --- | --- |
 | Issue ID | `P4B-LOSSLESS-ACCEPTANCE-SUITE-ROTTED` |
 | Severity | Process / test-debt（证据完整性），**非**产品功能缺陷 |
-| 发现于 | P4B corrective run `20260830-111403-p4b-clipboard-75afebe` 准备阶段 |
+| 发现于 | P4B corrective run `20260830-113140-p4b-clipboard-b91de0e` 准备阶段 |
 | 发现方式 | 独立 Reviewer F-10 指出该套件没有任何 gate，执行流探测后确认 |
 | Suite | `e2e/specs/lossless/all-lossless-acceptance.e2e.mjs`（→ `p2-acceptance.e2e.mjs`） |
 | Runner | `node e2e/run-lossless-acceptance.mjs` |
@@ -18,21 +18,41 @@
 独立 Reviewer（F-10）指出这一点后，执行流在把它纳为 gate 之前先做了探测 —— 结果它不是「缺 gate」，
 而是「套件本身已经跑不过了」。
 
-## 实测：两次独立运行均失败（EXIT=1）
+## 实测：三次独立运行均失败（EXIT=1）
 
 | 运行 | HEAD / 测试文件状态 | 结果 | 耗时 |
 | --- | --- | --- | --- |
-| 探测 1 | `75afebe`，**含** P4B 新增选区 copy/cut 断言 | 2 passing / **13 failing**，EXIT=1 | 5m58s |
-| 对照 2 | 同一 HEAD，但 `p4b-widgets.e2e.mjs` **回退到 `b50e392`**（不含新断言） | 10 passing / **5 failing**，EXIT=1 | 3m09s |
+| 探测 1（独立） | `75afebe`，**含** P4B 新增选区 copy/cut 断言 | 2 passing / **13 failing**，EXIT=1 | 5m58s |
+| 对照 2（独立） | 同一 HEAD，但 `p4b-widgets.e2e.mjs` **回退到 `b50e392`**（不含新断言） | 10 passing / **5 failing**，EXIT=1 | 3m09s |
+| 正式 3（全 gate sweep 内 C20） | `b91de0e`，含新断言；前序 C15 lossless 刚跑完 | 2 passing / **13 failing**，EXIT=1 | 5m54s |
 
 **结论：与 P4B 本次改动无关。** 依据：
-1. 两次运行 EXIT 均为 1；
+1. 三次运行 EXIT 均为 1；
 2. `all-lossless-acceptance.e2e.mjs` 只 `import { registerP2AcceptanceTests } from './p2-acceptance.e2e.mjs'`，
-   **不导入** `p4b-widgets.e2e.mjs`，该套件根本不在被改动的模块路径上；
-3. 对照运行移除了新断言，仍然失败。
+   **不导入** `p4b-widgets.e2e.mjs`，该套件根本不在被改动的模块路径上（已用 `awk '/import|register/'`
+   再次确认，唯一的 import 就是 `p2-acceptance.e2e.mjs`）；
+3. 对照运行移除了新断言，仍然失败；
+4. 共享基础设施改动也不能解释：`e2e/wdio.conf.mjs` 只把 mocha timeout 改为环境变量可配
+   （默认仍是 60s），`e2e/run.mjs` 只重排了 fixture 写入块，而 acceptance 走的是
+   **独立 runner** `e2e/run-lossless-acceptance.mjs`，不经过 `run.mjs`。
 
-**同时确认该套件不稳定**：两次运行的失败集合不同（13 vs 5）。探测 1 的失败从 P2-3 开始全线下滑，
-对照 2 只失败 P2-3 / P2-4 / P1B-5 / P1B-8 / P1B-10。这不是确定性失败，是 flaky。
+### 关于「flaky」的口径（2026-08-30 修正）
+
+初版把 13 vs 5 的差异直接称作 flaky，**这个措辞不精确，现修正**：
+
+失败形态是**级联**，不是逐用例随机。三次运行的失败分布为：
+
+- 探测 1 与正式 3：**从 P2-3 起连续失败到套件末尾**（13 条，contiguous），只有不切换文档的
+  P2-1、P2-2 通过；
+- 对照 2：**P2-3 / P2-4 / P1B-5 / P1B-8 / P1B-10**（5 条，scattered），其余 10 条通过。
+
+也就是说：**一旦文件切换在某处被卡住，其后所有需要切文件的用例会一路失败**；卡住的位置/是否
+自愈决定了失败条数是 2 还是 13。因此失败条数是**双峰**（≈2 或 ≈13），
+而不是每条用例独立地随机红绿。
+
+这个区别有实际后果：把 P2-3 单看「有时红有时绿」会误判为偶发噪声，
+真实情况是「P2-3 之后的文件切换链路整体脆弱」。修复时应针对
+**文件切换本身**（见下方拟议根因），而不是给个别用例加重试。
 
 ## 失败形态
 

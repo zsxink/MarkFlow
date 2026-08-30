@@ -13,8 +13,8 @@
 | **Default** | **OFF**（生产默认关闭，与全部 P4B flag 一致） |
 | Maturity | **pilot** —— 7.4 试点项，未申请默认开启 |
 | Fallback | flag OFF 或 widget 失败 → `source-fallback` owner，marker 以源码呈现，可正常编辑 |
-| Run ID | `20260830-102354-p4b-ime-7869de8` |
-| Commit | `7869de8`（harness 修正）/ `ec718b4`（证据记录） |
+| Run ID | `20260830-113140-p4b-clipboard-b91de0e`（最新全 gate run） |
+| Commit | `b91de0e`（最新，仅补证据）；历史 `7869de8`（harness 修正）/ `ec718b4`（证据记录） |
 | Branch | `test/issue-255-lossless-byte-contract` |
 
 ## 验收要求（来源）
@@ -37,7 +37,7 @@
 | `src/lib/lossless/renderOwnerRegistry.test.ts`（33） | owner 唯一性与父子仲裁 |
 | `src/lib/lossless/cohortFlags.test.ts`（11） | flag 读取与回滚 |
 
-### 桌面 E2E（C15，EXIT=0；28 passing，真实 Tauri WebKit）
+### 桌面 E2E（C15，EXIT=0；30 passing，真实 Tauri WebKit）
 
 直接命中本项的用例：
 
@@ -60,9 +60,11 @@ widget 为 decoration-only，不进入 `EditorState.doc`，故不参与字节合
 
 ## 已知缺口
 
-1. **选区 copy 无证据**（与 P4B.md 已知缺口 2 同源，非本项独有）：fence widget 的 copy 按钮已断言，
-   但「选中含 task checkbox 的区域 → Cmd+C → plain-text 为完整 Markdown source」没有任何断言。
-   本项同理受影响。
+1. **本项区域的选区 copy 仍无证据**（全局缺口已闭合，本项未闭合）：
+   2026-08-30 的 run `20260830-113140-p4b-clipboard-b91de0e` 新增了选区 copy/cut 断言，
+   但用的 fixture 是 `p4b-widget-fence.md`（fence）。**「选中含 task checkbox 的区域 → Cmd+C
+   → plain-text 为完整 Markdown source」仍无断言** —— 断言存在 ≠ 本 construct 被覆盖，
+   不能因为全局缺口关闭就顺手把本项也勾掉。
 2. **CJK/Japanese IME 在 task checkbox 邻域的证据**：7.3 的真实 IME 基线只覆盖
    `# marker` / `> marker` 两处（heading / blockquote 邻域），**未覆盖列表 marker 旁的
    task checkbox**。列表 marker 与 IME 的交互属 P6 `9.2` 范围，此处如实记为未验证。

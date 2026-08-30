@@ -13,8 +13,8 @@
 | **Default** | **OFF** |
 | Maturity | **policy pilot** —— 7.6 策略项，不是 widget |
 | Fallback | **source-only / inert** —— 默认不渲染、不执行；策略 flag 回滚必须惰性 |
-| Run ID | `20260830-102354-p4b-ime-7869de8` |
-| Commit | `7869de8` / `ec718b4` |
+| Run ID | `20260830-113140-p4b-clipboard-b91de0e`（最新全 gate run） |
+| Commit | `b91de0e`（最新，仅补证据）；历史 `7869de8` / `ec718b4` |
 | Branch | `test/issue-255-lossless-byte-contract` |
 
 ## 安全性质（本项与其他三项不同）
@@ -31,7 +31,7 @@
 - `src/lib/lossless/widgets/protocol.test.ts`（16）、`p4bWidgets.test.ts`（26）—— widget 不进入 raw HTML 区域
 - `src/lib/lossless/cohortFlags.test.ts`（11）—— flag 回滚惰性
 
-### 桌面 E2E（C15，EXIT=0；28 passing）
+### 桌面 E2E（C15，EXIT=0；30 passing）
 
 - `raw HTML is source-only by default and remains non-executable; policy flag rollback is inert`
 - `toolbar HTML export uses lossless source and never serializes widget DOM`
@@ -48,8 +48,10 @@ L0 `24/23`、L1 `95/93`、`"pass": true`。raw HTML 以精确源码保存，无�
    `onerror` 并观察其是否触发。对安全性质而言这是**证据强度不足**，
    建议 Reviewer 判断是否需要一条「注入事件处理器并断言未触发」的用例。
 2. **远程资源加载未验证**：`<img src="http://...">` 之类是否被阻止加载，无任何断言。
-3. **选区 copy**：同全局缺口。对 raw HTML 而言更敏感 —— 复制结果必须是
-   **原始 HTML 源码**而不是被 sanitize 后的文本，否则用户复制即丢内容。目前无断言。
+3. **本项区域的选区 copy 仍无证据**（全局缺口已闭合，本项未闭合）：
+   2026-08-30 新增的选区 copy/cut 断言用的是 fence fixture，**未覆盖 raw HTML 区域**。
+   对 raw HTML 而言这条更敏感 —— 复制结果必须是**原始 HTML 源码**而不是被 sanitize 后的文本，
+   否则用户复制即丢内容。目前无断言。
 4. **clipboard HTML sanitize 无断言**：`design/05` §4/§7 要求 clipboard HTML 必须 sanitize，
    本项无任何对 `text/html` payload 的断言（现有断言只覆盖 `text/plain` 与 widget 路径）。
 

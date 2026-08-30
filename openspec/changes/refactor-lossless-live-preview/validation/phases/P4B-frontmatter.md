@@ -14,8 +14,8 @@
 | Maturity | **policy pilot** —— 7.6 策略项，不是 widget |
 | Fallback | **exact-source fallback** —— 解析器无 FrontMatter 支持（parser gap），
 > 一律以精确源码呈现，不做语义投影 |
-| Run ID | `20260830-102354-p4b-ime-7869de8` |
-| Commit | `7869de8` / `ec718b4` |
+| Run ID | `20260830-113140-p4b-clipboard-b91de0e`（最新全 gate run） |
+| Commit | `b91de0e`（最新，仅补证据）；历史 `7869de8` / `ec718b4` |
 | Branch | `test/issue-255-lossless-byte-contract` |
 
 ## 范围说明（避免与 P6 混淆）
@@ -32,7 +32,7 @@ FrontMatter 的语义呈现属后续范围。
 - `src/lib/lossless/projection.test.ts`（34）—— 投影与退化
 - `src/lib/lossless/cohortFlags.test.ts`（11）—— flag 回滚惰性
 
-### 桌面 E2E（C15，EXIT=0；28 passing）
+### 桌面 E2E（C15，EXIT=0；30 passing）
 
 - `FrontMatter parser gap uses exact-source fallback and preserves bytes`
 - 共享：`widget failure injection falls back to exact source and flag rollback removes controls`
@@ -47,7 +47,8 @@ L0 `24/23`、L1 `95/93`、`"pass": true`。FrontMatter 为精确源码，不产�
 1. **只有「退化路径」的证据，没有「策略开启后行为」的证据**：因为 flag ON 时本就无语义投影，
    所以「flag ON 与 OFF 行为一致」这件事没有被显式断言 —— 两者都走精确源码。
    建议 Reviewer 判断是否需要一条「ON/OFF 快照等价」断言。
-2. **选区 copy**：同全局缺口，FrontMatter 区域的选区 copy 无断言。
+2. **本项区域的选区 copy 仍无证据**（全局缺口已闭合，本项未闭合）：
+   2026-08-30 新增的选区 copy/cut 断言用的是 fence fixture，**未覆盖 FrontMatter 区域**。
 3. **FrontMatter 内 IME 输入**：未验证（7.3 基线只覆盖 `# marker` / `> marker` 邻域）。
 
 ## 裁决

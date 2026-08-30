@@ -61,5 +61,5 @@ L0 `24/23`、L1 `95/93`、`"pass": true`。raw HTML 以精确源码保存，无�
 | --- | --- |
 | AI 编码验证 | PASS（C01 / C15 / C10 全绿） |
 | 独立 Reviewer | **PENDING** |
-| 人工验收 | **PENDING** |
+| 人工验收 | **技术 ACCEPT / 治理 CANNOT-VERIFY** —— `20260830-122241-p4b-human-acceptance-1f1bd3c`；raw HTML 实测 inert（scriptExecuted=false、liveDivs=[]），但仓库内无安全/资源负责人签字记录 |
 | `P4B-ITEM-rawHtmlPolicy-GO/NO-GO` | **PENDING —— 不自我批准** |

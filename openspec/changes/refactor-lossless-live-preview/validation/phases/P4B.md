@@ -13,13 +13,18 @@
 
 | Construct | Flag | AI | Reviewer | Human | Default | Run |
 | --- | --- | --- | --- | --- | --- | --- |
-| visibility/interaction harness | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-064651-p4b-6432059` |
-| source clipboard/a11y/atomic protocol | OFF | EVIDENCE RECORDED（**选区 copy/cut 已回读证实**，见下） | PENDING | PENDING | OFF | `20260830-113140-p4b-clipboard-b91de0e` |
-| **real CJK/Japanese IME baseline** | — | **EVIDENCE RECORDED — 中文 GO / 日文 GO** | PENDING | PENDING | — | `20260830-102354-p4b-ime-7869de8` |
-| task checkbox | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-083435-p4b-corrective-a8c73de` |
-| code fence controls | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-083435-p4b-corrective-a8c73de` |
-| frontmatter | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-102354-p4b-ime-7869de8` |
-| raw HTML | OFF | EVIDENCE RECORDED | PENDING | PENDING | OFF | `20260830-102354-p4b-ime-7869de8` |
+| visibility/interaction harness | OFF | EVIDENCE RECORDED | PENDING | **ACCEPT** | OFF | `20260830-122241-p4b-human-acceptance-1f1bd3c` |
+| source clipboard/a11y/atomic protocol | OFF | EVIDENCE RECORDED（**选区 copy/cut 已回读证实**） | PENDING | **ACCEPT**（clipboard）／**CONDITIONAL**（a11y） | OFF | `20260830-113140`（AI）+ `…122241…`（Human） |
+| **real CJK/Japanese IME baseline** | — | **EVIDENCE RECORDED — 中文 GO / 日文 GO** | PENDING | **未覆盖**（见注 1） | — | `20260830-102354-p4b-ime-7869de8` |
+| task checkbox | OFF | EVIDENCE RECORDED | PENDING | **ACCEPT** | OFF | `20260830-122241-p4b-human-acceptance-1f1bd3c` |
+| code fence controls | OFF | EVIDENCE RECORDED | PENDING | **ACCEPT** | OFF | `20260830-122241-p4b-human-acceptance-1f1bd3c` |
+| frontmatter | OFF | EVIDENCE RECORDED | PENDING | **ACCEPT** | OFF | `20260830-122241-p4b-human-acceptance-1f1bd3c` |
+| raw HTML | OFF | EVIDENCE RECORDED | PENDING | **技术 ACCEPT／治理 CANNOT-VERIFY** | OFF | `20260830-122241-p4b-human-acceptance-1f1bd3c` |
+
+> 注 1：本轮人工验收的 6+1 项**不含** IME 目标，故 IME baseline 的 Human 列保持未覆盖。
+> 其 GO 来自自动化 C19（真实中/日文物理按键证据）。人工验收在 item2 真实输入时
+> 系统输入法为 Pinyin，观察到的 composition 行为（`composing: true` 期间 Cmd+Z 不生效、
+> 提交后一次 Cmd+Z 精确还原）与 P4B.md 已记录的设计事实**一致**，属旁证而非该行的验收结论。
 | image | — | MOVED TO P7 | — | — | — | — |
 | GFM table | — | MOVED TO P7 | — | — | — | — |
 | Mermaid/PlantUML | — | MOVED TO P7 | — | — | — | — |
@@ -70,12 +75,44 @@ composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 
 
 ## 每项人工验证
 
-- [ ] 编辑自然且 visible/dimmed marker 可发现（P4B 不验收 hidden）
-- [ ] 光标和键盘行为可预测
-- [ ] 失败后可回到源码
-- [ ] 视觉达到默认开启标准
-- [ ] screen reader/keyboard-only 完成
-- [ ] 安全/资源负责人已参与高风险 widget
+> 2026-08-30 由独立验收代理（fresh context）在**真实 e2e 模式桌面应用**中完成，
+> 报告 `../evidence/P4B/20260830-122241-p4b-human-acceptance-1f1bd3c/`。
+> 方法学：键盘/鼠标为真实 HID 与 WebDriver OS 事件，截图为真实桌面窗口；
+> flag 启用与 DOM/ARIA 状态读取为脚本辅助（e2e-only hook），已在报告中逐项披露。
+
+- [x] 编辑自然且 visible/dimmed marker 可发现 —— **accept**。dimmed marker
+      computed opacity `0.45`，无 `display:none` / `visibility:hidden` / `opacity:0` / 零尺寸；
+      caret 进入 construct 后提升为 `.mf-active`，marker span 数 15 → 14。
+- [x] 光标和键盘行为可预测 —— **accept（附环境约束）**。真实方向键连走 12 步，
+      source offset 严格 +1 无跳格；真实 HID 输入后一次 Cmd+Z 精确还原字节。
+      约束：IME composition 期间 Cmd+Z 不生效（已记录的设计事实，非回归）。
+- [x] 失败后可回到源码 —— **accept**。`failAlways()` 后 `projectionState='degraded'`、
+      marker 数 0、source 不变且**仍可编辑**；清除故障后恢复 `rendered`、marker 数回到 15。
+- [x] 视觉达到默认开启标准 —— **accept（限 e2e-only flag 场景）**。task / fence widget
+      在 light/dark/sepia 三主题下尺寸 >0、ARIA 完整。**注意：这 4 项在任何 release 包中不可达**
+      （flag 钩子被 `MODE === 'e2e'` 门控），因此该结论不可外推到用户实际拿到的形态。
+- [~] screen reader/keyboard-only 完成 —— **conditional-accept**。真实 Tab 第 1 次即落在
+      task checkbox（`role=checkbox`、`tabindex=0`、outline 可见），真实 Space 切换 source
+      `- [ ] → - [x]` 且 Cmd+Z 可还原，ARIA 属性完整。
+      **仍缺**：真实 VoiceOver 朗读序列/rotor、OS 高对比度与减弱动态效果下的行为 —— 列为 still-open。
+- [~] 安全/资源负责人已参与高风险 widget —— **技术 accept / 治理 cannot-verify**。
+      技术：raw HTML flag OFF 与 ON 两种状态下均 `scriptExecuted=false`、
+      `.source-editor-wrapper` 内 `scriptElements=0`、`liveDivs=[]`、source 未变（inert）。
+      治理：仓库内检索不到安全/资源负责人的签字或 review 记录 —— **需补人类签字**。
+
+**额外闭合的残余项 —— 系统 pasteboard 端到端（accept）**：应用内真实 `Cmd+A`→`Cmd+C` /
+`Cmd+X`，再用 shell `pbpaste` 读 macOS general pasteboard：
+
+| 场景 | 结果 |
+| --- | --- |
+| fence 全选 copy | 51 bytes，`pastedSha256 = faeda8ae…` 与 source **逐字节一致**（主会话已独立复算） |
+| 载荷来源判定 | 同一时刻 DOM text 为 `beforejs复制js```js title="keep"…`（含 widget chrome），**payload 中不含 chrome** → 载荷来自 source 而非 DOM text |
+| 部分选区 copy | paste 为 source 子串 `before\n\n```js title="keep"\n`，非 DOM 文本 |
+| cut | doc 清空、payload 为完整 source、一次 Cmd+Z 还原、autosave 窗口后磁盘未变 |
+| 全 flag OFF 基线 | 同样逐字节一致 |
+
+这条此前在自动化 run 中被显式登记为「WebDriver 内无法回读系统 pasteboard，需人工补齐」，
+现已闭合。
 
 ## 证据不可变性问题登记（F-1，独立 Reviewer 发现，执行流确认属实）
 
@@ -169,17 +206,42 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
 ### Substrate checkpoint
 
 - [x] interaction harness / visibility / atomic navigation（AI gate 全绿）
-- [x] source clipboard / accessibility descriptor（AI gate 全绿；**选区 copy/cut 已回读证实**，
-      系统 pasteboard 端到端仍为人工验收项）
-- [x] real CJK/Japanese IME baseline（中/日文均 GO）
-- [x] owner registry / nesting arbitration / source fallback（AI gate 全绿）
+- [x] source clipboard / accessibility descriptor（AI gate 全绿；选区 copy/cut 已回读证实；
+      **系统 pasteboard 端到端已由人工验收闭合**，a11y 为 conditional）
+- [x] real CJK/Japanese IME baseline（中/日文均 GO；人工验收未覆盖该行，见 Construct 表注 1）
+- [x] owner registry / nesting arbitration / source fallback（AI gate 全绿；人工 item3 复核）
 - [x] widget protocol / stale identity / rollback（AI gate 全绿）
-- [ ] 自动化、独立 Reviewer、人工验收均签署 —— **未齐备**
+- [x] 人工验收已签署（2026-08-30，独立验收代理，6+1 项）
+- [ ] 独立 Reviewer 对**当前候选**签署 —— **未齐备**（见下）
 
-决定：`P4B-SUBSTRATE-GO` **PENDING**。gate 与 IME baseline 已满足条件，但按治理要求，
-Go 必须由独立 Reviewer + 人工验收 + Program Owner 齐备后由主会话记录；**执行流不自我批准**。
+决定：`P4B-SUBSTRATE-GO` **PENDING**。
+
+**签署状态盘点**：
+
+| 签署方 | 状态 | 说明 |
+| --- | --- | --- |
+| 实现（AI gate） | **已签署** | `20260830-113140-p4b-clipboard-b91de0e`，19/21 EXIT=0 |
+| 独立 Reviewer | **需刷新** | 已有结论（PASS WITH CONDITIONS）针对的是 `7869de8` 候选；此后又发生
+  两次 corrective（新 run 的 21 gate、人工验收报告）。**旧结论不能直接覆盖当前候选** |
+| 人工验收 | **已签署** | `20260830-122241-p4b-human-acceptance-1f1bd3c`，`conditional-accept` |
+| Program Owner | **待裁决** | 含剪贴板合同归属、C21 处置、acceptance 套件分流三项未决问题 |
+
+按治理要求，Go 必须由独立 Reviewer + 人工验收 + Program Owner 齐备后由主会话记录；
+**执行流不自我批准**。
+
+### 人工验收留下的 still-open（不随 P4B 关闭）
+
+1. 真实 VoiceOver 朗读序列与 rotor 顺序
+2. OS 高对比度 / 减弱动态效果下的 widget 渲染
+3. 原生打印对话框 / 导出 PDF 视觉
+4. **安全/资源负责人对 raw HTML 高风险 widget 的人类签字**（仓库内无记录）
+5. 除中/日文外的其他输入法
 
 ### Item decisions
 
 每个轻量 widget 使用 `P4B-ITEM-<name>-GO/NO-GO`，在上表记录 maturity/default 并链接独立 run。
-单项 No-Go 保持 source fallback，可在 P7 收口；当前所有项 OFF，等待 Reviewer 与人工验收后逐项裁决。
+单项 No-Go 保持 source fallback，可在 P7 收口。
+
+人工验收的逐项建议：task checkbox / code fence controls / frontmatter 均 `accept`；
+**raw HTML 为 `conditional-accept` —— 技术行为满足 inert，但必须由安全/资源 owner 补签字，
+否则应标记 NO-GO 并保持 source fallback**。最终裁决仍由 Program Owner 在 Reviewer 刷新后记录。

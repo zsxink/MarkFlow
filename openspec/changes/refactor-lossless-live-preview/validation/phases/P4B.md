@@ -317,13 +317,48 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
 | `item3.recovered.markerCount` | 15 | 15 |
 
 **`composing` 是根因签名。** P4B 已记录的设计事实：`InputState.ignoreDuringComposition()`
-在 `composing > 0` 时对**所有** `key*` 事件返回 `true`，即**整个 keymap 被冻结**（不只是 Undo）。
-这同时解释了 item 2 的 Cmd+Z 被吞、item 3 的输入无响应。
-最可能的触发是 **harness 状态泄漏**：真实 HID 注入走 Quartz CGEventTap，
-**绕过 Text Input Services**，可能留下未关闭的 composition；隔离重跑时应用状态干净，故通过。
+在 `composing > 0` 时对**所有** `key*` 事件返回 `true`，即**整个 keymap 被冻结**（不只是 Undo）：
+composition 未确认就按 Cmd+Z，命令被静默吞掉。这解释了 item 2 的
+`singleUndoRestoredBytes = false` 与 item 3 的 `fallbackEditable = false`。
 
-**结论**：这不是产品回归（keymap 冻结是已记录的设计事实），最可能是**测试 harness 的状态泄漏**。
-但这个结论是**从上面那组对比数字推出来的**，不是从「重跑就绿了」推出来的——后者不构成结论。
+### 真正的机制：两次跑的不是同一版 spec（有 mtime 为证）
+
+上面那组对比不是「状态随机泄漏」，而是**验收方在失败后修改了 spec 再重跑**。时间戳是决定性的：
+
+| 时间 | 事件 |
+| --- | --- |
+| **12:10:24** | `run.log` —— 3 套件同时跑，item 2 / 3 / 6 失败 |
+| **12:17:31** | `specs/2-editing.e2e.mjs` 被修改（失败后 **+7 分钟**） |
+| **12:18:19** | `run2.log` —— spec 2 单独重跑，通过（改完 **+48 秒**） |
+
+spec 改了什么，从两次 run 的 **FINDING 命名空间差异**可以直接看出（run.log 里 `composing`
+只出现 1 次，run2.log 里有完整三段观测）：
+
+| | `run.log`（改前） | `run2.log`（改后） |
+| --- | --- | --- |
+| 命名空间 | `item2.caretBeforeTyping` 等扁平键 | `item2.typing.*` |
+| composition 观测 | **无** | `composingBefore` / `perKeyTrace` / `composingAfterTyping` / `composingAfterCommit` |
+| 提交步骤 | **无**（打完字直接 Cmd+Z） | `hidCommit` 显式发 **`Return`** 确认 composition |
+| 提交后状态 | — | `composingAfterCommit = {"composing": false}` |
+| 结果 | `singleUndoRestoredBytes = false` | `singleUndoRestoredBytes = **true**` |
+
+即：**改前的 spec 在 composition 仍开着（`composing: true`）时就发 `cmd+z`，
+被冻结的 keymap 把命令吞了。改后补了 `Return` 确认步骤，于是通过。**
+
+**结论（修正）**：这是**测试 harness 的缺陷，且已被修复**——
+既不是产品回归（keymap 冻结是已记录的设计事实），
+**也不是 flaky 或环境风险**（我先前与 Reviewer-2 都归错了因，此处一并更正）。
+
+**重跑结果可信吗？可信。** 改后的 spec 严格更严：它新增了 `composingBefore` /
+`composingAfterCommit` 观测并补了显式提交步骤，不是放宽断言。
+所以 item 2 / item 3 的 accept 结论**成立**，但**出处必须披露**——
+见下「披露缺陷」，以及归档目录 `122241/` 内混装了两个版本 spec 的产物
+（`run.log` 是改前、`run2.log` 与 `findings-editing.json` 是改后）却未作标注。
+
+**顺带确认的真实设计事实（对 P6 有用）**：composition 未确认期间按 Cmd+Z 会被静默吞掉。
+GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷键」，与此一致。
+`run2.log` 的 `perKeyTrace` 现在把正确序列固定下来了：键入 → `Return` 确认
+（此时 `composing` 转 false）→ 再 `cmd+z`。P6 可直接复用这段作为 harness 范本。
 
 ### 由此暴露的披露缺陷（执行流自己登记）
 
@@ -332,16 +367,24 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
 `P4B.md` 的「失败后可回到源码」行据此记为「仍可编辑」，
 而全量 run 的 `item3.fallbackEditable = false`。
 
-即：**验收报告把「隔离重跑」的结果当作验收结果呈现，既未披露全量 run 中这 3 项曾失败，
-也未说明为何重跑结果比全量 run 更可信。**
+即：**验收报告把「改后 spec 的隔离重跑」结果当作验收结果呈现，
+既未披露全量 run 中这 3 项曾失败，也未披露 spec 在两次 run 之间被修改过。**
+（补一句公允的：修 spec 这个动作本身是对的——改前确实是 harness 的错。
+问题只在于**没说**，导致读者无法判断结论出自哪一版。）
 
 **处置**：执行流**不自行撤回**已签署的人工验收（撤回权在 Program Owner），但要求：
 
 1. 人工验收行的签署状态由「已签署」细化为 **「已签署，但披露不完整」**；
-2. 「编辑/输入/回退」与「失败后可回到源码」两行的 **accept 依据降级为「隔离重跑」**，
-   须在 P6 或 P7 用**干净会话**复现一次全量 run 才算闭合；
-3. 该 openDoc 超时（item 6）与 C20 的 13 failing 是否同源，**仍未证实**——
-   两者都表现为文件切换卡住，但本 run 只有 1 条命中，不足以建立因果。
+2. 「编辑/输入/回退」与「失败后可回到源码」两行的依据标注为
+   **「改后 spec 的隔离重跑」**。结论**成立**（改后 spec 更严，不是放宽），
+   故**不要求**为这两项重跑一次全量 run；
+3. 归档目录 `122241/` 混装了两个版本 spec 的产物（`run.log` 改前 /
+   `run2.log` + `findings-editing.json` 改后）且未标注——
+   **这是记录缺陷，但不回写**（协议禁止）；仅在本文登记；
+4. **item 6 的 `openDoc` 超时仍然悬空**：它是 3 条失败里唯一**没有对应修复**的
+   （run3 只是原样隔离重跑，spec 未改），重跑通过属于「复现不出来」而非「已解决」。
+   它与 C20 的 13 failing 是否同源，**仍未证实**——两者都表现为文件切换卡住，
+   但本 run 只有 1 条命中，不足以建立因果。**交 P6 作为环境风险持续观察。**
 
 ## 已知缺口（交独立 Reviewer 判定，不由执行流自行关闭）
 

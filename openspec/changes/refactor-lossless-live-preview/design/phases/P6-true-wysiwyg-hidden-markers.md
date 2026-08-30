@@ -92,3 +92,69 @@ P6 Go 只能宣称“基础 Markdown 已达 Typora 式所见所得”；图片�
 ## 8. 回滚
 
 关闭 `*.hidden` flag 回到 dimmed projection；关闭 construct flag 回到源码；关闭 Live Preview 回到同一 CodeMirror Source。任何回滚都不得回到 serializer 保存。
+
+## 9. M2b：link（inline / reference / autolink）隐藏 marker
+
+> 本 section 记录 M2b 的 link 状态机与几何决策（§9.5 / §9.8 的实现注脚；tasks.md 的
+> §9.5/§9.8 勾选由人工验收与 Program Owner 决定，M2b 实现不自行勾选）。
+
+### 9.1 活动态行为：采用规范 `revealed`（整条揭示），不新增 active-field 边状态
+
+link 与 M2a 对称成对 marker（`**`…`**`）不同，是**非对称多段**（`[` / `](` / `"title"` / `)`）。
+P6 状态机已有 `revealed` 定义：“caret/selection/command/composition 需要源码 → 该 construct
+全部必要 marker 显示”（§2）。M2b 的 link **复用该规范 `revealed` 态**：
+
+- **inactive**（caret 在 link 外且 `link.hidden` ON）：隐藏全部语法骨架与非文本字段
+  （所有 LinkMark、dest URL、title），仅显示 link 文本（autolink 显示 URL，定义行显示 dest）。
+- **active / revealed**（caret/selection 与 link 相交）：**整条链接源码揭示**——`[text](dest "title")`
+  全部字段（含 dest / title）可见且可**就地编辑**。
+
+理由（“活动态可选别的行为”的说明）：
+
+1. 设计 §2 的定义就是整条揭示；`revealed` 天然满足 §9.5 的硬性要求“活动时显示 destination/title
+   且可编辑”——caret 进入 link 即整条显示，dest/title 可编辑。
+2. 字段级（仅揭示 caret 所在字段）虽更 Typora 化，但属**新范式**：需要逐字段原子几何、跨字段
+   编辑时隐藏其它字段的交互、以及“编辑 text 时 dest 不可见”的反直觉 UX；与已冻结的 `revealed`
+   定义冲突，风险高。MVP 选择规范 `revealed`，字段级作为 P7 增强候选，不本 cohort 引入。
+3. 与 M2a 一致：`revealed` = 显示源码，无新状态。
+
+### 9.2 各形态隐藏几何（inactive 时 replace+atomic，仅留显示文本）
+
+| 形态 | Lezer 节点 | markers（LinkMark） | 隐藏（replace+atomic） | 显示 |
+| --- | --- | --- | --- | --- |
+| inline | `Link` | `[` `]` `(` `)`（4） | `[` + `]` + `(` + url + title + `)` | 文本 `[1,5)` |
+| autolink | `Autolink` | `<` `>`（2） | `<` + `>` | URL `[1,20)` |
+| reference full/collapsed | `Link` | `[` `]`（2） | `[` + `]` + LinkLabel `[ref]`/`[]` | 文本 `[1,5)` |
+| reference shortcut | `Link` | `[` `]`（2） | `[` + `]` | 文本 `[1,5)` |
+| 定义行 | `LinkReference` | `:`（1） | LinkLabel `[ref]` + `:` + title | dest URL |
+
+- 嵌套 `[**b**](u)` 自然组合：link 隐藏骨架只留文本 `**b**`，strong 再隐藏 `**`，显示加粗 “b”。
+- 裸 URL 子构造（如 inline 的 `(url)` 内部）是 `markers=[]` 的 `mf-link`，非可隐藏形态 → 维持
+  dimmed，不参与隐藏。
+
+### 9.3 分类门控（延用 M1 thematicBreak 模式）
+
+`Autolink` / `LinkReference` 目前映射 `unknown`（source-fallback）。为隐藏 autolink/定义行，
+在 `classifyLezerNode` 中**仅当 `isLivePreviewProjectionOn('link')` ON** 时将其提升为本地
+`mf-link` 构造（默认 OFF 保持 GOLDEN parity 不变；PARITY_DOC 不含 autolink/定义行节点）。
+
+### 9.4 malformed link 精确回源码
+
+- 无法解析为 link 节点（未闭合 `[text` / `[text](`）→ 根本不产生构造 → 天然精确实源码。
+- 解析出 `Link`/`Autolink`/`LinkReference` 但几何不完整（marker 无序/重叠、缺少必需子节点）→
+  `buildHiddenConstruct` 返回 `dimmed`（全部源码可见、marker 弱化），**绝不半隐藏**。
+
+### 9.5 边界删除保留 paired syntax（§9.8 点名 link）
+
+扩展 `hiddenMarkerInteraction.ts`：link 形态（inline/autolink/reference）在
+`Backspace @ range.to`（闭 delimiter 后）→ 删 link 文本末一个 grapheme、保留骨架；
+`Delete @ range.from`（开 delimiter 前）→ 删 link 文本首一个 grapheme；其余 marker 内边界 → NoOp。
+定义行：`Backspace @ range.to` 删 dest 末 grapheme；`Delete @ range.from` → NoOp。
+flag OFF 时 handler 返回 false，交回普通源码删除（字节合同不变）。
+
+### 9.6 reference 定义行 dest 编辑：受限项（不静默做一半）
+
+reference link 的 destination 在**定义行、不在引用点本行**（§9.5 硬约束点名）。MVP **不实现
+跨位置就地编辑 dest**：reference 激活（revealed）时显示完整 `[text][ref]` 含标签供导航；
+destination 在定义行编辑——定义行的 dest URL 在 inactive 时保持可见（隐藏只去 `[ref]:` 标签），
+且 active（revealed）时整行揭示可编辑。本项在 RUN.md 声明为受限项。

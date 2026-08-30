@@ -1,11 +1,11 @@
-// P6 M2a — boundary deletion over hidden inline markers (ADR structural
-// interaction matrix; design/phases/P6-true-wysiwyg-hidden-markers.md §4).
+// P6 M2a/M2b — boundary deletion over hidden inline markers (ADR structural
+// interaction matrix; design/phases/P6-true-wysiwyg-hidden-markers.md §4 / §9).
 //
 // A hidden marker is a `Decoration.replace` over source the user cannot see. If
 // Backspace/Delete behaved like ordinary source deletion at a marker boundary,
-// one keystroke would silently eat a `*` of `**bold**` and leave an unbalanced
-// pair in the saved bytes — an invisible edit that corrupts the document. The
-// ADR therefore defines the boundary contract:
+// one keystroke would silently eat a `*` of `**bold**` (or a `[`/`]`/`(`/`)` of
+// a link) and leave an unbalanced pair in the saved bytes — an invisible edit
+// that corrupts the document. The ADR therefore defines the boundary contract:
 //
 //   | Backspace at the AFTER boundary of the closing marker | reveal the owning
 //     construct, delete one grapheme from the END of the content range; the
@@ -16,6 +16,12 @@
 //   | Backspace just after the opening marker, or Delete just before the closing
 //     marker (the INNER boundaries) | reveal and NoOp — a delimiter is never
 //     removed on its own.
+//
+// M2b extends this to LINK constructs (design §9.5): a link is a non-symmetric
+// multi-segment marker, so the boundary rule targets its DISPLAY TEXT (between
+// the first opening and first-closing LinkMark) while keeping the `[`…`](`…`)` /
+// `<…>` / `[ref]` skeleton intact. The definition line (`[ref]: dest`) only NoOps
+// at its delimiter-adjacent edges.
 //
 // This module is the ONLY place that implements it. It stays faithful to the P6
 // single-source-of-truth rule: it never rewrites markers into the doc, never
@@ -75,6 +81,42 @@ function hiddenCapable(range: ConstructRange): boolean {
 }
 
 /**
+ * Resolve the ADR boundary hit for an M2b LINK construct (design §9.5). A link is
+ * non-symmetric multi-segment, and its display text runs between the first
+ * opening and first-closing LinkMark — so a Backspace right after the closing
+ * delimiter deletes one grapheme from that TEXT only, never touching the
+ * `[`…`](`…`)` / `<…>` / `[ref]` skeleton. The definition line (`[ref]: dest`)
+ * has no paired text around a single delimiter, so it only NoOps at the
+ * delimiter-adjacent edges to keep the `[ref]:` label from being eaten.
+ */
+function linkBoundaryHit(range: ConstructRange, pos: number, backwards: boolean): BoundaryHit | null {
+  const m = range.markers;
+  if (m.length === 0) return null; // naked URL / non-form link — ordinary source
+  if (m.length === 1) {
+    // Definition line `[ref]: dest` — protect the label, let the (source-visible)
+    // destination be edited by ordinary caret editing at the definition line.
+    if (backwards && pos === m[0][1]) return { kind: 'noop' }; // after `:` — don't eat it
+    if (!backwards && pos === range.from) return { kind: 'noop' }; // before `[` — don't eat it
+    return null;
+  }
+  // Multi-delimiter forms (inline / reference / autolink): the display text lives
+  // between the first opening and first-closing LinkMark.
+  const textFrom = m[0][1];
+  const textTo = m[1][0];
+  if (textTo < textFrom) return null; // malformed — fall through to source delete
+  if (backwards && pos === range.to) {
+    return { kind: 'delete-content-end', contentFrom: textFrom, contentTo: textTo };
+  }
+  if (!backwards && pos === range.from) {
+    return { kind: 'delete-content-start', contentFrom: textFrom, contentTo: textTo };
+  }
+  // Inner boundaries — reveal only, never delete a delimiter.
+  if (backwards && pos === textFrom) return { kind: 'noop' }; // after `[`/`<`
+  if (!backwards && pos === textTo) return { kind: 'noop' }; // before `]`/`>`
+  return null;
+}
+
+/**
  * Find the paired inline construct whose marker boundary the caret sits at.
  * Returns `null` when the caret is at an ordinary source position, so Backspace/
  * Delete fall through to the default (exact-source) behaviour.
@@ -95,6 +137,14 @@ function boundaryHitAt(view: EditorView, pos: number, backwards: boolean): Bound
   // Innermost first: with `**`code`**` the inner construct owns its own boundary.
   const candidates = snapshot.constructs.filter(hiddenCapable).sort((a, b) => b.from - a.from);
   for (const range of candidates) {
+    // M2b link: non-symmetric multi-segment marker with its own boundary
+    // resolution (a naked URL child has markers=[] → linkBoundaryHit returns
+    // null and we keep scanning for a deeper/more relevant candidate).
+    if (clsToLivePreviewConstruct(range.cls) === 'link') {
+      const linkHit = linkBoundaryHit(range, pos, backwards);
+      if (linkHit) return linkHit;
+      continue;
+    }
     const geo = pairedInlineGeometry(range);
     if (!geo) continue;
     if (backwards) {

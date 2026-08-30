@@ -107,7 +107,9 @@ import {
   resolveConstructVisibility,
   resetProjectionSnapshot,
   setProjectionTestFailMode,
+  linkFormGeometry,
   type ConstructRange,
+  type LinkSub,
 } from './projection';
 import {
   resetAllCohortFlags,
@@ -124,6 +126,7 @@ import {
 } from './renderOwnerRegistry';
 import { createLosslessSourceEditor } from './losslessSourceEditor';
 import { runScopeHandlers, EditorView } from '@codemirror/view';
+import { Text } from '@codemirror/state';
 import type { Transaction } from '@codemirror/state';
 
 let dir: string;
@@ -1897,6 +1900,456 @@ describe('P6 M2a — boundary delete keeps the paired syntax intact (ADR matrix)
       h.view.dispatch({ selection: { anchor: 0, head: 8 } });
       h.press('Backspace');
       expect(h.view.state.doc.toString()).toBe(' tail');
+    } finally {
+      h.destroy();
+    }
+  });
+});
+
+// ── P6 M2b — hidden markers for link (inline / reference / autolink) ───────
+//
+// Third P6 cohort, behind `livePreview.link` + `livePreview.link.hidden` (both
+// default OFF). A link is a NON-symmetric multi-segment marker, so unlike the
+// paired `**` the inactive-hidden state keeps only the display text and replaces
+// every LinkMark plus the destination / title / reference label (design §9.2).
+// Active (caret/selection inside the link) is the design-canonical wholesale
+// `revealed`: every field incl. dest/title shows and edits in place.
+
+function enableLinkHidden(): void {
+  setLivePreviewProjection('link', true);
+  setLivePreviewHidden('link', true);
+}
+
+interface LinkHarness {
+  view: EditorView;
+  txs: Transaction[];
+  press(key: string, shift?: boolean): boolean;
+  destroy(): void;
+}
+
+/** Product-stack harness with the link hidden flag ON (unless `enableFlags`). */
+function linkHarness(source: string, enableFlags = true): LinkHarness {
+  const parent = document.createElement('div');
+  document.body.appendChild(parent);
+  const txs: Transaction[] = [];
+  const handle: ReturnType<typeof createLosslessSourceEditor> = createLosslessSourceEditor(
+    parent,
+    source,
+    {
+      livePreview: true,
+      mode: 'preview',
+      onTransaction(transactions) {
+        txs.push(...transactions);
+      },
+    },
+  );
+  if (enableFlags) enableLinkHidden();
+  return {
+    view: handle.view,
+    txs,
+    press(key, shift = false) {
+      return runScopeHandlers(
+        handle.view,
+        new KeyboardEvent('keydown', { key, shiftKey: shift, cancelable: true }),
+        'editor',
+      );
+    },
+    destroy: () => handle.destroy(),
+  };
+}
+
+describe('P6 M2b — link hidden geometry (inline / autolink / reference / definition)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  it('inline [text](url) hides [ ] ( ) + url, keeps text visible; bytes untouched', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[text](https://example.com)' + FAR;
+    const path = await writeFixture('p6-m2b-inline.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } }); // far away
+
+    const snapshot = getProjectionSnapshot();
+    const link = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 4)!;
+    expect(link).toBeDefined();
+    expect(link.visibility).toBe('hidden');
+    // The four LinkMarks + the URL are hidden atomic; only [1,5) `text` remains.
+    expect(snapshot.hiddenAtomic).toEqual(
+      expect.arrayContaining([[0, 1], [5, 6], [6, 7], [7, 26], [26, 27]]),
+    );
+    // Only the link text is rendered (skeleton + url replaced away).
+    expect(view.contentDOM.querySelector('span.mf-link')?.textContent).toBe('text');
+    expect(view.contentDOM.querySelectorAll('span.mf-marker').length).toBe(0);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('inline [text](url "title") also hides the title', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[text](https://example.com "Title")' + FAR;
+    const path = await writeFixture('p6-m2b-title.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const link = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 4)!;
+    expect(link.visibility).toBe('hidden');
+    // URL [7,26) and title [27,34) are hidden along with the markers and `)`.
+    expect(snapshot.hiddenAtomic).toEqual(
+      expect.arrayContaining([[7, 26], [27, 34], [34, 35]]),
+    );
+    expect(view.contentDOM.querySelector('span.mf-link')?.textContent).toBe('text');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('autolink <https://x> hides < > and keeps the URL visible', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '<https://example.com>' + FAR;
+    const path = await writeFixture('p6-m2b-autolink.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    // Autolink becomes a local link construct only when the link projection flag
+    // is ON; the `<` and `>` are hidden, the URL stays visible.
+    const autolink = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 2)!;
+    expect(autolink).toBeDefined();
+    expect(autolink.visibility).toBe('hidden');
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 1], [20, 21]]));
+    expect(view.contentDOM.querySelector('span.mf-link')?.textContent).toBe('https://example.com');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('reference [text][ref] hides [ ] and the [ref] label, keeps text visible', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[text][ref]' + FAR;
+    const path = await writeFixture('p6-m2b-reffull.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const ref = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 2)!;
+    expect(ref).toBeDefined();
+    expect(ref.visibility).toBe('hidden');
+    // `[` [0,1) + `]` [5,6) + LinkLabel `[ref]` [6,11) all hidden; text [1,5) shown.
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 1], [5, 6], [6, 11]]));
+    expect(view.contentDOM.querySelector('span.mf-link')?.textContent).toBe('text');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('reference collapsed [text][] and shortcut [text] keep only the text visible', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[a][] and [b]' + FAR;
+    const path = await writeFixture('p6-m2b-refshort.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const collapsed = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.from === 0)!;
+    const shortcut = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.from === 10)!;
+    expect(collapsed.visibility).toBe('hidden');
+    expect(shortcut.visibility).toBe('hidden');
+    // [a][] → `[` [0,1)+`]` [2,3)+LinkLabel [] [3,5); [b] → `[` [10,11)+`]` [12,13).
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 1], [2, 3], [3, 5], [10, 11], [12, 13]]));
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('definition line [ref]: dest hides the label, keeps the dest visible', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[ref]: https://example.com' + FAR;
+    const path = await writeFixture('p6-m2b-defline.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const def = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 1)!;
+    expect(def).toBeDefined();
+    expect(def.visibility).toBe('hidden');
+    // `[ref]` [0,5) + `:` [5,6) hidden; the dest URL stays visible.
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 5], [5, 6]]));
+    expect(view.contentDOM.querySelector('span.mf-link')?.textContent).toBe('https://example.com');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('active (caret in link) reveals the WHOLE link — dest/title editable, nothing hidden', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[text](https://example.com "T") tail\n';
+    const path = await writeFixture('p6-m2b-active.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+
+    // Caret inside the destination → revealed: no atomic ranges, full source.
+    view.dispatch({ selection: { anchor: 20 } }); // inside the url
+    let snap = getProjectionSnapshot();
+    const link = snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 4)!;
+    expect(link.visibility).toBe('revealed');
+    expect(snap.hiddenAtomic.length).toBe(0);
+    // Destination text is present in the rendered DOM (editable in place).
+    expect(view.contentDOM.querySelector('span.mf-link')?.textContent).toContain('https://example.com');
+
+    // Editing the destination directly works (wholesale reveal = editable fields).
+    // URL `https://example.com` is [7,26) — clearing it edits the dest in place.
+    view.dispatch({ changes: { from: 7, to: 26, insert: '' } });
+    expect(view.state.doc.toString()).toBe('[text]( "T") tail\n');
+
+    // Caret far away → hidden again, bytes reflect only the user's edit (the
+    // caret must clear the base reveal radius 2 past the link's end).
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+    snap = getProjectionSnapshot();
+    expect(
+      snap.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length >= 1)!.visibility,
+    ).toBe('hidden');
+    expect(view.state.doc.toString()).toBe('[text]( "T") tail\n');
+  });
+
+  it('nested [**b**](u): link hides its skeleton, the inner strong hides ** too', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[**b**](u)' + FAR;
+    const path = await writeFixture('p6-m2b-nested.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    enableAllM2aHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const link = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 4)!;
+    expect(link.visibility).toBe('hidden');
+    const strong = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.strong)!;
+    expect(strong.visibility).toBe('hidden');
+    // Link hides `[`/`](`/`)`/url, strong hides its own **; atomic composition.
+    expect(snapshot.hiddenAtomic).toEqual(
+      expect.arrayContaining([[0, 1], [6, 7], [7, 8], [8, 9], [9, 10], [1, 3], [4, 6]]),
+    );
+    // Rendered link text is the bold "b" (link skeleton + ** both replaced).
+    expect(view.contentDOM.querySelector('span.mf-strong')?.textContent).toBe('b');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('malformed / non-form link is NOT hidden — exact or dimmed source, never half-hidden', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    // An unclosed `[text` does not parse to a Link node at all → exact source.
+    // A naked URL has no hideable skeleton → its construct stays dimmed, never
+    // half-hidden. (`[oops]` was deliberately avoided — a bare `[...]` is a
+    // VALID shortcut reference link and hides normally.)
+    const md = '[text\n\nplain https://ex.example/a tail\n';
+    const path = await writeFixture('p6-m2b-malformed.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.length } });
+
+    const snapshot = getProjectionSnapshot();
+    // The unclosed `[text` is exact source (no construct, nothing hidden).
+    expect(snapshot.constructs.find((c) => c.from === 0 && c.cls === PROJECTION_CLASSES.link)).toBeUndefined();
+    // The naked URL has no skeleton → no hidden atomic range, not half-hidden.
+    expect(snapshot.hiddenAtomic.length).toBe(0);
+    const naked = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length === 0);
+    if (naked) expect(naked.visibility).not.toBe('hidden');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('linkFormGeometry unit: inline / autolink / reference / definition resolve exactly', () => {
+    // Direct pure-function check of the geometry resolver (values, not DOM).
+    const inline: ConstructRange = {
+      from: 0, to: 27, markers: [[0, 1], [5, 6], [6, 7], [26, 27]], cls: PROJECTION_CLASSES.link,
+    } as ConstructRange;
+    const inlineSubs: LinkSub[] = [{ name: 'URL', from: 7, to: 26 }];
+    const geo = linkFormGeometry(inline, Text.of(['[text](https://example.com)']), inlineSubs)!;
+    expect(geo.form).toBe('inline');
+    expect(geo.textFrom).toBe(1);
+    expect(geo.textTo).toBe(5);
+    expect(geo.hide).toEqual([[0, 1], [5, 6], [6, 7], [7, 26], [26, 27]]);
+
+    const autolink: ConstructRange = {
+      from: 0, to: 21, markers: [[0, 1], [20, 21]], cls: PROJECTION_CLASSES.link,
+    } as ConstructRange;
+    expect(linkFormGeometry(autolink, Text.of(['<https://example.com>']), [] as LinkSub[])!.form).toBe('autolink');
+
+    const reffull: ConstructRange = {
+      from: 0, to: 11, markers: [[0, 1], [5, 6]], cls: PROJECTION_CLASSES.link,
+    } as ConstructRange;
+    const refSubs: LinkSub[] = [{ name: 'LinkLabel', from: 6, to: 11 }];
+    const refGeo = linkFormGeometry(reffull, Text.of(['[text][ref]']), refSubs)!;
+    expect(refGeo.form).toBe('reference');
+    expect(refGeo.hide).toEqual([[0, 1], [5, 6], [6, 11]]);
+
+    const def: ConstructRange = { from: 0, to: 26, markers: [[5, 6]], cls: PROJECTION_CLASSES.link } as ConstructRange;
+    const defSubs: LinkSub[] = [
+      { name: 'LinkLabel', from: 0, to: 5 },
+      { name: 'URL', from: 7, to: 26 },
+    ];
+    const defGeo = linkFormGeometry(def, Text.of(['[ref]: https://example.com']), defSubs)!;
+    expect(defGeo.form).toBe('definition');
+    expect(defGeo.textFrom).toBe(7);
+    expect(defGeo.textTo).toBe(26);
+
+    // A naked-URL construct (markers=[]) is not a form → null.
+    expect(
+      linkFormGeometry({ from: 7, to: 26, markers: [], cls: PROJECTION_CLASSES.link } as ConstructRange, Text.of(['x']), [] as LinkSub[]),
+    ).toBeNull();
+  });
+
+  it('hiding links dispatches no doc-changing transaction (History / bytes stable)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '[a](u) <https://x> [b][r]' + FAR;
+    const path = await writeFixture('p6-m2b-no-txn.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    const docBefore = view.state.doc;
+    enableLinkHidden();
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+    expect(view.state.doc).toBe(docBefore);
+    expect(getProjectionSnapshot().hiddenAtomic.length).toBeGreaterThan(0);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+});
+
+describe('P6 M2b — link boundary delete keeps the paired syntax intact (ADR matrix)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  it('Backspace after the inline ) deletes a text grapheme and keeps [ ] ( ) + url', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = linkHarness('[text](https://example.com) tail');
+    try {
+      // Inline Link [0,27), text [1,5). Backspace at range.to (27) → last text grapheme.
+      h.view.dispatch({ selection: { anchor: 27 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('[tex](https://example.com) tail');
+      expect(h.view.state.selection.main.anchor).toBe(4);
+      expect(h.txs.length).toBe(1);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Delete before the inline [ deletes a text grapheme and keeps the skeleton', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = linkHarness('[text](https://example.com) tail');
+    try {
+      h.view.dispatch({ selection: { anchor: 0 } });
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('[ext](https://example.com) tail');
+      expect(h.view.state.selection.main.anchor).toBe(1);
+      expect(h.txs.length).toBe(1);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace right after the closing > of an autolink deletes its URL grapheme', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = linkHarness('a <https://ex> b');
+    try {
+      // Autolink [2,14): `<`[2,3) `>`[13,14), text (URL) [3,13). Backspace at
+      // range.to (14) deletes the URL's last grapheme `x` at [12,13).
+      h.view.dispatch({ selection: { anchor: 14 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('a <https://e> b');
+      expect(h.view.state.selection.main.anchor).toBe(12);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace after a reference [text][ref] deletes text grapheme, keeps [ ] [ref]', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = linkHarness('[text][ref] tail');
+    try {
+      // Reference Link [0,11), text [1,5). Backspace at range.to (11) → last text grapheme.
+      h.view.dispatch({ selection: { anchor: 11 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('[tex][ref] tail');
+      expect(h.view.state.selection.main.anchor).toBe(4);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('inner boundary (after the opening [) is a NoOp — a delimiter is never deleted alone', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = linkHarness('[text](https://example.com) tail');
+    try {
+      // textFrom = 1 (just after `[`) → Backspace is a NoOp, doc unchanged.
+      h.view.dispatch({ selection: { anchor: 1 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('[text](https://example.com) tail');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('flag OFF leaves plain source deletion — the link handler is inert', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = linkHarness('[text](https://example.com) tail', false);
+    try {
+      // With link hidden OFF (default), Backspace at the closing boundary is an
+      // ordinary source delete: the `)` is really deleted (no paired-syntax guard).
+      h.view.dispatch({ selection: { anchor: 27 } });
+      h.press('Backspace');
+      expect(h.view.state.doc.toString()).toBe('[text](https://example.com tail');
     } finally {
       h.destroy();
     }

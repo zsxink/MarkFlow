@@ -221,6 +221,16 @@ export function classifyLezerNode(name: string): { cls: string; level?: number }
   if (kind === 'thematicBreak' && isLivePreviewProjectionOn('thematicBreak')) {
     return { cls: PROJECTION_CLASSES.hr };
   }
+  // P6 M2b: an Autolink `<…>` or a reference definition `[ref]: dest` becomes a
+  // local `mf-link` construct ONLY when the link projection flag is ON. While
+  // OFF (default) it stays exact source, preserving the frozen PARITY construct
+  // set and the pre-M2b visual baseline (neither node appears in PARITY_DOC).
+  if (
+    (name === 'Autolink' || name === 'LinkReference') &&
+    isLivePreviewProjectionOn('link')
+  ) {
+    return { cls: PROJECTION_CLASSES.link };
+  }
   // Unique-owner invariant (task 6.5): only the 'local' owner decorates here;
   // 'source-fallback' (and a future 'widget'/'core' owner) keeps raw source.
   if (resolveConstructOwner(kind).owner !== 'local') return null;
@@ -304,6 +314,91 @@ export function pairedInlineGeometry(range: ConstructRange): PairedInlineGeometr
   return { openFrom, openTo, closeFrom, closeTo, contentFrom: openTo, contentTo: closeFrom };
 }
 
+// ── M2b: link (inline / reference / autolink) geometry ─────────────────────
+//
+// A link is a NON-SYMMETRIC multi-segment marker (`[` / `](` / `"title"` / `)`),
+// so unlike a paired `**` it cannot be hidden as two equal delimiters. Per
+// design/phases/P6-*.md §9, the inactive-hidden state keeps only the display
+// text and replaces every LinkMark plus the non-text fields (destination, title,
+// reference label). The form is resolved from the construct's own LinkMark
+// spans plus the captured child sub-nodes (URL / LinkTitle / LinkLabel).
+
+/** A link sub-node captured during tree iteration (URL / LinkTitle / LinkLabel). */
+export interface LinkSub {
+  name: 'URL' | 'LinkTitle' | 'LinkLabel';
+  from: number;
+  to: number;
+}
+
+/** Resolved hidden geometry for one link-form construct (design §9.2). */
+export interface LinkFormGeometry {
+  /** The Markdown sub-form of the link construct. */
+  form: 'inline' | 'autolink' | 'reference' | 'definition';
+  /** The display range kept visible when the link is inactive-hidden. */
+  textFrom: number;
+  textTo: number;
+  /** Exact ranges to replace (+atomic) when inactive-hidden (skeleton + fields). */
+  hide: Array<[number, number]>;
+}
+
+/**
+ * Resolve the hidden geometry of a link-form construct (design §9.2). `subs` are
+ * the captured child sub-nodes (URL / LinkTitle / LinkLabel) that belong to this
+ * construct. Returns `null` when the form cannot be resolved safely (malformed
+ * or incomplete geometry) — the caller then keeps the dimmed/visible projection
+ * instead of half-hiding the link.
+ */
+export function linkFormGeometry(
+  range: ConstructRange,
+  doc: Text,
+  subs: LinkSub[],
+): LinkFormGeometry | null {
+  const m = range.markers;
+  if (m.length === 0) return null; // naked URL / non-form link — never hide
+  // Reference definition `[ref]: dest` — a single `:` LinkMark plus a LinkLabel.
+  if (m.length === 1) {
+    const label = subs.find((s) => s.name === 'LinkLabel');
+    const url = subs.find((s) => s.name === 'URL');
+    if (!label || !url) return null;
+    const title = subs.find((s) => s.name === 'LinkTitle');
+    const hide: Array<[number, number]> = [[label.from, label.to], [m[0][0], m[0][1]]];
+    if (title) hide.push([title.from, title.to]);
+    // Display = the destination URL; the `[ref]:` label, `:` and title are hidden.
+    return { form: 'definition', textFrom: url.from, textTo: url.to, hide };
+  }
+  // Autolink `<https://x>` — two `<` `>` LinkMarks around the URL text.
+  if (m.length === 2 && doc.sliceString(m[0][0], m[0][1]) === '<') {
+    return { form: 'autolink', textFrom: m[0][1], textTo: m[1][0], hide: [[m[0][0], m[0][1]], [m[1][0], m[1][1]]] };
+  }
+  // Inline `[text](dest "title")` — four LinkMarks `[ ] ( )` + optional URL/Title.
+  if (m.length === 4) {
+    const [open, closeBracket, openParen, closeParen] = m;
+    const textFrom = open[1];
+    const textTo = closeBracket[0];
+    if (textFrom > textTo) return null; // no text — malformed
+    const url = subs.find((s) => s.name === 'URL');
+    const title = subs.find((s) => s.name === 'LinkTitle');
+    const hide: Array<[number, number]> = [open, closeBracket, openParen];
+    if (url) hide.push([url.from, url.to]);
+    if (title) hide.push([title.from, title.to]);
+    hide.push(closeParen);
+    return { form: 'inline', textFrom, textTo, hide };
+  }
+  // Reference `[text][ref]` / `[text][]` / `[text]` — two `[` `]` LinkMarks plus
+  // an optional LinkLabel (`[ref]` / `[]`; shortcut has none).
+  if (m.length === 2) {
+    const [open, close] = m;
+    const textFrom = open[1];
+    const textTo = close[0];
+    if (textFrom > textTo) return null;
+    const hide: Array<[number, number]> = [open, close];
+    const label = subs.find((s) => s.name === 'LinkLabel');
+    if (label) hide.push([label.from, label.to]);
+    return { form: 'reference', textFrom, textTo, hide };
+  }
+  return null;
+}
+
 /**
  * Build the hidden (replacing + atomic) decorations for ONE P6 construct and
  * push them into `additions`. Returns `'hidden'` when the construct was hidden
@@ -317,6 +412,7 @@ function buildHiddenConstruct(
   doc: Text,
   additions: Array<{ from: number; to: number; deco: Decoration }>,
   hiddenAtomicSpans: Array<[number, number]>,
+  linkSubsByConstruct: Map<number, LinkSub[]>,
 ): ConstructVisibility {
   // M2a paired inline constructs (`**bold**`, `*it*`, `~~s~~`, `` `c` ``): each
   // delimiter is replaced and published as its OWN atomic unit, and the content
@@ -334,6 +430,25 @@ function buildHiddenConstruct(
     additions.push({
       from: geo.contentFrom,
       to: geo.contentTo,
+      deco: Decoration.mark({ class: `mf-construct ${range.cls}` }),
+    });
+    return 'hidden';
+  }
+  // M2b link cohort (design §9.2): a link is non-symmetric, so the inactive
+  // state keeps only the display text and replaces every LinkMark plus the
+  // destination / title / reference label. Nested constructs (`[**b**](u)`)
+  // compose: the link hides its skeleton, the inner strong hides its own `**`.
+  if (kind === 'link') {
+    const geo = linkFormGeometry(range, doc, linkSubsByConstruct.get(range.from) ?? []);
+    if (!geo) return 'dimmed'; // malformed / non-form link — never half-hide
+    if (geo.textTo <= geo.textFrom) return 'visible'; // empty display → discoverable
+    for (const [hf, ht] of geo.hide) {
+      hiddenAtomicSpans.push([hf, ht]);
+      additions.push({ from: hf, to: ht, deco: Decoration.replace({}) });
+    }
+    additions.push({
+      from: geo.textFrom,
+      to: geo.textTo,
       deco: Decoration.mark({ class: `mf-construct ${range.cls}` }),
     });
     return 'hidden';
@@ -618,6 +733,11 @@ function buildDecorations(view: EditorView): DecorationSet {
   const visible = view.visibleRanges;
   // Marker spans to weak-reveal (from Mark/* nodes); stored as [from, to).
   const markerSpans: Array<[number, number]> = [];
+  // M2b: captured link sub-nodes (URL / LinkTitle / LinkLabel) used to resolve
+  // each link-form construct's hidden geometry (design §9.2). These ranges are
+  // NOT part of `markers` (only the LinkMark delimiters are), so the enclosing
+  // link construct needs them to hide its destination / title / label exactly.
+  const linkSubs: LinkSub[] = [];
   let count = 0;
 
   tree.iterate({
@@ -627,6 +747,11 @@ function buildDecorations(view: EditorView): DecorationSet {
       if (nodeTo - nodeFrom === 0) return true;
       // Skip anything fully outside the visible ranges.
       if (!visible.some((r) => nodeFrom < r.to && nodeTo > r.from)) return false;
+
+      // M2b: capture link sub-nodes for the enclosing link-form construct.
+      if (node.name === 'URL' || node.name === 'LinkTitle' || node.name === 'LinkLabel') {
+        linkSubs.push({ name: node.name, from: nodeFrom, to: nodeTo });
+      }
 
       // Collect exact marker spans from the Lezer delimiter nodes.
       if (node.name.endsWith('Mark')) {
@@ -694,6 +819,27 @@ function buildDecorations(view: EditorView): DecorationSet {
       .sort((a, b) => a[0] - b[0]);
   }
 
+  // M2b: assign each captured link sub-node to the INNERMOST enclosing link-form
+  // construct (a link-form = an `mf-link` construct that owns at least one
+  // LinkMark; a naked URL child has markers=[] and is never a hideable form).
+  // For a nested link `[A[B](c)](d)`, the URL `c` belongs to the inner link, not
+  // the outer one — so each sub goes to the smallest containing link-form range.
+  const linkSubsByConstruct = new Map<number, LinkSub[]>();
+  const linkForms = constructs.filter((c) => c.cls === PROJECTION_CLASSES.link && c.markers.length >= 1);
+  for (const sub of linkSubs) {
+    let owner: ConstructRange | null = null;
+    for (const f of linkForms) {
+      if (sub.from >= f.from && sub.to <= f.to) {
+        if (!owner || f.to - f.from < owner.to - owner.from) owner = f;
+      }
+    }
+    if (owner) {
+      const arr = linkSubsByConstruct.get(owner.from) ?? [];
+      arr.push(sub);
+      linkSubsByConstruct.set(owner.from, arr);
+    }
+  }
+
   // Visibility is a pure function of source ranges + selection/composition,
   // never rendered DOM textContent. P4B may reveal or dim markers but cannot
   // hide them; P6 is the sole owner of replacing/atomic hidden decorations.
@@ -723,7 +869,7 @@ function buildDecorations(view: EditorView): DecorationSet {
     });
     range.visibility = visibility;
     if (visibility === 'hidden') {
-      const hiddenOutcome = buildHiddenConstruct(range, doc, additions, hiddenAtomicSpans);
+      const hiddenOutcome = buildHiddenConstruct(range, doc, additions, hiddenAtomicSpans, linkSubsByConstruct);
       if (hiddenOutcome === 'hidden') {
         // Hidden decorations were added; skip the normal visible/dimmed path.
         continue;

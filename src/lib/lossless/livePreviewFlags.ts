@@ -23,7 +23,8 @@ export type LivePreviewConstruct =
   | 'strong'
   | 'emphasis'
   | 'strikethrough'
-  | 'inlineCode';
+  | 'inlineCode'
+  | 'link';
 
 export const LIVE_PREVIEW_CONSTRUCTS: readonly LivePreviewConstruct[] = Object.freeze([
   'heading',
@@ -32,6 +33,7 @@ export const LIVE_PREVIEW_CONSTRUCTS: readonly LivePreviewConstruct[] = Object.f
   'emphasis',
   'strikethrough',
   'inlineCode',
+  'link',
 ]);
 
 /**
@@ -185,5 +187,10 @@ export function clsToLivePreviewConstruct(cls: string): LivePreviewConstruct | n
   if (cls === 'mf-emphasis') return 'emphasis';
   if (cls === 'mf-strikethrough') return 'strikethrough';
   if (cls === 'mf-inline-code') return 'inlineCode';
+  // M2b link cohort: one construct key covering all link forms
+  // (inline / reference / autolink). The naked URL child of a link carries the
+  // same `mf-link` class but is NOT a hideable form (no LinkMark skeleton) — the
+  // hiding path below declines it (markers.length < 2 → dimmed).
+  if (cls === 'mf-link') return 'link';
   return null;
 }

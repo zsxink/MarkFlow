@@ -2,6 +2,10 @@
 
 状态：PASS（20/20 gates；真实 IME 证据已补齐，中文完全通过，日文 Kotoeri 发现 compositionend/Undo product gap，见 `../../issues/20260830-p4b-real-ime-locked-session.md` 与 `../../issues/20260830-p4b-ja-kotoeri-undo-compositionend-gap.md`）
 
+> **前向指针（历史结论不回写）**：本 run 中「日文 Kotoeri 为 product gap」的结论**已被后续调查推翻**——真实根因是 harness 用错了确认键（Kotoeri ライブ変換需按 Return 确认），产品代码零改动。
+> 纠正后的证据见 corrective run `../20260830-102354-p4b-ime-7869de8/`，以及 `../../issues/20260830-p4b-ja-kotoeri-undo-compositionend-gap.md`（状态已改为 RESOLVED — harness 缺陷）。
+> 本 run 的 20/20 gate 结论与日文「当时未通过」的观察保持原样，不因后续修正而改写。
+
 ## Identity
 
 | Field | Value |

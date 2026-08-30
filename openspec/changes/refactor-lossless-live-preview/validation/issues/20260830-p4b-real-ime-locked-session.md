@@ -1,6 +1,12 @@
 # P4B real IME evidence blocked by locked GUI session
 
-状态：**RESOLVED — GUI 会话解锁问题已解决；日文 IME 发现新的 product gap，见 P4B-JA-KOTOERI-UNDO-COMPOSITIONEND-GAP**
+状态：**RESOLVED — GUI 会话解锁问题已解决；中文与日文真实 IME 均完全通过**
+
+> **结论修正（2026-08-30 后续）**：本 issue 曾记载日文为「product gap」，该结论**已被推翻**。
+> 日文 composition 不结束的根因是 harness 用错确认键（Kotoeri ライブ変換需按 **Return** 确认，
+> 此前按的是右方向键），**产品源码零改动**。详见
+> `20260830-p4b-ja-kotoeri-undo-compositionend-gap.md` 与
+> `../evidence/P4B/20260830-102354-p4b-ime-7869de8/RUN.md`。
 
 | 字段 | 值 |
 | --- | --- |
@@ -26,8 +32,18 @@ The process runs in a locked/non-interactive GUI session. `NSWorkspace.shared.fr
 - GUI 会话已确认解锁，MarkFlow 可通过 `NSRunningApplication.activate` 成为 frontmost；
 - 通过 Quartz HID event tap 投递的物理按键可驱动真实系统 IME；
 - 中文 Pinyin 完全满足期望：`compositionstart`/`compositionupdate`/`compositionend`、CJK 提交在 marker 旁、一次 Cmd+Z 恢复；
-- 日文 Kotoeri 完成真实 composition 并提交 CJK 文本，但**未触发 `compositionend`、一次 Cmd+Z 不恢复 source**。此现象在解锁 run 中暴露，判定为新的 product gap，已拆出独立 issue：
-  - `P4B-JA-KOTOERI-UNDO-COMPOSITIONEND-GAP`
+- 日文 Kotoeri 当时**未触发 `compositionend`、一次 Cmd+Z 不恢复 source**，一度判定为 product gap
+  （`P4B-JA-KOTOERI-UNDO-COMPOSITIONEND-GAP`）。后续调查推翻该判定：真实根因是 harness 用错确认键，
+  改为 Return 后日文与中文事件形状完全一致，产品代码零改动。
+
+## Actual（最终，corrective run `20260830-102354-p4b-ime-7869de8`）
+
+| 目标 | 提交结果 | Undo | 提交后 `view.composing` |
+| --- | --- | --- | --- |
+| zh-Hans Pinyin | `# marker\n` → `#中文 marker\n` | 1 次 Cmd+Z 精确还原 | `false` |
+| ja Kotoeri（按 Return 确认） | `> marker\n` → `>日本語 marker\n` | 1 次 Cmd+Z 精确还原 | `false` |
+
+两个目标的提交路径均为 `deleteCompositionText` → `insertFromComposition` → `compositionend`。
 
 ## Minimal reproduction
 
@@ -55,23 +71,31 @@ None. Autosave was enabled during the run per suite defaults; both isolated file
 
 Original blocker: host GUI session state, not product code. Corrective run used a fresh unlocked session and routed keystrokes through the HID event tap.
 
-Post-unlock finding: WebKit/CodeMirror + Kotoeri auto-commit integration does not dispatch `compositionend`, leaving CodeMirror in composition state and suppressing Undo.
+Post-unlock finding (**已修正**): 日文当时不结束 composition 并非产品缺陷。Kotoeri ライブ変換
+在显示汉字后仍保持 composition 待确认（末次提交的 `isComposing` 仍为 `true`），必须按 **Return**
+确认才会触发真正的 `compositionend`。原 harness 按右方向键，仅在转换候选间移动。
+期间 CodeMirror 的 `InputState.ignoreDuringComposition()` 因 `composing > 0` 吞掉所有真实按键，
+故 Undo 失效——对一个确实仍打开的 composition，这是正确行为。
 
 ## Fix
 
 GUI session blocker: run validation in an unlocked GUI session with the app capable of becoming frontmost.
 
-Japanese gap: requires product fix (see follow-up issue). The harness itself is not changed to accept synthetic events or text injection; it remains strict.
+日文「gap」: **harness 修复**（确认键 Right Arrow → Return），**不需要产品修复**。
+harness 仍然严格：不接受 WebDriver 文本注入、合成 `CompositionEvent` 或 `postToPid` 作为证据；
+断言反而被收紧（要求 `compositionend`、`undoCount === 1`、提交后 `view.composing === false`）。
 
 ## Verification
 
-- Chinese Pinyin: **PASSED** in `20260830-083435-p4b-corrective-a8c73de`.
-- Japanese Kotoeri: **PARTIAL** — real composition + CJK commit verified, but `compositionend`/Undo gap remains open.
+- Chinese Pinyin: **PASSED**（`20260830-083435-p4b-corrective-a8c73de`，并在
+  `20260830-102354-p4b-ime-7869de8` 以严格断言复测通过）。
+- Japanese Kotoeri: **PASSED**（`20260830-102354-p4b-ime-7869de8`，严格断言）。
 
 ## Closure
 
 - Fix commit for session blocker: not applicable
-- Passing run for Chinese baseline: `20260830-083435-p4b-corrective-a8c73de`
+- Fix commit for Japanese harness: `7869de8`
+- Passing run（中/日文均严格通过）: `20260830-102354-p4b-ime-7869de8`
 - Reviewer: pending independent review
 - Closed date: 2026-08-30
-- Follow-up: `P4B-JA-KOTOERI-UNDO-COMPOSITIONEND-GAP`
+- Follow-up: `P4B-JA-KOTOERI-UNDO-COMPOSITIONEND-GAP` —— 已 RESOLVED（harness 缺陷），保留设计事实

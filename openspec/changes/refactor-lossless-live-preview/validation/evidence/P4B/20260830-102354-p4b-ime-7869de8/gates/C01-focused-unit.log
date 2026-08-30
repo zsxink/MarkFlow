@@ -1,0 +1,71 @@
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16 tests) 4ms
+stderr | src/lib/lossless/renderOwnerRegistry.test.ts > renderOwnerRegistry — unique owner invariant and conflicts > same-kind double registration: last active wins and the conflict is detectable
+Failed to forward frontend log event TypeError: Cannot read properties of undefined (reading 'invoke')
+    at Module.invoke (file:///Users/xian/Project/book/MarkFlow/node_modules/@tauri-apps/api/core.js:202:39)
+    at send (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:14:8)
+    at Module.logWarn (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:44:3)
+    at Module.registerConstructOwner (/Users/xian/Project/book/MarkFlow/src/lib/lossless/renderOwnerRegistry.ts:247:5)
+    at /Users/xian/Project/book/MarkFlow/src/lib/lossless/renderOwnerRegistry.test.ts:218:30
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33 tests) 8ms
+ ✓ src/lib/lossless/commandMatrix.test.ts (38 tests) 133ms
+ ✓ src/lib/lossless/cohortFlags.test.ts (11 tests) 19ms
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (26 tests) 275ms
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15 tests) 55ms
+ ✓ src/lib/lossless/projection.test.ts (34 tests) 388ms
+stdout | src/lib/lossless/commandRouter.test.ts > lossless command router — table-driven (task 5.2) > quote toggle on a multi-line selection quotes every line
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote Enter at contentStart inserts a same-depth quote before it
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote Enter in content continues the same quote depth
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > empty quote line before a following quote removes only its current marker
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > empty inner quote line before a following quote removes only the inner marker
+leaf lmar 2
+leaf lmar 2
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > double quote Enter preserves every outer quote prefix
+leaf lmar 2
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > same-quote cross-line Backspace is one selection transaction with deterministic source and selection
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > full current quote-line selection deletes first then exits that one quote layer
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote continuation line without a current-line marker is exact source fallback, never a structural transaction
+leaf lmar 1
+leaf lmar 1
+
+ ✓ src/lib/lossless/structuralInteraction.test.ts (136 tests) 573ms
+ ✓ src/lib/lossless/imagePaste.test.ts (4 tests) 37ms
+ ✓ src/lib/lossless/commandRouter.test.ts (44 tests) 587ms
+ ✓ src/lib/lossless/imageSourceRange.test.ts (12 tests) 5ms
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10 tests) 27ms
+ ✓ src/lib/lossless/historyBoundary.test.ts (5 tests) 44ms
+ ✓ src/lib/lossless/flagRollback.test.ts (4 tests) 9ms
+ ✓ src/lib/lossless/sourceSyncController.test.ts (20 tests) 1696ms
+   ✓ SourceSyncController > enters blocked after exhausting retries and preserves optimistic text 402ms
+   ✓ SourceSyncController > flush() returns Blocked when the pipeline is blocked 401ms
+ ✓ src/lib/lossless/lifecycle.test.ts (25 tests) 2443ms
+
+ Test Files  16 passed (16)
+      Tests  433 passed (433)
+   Start at  10:26:00
+   Duration  3.56s (transform 915ms, setup 0ms, collect 2.68s, tests 6.30s, environment 3.10s, prepare 700ms)

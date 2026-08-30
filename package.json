@@ -20,6 +20,7 @@
     "check-size": "bash scripts/check-bundle-size.sh",
     "benchmark:file-tree": "node scripts/file-tree-benchmark.mjs",
     "validate:openspec": "openspec validate --all",
+    "check:evidence-immutable": "bash scripts/check-evidence-immutable.sh",
     "postinstall": "patch-package"
   },
   "dependencies": {

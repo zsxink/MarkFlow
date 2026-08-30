@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 证据不可变性护栏需要遍历提交区间，浅克隆拿不到 base commit
+          fetch-depth: 0
 
       - name: Install Tauri Linux dependencies
         run: |
@@ -64,6 +67,16 @@ jobs:
 
       - name: Check archived changes are synced to main specs
         run: bash scripts/check-archive-synced.sh
+
+      - name: Check validation evidence immutability
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          echo "range: ${base}..${{ github.sha }}"
+          bash scripts/check-evidence-immutable.sh "$base" "${{ github.sha }}"
 
       - name: Build frontend
         run: npm run build

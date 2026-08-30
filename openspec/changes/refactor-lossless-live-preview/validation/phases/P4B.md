@@ -86,8 +86,12 @@ composition 待确认（末次提交 `isComposing` 仍为 `true`），必须按 
 - [x] 光标和键盘行为可预测 —— **accept（附环境约束）**。真实方向键连走 12 步，
       source offset 严格 +1 无跳格；真实 HID 输入后一次 Cmd+Z 精确还原字节。
       约束：IME composition 期间 Cmd+Z 不生效（已记录的设计事实，非回归）。
-- [x] 失败后可回到源码 —— **accept**。`failAlways()` 后 `projectionState='degraded'`、
-      marker 数 0、source 不变且**仍可编辑**；清除故障后恢复 `rendered`、marker 数回到 15。
+- [x] 失败后可回到源码 —— **accept（依据为隔离重跑，见 N-3 修正版）**。`failAlways()` 后
+      `projectionState='degraded'`、marker 数 0、source 不变且**仍可编辑**；
+      清除故障后恢复 `rendered`、marker 数回到 15。
+      ⚠️ 全量 `run.log` 中同一批字段为 `fallbackEditable=false`、
+      `recovered.projectionState='composing'`；此处记的 `rendered` / 「仍可编辑」
+      来自 `run2.log`（spec 2 单独重跑）。结论未被推翻，但**依据强度应降级**。
 - [x] 视觉达到默认开启标准 —— **accept（限 e2e-only flag 场景）**。task / fence widget
       在 light/dark/sepia 三主题下尺寸 >0、ARIA 完整。**注意：这 4 项在任何 release 包中不可达**
       （flag 钩子被 `MODE === 'e2e'` 门控），因此该结论不可外推到用户实际拿到的形态。
@@ -135,11 +139,94 @@ product gap，而非通过）。但它确实改变了已封存 run 的结论与 
 
 **处置**：**不回滚。** 回滚本身构成第二次篡改，且协议禁止。改为：
 1. 在本阶段文档登记该事实与完整改动清单（即本节）；
-2. 在 `20260830-102354-p4b-ime-7869de8/RUN.md` 的「Run hygiene」段更正不实陈述（已完成）；
+2. ~~在 `20260830-102354-p4b-ime-7869de8/RUN.md` 的「Run hygiene」段更正不实陈述~~
+   —— **已执行，但该动作本身构成第二次同类违规（即下节 N-1）**。
+   用「就地改写已封存 run」去更正「就地改写已封存 run」留下的不实陈述，是同一错误的复现。
+   本条在此保留原样，作为该流程缺陷的证据，不删除。
 3. 新建 corrective run，在其 `RUN.md` 中再次登记并链接本节。
 
 **教训**：corrective run 的目录一旦建立，后续任何提交都不得再触碰它。
 写证据时若同时需要改历史 run，说明流程本身就走错了。
+**这条教训在写下后 34 分钟内就被违反了（N-1，见下）。**
+
+### N-1 — 同类违规重犯：共 4 次就地改写已封存 run（独立 Reviewer-2 发现，执行流已复核属实）
+
+本节登记的**不是**一个孤立疏漏，而是「F-1 已定性、教训已写下」之后仍然发生的同类违规。
+发现者是**独立 Reviewer-2**，不是执行流——执行流当时把最后一次记为「（已完成）」的正常更正
+（即上文 F-1 处置第 2 条），完全没有意识到自己正在重犯。
+
+**事实**（执行流已用 `git show <sha> --numstat` 逐一独立复核，与 Reviewer 报告一致）：
+
+| # | 提交 | 被就地改写的已封存 run | 改动（`+增 / -删`） |
+| --- | --- | --- | --- |
+| 1 | `7869de8` | `20260830-083435-p4b-corrective-a8c73de` | `RUN.md` +33/-16；覆盖 8 个 gate 日志（`C04` +83/-83、`C14` +9/-47、`C15` +13/-13、`C15-rerun1` +8/-8、`C16`/`C17`/`C18` 各 +13/-13、`C19` +4/-0）；新增 `C20-e2e-ime.log` +140 —— **即 F-1 本体** |
+| 2 | `ec718b4` | 同上 | `RUN.md` +4/-0（前向指针） |
+| 3 | `cce1a55` | `20260830-080554-p4b-widgets-a8c73de` | `RUN.md` +52/-1（封存为 SUPERSEDED） |
+| 4 | `4ed51b9` | `20260830-102354-p4b-ime-7869de8` | `RUN.md` +22/-3；新增 `REVIEW.md` +250 —— **即 N-1 本体** |
+
+合计 **4 次就地改写，跨 3 个 run 目录**。此前**只有第 1 次**被登记为 F-1；
+第 2、3、4 次从未被登记为不可变性违规。
+
+> 数字订正：Reviewer-2 报告中 `4ed51b9` 的 `RUN.md` 记作「+25/-3」，那是把 `git show --stat`
+> 的**合计变更行数 25** 当成了新增数。`--numstat` 的准确值是 **+22/-3**（22+3=25）。
+> 结论不受影响，但记录要准。
+
+**为什么 N-1 比 F-1 更值得记录**：F-1 的处置第 2 条**主动要求**「去 `102354/RUN.md` 更正不实陈述」——
+那条要求本身就是协议禁止的动作，而执行流照做了。这不是笔误级疏忽，是把
+「让记录变准确」置于「保护证据完整性」之上的**流程优先级缺陷**：只要这个优先级成立，
+任何人下一次发现记录不实时都会重犯。
+
+**公允说明**：第 3 次（`cce1a55`）触碰的 `080554` 当时**并未正式封存**
+（`gates/` 只有 `.log` 无 `.exit`，本阶段已判定其不作正式 gate run），
+独立 Reviewer-2 判定其「可接受」。机械上仍属就地改写，故一并登记，但不与其余三次等责。
+
+**处置：全部不回滚。** 回滚本身构成第二次篡改，且 `VALIDATION-PROTOCOL.md:73` 禁止。改为：
+
+1. 在本节登记 4 次事实与精确改动清单（已完成——即本节）；
+2. 把上文 F-1 处置第 2 条的「（已完成）」改标为**该动作本身违规**（已完成，保留原文不删）；
+3. **建立机械护栏** `scripts/check-evidence-immutable.sh`；
+4. 护栏接入 CI 与 npm script（已完成，见下）。
+
+**机械护栏设计**（`scripts/check-evidence-immutable.sh`，逐提交检查：对提交 C 取其父 P）：
+
+| 情形 | 判定 |
+| --- | --- |
+| C **改写（M/T）或删除（D）** 了 P 中已存在的 run 目录内文件 | **违规，`EXIT=2`** —— 4 次历史违规全部命中此条 |
+| C 向 P 中已存在的 run 目录**新增** `gates/*` 文件 | **告警，不阻断** —— gate 日志应在 run 期间产出，事后追加等于扩充 gate 集 |
+| C 向 run 目录**新增其他文件**（如 `REVIEW.md`） | **放行** —— 见下方说明 |
+| 新建 run 目录（P 中不存在） | 放行 |
+
+**为什么要放行「新增文件」**：协议要求复审报告落在被审 run 目录内，而复审**必然晚于** run 提交。
+按「任何触碰都算违规」实现，会把协议自己的这一步变成必然违规——**N-1 正是这么发生的**
+（F-1 的处置第 2 条要求去 `102354/RUN.md` 更正陈述，而它当时已封存）。
+放行新增、禁止改写/删除，既保住了「历史结论不得被改写」这条底线，也不再逼着执行流违规。
+原始文件未动、git 历史完整可查，追溯性不受影响。
+
+已发生的 4 次历史违规进 `ALLOWED_COMMITS`——**命中时仍会打印（保持可见），只是不阻断**；
+新增违规则 `EXIT=2`。
+接入点：`.github/workflows/ci.yml`（新增独立 step；`checkout` 加 `fetch-depth: 0` 以拿到 base commit）
+与 `npm run check:evidence-immutable`（暂存区自查模式）。
+
+**护栏自身已验证**（共 9 项，不用口头声明代替）：
+
+| # | 场景 | 期望 | 实际 |
+| --- | --- | --- | --- |
+| 1 | 真实历史 `b50e392..HEAD` | 0 违规、4 条 allowlist 命中 | `EXIT=0`，4 条命中并打印原因 |
+| 2 | 真实历史、清空 allowlist | 拦住 4 条 | `EXIT=2`，4 条全部列出 |
+| 3 | 真实历史、事后追加的 `C20-e2e-ime.log` | 命中告警 | 已告警（正是 F-1 扩充 gate 集那一个） |
+| 4 | 新建 run 目录 | 放行 | `EXIT=0` |
+| 5 | 就地改已封存 `RUN.md`（staged 模式） | 拦截 | `EXIT=2` |
+| 6 | 删除已封存 run 整个目录 | 拦截 | `EXIT=2` |
+| 7 | 改 evidence 之外的文件 | 放行（无误报） | `EXIT=0` |
+| 8 | 新增 `REVIEW.md` 到已封存 run | 放行（不被误杀） | `EXIT=0` |
+| 9 | range 模式拦下一个新违规提交 | 拦截 | `EXIT=2` |
+
+第 1–3 项在**本仓库真实历史**上执行；第 4–9 项在**临时 git 仓库**上端到端复现——
+不为自测而触碰本仓库已封存的证据。
+
+**教训（替换上一条）**：善意不是护栏。这 4 次里没有一次是要伪造结论，
+动机全是「补一句更准确的说明」。但只要「历史证据可被就地编辑」这条通道开着，它就一定会被走，
+无论走的人多善意。修法只有一种：**关掉通道，并让关掉这件事在 CI 里会红。**
 
 ### F-1 的可检测残留：候选 diff 存在空白行缺陷（C21 FAIL，EXIT=2）
 
@@ -152,13 +239,48 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
   20260830-083435-p4b-corrective-a8c73de/gates/C20-e2e-ime.log:140: new blank line at EOF.
 ```
 
-该文件正是 F-1 中 `7869de8` 回写进已封存 run 的那一个 —— **F-1 的伤疤可被机器检测**。
+该文件确实正是 F-1 中 `7869de8` 回写进已封存 run 的那一个 —— 这一条**事实成立**。
 
-**处置：不修。** 修它必须写入已封存 run 目录，与 F-1 的「不回滚/不回写」处置和本文件自己记下的
-教训直接冲突。改为如实记为 FAIL，并把处置权交 Program Owner（保持不修 / 授权一次性卫生修复）。
-执行流不自行选择后者。
+**但由此推出的结论「F-1 的伤疤可被机器检测」是失真的**（独立 Reviewer-2 指出 N-2，
+执行流复核后**确认失真，并补测出更完整的数字**）。三条实测：
 
-**教训**：F-7 那条「低优先级」的口径修正换来了真实发现。gate 口径的"小"修正不该被跳过。
+1. **range 盲区（结构性）**：C21 的 range 是 `b50e392..b91de0e`，而
+   `git ls-tree -r b91de0e -- …/evidence/P4B/ | grep -c 113140` = **0**，
+   `1f1bd3c` 中才 = **44**。即 C21 在运行时尚不存在本 run 目录，
+   **它在结构上永远看不到自己的产物**。这是 gate 自指：C21 以被测 SHA `b91de0e` 命名，
+   故不可能自检。
+2. **漏报实测**：本 run 自己的 21 个 `gates/*.log` 中，有 **9 个**同样以空行结尾
+   （`C01`/`C02`/`C08`/`C09`/`C15`/`C16`/`C17`/`C18`/`C19`），C21 **一条都没报**。
+3. **全量实测**：把 range 放宽到 `1f1bd3c` → 报出 **10** 条 `new blank line at EOF`；
+   放宽到 `HEAD` → **14** 条（再加人工验收 run 的 `run.log`/`run1`/`run2`/`run3`）。
+
+也就是说：**C21 实际检出 1/14**。这不是「伤疤可被机器检测」，而是**一次快照碰巧命中**。
+
+另外，放宽 range 后还暴露出大量 `trailing whitespace`（来自 vite 与 WDIO spec reporter 的
+原始输出行尾）。这说明**对 captured output 套用源码的空白标准，口径本身就是错的**——
+那些是工具的逐字节输出，不是人写的源码。
+
+**修正后的结论**：C21 不构成对 F-1 类问题的检测能力。F-7 那条口径修正的真正价值是
+把「已提交文件」纳入了视野，但视野内当时只有 1 个相关文件。**检测能力要看检出率，
+不是看有没有命中。**
+
+**处置（修正后）：不修 —— 且现在有机械依据，不再只是判断。**
+
+- 修掉这 14 处需要改写 `083435` / `113140` / `122241` **三个已封存 run 目录**，
+  会被本次新增的 `scripts/check-evidence-immutable.sh` 直接拦截（`EXIT=2`）。
+- 换言之：**护栏把「不修」从一个判断变成了机械事实**。这恰好说明 N-1 之后补护栏是必要的。
+
+**交 Program Owner 的三个选项**（替换此前的二选一）：
+
+| 选项 | 内容 | 执行流意见 |
+| --- | --- | --- |
+| A（推荐） | 保持不修，把 C21 的 FAIL 作为**已登记、不修**项固化 | 已是护栏强制，成本为零 |
+| B | 授权一次性卫生修复 | 必须先在护栏 `ALLOWED_COMMITS` 增加带理由的 one-time 条目并由 PO 签字；且范围**仅限「末行空行」**，不得去修 captured output 的行尾空格（改了反而让证据失真） |
+| C（更根本） | 把 `validation/evidence/**` 从空白检查类 gate 中排除 —— captured output 不按源码标准检查 | 不触碰任何产品代码，建议 **P6 起执行**；本 run 的 C21 结论不改 |
+
+**教训（修正）**：F-7 的口径修正确有价值，但我把它的价值**高估**了——
+发现 1 条就宣称「可被机器检测」，是把**一次命中**当成了**一种能力**。
+判断一个 gate 靠不靠谱，要问「它漏了多少」，不是问「它抓到没有」。
 
 ### 记录准确性缺陷：上一 run 的 C08 把 96 个测试记成了 0
 
@@ -172,6 +294,54 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
 
 **教训**：多 target 命令（cargo / 多 project / 多 spec file）聚合 gate 结果时，
 必须遍历**全部** `test result:` 行，不能只看日志尾部。
+
+## N-3（修正版）：人工验收全量 run 含 3 次失败，且机制与 Reviewer-2 的归因不符
+
+独立 Reviewer-2 报告 N-3：归档的 `122241/run.log` 实际含 **3 次失败**（item 2 / 3 / 6），
+验收方重跑到成功但**未披露重试**。执行流复核后确认「3 次失败 + 未披露」属实，
+但**Reviewer-2 对机制的统一归因不成立**，实测如下（`run.log` 中 `waitUntil condition failed`
+出现 **0** 次；3 条失败分属 **2 个不同机制**）：
+
+| 失败项 | worker / spec | 机制 | 实测证据 |
+| --- | --- | --- | --- |
+| item 2 | `[0-1]` `2-editing.e2e.mjs:142` | **断言失败：单次 Cmd+Z 未还原字节** | `singleUndoRestoredBytes = false`；`docAfterSingleUndo` 仍含 `abc z`（expected 无此行） |
+| item 3 | `[0-1]` `2-editing.e2e.mjs:192` | **级联**：继承了 item 2 污染的 doc | `docAfterTypingInFallback = "…abc zx y"`（基线已带 `abc z`）；且 `fallbackEditable = false`、`recovered.projectionState = "composing"` |
+| item 6 | `[0-2]` `3-visual-a11y-security.e2e.mjs:151` | **openDoc 超时** | `waitUntil condition timed out after 15000ms` at `openDoc (lib.mjs:58)` —— **仅此一条**符合 Reviewer-2 的归因 |
+
+**关键对比**（同一字段，全量 run vs 隔离重跑 —— 这组数字是判断根因的依据）：
+
+| 字段 | `run.log`（3 套件同时跑） | `run2.log`（spec 2 单独重跑） |
+| --- | --- | --- |
+| `item3.fallbackEditable` | **false** | true |
+| `item3.recovered.projectionState` | **"composing"** | "rendered" |
+| `item3.recovered.markerCount` | 15 | 15 |
+
+**`composing` 是根因签名。** P4B 已记录的设计事实：`InputState.ignoreDuringComposition()`
+在 `composing > 0` 时对**所有** `key*` 事件返回 `true`，即**整个 keymap 被冻结**（不只是 Undo）。
+这同时解释了 item 2 的 Cmd+Z 被吞、item 3 的输入无响应。
+最可能的触发是 **harness 状态泄漏**：真实 HID 注入走 Quartz CGEventTap，
+**绕过 Text Input Services**，可能留下未关闭的 composition；隔离重跑时应用状态干净，故通过。
+
+**结论**：这不是产品回归（keymap 冻结是已记录的设计事实），最可能是**测试 harness 的状态泄漏**。
+但这个结论是**从上面那组对比数字推出来的**，不是从「重跑就绿了」推出来的——后者不构成结论。
+
+### 由此暴露的披露缺陷（执行流自己登记）
+
+`HUMAN-ACCEPTANCE.md:67` 写 `item3.recovered.projectionState = 'rendered'`，
+而全量 `run.log` 记录的同一字段是 **`"composing"`**；
+`P4B.md` 的「失败后可回到源码」行据此记为「仍可编辑」，
+而全量 run 的 `item3.fallbackEditable = false`。
+
+即：**验收报告把「隔离重跑」的结果当作验收结果呈现，既未披露全量 run 中这 3 项曾失败，
+也未说明为何重跑结果比全量 run 更可信。**
+
+**处置**：执行流**不自行撤回**已签署的人工验收（撤回权在 Program Owner），但要求：
+
+1. 人工验收行的签署状态由「已签署」细化为 **「已签署，但披露不完整」**；
+2. 「编辑/输入/回退」与「失败后可回到源码」两行的 **accept 依据降级为「隔离重跑」**，
+   须在 P6 或 P7 用**干净会话**复现一次全量 run 才算闭合；
+3. 该 openDoc 超时（item 6）与 C20 的 13 failing 是否同源，**仍未证实**——
+   两者都表现为文件切换卡住，但本 run 只有 1 条命中，不足以建立因果。
 
 ## 已知缺口（交独立 Reviewer 判定，不由执行流自行关闭）
 
@@ -211,23 +381,44 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
 - [x] real CJK/Japanese IME baseline（中/日文均 GO；人工验收未覆盖该行，见 Construct 表注 1）
 - [x] owner registry / nesting arbitration / source fallback（AI gate 全绿；人工 item3 复核）
 - [x] widget protocol / stale identity / rollback（AI gate 全绿）
-- [x] 人工验收已签署（2026-08-30，独立验收代理，6+1 项）
-- [ ] 独立 Reviewer 对**当前候选**签署 —— **未齐备**（见下）
+- [~] 人工验收已签署（2026-08-30，独立验收代理，6+1 项）—— **披露不完整，见 N-3 修正版**
+- [~] 独立 Reviewer 对**当前候选**签署 —— **已刷新，但带 3 个 blocker**（见下）
 
-决定：`P4B-SUBSTRATE-GO` **PENDING**。
+决定：`P4B-SUBSTRATE-GO` **PENDING**（blocker B-1/B-2 已由执行流处置完毕，
+需 Reviewer 确认后 + Program Owner 裁决）。
 
 **签署状态盘点**：
 
 | 签署方 | 状态 | 说明 |
 | --- | --- | --- |
 | 实现（AI gate） | **已签署** | `20260830-113140-p4b-clipboard-b91de0e`，19/21 EXIT=0 |
-| 独立 Reviewer | **需刷新** | 已有结论（PASS WITH CONDITIONS）针对的是 `7869de8` 候选；此后又发生
-  两次 corrective（新 run 的 21 gate、人工验收报告）。**旧结论不能直接覆盖当前候选** |
-| 人工验收 | **已签署** | `20260830-122241-p4b-human-acceptance-1f1bd3c`，`conditional-accept` |
-| Program Owner | **待裁决** | 含剪贴板合同归属、C21 处置、acceptance 套件分流三项未决问题 |
+| 独立 Reviewer | **已刷新（有条件）** | 第二round 结论：`PASS WITH CONDITIONS`，3 个 blocker。
+  报告见 `20260830-113140-p4b-clipboard-b91de0e/REVIEW-ROUND2.md`（707 行）。
+  B-1/B-2 已由执行流处置，B-3 需外部 owner 签字 |
+| 人工验收 | **已签署（披露不完整）** | `20260830-122241-p4b-human-acceptance-1f1bd3c`，`conditional-accept`；
+  但 `run.log` 含 3 次失败、报告未披露重跑，且引用值是隔离重跑的结果（见 N-3 修正版） |
+| Program Owner | **待裁决** | 含剪贴板合同归属、C21 处置、acceptance 套件分流、**raw HTML 安全签字**四项 |
 
 按治理要求，Go 必须由独立 Reviewer + 人工验收 + Program Owner 齐备后由主会话记录；
 **执行流不自我批准**。
+
+### 独立 Reviewer-2 的三个 blocker 与执行流处置
+
+| Blocker | Reviewer 要求 | 执行流处置 | 状态 |
+| --- | --- | --- | --- |
+| **B-1** | N-1 登记为第二次不可变性违规 + 加机械护栏 | 已登记（见上节 N-1，含 4 次完整清单）；
+  护栏 `scripts/check-evidence-immutable.sh` 已建并接入 CI + npm script，
+  7 个场景自测全通 | **待 Reviewer 复核** |
+| **B-2** | C21 归因失真，修正前不得交 PO 裁决 | 已修正（见上节）：原结论「F-1 伤疤可被机器检测」
+  降级为「快照碰巧命中 1/14」；补测出 14 条全量数字与 range 盲区证明；
+  PO 选项由二选一改为三选一 | **待 Reviewer 复核** |
+| **B-3** | `P4B-ITEM-rawHtmlPolicy-GO` 需安全/资源 owner 签字，
+  否则 NO-GO 保持 source fallback | **执行流无权代签，也不自行放宽**。
+  已把该 item 记为 `NO-GO（默认）`，见下「Item decisions」 | **待 PO / 安全 owner** |
+
+**B-3 的执行流立场**：raw HTML 的技术行为已验证满足 inert（人工验收 + gate 均通过），
+缺的是**治理签字**，不是技术证据。在签字到位前，默认走 `NO-GO 保持 source fallback`
+——这是保守方向，不需要额外判断，也不阻塞其余三项。
 
 ### 人工验收留下的 still-open（不随 P4B 关闭）
 
@@ -244,4 +435,26 @@ openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/
 
 人工验收的逐项建议：task checkbox / code fence controls / frontmatter 均 `accept`；
 **raw HTML 为 `conditional-accept` —— 技术行为满足 inert，但必须由安全/资源 owner 补签字，
-否则应标记 NO-GO 并保持 source fallback**。最终裁决仍由 Program Owner 在 Reviewer 刷新后记录。
+否则应标记 NO-GO 并保持 source fallback**。
+
+#### 逐项裁决表（执行流拟稿，**未生效** —— 待 Program Owner 记录）
+
+| Item | 技术证据 | 人工验收 | 拟议裁决 | 阻塞 |
+| --- | --- | --- | --- | --- |
+| `P4B-ITEM-taskCheckbox-GO` | C15 30 passing + per-item RUN | `accept` | **GO** | 无 |
+| `P4B-ITEM-codeFenceControls-GO` | C15 30 passing；**本项是 pasteboard 端到端直接覆盖的一项** | `accept` | **GO** | 无 |
+| `P4B-ITEM-frontmatter-GO` | C15 30 passing + per-item RUN | `accept` | **GO** | 无 |
+| `P4B-ITEM-rawHtmlPolicy-GO` | 技术行为满足 inert（`P4B-raw-html.md`） | `conditional-accept` | **NO-GO（默认）**，保持 source fallback | **B-3**：安全/资源 owner 签字缺失，仓库内无记录 |
+
+**关于 raw HTML 的默认方向**：在签字到位前保持 `NO-GO` + source fallback，
+是**保守方向**——它让该 construct 退回源码模式渲染，不影响其余三项，也不需要额外判断。
+若安全 owner 后续签字，可在 P7 收口时改为 GO；无需回改 P4B 的任何证据
+（改的是 P7 的裁决记录，符合不可变性要求）。
+
+**仍未闭合的归属问题**：P4B 把「选区 copy 产出 source」记在自己的合同里，
+但 Reviewer-2 指出 P4B **从不输出 `hidden`**，因此 source 路径与 DOM 路径结果恒等，
+**该断言结构上无法证伪 ADR #5 的反面**。Reviewer-2 建议把 P4B 的合同行收窄为
+「底座不得破坏 ADR #5」，把 clipboard / a11y 的**合同验收**移交 P6，
+并附 4 条继承要求（开启 `hidden` 后断言 payload **包含**隐藏源标记、补 `text/html`
+sanitize、归档验证脚本、把 `openDoc` 文件切换视为环境风险而非 flaky）。
+**这是合同边界问题，不是 P4B 内部可裁决的，交 Program Owner。**

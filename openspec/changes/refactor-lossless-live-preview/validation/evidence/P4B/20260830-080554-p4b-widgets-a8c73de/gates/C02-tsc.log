@@ -1,0 +1,2 @@
+^Dnpm notice run markflow@0.0.6 npx
+npm notice run 'tsc' --noEmit

@@ -60,8 +60,8 @@ const EXPECTED_FLAGS: Array<{ name: (typeof P4B_FLAG_NAMES)[number]; kind: Const
   { name: 'links', kind: 'link' },
   { name: 'quoteLists', kind: 'listItem' },
   { name: 'fence', kind: 'fence' },
-  { name: 'taskCheckbox', kind: 'listItem' },
-  { name: 'codeFenceControls', kind: 'fence' },
+  { name: 'taskCheckbox', kind: 'taskCheckbox' },
+  { name: 'codeFenceControls', kind: 'codeFenceControls' },
   { name: 'frontmatterPolicy', kind: 'frontmatter' },
   { name: 'rawHtmlPolicy', kind: 'htmlBlock' },
 ];

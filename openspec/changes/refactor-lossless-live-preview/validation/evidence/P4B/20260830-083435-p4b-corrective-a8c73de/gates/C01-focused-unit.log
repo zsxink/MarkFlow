@@ -1,0 +1,26 @@
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/lossless/cohortFlags.test.ts (11 tests) 23ms
+stderr | src/lib/lossless/renderOwnerRegistry.test.ts > renderOwnerRegistry — unique owner invariant and conflicts > same-kind double registration: last active wins and the conflict is detectable
+Failed to forward frontend log event TypeError: Cannot read properties of undefined (reading 'invoke')
+    at Module.invoke (file:///Users/xian/Project/book/MarkFlow/node_modules/@tauri-apps/api/core.js:202:39)
+    at send (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:14:8)
+    at Module.logWarn (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:44:3)
+    at Module.registerConstructOwner (/Users/xian/Project/book/MarkFlow/src/lib/lossless/renderOwnerRegistry.ts:247:5)
+    at /Users/xian/Project/book/MarkFlow/src/lib/lossless/renderOwnerRegistry.test.ts:218:30
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33 tests) 10ms
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (26 tests) 155ms
+ ✓ src/lib/lossless/projection.test.ts (34 tests) 245ms
+
+ Test Files  4 passed (4)
+      Tests  104 passed (104)
+   Start at  09:16:05
+   Duration  1.78s (transform 385ms, setup 0ms, collect 880ms, tests 433ms, environment 3.32s, prepare 430ms)
+

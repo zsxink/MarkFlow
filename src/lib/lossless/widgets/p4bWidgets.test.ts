@@ -24,14 +24,12 @@ import { createLosslessSourceEditor } from '../losslessSourceEditor';
 import {
   fenceControlsDescriptor,
   fenceLanguageCommit,
-  fenceSourceRangeSet,
   isWidgetFailMode,
   nextLanguage,
   setWidgetFailMode,
   sourceSlice,
   taskCheckboxCommit,
   taskCheckboxDescriptor,
-  taskSourceRangeSet,
   taskTogglePatch,
   teardownP4bWidgets,
   widgetProjectionExtension,
@@ -96,8 +94,10 @@ function markerRange(doc: string, marker: string): { from: number; to: number } 
 }
 
 /** Build a protocol commit context for the given anchor. */
-function ctxFor(state: EditorState, anchor: number) {
-  const selection: EditorSelection = { main: { anchor, head: anchor, empty: true, assoc: 0 } } as unknown as EditorSelection;
+function ctxFor(state: EditorState, anchor?: number) {
+  const selection: EditorSelection = anchor == null
+    ? state.selection
+    : { main: { anchor, head: anchor, empty: true, assoc: 0 } } as unknown as EditorSelection;
   return {
     state,
     selection,
@@ -137,7 +137,7 @@ describe('P4B task 7.4 — task checkbox', () => {
     it('defines and registers the descriptor with the full contract', () => {
       expect(taskCheckboxDescriptor.id).toBe('task-checkbox');
       expect(taskCheckboxDescriptor.kind).toBe('checkbox');
-      expect(taskCheckboxDescriptor.ownerKind).toBe('listItem');
+      expect(taskCheckboxDescriptor.ownerKind).toBe('taskCheckbox');
       expect(taskCheckboxDescriptor.flag).toBe('taskCheckbox');
       expect(taskCheckboxDescriptor.label).toBe('p4b.task-checkbox');
       expect(taskCheckboxDescriptor.surface.type).toBe('control');
@@ -148,17 +148,28 @@ describe('P4B task 7.4 — task checkbox', () => {
       expect(taskCheckboxDescriptor.print.default).toBe('source');
       expect(taskCheckboxDescriptor.fallbackBehavior).toBe('exact-source');
       expect(Object.isFrozen(taskCheckboxDescriptor)).toBe(true);
-      // The source range set shape is valid in-doc.
-      const target = taskTargetFromState(
-        (() => {
-          const h = makePreviewView(TASK_DOC);
-          const s = h.view.state;
-          h.destroy();
-          return s;
-        })(),
-        TASK_DOC.indexOf('- [ ]') + 3,
-      )!;
-      expect(assertRangeValid(taskSourceRangeSet(target), TASK_DOC.length)).toBe(true);
+      const h = makePreviewView(TASK_DOC);
+      const anchor = TASK_DOC.indexOf('- [ ]') + 3;
+      h.view.dispatch({ selection: { anchor } });
+      const ranges = (taskCheckboxDescriptor.ranges as (u: { state: EditorState }) => import('./protocol').SourceRangeSet | null)({ state: h.view.state });
+      expect(ranges).not.toBeNull();
+      expect(assertRangeValid(ranges!, TASK_DOC.length)).toBe(true);
+      const commit = taskCheckboxDescriptor.commit?.(ctxFor(h.view.state, anchor));
+      expect(commit).not.toBeNull();
+      expect(changeOf(commit!.spec)).toEqual({
+        from: TASK_DOC.indexOf('[ ]'),
+        to: TASK_DOC.indexOf('[ ]') + 3,
+        insert: '[x]',
+      });
+      h.view.dispatch({
+        selection: {
+          anchor: TASK_DOC.indexOf('[x]') + 1,
+          head: TASK_DOC.indexOf('[ ]') + 1,
+        },
+      });
+      expect((taskCheckboxDescriptor.ranges as (u: { state: EditorState }) => import('./protocol').SourceRangeSet | null)({ state: h.view.state })).toBeNull();
+      expect(taskCheckboxDescriptor.commit?.(ctxFor(h.view.state))).toBeNull();
+      h.destroy();
     });
   });
 
@@ -264,21 +275,23 @@ describe('P4B task 7.4 — task checkbox', () => {
     it('flag OFF ⇒ no widget owner; teardown restores the local owner', () => {
       resetAllCohortFlags();
       expect(resolveConstructOwner('listItem').owner).toBe('local');
+      expect(resolveConstructOwner('taskCheckbox').owner).toBe('source-fallback');
 
       // `p4bWidgets` registers its owners at MODULE INIT; `beforeEach`
       // `resetOwnerRegistry()` wipes those (static default registry), matching
       // the `cohortFlags.test.ts` pattern of registering explicitly in-test —
       // against the same flag closure the widget uses in production.
-      const unregister = registerConstructOwner('listItem', 'widget', {
+      const unregister = registerConstructOwner('taskCheckbox', 'widget', {
         label: 'p4b.task-checkbox',
         flag: cohortFlagClosure('taskCheckbox'),
       });
       setP4bFlagEnabled('taskCheckbox', true);
-      expect(resolveConstructOwner('listItem').owner).toBe('widget');
-      expect(resolveConstructOwner('listItem').source).toBe('p4b.task-checkbox');
+      expect(resolveConstructOwner('listItem').owner).toBe('local');
+      expect(resolveConstructOwner('taskCheckbox').owner).toBe('widget');
+      expect(resolveConstructOwner('taskCheckbox').source).toBe('p4b.task-checkbox');
 
       setP4bFlagEnabled('taskCheckbox', false);
-      expect(resolveConstructOwner('listItem').owner).toBe('local');
+      expect(resolveConstructOwner('taskCheckbox').owner).toBe('source-fallback');
 
       unregister();
       teardownP4bWidgets();
@@ -299,6 +312,9 @@ describe('P4B task 7.4 — task checkbox', () => {
       // Enable the flag BEFORE the view mounts so the plugin's constructor
       // builds the widgets (a flag flip after mount is not an update signal).
       setP4bFlagEnabled('taskCheckbox', true);
+      const unregister = registerConstructOwner('taskCheckbox', 'widget', {
+        label: 'p4b.task-checkbox', flag: cohortFlagClosure('taskCheckbox'),
+      });
       const { view, destroy } = makePreviewView(TASK_DOC);
       const widgets = view.contentDOM.querySelectorAll(`.${WIDGET_CLASSES.taskCheckbox}`);
       expect(widgets.length).toBeGreaterThan(0);
@@ -310,10 +326,14 @@ describe('P4B task 7.4 — task checkbox', () => {
       expect(view.contentDOM.textContent ?? '').toContain('[ ]');
       expect(view.state.doc.toString()).toBe(TASK_DOC);
       destroy();
+      unregister();
     });
 
     it('clicking the checkbox dispatches the exact 3-byte marker patch', async () => {
       setP4bFlagEnabled('taskCheckbox', true);
+      const unregister = registerConstructOwner('taskCheckbox', 'widget', {
+        label: 'p4b.task-checkbox', flag: cohortFlagClosure('taskCheckbox'),
+      });
       const { view, destroy } = makePreviewView(TASK_DOC);
       const firstMarker = markerRange(TASK_DOC, '[ ]').from;
       const w = view.contentDOM.querySelector<HTMLElement>(`.${WIDGET_CLASSES.taskCheckbox}[data-marker-from="${firstMarker}"]`);
@@ -323,10 +343,43 @@ describe('P4B task 7.4 — task checkbox', () => {
       const after = view.state.doc.toString();
       expect(after).toBe(TASK_DOC.replace('[ ]', '[x]'));
       destroy();
+      unregister();
+    });
+
+    it('contains plain keyboard input while focused; Enter is one isolated toggle', async () => {
+      setP4bFlagEnabled('taskCheckbox', true);
+      const unregister = registerConstructOwner('taskCheckbox', 'widget', {
+        label: 'p4b.task-checkbox', flag: cohortFlagClosure('taskCheckbox'),
+      });
+      const { view, destroy } = makePreviewView(TASK_DOC);
+      const widget = view.contentDOM.querySelector<HTMLElement>(`.${WIDGET_CLASSES.taskCheckbox}`);
+      expect(widget).not.toBeNull();
+      for (const key of ['ArrowLeft', 'Home', 'Backspace', 'Delete', 'Escape', 'a']) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        widget!.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+      }
+      const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+      widget!.dispatchEvent(tab);
+      expect(tab.defaultPrevented).toBe(false);
+      expect(view.state.doc.toString()).toBe(TASK_DOC);
+
+      const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      widget!.dispatchEvent(enter);
+      await sleep(0);
+      expect(enter.defaultPrevented).toBe(true);
+      expect(view.state.doc.toString()).toBe(TASK_DOC.replace('[ ]', '[x]'));
+      expect(undo(view)).toBe(true);
+      expect(view.state.doc.toString()).toBe(TASK_DOC);
+      destroy();
+      unregister();
     });
 
     it('read-only renders disabled widgets and a click never commits', async () => {
       setP4bFlagEnabled('taskCheckbox', true);
+      const unregister = registerConstructOwner('taskCheckbox', 'widget', {
+        label: 'p4b.task-checkbox', flag: cohortFlagClosure('taskCheckbox'),
+      });
       const { view, handle, destroy } = makePreviewView(TASK_DOC);
       // Flipping editability re-renders the widgets (disabled) via the plugin's
       // rebuilder, so the DOM is fresh when the widget is read.
@@ -342,6 +395,7 @@ describe('P4B task 7.4 — task checkbox', () => {
       await sleep(0);
       expect(view.state.doc.toString()).toBe(TASK_DOC);
       destroy();
+      unregister();
     });
   });
 });
@@ -363,23 +417,36 @@ describe('P4B task 7.4 — code fence controls', () => {
     it('defines and registers the descriptor with the full contract', () => {
       expect(fenceControlsDescriptor.id).toBe('code-fence-controls');
       expect(fenceControlsDescriptor.kind).toBe('fence-language');
-      expect(fenceControlsDescriptor.ownerKind).toBe('fence');
+      expect(fenceControlsDescriptor.ownerKind).toBe('codeFenceControls');
       expect(fenceControlsDescriptor.flag).toBe('codeFenceControls');
       expect(fenceControlsDescriptor.surface.type).toBe('composite');
+      expect(fenceControlsDescriptor.accessibility.role).toBe('region');
       expect(fenceControlsDescriptor.interaction.readOnly).toBe('disabled');
       expect(fenceControlsDescriptor.security.allowsUnsafeHtml).toBe(false);
       expect(fenceControlsDescriptor.print.default).toBe('source');
       expect(fenceControlsDescriptor.fallbackBehavior).toBe('exact-source');
-      const target = fenceTargetFromState(
-        (() => {
-          const h = makePreviewView(FENCE_DOC);
-          const s = h.view.state;
-          h.destroy();
-          return s;
-        })(),
-        FENCE_DOC.indexOf('```js') + 2,
-      )!;
-      expect(assertRangeValid(fenceSourceRangeSet(target), FENCE_DOC.length)).toBe(true);
+      const h = makePreviewView(FENCE_DOC);
+      const anchor = FENCE_DOC.indexOf('```js') + 2;
+      h.view.dispatch({ selection: { anchor } });
+      const ranges = (fenceControlsDescriptor.ranges as (u: { state: EditorState }) => import('./protocol').SourceRangeSet | null)({ state: h.view.state });
+      expect(ranges).not.toBeNull();
+      expect(assertRangeValid(ranges!, FENCE_DOC.length)).toBe(true);
+      const commit = fenceControlsDescriptor.commit?.(ctxFor(h.view.state, anchor));
+      expect(commit).not.toBeNull();
+      expect(changeOf(commit!.spec)).toEqual({
+        from: FENCE_DOC.indexOf('js'),
+        to: FENCE_DOC.indexOf('js') + 2,
+        insert: 'ts',
+      });
+      h.view.dispatch({
+        selection: {
+          anchor: FENCE_DOC.indexOf('plain'),
+          head: FENCE_DOC.indexOf('```js') + 1,
+        },
+      });
+      expect((fenceControlsDescriptor.ranges as (u: { state: EditorState }) => import('./protocol').SourceRangeSet | null)({ state: h.view.state })).toBeNull();
+      expect(fenceControlsDescriptor.commit?.(ctxFor(h.view.state))).toBeNull();
+      h.destroy();
     });
   });
 
@@ -446,19 +513,22 @@ describe('P4B task 7.4 — code fence controls', () => {
     it('flag OFF ⇒ fence owner stays local', () => {
       resetAllCohortFlags();
       expect(resolveConstructOwner('fence').owner).toBe('local');
+      expect(resolveConstructOwner('codeFenceControls').owner).toBe('source-fallback');
 
       // Same explicit in-test registration pattern as the task-checkbox test —
       // module-init registration is wiped by `resetOwnerRegistry()` in
       // `beforeEach`, so re-register against the clean static registry.
-      const unregister = registerConstructOwner('fence', 'widget', {
+      const unregister = registerConstructOwner('codeFenceControls', 'widget', {
         label: 'p4b.code-fence-controls',
         flag: cohortFlagClosure('codeFenceControls'),
       });
       setP4bFlagEnabled('codeFenceControls', true);
-      expect(resolveConstructOwner('fence').owner).toBe('widget');
-      expect(resolveConstructOwner('fence').source).toBe('p4b.code-fence-controls');
+      expect(resolveConstructOwner('fence').owner).toBe('local');
+      expect(resolveConstructOwner('codeFenceControls').owner).toBe('widget');
+      expect(resolveConstructOwner('codeFenceControls').source).toBe('p4b.code-fence-controls');
       setP4bFlagEnabled('codeFenceControls', false);
       expect(resolveConstructOwner('fence').owner).toBe('local');
+      expect(resolveConstructOwner('codeFenceControls').owner).toBe('source-fallback');
       unregister();
       teardownP4bWidgets();
       expect(resolveConstructOwner('fence').owner).toBe('local');
@@ -475,6 +545,9 @@ describe('P4B task 7.4 — code fence controls', () => {
   describe('DOM integration on a real EditorView', () => {
     it('renders badge + controls for fenced code with an info string only', async () => {
       setP4bFlagEnabled('codeFenceControls', true);
+      const unregister = registerConstructOwner('codeFenceControls', 'widget', {
+        label: 'p4b.code-fence-controls', flag: cohortFlagClosure('codeFenceControls'),
+      });
       const { view, destroy } = makePreviewView(FENCE_DOC);
       const controls = view.contentDOM.querySelectorAll(`.${WIDGET_CLASSES.fenceControls}`);
       // ```js (info) gets controls; the bare ``` does not.
@@ -483,6 +556,55 @@ describe('P4B task 7.4 — code fence controls', () => {
       expect(badge?.textContent).toBe('js');
       expect(view.state.doc.toString()).toBe(FENCE_DOC);
       destroy();
+      unregister();
+    });
+
+    it('language control at doc offset zero commits locally and Undo restores source', async () => {
+      setP4bFlagEnabled('codeFenceControls', true);
+      const unregister = registerConstructOwner('codeFenceControls', 'widget', {
+        label: 'p4b.code-fence-controls', flag: cohortFlagClosure('codeFenceControls'),
+      });
+      const { view, destroy } = makePreviewView(FENCE_DOC);
+      const language = view.contentDOM.querySelector<HTMLButtonElement>('.mf-widget-fence-lang');
+      expect(language).not.toBeNull();
+
+      language!.click();
+      await sleep(0);
+      expect(view.state.doc.toString()).toBe(
+        FENCE_DOC.replace('```js title="keep"', '```ts title="keep"'),
+      );
+      expect(undo(view)).toBe(true);
+      expect(view.state.doc.toString()).toBe(FENCE_DOC);
+      destroy();
+      unregister();
+    });
+
+    it('contains fence-button keyboard input and explicitly activates language with Enter', async () => {
+      setP4bFlagEnabled('codeFenceControls', true);
+      const unregister = registerConstructOwner('codeFenceControls', 'widget', {
+        label: 'p4b.code-fence-controls', flag: cohortFlagClosure('codeFenceControls'),
+      });
+      const { view, destroy } = makePreviewView(FENCE_DOC);
+      const language = view.contentDOM.querySelector<HTMLButtonElement>('.mf-widget-fence-lang');
+      expect(language).not.toBeNull();
+      for (const key of ['ArrowRight', 'End', 'Backspace', 'Delete', 'Escape', 'x']) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        language!.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+      }
+      expect(view.state.doc.toString()).toBe(FENCE_DOC);
+
+      const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      language!.dispatchEvent(enter);
+      await sleep(0);
+      expect(enter.defaultPrevented).toBe(true);
+      expect(view.state.doc.toString()).toBe(
+        FENCE_DOC.replace('```js title="keep"', '```ts title="keep"'),
+      );
+      expect(undo(view)).toBe(true);
+      expect(view.state.doc.toString()).toBe(FENCE_DOC);
+      destroy();
+      unregister();
     });
 
     it('flag OFF ⇒ no fence widget DOM at all', async () => {

@@ -1,0 +1,191 @@
+
+> markflow@0.0.6 test:e2e:build
+> tauri build --debug --features e2e --config src-tauri/tauri.e2e.conf.json
+
+        Info Looking up installed tauri packages to check mismatched versions...
+     Running beforeBuildCommand `npm run build -- --mode e2e`
+
+> markflow@0.0.6 build
+> tsc && vite build --mode e2e
+
+vite v5.4.21 building for e2e...
+transforming...
+✓ 2512 modules transformed.
+rendering chunks...
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-css/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-javascript/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-markdown/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/imageUtils.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/lossless/editorSurfaceBinding.ts, /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.bubble.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.resolver.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.init.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/plantuml.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/lib/editor.extensions.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/editor.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/degradationBar.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/linkDialog.ts, /Users/xian/Project/book/MarkFlow/src/components/outline.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.conflict.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/statusbar.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, /Users/xian/Project/book/MarkFlow/src/utils/keyboard.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+dist/index.html                                                10.50 kB │ gzip:   2.69 kB
+dist/assets/SourceSerif4SmText-It.ttf-Bk-HSzgp.woff2           61.67 kB
+dist/assets/SourceSerif4-BoldIt.ttf-1j4hxMHI.woff2             63.46 kB
+dist/assets/SourceSerif4-Regular.ttf-BNbBs0kC.woff2            76.26 kB
+dist/assets/SourceSerif4-Bold.ttf-Csh8T7yr.woff2               81.54 kB
+dist/assets/SourceHanSerifSC-Regular-common-b8OKDD3V.woff2  1,814.15 kB
+dist/assets/SourceHanSerifSC-Bold-common-BQag0cBy.woff2     1,903.70 kB
+dist/assets/index-BCpZSG2P.css                                 34.51 kB │ gzip:   6.68 kB
+dist/assets/channel-BlVHG4gv.js                                 0.11 kB │ gzip:   0.13 kB
+dist/assets/init-Gi6I4Gst.js                                    0.15 kB │ gzip:   0.13 kB
+dist/assets/chunk-QZHKN3VN-BMCoq-et.js                          0.19 kB │ gzip:   0.16 kB
+dist/assets/chunk-55IACEB6-CxK9eKCF.js                          0.24 kB │ gzip:   0.21 kB
+dist/assets/chunk-4BX2VUAB-CR9lImOY.js                          0.30 kB │ gzip:   0.21 kB
+dist/assets/chunk-FMBD7UC4-D2nhT2YJ.js                          0.37 kB │ gzip:   0.27 kB
+dist/assets/stateDiagram-v2-BHNVJYJU-Cd6Z9gn4.js                0.47 kB │ gzip:   0.32 kB
+dist/assets/chunk-2J33WTMH-DTc-OEeL.js                          0.53 kB │ gzip:   0.38 kB
+dist/assets/classDiagram-4FO5ZUOK-DLez7BZ_.js                   0.55 kB │ gzip:   0.35 kB
+dist/assets/classDiagram-v2-Q7XG4LA2-DLez7BZ_.js                0.55 kB │ gzip:   0.35 kB
+dist/assets/infoDiagram-5YYISTIA-BgayUMoz.js                    0.66 kB │ gzip:   0.44 kB
+dist/assets/ordinal-Cboi1Yqb.js                                 1.19 kB │ gzip:   0.57 kB
+dist/assets/chunk-ND2GUHAM-BoUZwR29.js                          1.86 kB │ gzip:   0.82 kB
+dist/assets/index-BvjrJ1u4.js                                   2.47 kB │ gzip:   1.53 kB
+dist/assets/shell-CjFT_Tl9.js                                   2.57 kB │ gzip:   1.21 kB
+dist/assets/diagram-5GNKFQAL-96Iuq5CD.js                        2.84 kB │ gzip:   1.40 kB
+dist/assets/arc-B0QCv17S.js                                     3.43 kB │ gzip:   1.47 kB
+dist/assets/diagram-LMA3HP47-N8UP47-3.js                        4.36 kB │ gzip:   1.90 kB
+dist/assets/defaultLocale-DX6XiGOO.js                           4.69 kB │ gzip:   2.18 kB
+dist/assets/pieDiagram-4H26LBE5-DYVz8mXS.js                     5.44 kB │ gzip:   2.41 kB
+dist/assets/linear-B9HGEYiy.js                                  5.68 kB │ gzip:   2.32 kB
+dist/assets/diagram-2AECGRRQ-DHuuLhp3.js                        6.18 kB │ gzip:   2.60 kB
+dist/assets/stateDiagram-AJRCARHV-xTuUx_y_.js                  10.44 kB │ gzip:   3.66 kB
+dist/assets/diagram-KO2AKTUF-BwK-QKVL.js                       11.13 kB │ gzip:   4.30 kB
+dist/assets/dagre-BM42HDAG-DtTNAgyp.js                         11.48 kB │ gzip:   4.25 kB
+dist/assets/index-CN6Rlf2W.js                                  12.76 kB │ gzip:   5.63 kB
+dist/assets/index-C75Lag8g.js                                  14.84 kB │ gzip:   6.00 kB
+dist/assets/diagram-OG6HWLK6-0JjLULIB.js                       16.26 kB │ gzip:   5.83 kB
+dist/assets/index-BHpL_lQo.js                                  17.06 kB │ gzip:   4.80 kB
+dist/assets/ishikawaDiagram-YF4QCWOH-BAkLoU96.js               17.77 kB │ gzip:   6.78 kB
+dist/assets/kanban-definition-UN3LZRKU-DGKE_Vtu.js             20.85 kB │ gzip:   7.36 kB
+dist/assets/settings-Bgi0ZMm4.js                               21.17 kB │ gzip:   5.13 kB
+dist/assets/mindmap-definition-RKZ34NQL-ObWum7ol.js            23.55 kB │ gzip:   7.98 kB
+dist/assets/journeyDiagram-JHISSGLW-BZKlYyo1.js                23.68 kB │ gzip:   8.41 kB
+dist/assets/sankeyDiagram-5OEKKPKP-DzAxDLxn.js                 23.76 kB │ gzip:   8.76 kB
+dist/assets/graph-Dla4jY_b.js                                  23.95 kB │ gzip:   8.32 kB
+dist/assets/wardleyDiagram-YWT4CUSO-BASBhNOD.js                26.66 kB │ gzip:   7.19 kB
+dist/assets/erDiagram-TEJ5UH35-DsOm56HC.js                     27.12 kB │ gzip:   9.45 kB
+dist/assets/gitGraphDiagram-PVQCEYII-CcY35b7b.js               30.40 kB │ gzip:   9.02 kB
+dist/assets/index-B68NYy6P.js                                  30.84 kB │ gzip:  12.67 kB
+dist/assets/requirementDiagram-4Y6WPE33-CBCl8f0o.js            31.39 kB │ gzip:   9.91 kB
+dist/assets/timeline-definition-PNZ67QCA-Cy6kfRHg.js           31.67 kB │ gzip:  10.56 kB
+dist/assets/index-DQFKz3BM.js                                  32.37 kB │ gzip:  13.09 kB
+dist/assets/quadrantDiagram-W4KKPZXB-B3ueJyRU.js               34.67 kB │ gzip:  10.22 kB
+dist/assets/layout-DUXn2AVC.js                                 35.84 kB │ gzip:  12.87 kB
+dist/assets/chunk-AQP2D5EJ-3HZ_rbg7.js                         37.68 kB │ gzip:  12.28 kB
+dist/assets/xychartDiagram-2RQKCTM6-Ddwhu5UN.js                40.49 kB │ gzip:  11.61 kB
+dist/assets/index-Ia-kj5YY.js                                  40.78 kB │ gzip:  16.77 kB
+dist/assets/vennDiagram-CIIHVFJN-BVjZHU08.js                   42.11 kB │ gzip:  15.72 kB
+dist/assets/index-DbpAv60T.js                                  45.15 kB │ gzip:  19.18 kB
+dist/assets/chunk-727SXJPM-k4jLiOxC.js                         49.18 kB │ gzip:  15.80 kB
+dist/assets/flowDiagram-I6XJVG4X-mH5jEwZ8.js                   61.46 kB │ gzip:  19.65 kB
+dist/assets/ganttDiagram-6RSMTGT7-k10Cxu4b.js                  69.49 kB │ gzip:  23.42 kB
+dist/assets/c4Diagram-AAUBKEIU-CTXbKVmX.js                     70.03 kB │ gzip:  19.68 kB
+dist/assets/index-Be8f1lNU.js                                  70.86 kB │ gzip:  25.87 kB
+dist/assets/blockDiagram-GPEHLZMM-DlmsDfpj.js                  75.45 kB │ gzip:  21.81 kB
+dist/assets/cose-bilkent-S5V4N54A-C8Wrm3EV.js                  81.70 kB │ gzip:  22.53 kB
+dist/assets/sequenceDiagram-3UESZ5HK-DfnOYnQC.js              117.78 kB │ gzip:  31.39 kB
+dist/assets/architectureDiagram-3BPJPVTR-B80585gW.js          149.77 kB │ gzip:  42.39 kB
+dist/assets/katex-DkKDou_j.js                                 256.23 kB │ gzip:  76.99 kB
+dist/assets/vendor-codemirror-DlhfgU1R.js                     408.53 kB │ gzip: 133.07 kB
+dist/assets/index-DGIbxU7w.js                                 411.10 kB │ gzip: 119.22 kB
+dist/assets/cytoscape.esm-xgCGXJTu.js                         442.64 kB │ gzip: 141.99 kB
+dist/assets/vendor-prosemirror-BuBYajit.js                    506.71 kB │ gzip: 178.78 kB
+dist/assets/mermaid.core-DAYG7B8V.js                          597.47 kB │ gzip: 140.43 kB
+dist/assets/wardley-L42UT6IY-BFakxUKk.js                      616.24 kB │ gzip: 148.86 kB
+dist/assets/index-C-1KFi1A.js                                 714.95 kB │ gzip: 237.96 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.78s
+   Compiling markflow v0.0.6 (/Users/xian/Project/book/MarkFlow/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.24s
+       Built application at: /Users/xian/Project/book/MarkFlow/src-tauri/target/debug/markflow
+
+Execution of 1 workers started at 2026-08-30T01:09:45.960Z
+
+[0-0] RUNNING in undefined - file:///e2e/specs/lossless/all-lossless.e2e.mjs
+[0-0] javascript error in "P4B task 7.1/7.2 — per-cohort marker reveal (desktop semantic contract).① headingStrong: a caret in the heading # marker reveals; a far caret weakens it"
+javascript error: WebDriverError: A JavaScript exception occurred when running "element/29af50ad-f1d9-4ce8-bed7-40baf79d5720/click" with method "POST"
+[0-0] FAILED in undefined - file:///e2e/specs/lossless/all-lossless.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: 86a3b011-6559-428a-8654-920c0e07d442
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » e2e/specs/lossless/all-lossless.e2e.mjs
+[webkit 605.1.15 macos #0-0] P1B lossless desktop lifecycle (flag ON, autosave ENABLED)
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (6 fixtures)
+[webkit 605.1.15 macos #0-0]    ✓ zero-edit open → two autosave ticks → bytes/mtime unchanged, no write (7 fixtures)
+[webkit 605.1.15 macos #0-0]    ✓ clean Cmd+S does not write; bytes/hash/mtime unchanged
+[webkit 605.1.15 macos #0-0]    ✓ Source edit → dirty → Save persists; reopen hash matches
+[webkit 605.1.15 macos #0-0]    ✓ CRLF + BOM fixtures survive a real body edit: EOL/BOM bytes preserved, reopen hash matches
+[webkit 605.1.15 macos #0-0]    ✓ A→B switch does not write A and leaves B clean
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] P2 lossless Live Preview (dual flags ON, autosave ENABLED)
+[webkit 605.1.15 macos #0-0]    ✓ mode switching keeps a SINGLE EditorView; doc/selection/scroll survive 100 switches
+[webkit 605.1.15 macos #0-0]    ✓ projects semantic decorations while the source characters remain
+[webkit 605.1.15 macos #0-0]    ✓ 100 mode switches on a clean document: dirty=false, save count=0, bytes unchanged
+[webkit 605.1.15 macos #0-0]    ✓ projection failure degrades to source and the document still saves
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] P4B task 7.1/7.2 — per-cohort marker reveal (desktop semantic contract)
+[webkit 605.1.15 macos #0-0]    ✖ ① headingStrong: a caret in the heading # marker reveals; a far caret weakens it
+[webkit 605.1.15 macos #0-0]    ✓ ② emphasisStrikeInlineCode: a caret in **  reveals; emoji content is UTF-16 safe
+[webkit 605.1.15 macos #0-0]    ✓ ③ links: a caret in a `(` delimiter of [text](url) reveals; Select All fully reveals
+[webkit 605.1.15 macos #0-0]    ✓ ④ quoteLists: a caret on `>` reveals the blockquote; blank line does not
+[webkit 605.1.15 macos #0-0]    ✓ ⑤ fence: caret inside the code reveals the fence; no descent into body
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] P4B widgets and policy desktop semantic contract
+[webkit 605.1.15 macos #0-0]    ✓ task checkbox flag OFF/ON exposes DOM + ARIA and Space toggles one local patch
+[webkit 605.1.15 macos #0-0]    ✓ task checkbox read-only is disabled and cannot change source
+[webkit 605.1.15 macos #0-0]    ✓ fence controls flag OFF/ON show badge and copy; language is a local patch with Undo
+[webkit 605.1.15 macos #0-0]    ✓ fence language control is absent in read-only and cannot change source
+[webkit 605.1.15 macos #0-0]    ✓ fence controls keyboard-only activation is accessible and fail-safe
+[webkit 605.1.15 macos #0-0]    ✓ widget failure injection falls back to exact source and flag rollback removes controls
+[webkit 605.1.15 macos #0-0]    ✓ raw HTML is source-only by default and remains non-executable; policy flag rollback is inert
+[webkit 605.1.15 macos #0-0]    ✓ FrontMatter parser gap uses exact-source fallback and preserves bytes
+[webkit 605.1.15 macos #0-0]    ✓ keyboard-only task navigation is fail-safe: supported keys commit, editing keys never leak
+[webkit 605.1.15 macos #0-0]    ✓ Source↔Preview roundtrip preserves source, shared history, dirty state, and file bytes
+[webkit 605.1.15 macos #0-0]    ✓ three product themes and synthetic 200% CSS-zoom stress keep widgets visible and focusable
+[webkit 605.1.15 macos #0-0]    ✓ preview projection can be disposed/recreated and cleanup leaves no widget flag residue
+[webkit 605.1.15 macos #0-0]    ✓ toolbar HTML export uses lossless source and never serializes widget DOM
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 27 passing (1m 40.5s)
+[webkit 605.1.15 macos #0-0] 1 failing
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 1) P4B task 7.1/7.2 — per-cohort marker reveal (desktop semantic contract) ① headingStrong: a caret in the heading # marker reveals; a far caret weakens it
+[webkit 605.1.15 macos #0-0] WebDriverError: A JavaScript exception occurred when running "element/29af50ad-f1d9-4ce8-bed7-40baf79d5720/click" with method "POST"
+[webkit 605.1.15 macos #0-0] javascript error: WebDriverError: A JavaScript exception occurred when running "element/29af50ad-f1d9-4ce8-bed7-40baf79d5720/click" with method "POST"
+
+
+Spec Files:	 0 passed, 1 failed, 1 total (100% completed) in 00:01:41  
+
+file:///Users/xian/Project/book/MarkFlow/e2e/run.mjs:68
+      else reject(new Error(`${command} ${args.join(' ')} exited with ${signal ?? code}`));
+                  ^
+
+Error: npx wdio run e2e/wdio.conf.mjs --suite lossless exited with 1
+    at ChildProcess.<anonymous> (file:///Users/xian/Project/book/MarkFlow/e2e/run.mjs:68:19)
+    at Object.onceWrapper (node:events:634:26)
+    at ChildProcess.emit (node:events:519:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:293:12)
+
+Node.js v22.22.2

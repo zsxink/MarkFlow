@@ -1,0 +1,78 @@
+2026-08-30T00:21:58.812453Z  INFO backend.logger: Logger initialized log_dir=<e2e-root>/data/logs removed_files=0 level=DEBUG
+2026-08-30T00:21:58.812773Z  INFO backend.app: Application starting
+2026-08-30T00:21:58.872758Z  INFO tauri_plugin_wdio_webdriver: WDIO WebDriver plugin initialized on port 4445
+2026-08-30T00:21:58.873785Z  INFO tauri_plugin_wdio_webdriver::server: WebDriver server listening on http://127.0.0.1:4445
+2026-08-30T00:21:58.988527Z DEBUG tauri_plugin_wdio_webdriver::platform::macos: Registered UI delegate for webview
+2026-08-30T00:21:58.989514Z DEBUG backend.watcher: Registered bounded filesystem watcher path=<e2e-root>/workspace capacity=2048
+2026-08-30T00:21:58.989546Z DEBUG backend.watcher: Workspace watcher ready path=<e2e-root>/workspace
+2026-08-30T00:21:58.989588Z  INFO backend.workspace: Restored last workspace path=<e2e-root>/workspace
+2026-08-30T00:21:59.175958Z  INFO frontend.event: Application boot started scope=app.lifecycle
+2026-08-30T00:21:59.698915Z  INFO backend.workspace: Switching workspace path=<e2e-root>/workspace
+2026-08-30T00:21:59.699767Z DEBUG backend.watcher: Replaced previous workspace watcher path=<e2e-root>/workspace
+2026-08-30T00:21:59.700843Z DEBUG backend.watcher: Registered bounded filesystem watcher path=<e2e-root>/workspace capacity=2048
+2026-08-30T00:21:59.700887Z DEBUG backend.watcher: Workspace watcher ready path=<e2e-root>/workspace
+2026-08-30T00:21:59.707972Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:21:59.708012Z  INFO backend.workspace: Workspace switched path=<e2e-root>/workspace
+2026-08-30T00:21:59.708708Z  INFO frontend.event: Workspace selected scope=file-tree.workspace context={"path":"<e2e-root>/workspace"}
+2026-08-30T00:21:59.710215Z  INFO backend.file_tree: Read shallow directory page path=<e2e-root>/workspace elapsed_ms=0 entries=26 truncated=false
+2026-08-30T00:21:59.712442Z  INFO frontend.event: Loaded shallow directory scope=file-tree.metrics context={"incrementalBatchCount":0,"loadedNodes":26,"localPatchCount":0,"mountedNodes":26,"path":"<e2e-root>/workspace","recoveryRescanCount":0,"rootRefreshCount":1}
+2026-08-30T00:21:59.712733Z  INFO frontend.event: Restored workspace scope=app.workspace context={"path":"<e2e-root>/workspace"}
+2026-08-30T00:22:00.650878Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:01.106440Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=2 emitted_events=2 queue_len=0 queue_peak=2 overflow_count=0
+2026-08-30T00:22:01.110538Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":1,"loadedNodes":27,"localPatchCount":1,"mountedNodes":26,"recoveryReasons":[],"recoveryRescanCount":0,"rootRefreshCount":1}
+2026-08-30T00:22:05.548263Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:10.464095Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:15.379508Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:20.292250Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:25.208327Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:30.143750Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:35.057991Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:39.977679Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:44.915200Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:49.841187Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:54.762194Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:22:59.867580Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:04.839901Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:05.838454Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:06.470243Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=9 emitted_events=2 queue_len=0 queue_peak=6 overflow_count=0
+2026-08-30T00:23:06.475024Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":2,"loadedNodes":27,"localPatchCount":2,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":1,"rootRefreshCount":1}
+2026-08-30T00:23:07.338539Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:08.309067Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:08.922617Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=11 emitted_events=2 queue_len=0 queue_peak=7 overflow_count=0
+2026-08-30T00:23:08.925015Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":3,"loadedNodes":27,"localPatchCount":3,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":2,"rootRefreshCount":1}
+2026-08-30T00:23:09.798184Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:10.736853Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:11.346718Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=11 emitted_events=2 queue_len=0 queue_peak=7 overflow_count=0
+2026-08-30T00:23:11.349805Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":4,"loadedNodes":27,"localPatchCount":4,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":3,"rootRefreshCount":1}
+2026-08-30T00:23:12.223475Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:13.202565Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:13.656304Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:14.185479Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:18.137138Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:18.594117Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:31.447107Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:32.076541Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:32.153439Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=9 emitted_events=2 queue_len=0 queue_peak=7 overflow_count=0
+2026-08-30T00:23:32.155879Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":5,"loadedNodes":27,"localPatchCount":5,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":4,"rootRefreshCount":1}
+2026-08-30T00:23:32.871628Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:33.489613Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:34.109297Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:34.722851Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:35.355856Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:36.353969Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:36.375692Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=11 emitted_events=2 queue_len=0 queue_peak=7 overflow_count=0
+2026-08-30T00:23:36.377745Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":6,"loadedNodes":27,"localPatchCount":6,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":5,"rootRefreshCount":1}
+2026-08-30T00:23:36.886426Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:37.978411Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:38.001845Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=11 emitted_events=2 queue_len=0 queue_peak=7 overflow_count=0
+2026-08-30T00:23:38.003059Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":7,"loadedNodes":27,"localPatchCount":7,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":6,"rootRefreshCount":1}
+2026-08-30T00:23:38.264414Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:43.750403Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:44.269982Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:45.003826Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:45.591749Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:46.351747Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:48.706040Z  INFO backend.watcher: Emitting coalesced file tree batch raw_events=9 emitted_events=2 queue_len=0 queue_peak=7 overflow_count=0
+2026-08-30T00:23:48.735839Z  INFO frontend.event: Applied incremental event batch scope=file-tree.metrics context={"events":2,"incrementalBatchCount":8,"loadedNodes":27,"localPatchCount":8,"mountedNodes":26,"recoveryReasons":["unpaired-rename"],"recoveryRescanCount":7,"rootRefreshCount":1}
+2026-08-30T00:23:48.832902Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json
+2026-08-30T00:23:49.213062Z DEBUG backend.settings: Saved settings path=<e2e-root>/data/settings.json

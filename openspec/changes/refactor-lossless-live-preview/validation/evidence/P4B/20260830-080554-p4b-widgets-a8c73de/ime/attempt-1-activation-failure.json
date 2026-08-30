@@ -1,0 +1,7 @@
+{
+  "startedAt": "2026-08-30T00:00:44.701Z",
+  "phases": [],
+  "completedAt": "2026-08-30T00:00:46.470Z",
+  "status": "FAIL",
+  "error": "Error: keyboard driver failed: type zhongwen\n    at driveKeyboard (file:///private/tmp/markflow-real-ime-harness.mjs:47:31)\n    at openPhase (file:///private/tmp/markflow-real-ime-harness.mjs:143:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///private/tmp/markflow-real-ime-harness.mjs:206:3"
+}

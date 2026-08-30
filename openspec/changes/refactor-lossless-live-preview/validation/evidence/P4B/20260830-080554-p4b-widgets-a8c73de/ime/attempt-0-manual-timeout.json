@@ -1,0 +1,7 @@
+{
+  "startedAt": "2026-08-29T23:19:57.813Z",
+  "phases": [],
+  "completedAt": "2026-08-29T23:29:58.169Z",
+  "status": "FAIL",
+  "error": "Error: timeout waiting for zh real composition commit\n    at waitUntil (file:///private/tmp/markflow-real-ime-harness.mjs:36:9)\n    at runNextTicks (node:internal/process/task_queues:65:5)\n    at process.processTimers (node:internal/timers:538:9)\n    at async openPhase (file:///private/tmp/markflow-real-ime-harness.mjs:133:21)\n    at async file:///private/tmp/markflow-real-ime-harness.mjs:192:3"
+}

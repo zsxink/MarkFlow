@@ -1,0 +1,42 @@
+^D    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling objc2-exception-helper v0.1.1
+   Compiling ring v0.17.14
+   Compiling objc2 v0.6.4
+   Compiling rustls v0.23.40
+    Checking objc2-core-foundation v0.3.2
+    Checking block2 v0.6.2
+    Checking objc2-javascript-core v0.3.2
+    Checking dispatch2 v0.3.1
+    Checking rustls-webpki v0.103.13
+    Checking objc2-foundation v0.3.2
+    Checking objc2-core-graphics v0.3.2
+    Checking objc2-core-text v0.3.2
+    Checking objc2-core-video v0.3.2
+    Checking objc2-security v0.3.2
+    Checking tokio-rustls v0.26.4
+    Checking hyper-rustls v0.27.9
+    Checking reqwest v0.12.28
+    Checking objc2-core-image v0.3.2
+    Checking objc2-cloud-kit v0.3.2
+    Checking objc2-quartz-core v0.3.2
+    Checking objc2-core-data v0.3.2
+    Checking objc2-app-kit v0.3.2
+    Checking objc2-web-kit v0.3.2
+    Checking tao v0.35.2
+    Checking window-vibrancy v0.6.0
+    Checking muda v0.19.1
+    Checking rfd v0.16.0
+    Checking wry v0.55.1
+    Checking tauri-runtime v2.11.1
+    Checking tauri-runtime-wry v2.11.1
+    Checking tauri v2.11.1
+    Checking tauri-plugin-fs v2.5.1
+    Checking tauri-plugin-wdio-webdriver v1.2.0
+    Checking tauri-plugin-wdio v1.2.0
+    Checking tauri-plugin-single-instance v2.4.2
+    Checking tauri-plugin-shell v2.3.5
+    Checking tauri-plugin-http v2.5.9
+    Checking tauri-plugin-dialog v2.7.1
+    Checking markflow v0.0.6 (/Users/xian/Project/book/MarkFlow/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 19.35s

@@ -23,6 +23,7 @@ import {
   getOwnerRegistrySnapshot,
   registerConstructOwner,
   resetOwnerRegistry,
+  resolveNestedEditableSlot,
   resolveConstructOwner,
   type ConstructKind,
   type EditableSlot,
@@ -43,6 +44,8 @@ const LOCAL_KINDS: ConstructKind[] = [
 
 const FALLBACK_KINDS: ConstructKind[] = [
   'htmlBlock',
+  'taskCheckbox',
+  'codeFenceControls',
   'table',
   'frontmatter',
   'image',
@@ -342,27 +345,36 @@ describe('renderOwnerRegistry — projection wiring parity (task 6.5)', () => {
 });
 
 describe('renderOwnerRegistry — task 7.5 parent/child editable-slot arbitration', () => {
-  it('a listItem task widget owns ONLY the 3-byte marker, so an inner strong stays local (the key scenario)', () => {
+  it('a taskCheckbox widget owns ONLY the 3-byte marker, so listItem and inner strong stay local (the key scenario)', () => {
     // `- [ ] **bold**`  — Task node `[0, 13)`, marker `[ ]` = `[2, 5)`.
     // The task widget's editable slot is the marker ONLY (SourceRangeSet.markers),
-    // NOT the whole list item source. Register the listItem owner as the widget.
-    registerConstructOwner('listItem', 'widget', { label: 'p4b.task-checkbox' });
+    // NOT the whole list item source. The parent listItem stays local; the
+    // child Task identity is the independently-owned taskCheckbox slot.
+    registerConstructOwner('taskCheckbox', 'widget', { label: 'p4b.task-checkbox' });
 
-    // The widget's declared editable span: the 3 marker bytes.
-    const parentSlot: EditableSlot = { owner: 'widget', source: 'p4b.task-checkbox', from: 2, to: 5 };
+    expect(resolveConstructOwner('listItem')).toEqual({ owner: 'local', source: 'default' });
+    expect(resolveConstructOwner('taskCheckbox')).toEqual({ owner: 'widget', source: 'p4b.task-checkbox' });
+
+    const parentSlot = { kind: 'listItem' as const, from: 0, to: 13 };
+    const taskMarkerSlot = { kind: 'taskCheckbox' as const, from: 2, to: 5 };
     // The inner **bold** strong is strictly OUTSIDE the marker slot.
     const childSlot = editableSlotFor('strong', 6, 13);
     expect(childSlot.owner).toBe('local');
 
-    // Not nested in the widget's editable span → no conflict → child stays local.
-    expect(arbitrateNestedOwner(parentSlot, childSlot)).toEqual(childSlot);
-    expect(arbitrateNestedOwner(parentSlot, childSlot).owner).toBe('local');
+    // The production bridge delegates to arbitrateNestedOwner: a local parent
+    // yields its nested marker slot to the enabled child widget.
+    expect(resolveNestedEditableSlot(parentSlot, taskMarkerSlot)).toEqual({
+      owner: 'widget', source: 'p4b.task-checkbox', from: 2, to: 5,
+    });
+    // Inner source content is outside the child marker and stays local.
+    expect(arbitrateNestedOwner(editableSlotFor('taskCheckbox', 2, 5), childSlot)).toEqual(childSlot);
+    expect(arbitrateNestedOwner(editableSlotFor('taskCheckbox', 2, 5), childSlot).owner).toBe('local');
   });
 
   it('same listItem widget — inner emphasis/inlineCode/link also stay local (outside the marker slot)', () => {
     // `- [ ] `em` and `code` and [l](u)` — those inline marks are all in the item
     // text, strictly after the 3-byte `[ ]` marker `[2,5)`.
-    registerConstructOwner('listItem', 'widget', { label: 'p4b.task-checkbox' });
+    registerConstructOwner('taskCheckbox', 'widget', { label: 'p4b.task-checkbox' });
     const parentSlot: EditableSlot = { owner: 'widget', source: 'p4b.task-checkbox', from: 2, to: 5 };
     for (const span of [
       [6, 11] /* emphasis */,
@@ -392,13 +404,19 @@ describe('renderOwnerRegistry — task 7.5 parent/child editable-slot arbitratio
   });
 
   it('fence widget owns only the opening CodeMark slot; the code body has nothing interactive → no conflict', () => {
-    // ` ```js\nbody\n``` ` — fence widget editable slot = the opening marker.
-    registerConstructOwner('fence', 'widget', { label: 'p4b.code-fence-controls' });
-    const parentSlot: EditableSlot = { owner: 'widget', source: 'p4b.code-fence-controls', from: 0, to: 3 };
+    // ` ```js\nbody\n``` ` — FencedCode stays local while the controls own
+    // only an independently named opening-marker slot.
+    registerConstructOwner('codeFenceControls', 'widget', { label: 'p4b.code-fence-controls' });
+    expect(resolveConstructOwner('fence')).toEqual({ owner: 'local', source: 'default' });
+    const parentSlot = { kind: 'fence' as const, from: 0, to: 16 };
+    const controlSlot = { kind: 'codeFenceControls' as const, from: 0, to: 3 };
+    expect(resolveNestedEditableSlot(parentSlot, controlSlot)).toEqual({
+      owner: 'widget', source: 'p4b.code-fence-controls', from: 0, to: 3,
+    });
     // The body span is strictly outside the opening-marker slot.
     const bodySlot: EditableSlot = { owner: 'local', source: 'default', from: 4, to: 20 };
-    expect(arbitrateNestedOwner(parentSlot, bodySlot)).toEqual(bodySlot);
-    expect(arbitrateNestedOwner(parentSlot, bodySlot).owner).toBe('local');
+    expect(arbitrateNestedOwner(editableSlotFor('codeFenceControls', 0, 3), bodySlot)).toEqual(bodySlot);
+    expect(arbitrateNestedOwner(editableSlotFor('codeFenceControls', 0, 3), bodySlot).owner).toBe('local');
   });
 
   it('a link widget owned concurrently with the 4-marker reveal still keeps url/text source-editable as local', () => {

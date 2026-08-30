@@ -24,6 +24,10 @@ export const config = {
     p0s: ['./specs/p0s/**/*.e2e.mjs'],
     lossless: ['./specs/lossless/all-lossless.e2e.mjs'],
     'lossless-acceptance': ['./specs/lossless/all-lossless-acceptance.e2e.mjs'],
+    // P4B 7.3 real system IME. Kept as its own suite because it requires an
+    // unlocked GUI session, the app frontmost, and an enabled CJK input source
+    // — conditions the ordinary suites must not depend on.
+    ime: ['./specs/lossless/p4b-real-ime.e2e.mjs'],
   },
   maxInstances: 1,
   logLevel: process.env.CI ? 'info' : 'warn',

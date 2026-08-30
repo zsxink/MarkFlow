@@ -54,8 +54,12 @@ export type ConstructOwner = 'local' | 'source-fallback' | 'widget' | 'core';
 /**
  * Semantic construct kinds. The first nine are projected locally today (the
  * `cls`/`level` METADATA stays owned by projection.ts); the rest are the
- * exact-source fallback classes `classifyNode` returned null for. `unknown`
- * covers every Lezer node name without a dedicated mapping.
+ * exact-source fallback classes `classifyNode` returned null for. The
+ * `taskCheckbox` identity deliberately names only the GFM `TaskMarker` slot:
+ * its enclosing `listItem` remains local, so a task widget never steals the
+ * list container or list marker. `codeFenceControls` likewise names the
+ * opening fence/control slot, leaving the FencedCode local projection intact.
+ * `unknown` covers every Lezer node name without a dedicated mapping.
  */
 export type ConstructKind =
   | 'heading'
@@ -66,7 +70,9 @@ export type ConstructKind =
   | 'link'
   | 'blockquote'
   | 'listItem'
+  | 'taskCheckbox'
   | 'fence'
+  | 'codeFenceControls'
   | 'htmlBlock'
   | 'table'
   | 'frontmatter'
@@ -84,7 +90,9 @@ export const CONSTRUCT_KINDS: readonly ConstructKind[] = [
   'link',
   'blockquote',
   'listItem',
+  'taskCheckbox',
   'fence',
+  'codeFenceControls',
   'htmlBlock',
   'table',
   'frontmatter',
@@ -108,7 +116,13 @@ const DEFAULT_OWNERS: Readonly<Record<ConstructKind, ConstructOwner>> = Object.f
   link: 'local',
   blockquote: 'local',
   listItem: 'local',
+  // A Task node is a child of ListItem. It is source-fallback until the
+  // independently gated checkbox widget claims just its marker slot.
+  taskCheckbox: 'source-fallback',
   fence: 'local',
+  // Controls are a child slot at the opening fence marker, not a replacement
+  // for the locally projected FencedCode construct.
+  codeFenceControls: 'source-fallback',
   htmlBlock: 'source-fallback',
   table: 'source-fallback',
   frontmatter: 'source-fallback',
@@ -292,17 +306,15 @@ export function resolveConstructOwner(kind: ConstructKind): OwnerResolution {
 // `[from, to)` span (EditorState.doc coords) that owner actually edits. A
 // widget's editable span is its DECLARED marker/interaction slot
 // (widget protocol SourceRangeSet.markers), NOT its whole `source` construct
-// range — so the task-checkbox widget owning `listItem` owns only the 3-byte
-// `[ ]` marker, and the item's inner strong/emphasis/link (strictly OUTSIDE the
-// marker slot) stay local-decorated, with no conflict at all.
+// range — so the `taskCheckbox` child identity owns only the 3-byte `[ ]`
+// marker while its `listItem` parent and inner strong/emphasis/link stay local.
 //
 // This helper is PURE (registry owners + spans only — no DOM, no module state)
 // and returns exactly ONE slot per call, so it cannot break the unique-owner
-// invariant. It is NOT wired into projection.ts: the projection's per-kind
-// single-owner gate (classifyLezerNode returns null for every non-local owner)
-// already prevents local double-decoration, and a child construct inside a
-// widget-owned span is only ever reached through that widget's own DOM — see the
-// arbitration tests for the concrete pilot cases.
+// invariant. `resolveNestedEditableSlot` is the production bridge consumed by
+// the P4B task/fence widget builder before it mounts a child marker slot; the
+// projection independently keeps each local parent decoration and suppresses
+// only the explicitly widget-owned task marker.
 
 /** An OWNER plus the UTF-16 `[from, to)` editable region it claims. */
 export interface EditableSlot {
@@ -320,6 +332,13 @@ export interface EditableSlot {
 export function editableSlotFor(kind: ConstructKind, from: number, to: number): EditableSlot {
   const { owner, source } = resolveConstructOwner(kind);
   return { owner, source, from, to };
+}
+
+/** A construct identity and the precise source slot it occupies. */
+export interface ConstructEditableSlot {
+  kind: ConstructKind;
+  from: number;
+  to: number;
 }
 
 export interface ArbitrateNestedOptions {
@@ -379,6 +398,28 @@ export function arbitrateNestedOwner(
   }
   // 5. Neither widget → default owners, no change.
   return child;
+}
+
+/**
+ * Runtime bridge for nested source constructs. It deliberately resolves both
+ * construct identities at call time and delegates conflict policy to
+ * `arbitrateNestedOwner`; callers must not duplicate that precedence logic.
+ *
+ * The task-checkbox pilot calls this with the full ListItem source span as the
+ * parent and the three-byte TaskMarker span as the child. Consequently the
+ * default local list owner retains its container/list-marker decoration while
+ * an enabled `taskCheckbox` widget owns only `[ ]`/`[x]`.
+ */
+export function resolveNestedEditableSlot(
+  parent: ConstructEditableSlot,
+  child: ConstructEditableSlot,
+  options?: ArbitrateNestedOptions,
+): EditableSlot {
+  return arbitrateNestedOwner(
+    editableSlotFor(parent.kind, parent.from, parent.to),
+    editableSlotFor(child.kind, child.from, child.to),
+    options,
+  );
 }
 
 /** Read-only debug/E2E snapshot — kind→owner map and counters, no body text. */

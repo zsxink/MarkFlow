@@ -1,0 +1,110 @@
+vite v5.4.21 building for production...
+
+(!) outDir /tmp/mf-p4b-build-verify is not inside project root and will not be emptied.
+Use --emptyOutDir to override.
+
+transforming...
+✓ 2511 modules transformed.
+rendering chunks...
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-css/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-javascript/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-markdown/dist/index.js, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/imageUtils.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/lossless/editorSurfaceBinding.ts, /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.bubble.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.resolver.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.init.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/plantuml.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/lib/editor.extensions.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/editor.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/degradationBar.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/linkDialog.ts, /Users/xian/Project/book/MarkFlow/src/components/outline.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.conflict.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/statusbar.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, /Users/xian/Project/book/MarkFlow/src/utils/keyboard.ts, dynamic import will not move module into another chunk.
+
+[plugin:vite:reporter] [plugin vite:reporter] 
+(!) /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, dynamic import will not move module into another chunk.
+
+computing gzip size...
+../../../../../tmp/mf-p4b-build-verify/index.html                                                10.50 kB │ gzip:   2.69 kB
+../../../../../tmp/mf-p4b-build-verify/assets/SourceSerif4SmText-It.ttf-Bk-HSzgp.woff2           61.67 kB
+../../../../../tmp/mf-p4b-build-verify/assets/SourceSerif4-BoldIt.ttf-1j4hxMHI.woff2             63.46 kB
+../../../../../tmp/mf-p4b-build-verify/assets/SourceSerif4-Regular.ttf-BNbBs0kC.woff2            76.26 kB
+../../../../../tmp/mf-p4b-build-verify/assets/SourceSerif4-Bold.ttf-Csh8T7yr.woff2               81.54 kB
+../../../../../tmp/mf-p4b-build-verify/assets/SourceHanSerifSC-Regular-common-b8OKDD3V.woff2  1,814.15 kB
+../../../../../tmp/mf-p4b-build-verify/assets/SourceHanSerifSC-Bold-common-BQag0cBy.woff2     1,903.70 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-BCpZSG2P.css                                 34.51 kB │ gzip:   6.68 kB
+../../../../../tmp/mf-p4b-build-verify/assets/channel-CT2AwqDP.js                                 0.11 kB │ gzip:   0.13 kB
+../../../../../tmp/mf-p4b-build-verify/assets/init-Gi6I4Gst.js                                    0.15 kB │ gzip:   0.13 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-QZHKN3VN-C7QZV1kX.js                          0.19 kB │ gzip:   0.16 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-55IACEB6-CotRlJFB.js                          0.24 kB │ gzip:   0.21 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-4BX2VUAB-Z1ByPMFT.js                          0.30 kB │ gzip:   0.20 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-FMBD7UC4-HilzGPJE.js                          0.37 kB │ gzip:   0.27 kB
+../../../../../tmp/mf-p4b-build-verify/assets/stateDiagram-v2-BHNVJYJU-BVn-xpNN.js                0.47 kB │ gzip:   0.32 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-2J33WTMH-CICjSrQn.js                          0.53 kB │ gzip:   0.38 kB
+../../../../../tmp/mf-p4b-build-verify/assets/classDiagram-4FO5ZUOK-D208ePJn.js                   0.55 kB │ gzip:   0.35 kB
+../../../../../tmp/mf-p4b-build-verify/assets/classDiagram-v2-Q7XG4LA2-D208ePJn.js                0.55 kB │ gzip:   0.35 kB
+../../../../../tmp/mf-p4b-build-verify/assets/infoDiagram-5YYISTIA-BDxzs_Ky.js                    0.66 kB │ gzip:   0.44 kB
+../../../../../tmp/mf-p4b-build-verify/assets/ordinal-Cboi1Yqb.js                                 1.19 kB │ gzip:   0.57 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-ND2GUHAM-Bnzavb1D.js                          1.86 kB │ gzip:   0.82 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-C1RWk-rh.js                                   2.47 kB │ gzip:   1.53 kB
+../../../../../tmp/mf-p4b-build-verify/assets/shell-CjFT_Tl9.js                                   2.57 kB │ gzip:   1.21 kB
+../../../../../tmp/mf-p4b-build-verify/assets/diagram-5GNKFQAL-B5BRI7A_.js                        2.84 kB │ gzip:   1.41 kB
+../../../../../tmp/mf-p4b-build-verify/assets/arc-C19jnj5i.js                                     3.44 kB │ gzip:   1.48 kB
+../../../../../tmp/mf-p4b-build-verify/assets/diagram-LMA3HP47-BRcojzYJ.js                        4.36 kB │ gzip:   1.90 kB
+../../../../../tmp/mf-p4b-build-verify/assets/defaultLocale-DX6XiGOO.js                           4.69 kB │ gzip:   2.18 kB
+../../../../../tmp/mf-p4b-build-verify/assets/pieDiagram-4H26LBE5-qhEDzhSi.js                     5.44 kB │ gzip:   2.42 kB
+../../../../../tmp/mf-p4b-build-verify/assets/linear-Czd57eZS.js                                  5.68 kB │ gzip:   2.32 kB
+../../../../../tmp/mf-p4b-build-verify/assets/diagram-2AECGRRQ-BFvPGKDo.js                        6.18 kB │ gzip:   2.60 kB
+../../../../../tmp/mf-p4b-build-verify/assets/stateDiagram-AJRCARHV-DxGQhK0Z.js                  10.44 kB │ gzip:   3.66 kB
+../../../../../tmp/mf-p4b-build-verify/assets/diagram-KO2AKTUF-7y5TSzBt.js                       11.13 kB │ gzip:   4.30 kB
+../../../../../tmp/mf-p4b-build-verify/assets/dagre-BM42HDAG-C-s50t2i.js                         11.48 kB │ gzip:   4.25 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-CeNrCXpZ.js                                  12.76 kB │ gzip:   5.63 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-D-z_HBdv.js                                  14.84 kB │ gzip:   6.00 kB
+../../../../../tmp/mf-p4b-build-verify/assets/diagram-OG6HWLK6-JdjFALOt.js                       16.26 kB │ gzip:   5.83 kB
+../../../../../tmp/mf-p4b-build-verify/assets/ishikawaDiagram-YF4QCWOH-DqXCWIDi.js               17.77 kB │ gzip:   6.78 kB
+../../../../../tmp/mf-p4b-build-verify/assets/kanban-definition-UN3LZRKU-CAYpVJmH.js             20.85 kB │ gzip:   7.36 kB
+../../../../../tmp/mf-p4b-build-verify/assets/settings--q7I-AFw.js                               21.17 kB │ gzip:   5.13 kB
+../../../../../tmp/mf-p4b-build-verify/assets/mindmap-definition-RKZ34NQL-Bx2XKFBp.js            23.55 kB │ gzip:   7.98 kB
+../../../../../tmp/mf-p4b-build-verify/assets/journeyDiagram-JHISSGLW-JTQtUlvl.js                23.68 kB │ gzip:   8.41 kB
+../../../../../tmp/mf-p4b-build-verify/assets/sankeyDiagram-5OEKKPKP-ns_8FgJ6.js                 23.76 kB │ gzip:   8.76 kB
+../../../../../tmp/mf-p4b-build-verify/assets/graph-Dla4jY_b.js                                  23.95 kB │ gzip:   8.32 kB
+../../../../../tmp/mf-p4b-build-verify/assets/wardleyDiagram-YWT4CUSO-6-hLQFTc.js                26.66 kB │ gzip:   7.19 kB
+../../../../../tmp/mf-p4b-build-verify/assets/erDiagram-TEJ5UH35-wJzd_eXD.js                     27.12 kB │ gzip:   9.45 kB
+../../../../../tmp/mf-p4b-build-verify/assets/gitGraphDiagram-PVQCEYII-DwIpN652.js               30.40 kB │ gzip:   9.02 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-DCWCYPRi.js                                  30.84 kB │ gzip:  12.67 kB
+../../../../../tmp/mf-p4b-build-verify/assets/requirementDiagram-4Y6WPE33-BpppfjUp.js            31.39 kB │ gzip:   9.91 kB
+../../../../../tmp/mf-p4b-build-verify/assets/timeline-definition-PNZ67QCA-CYhk_oHd.js           31.67 kB │ gzip:  10.56 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-Bj5VbmJH.js                                  32.37 kB │ gzip:  13.09 kB
+../../../../../tmp/mf-p4b-build-verify/assets/quadrantDiagram-W4KKPZXB-BKiLXU67.js               34.67 kB │ gzip:  10.21 kB
+../../../../../tmp/mf-p4b-build-verify/assets/layout-DUXn2AVC.js                                 35.84 kB │ gzip:  12.87 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-AQP2D5EJ-8agtQeN2.js                         37.68 kB │ gzip:  12.28 kB
+../../../../../tmp/mf-p4b-build-verify/assets/xychartDiagram-2RQKCTM6-DWMB3_e8.js                40.49 kB │ gzip:  11.61 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-C1YUKSR_.js                                  40.78 kB │ gzip:  16.77 kB
+../../../../../tmp/mf-p4b-build-verify/assets/vennDiagram-CIIHVFJN-MntVDU6_.js                   42.11 kB │ gzip:  15.72 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-D41daipJ.js                                  45.15 kB │ gzip:  19.18 kB
+../../../../../tmp/mf-p4b-build-verify/assets/chunk-727SXJPM-pXTvBP9C.js                         49.18 kB │ gzip:  15.80 kB
+../../../../../tmp/mf-p4b-build-verify/assets/flowDiagram-I6XJVG4X-Bem92Bes.js                   61.46 kB │ gzip:  19.65 kB
+../../../../../tmp/mf-p4b-build-verify/assets/ganttDiagram-6RSMTGT7-CnkGMvY3.js                  69.49 kB │ gzip:  23.42 kB
+../../../../../tmp/mf-p4b-build-verify/assets/c4Diagram-AAUBKEIU-C1kG0WPQ.js                     70.03 kB │ gzip:  19.67 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-Bcyczpjo.js                                  70.86 kB │ gzip:  25.87 kB
+../../../../../tmp/mf-p4b-build-verify/assets/blockDiagram-GPEHLZMM-BXL1XMhq.js                  75.45 kB │ gzip:  21.81 kB
+../../../../../tmp/mf-p4b-build-verify/assets/cose-bilkent-S5V4N54A-DTJynpdS.js                  81.70 kB │ gzip:  22.53 kB
+../../../../../tmp/mf-p4b-build-verify/assets/sequenceDiagram-3UESZ5HK-BfJsfe_j.js              117.77 kB │ gzip:  31.38 kB
+../../../../../tmp/mf-p4b-build-verify/assets/architectureDiagram-3BPJPVTR-B1FIbNNx.js          149.77 kB │ gzip:  42.39 kB
+../../../../../tmp/mf-p4b-build-verify/assets/katex-DkKDou_j.js                                 256.23 kB │ gzip:  76.99 kB
+../../../../../tmp/mf-p4b-build-verify/assets/vendor-codemirror-DlhfgU1R.js                     408.53 kB │ gzip: 133.07 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-DGIbxU7w.js                                 411.10 kB │ gzip: 119.22 kB
+../../../../../tmp/mf-p4b-build-verify/assets/cytoscape.esm-xgCGXJTu.js                         442.64 kB │ gzip: 141.99 kB
+../../../../../tmp/mf-p4b-build-verify/assets/vendor-prosemirror-BuBYajit.js                    506.71 kB │ gzip: 178.78 kB
+../../../../../tmp/mf-p4b-build-verify/assets/mermaid.core-ZoUZF9Zm.js                          597.47 kB │ gzip: 140.45 kB
+../../../../../tmp/mf-p4b-build-verify/assets/wardley-L42UT6IY-TpZhjHEx.js                      616.24 kB │ gzip: 148.86 kB
+../../../../../tmp/mf-p4b-build-verify/assets/index-C67U5l-A.js                                 709.26 kB │ gzip: 236.17 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.04s

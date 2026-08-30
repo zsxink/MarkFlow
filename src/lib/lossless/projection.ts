@@ -86,6 +86,23 @@ export interface ConstructRange {
   level?: number;
 }
 
+/**
+ * Frozen cross-phase vocabulary. P6 may later produce `hidden` via replacing
+ * decorations and atomic ranges; P4B must never do so.
+ */
+export type ConstructVisibility = 'visible' | 'dimmed' | 'hidden' | 'revealed';
+
+/** The only visibility states P4B is permitted to return. */
+export type P4bConstructVisibility = Exclude<ConstructVisibility, 'hidden'>;
+
+/** Inputs shared by the P4B resolver and P6's future hidden-marker engine. */
+export interface ConstructVisibilityOptions {
+  /** Composition freezes the safe projection by forcing a reveal in P4B. */
+  composing?: boolean;
+  /** Reserved P6 request. P4B fail-closes to visible/dimmed rather than hiding. */
+  hiddenRequested?: boolean;
+}
+
 export interface ProjectionSnapshot {
   state: ProjectionState;
   constructs: ConstructRange[];
@@ -122,6 +139,11 @@ function lezerNodeKind(name: string): ConstructKind {
       return 'blockquote';
     case 'ListItem':
       return 'listItem';
+    // GFM's `Task` is nested within its ListItem. It has a distinct registry
+    // identity so the checkbox widget can claim ONLY TaskMarker while the
+    // ListItem local owner keeps rendering the list container and list marker.
+    case 'Task':
+      return 'taskCheckbox';
     case 'FencedCode':
       return 'fence';
     // Exact-source fallback kinds today (the pre-registry classifier returned
@@ -281,6 +303,38 @@ export function isConstructRevealed(
   return range.from <= revealTo && range.to >= revealFrom;
 }
 
+/**
+ * Resolve one construct's visual state without changing its source bytes.
+ *
+ * P4B is deliberately limited to visible/dimmed/revealed. A caller may carry
+ * a future P6 `hiddenRequested` bit through the shared API, but P4B refuses
+ * it: only P6 may install replacing/atomic hidden-marker decorations. During
+ * IME composition we take the conservative safe path and reveal rather than
+ * moving any marker geometry.
+ */
+export function resolveConstructVisibility(
+  range: ConstructRange,
+  selection: { from: number; to: number; empty: boolean },
+  docLength: number,
+  options: ConstructVisibilityOptions = {},
+): P4bConstructVisibility {
+  if (isConstructRevealed(range, selection, docLength)) return 'revealed';
+  // Composition reveals only the construct intersecting or immediately
+  // adjacent to the active source caret. Revealing every visible construct
+  // would make the whole viewport flash when a single IME session starts.
+  if (options.composing && selection.empty) {
+    const caret = selection.from;
+    if (caret >= Math.max(0, range.from - 1) && caret <= Math.min(docLength, range.to + 1)) {
+      return 'revealed';
+    }
+  }
+  // P4B intentionally ignores hiddenRequested. Keeping the branch explicit
+  // makes a premature P6 caller degrade safely instead of hiding source.
+  if (options.hiddenRequested) return range.markers.length === 0 ? 'visible' : 'dimmed';
+  if (range.markers.length === 0) return 'visible';
+  return 'dimmed';
+}
+
 // ── ViewPlugin: build + hold the DecorationSet ────────────────────────
 
 let lastSnapshot: ProjectionSnapshot = { state: 'source', constructs: [], count: 0 };
@@ -406,6 +460,13 @@ function buildDecorations(view: EditorView): DecorationSet {
 
       // Collect exact marker spans from the Lezer delimiter nodes.
       if (node.name.endsWith('Mark')) {
+        // When the task-checkbox widget owns its explicit TaskMarker slot,
+        // this projection must not add a second mark decoration on the same
+        // range. The enclosing ListItem remains a local construct and still
+        // receives its own list-marker decoration below.
+        if (node.name === 'TaskMarker' && resolveConstructOwner('taskCheckbox').owner === 'widget') {
+          return true;
+        }
         markerSpans.push([nodeFrom, nodeTo]);
         return true;
       }
@@ -444,12 +505,9 @@ function buildDecorations(view: EditorView): DecorationSet {
       .sort((a, b) => a[0] - b[0]);
   }
 
-  // Active reveal: when the current selection (or a small neighborhood around a
-  // collapsed caret / composition) intersects a construct, promote that
-  // construct to `mf-active` (full marker visibility). Selection is the ONLY
-  // cursor state that drives reveal — never DOM textContent. P4B task 7.1: the
-  // reveal decision is a per-cohort pure function (`isConstructRevealed`); when
-  // all cohort flags are OFF it is byte-identical to the pre-7.1 radius logic.
+  // Visibility is a pure function of source ranges + selection/composition,
+  // never rendered DOM textContent. P4B may reveal or dim markers but cannot
+  // hide them; P6 is the sole owner of replacing/atomic hidden decorations.
   const selection = state.selection.main;
 
   const finalBuilder = new RangeSetBuilder<Decoration>();
@@ -463,7 +521,11 @@ function buildDecorations(view: EditorView): DecorationSet {
   // geometry, not from insertion order, so this re-order is purely additive.
   const additions: Array<{ from: number; to: number; deco: Decoration }> = [];
   for (const range of constructs) {
-    const active = isConstructRevealed(range, selection, doc.length);
+    const visibility = resolveConstructVisibility(range, selection, doc.length, {
+      composing: view.composing,
+      hiddenRequested: false,
+    });
+    const active = visibility === 'revealed';
     additions.push({
       from: range.from,
       to: range.to,
@@ -474,7 +536,7 @@ function buildDecorations(view: EditorView): DecorationSet {
     // Weak-reveal each marker delimiter range separately unless the construct
     // is active — only the syntax characters get `.mf-marker`, never the
     // content between two delimiters (design 03 §2).
-    if (!active) {
+    if (visibility === 'dimmed') {
       for (const [mf, mt] of range.markers) {
         additions.push({ from: mf, to: mt, deco: markerDeco });
       }

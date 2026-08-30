@@ -5,6 +5,7 @@
 import { registerLosslessLifecycleTests } from './lossless-lifecycle.e2e.mjs';
 import { registerLivePreviewTests } from './live-preview.e2e.mjs';
 import { registerP4bCohortRevealTests } from './p4b-cohort-reveal.e2e.mjs';
+import { registerP4bWidgetTests } from './p4b-widgets.e2e.mjs';
 
 registerLosslessLifecycleTests();
 registerLivePreviewTests();
@@ -12,3 +13,4 @@ registerLivePreviewTests();
 // requires a real Tauri e2e build + operator confirmation; unit equivalents are
 // locked headlessly in projection.test.ts.
 registerP4bCohortRevealTests();
+registerP4bWidgetTests();

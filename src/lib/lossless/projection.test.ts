@@ -104,6 +104,7 @@ import {
   getProjectionSnapshot,
   PROJECTION_CLASSES,
   isConstructRevealed,
+  resolveConstructVisibility,
   resetProjectionSnapshot,
   setProjectionTestFailMode,
   type ConstructRange,
@@ -112,6 +113,10 @@ import {
   resetAllCohortFlags,
   setP4bFlagEnabled,
 } from './cohortFlags';
+import {
+  registerConstructOwner,
+  resetOwnerRegistry,
+} from './renderOwnerRegistry';
 
 let dir: string;
 
@@ -588,6 +593,37 @@ describe('P2 projection adapter', () => {
     // Frozen on the pre-registry implementation (see comment above).
     expect(snapshot.constructs).toEqual(GOLDEN);
   });
+
+  it('an enabled task widget leaves ListItem local and does not duplicate TaskMarker decoration', async () => {
+    // This is the production projection path, not a synthetic range-only
+    // assertion: the ListItem construct keeps its local container/list-marker
+    // decoration while the task widget replaces its own three-byte marker.
+    resetOwnerRegistry();
+    const unregisterTask = registerConstructOwner('taskCheckbox', 'widget', {
+      label: 'p4b.task-checkbox',
+    });
+    setP4bFlagEnabled('taskCheckbox', true);
+    try {
+      setLosslessCoreSessionEnabled(true);
+      setLivePreviewEnabled(true);
+      const path = await writeFixture('task-owner.md', '- [ ] task\n');
+      expect(await openLosslessDocument(path)).toBe(true);
+      const binding = getActiveLosslessBinding()!;
+      binding.setMode('preview');
+
+      const snapshot = getProjectionSnapshot();
+      const lists = snapshot.constructs.filter((range) => range.cls === PROJECTION_CLASSES.listItem);
+      expect(lists).toHaveLength(1);
+      // ListMark remains local; TaskMarker [2,5) is reserved for the widget.
+      expect(lists[0]?.markers).toEqual([[0, 1]]);
+      expect(snapshot.constructs.filter((range) => range.from === 2 && range.to === 5)).toHaveLength(0);
+      expect(binding.editor.view.contentDOM.querySelector('[data-mf-widget="task-checkbox"]')).not.toBeNull();
+    } finally {
+      setP4bFlagEnabled('taskCheckbox', false);
+      unregisterTask();
+      resetOwnerRegistry();
+    }
+  });
 });
 
 // ── P4B task 7.1/7.2 — per-cohort marker reveal refinement ─────────────────
@@ -666,6 +702,26 @@ describe('P4B task 7.1 — isConstructRevealed default (all cohort flags OFF) ma
     expect(isConstructRevealed(h1, rangeSel(6, 11), 40)).toBe(true);
     // Non-overlapping range does not reveal.
     expect(isConstructRevealed(h1, rangeSel(20, 30), 40)).toBe(false);
+  });
+});
+
+describe('P4B task 7.1 — frozen visibility resolver', () => {
+  beforeEach(() => resetAllCohortFlags());
+  afterEach(() => resetAllCohortFlags());
+
+  it('only returns visible/dimmed/revealed; a premature hidden request safely remains dimmed', () => {
+    expect(resolveConstructVisibility(strong, caret(20), 40)).toBe('dimmed');
+    expect(resolveConstructVisibility(strong, caret(20), 40, { hiddenRequested: true })).toBe('dimmed');
+    expect(resolveConstructVisibility(strong, caret(3), 40)).toBe('revealed');
+    // Fenced code has no independently weakened marker spans in P4B.
+    expect(resolveConstructVisibility(fence, caret(40), 40)).toBe('visible');
+  });
+
+  it('reveals only the composition-adjacent construct; distant constructs stay stable', () => {
+    expect(resolveConstructVisibility(strong, caret(9), 40, { composing: true })).toBe('revealed');
+    expect(resolveConstructVisibility(strong, caret(20), 40, { composing: true })).toBe('dimmed');
+    expect(resolveConstructVisibility(fence, caret(31), 40, { composing: true })).toBe('revealed');
+    expect(resolveConstructVisibility(fence, caret(40), 40, { composing: true })).toBe('visible');
   });
 });
 
@@ -999,4 +1055,3 @@ function getRevealStateMany(
 ): number[] {
   return classes.map((cls) => view.contentDOM.querySelectorAll(`span.mf-active.mf-${cls.replace('mf-', '')}`).length);
 }
-

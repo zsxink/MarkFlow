@@ -1,0 +1,306 @@
+^Dnpm notice run markflow@0.0.6 npx
+npm notice run 'vitest' run src/lib/lossless/widgets/protocol.test.ts src/lib/lossless/widgets/p4bWidgets.test.ts src/lib/lossless/renderOwnerRegistry.test.ts src/lib/lossless/cohortFlags.test.ts src/lib/lossless/projection.test.ts src/lib/lossless/structuralInteraction.test.ts src/lib/lossless/policy/frontmatterPolicy.test.ts src/lib/lossless/policy/rawHtmlPolicy.test.ts
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+[?25l ✓ src/lib/lossless/cohortFlags.test.ts (11)
+[?25l[2K[1A[2K[G · src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+[?25l[2K[1A[2K[1A[2K[G · src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+[2K[1A[2K[1A[2K[1A[2K[Gstderr | src/lib/lossless/renderOwnerRegistry.test.ts > renderOwnerRegistry — unique owner invariant and conflicts > same-kind double registration: last active wins and the conflict is detectable
+Failed to forward frontend log event TypeError: Cannot read properties of undefined (reading 'invoke')
+    at Module.invoke (file:///Users/xian/Project/book/MarkFlow/node_modules/@tauri-apps/api/core.js:202:39)
+    at send (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:14:8)
+    at Module.logWarn (/Users/xian/Project/book/MarkFlow/src/lib/logger.ts:44:3)
+    at Module.registerConstructOwner (/Users/xian/Project/book/MarkFlow/src/lib/lossless/renderOwnerRegistry.ts:247:5)
+    at /Users/xian/Project/book/MarkFlow/src/lib/lossless/renderOwnerRegistry.test.ts:218:30
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///Users/xian/Project/book/MarkFlow/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+[?25l ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+[?25l[?25l[?25l[?25l[?25l[?25l[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ · src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ · src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ · src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ · src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ · src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ · src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ❯ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+   ❯ P4B task 7.4 — task checkbox (13)
+     ✓ protocol descriptor (1)
+     ✓ range math (3)
+     ✓ commit = exact local source patch (3)
+     ✓ History boundary (1)
+     ✓ flag OFF / teardown / failure (2)
+     ❯ DOM integration on a real EditorView (3)
+       ✓ renders live checkboxes with a11y; .cm-content stays the source bytes
+       ✓ clicking the checkbox dispatches the exact 3-byte marker patch
+       ⠙ read-only renders disabled widgets and a click never commits
+   · P4B task 7.4 — code fence controls (11)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/projection.test.ts (34)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ❯ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+   ❯ P4B task 7.4 — task checkbox (13)
+     ✓ protocol descriptor (1)
+     ✓ range math (3)
+     ✓ commit = exact local source patch (3)
+     ✓ History boundary (1)
+     ✓ flag OFF / teardown / failure (2)
+     ❯ DOM integration on a real EditorView (3)
+       ✓ renders live checkboxes with a11y; .cm-content stays the source bytes
+       ✓ clicking the checkbox dispatches the exact 3-byte marker patch
+       ⠹ read-only renders disabled widgets and a click never commits
+   · P4B task 7.4 — code fence controls (11)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/projection.test.ts (34)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ❯ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+   ❯ P4B task 7.4 — task checkbox (13)
+     ✓ protocol descriptor (1)
+     ✓ range math (3)
+     ✓ commit = exact local source patch (3)
+     ✓ History boundary (1)
+     ✓ flag OFF / teardown / failure (2)
+     ❯ DOM integration on a real EditorView (3)
+       ✓ renders live checkboxes with a11y; .cm-content stays the source bytes
+       ✓ clicking the checkbox dispatches the exact 3-byte marker patch
+       ⠸ read-only renders disabled widgets and a click never commits
+   · P4B task 7.4 — code fence controls (11)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/projection.test.ts (34)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ❯ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+   ❯ P4B task 7.4 — task checkbox (13)
+     ✓ protocol descriptor (1)
+     ✓ range math (3)
+     ✓ commit = exact local source patch (3)
+     ✓ History boundary (1)
+     ✓ flag OFF / teardown / failure (2)
+     ❯ DOM integration on a real EditorView (3)
+       ✓ renders live checkboxes with a11y; .cm-content stays the source bytes
+       ✓ clicking the checkbox dispatches the exact 3-byte marker patch
+       ⠼ read-only renders disabled widgets and a click never commits
+   · P4B task 7.4 — code fence controls (11)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/projection.test.ts (34)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ❯ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+   ❯ P4B task 7.4 — task checkbox (13)
+     ✓ protocol descriptor (1)
+     ✓ range math (3)
+     ✓ commit = exact local source patch (3)
+     ✓ History boundary (1)
+     ✓ flag OFF / teardown / failure (2)
+     ❯ DOM integration on a real EditorView (3)
+       ✓ renders live checkboxes with a11y; .cm-content stays the source bytes
+       ✓ clicking the checkbox dispatches the exact 3-byte marker patch
+       ⠴ read-only renders disabled widgets and a click never commits
+   · P4B task 7.4 — code fence controls (11)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G · src/lib/lossless/projection.test.ts (34)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[?25l[?25l[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G     ✓ malformed / unknown input degrades to source, never blank or exception
+     ✓ strong marker decoration covers only the ** delimiters, not the content
+     ✓ link decoration covers only [ ] ( ) delimiters, not text or url
+     ✓ heading decoration covers the # marker only, not the heading text
+     ✓ a real buildDecorations throw degrades, survives, and recovers (next)
+     ⠙ a continuous buildDecorations throw keeps degrading but input and save su
+rvive
+     · owner registry wiring keeps the ConstructRange set identical (task 6.5 pa
+rity)
+     · an enabled task widget leaves ListItem local and does not duplicate TaskM
+arker decoration
+   · P4B task 7.1 — isConstructRevealed default (all cohort flags OFF) matches p
+re-7.1 radius logic (2)
+   · P4B task 7.1 — frozen visibility resolver (2)
+   · P4B task 7.1 ① — heading+strong cohort (headingStrong) (3)
+   · P4B task 7.1 ② — emphasis+strike+inline-code cohort (emphasisStrikeInlineCo
+de) (2)
+   · P4B task 7.1 ③ — links cohort (links, four-delimiter Link only) (2)
+   · P4B task 7.1 ④ — quote+lists cohort (quoteLists) (2)
+   · P4B task 7.1 ⑤ — fence cohort (fence, markers frozen empty) (2)
+   · P4B task 7.2 — per-cohort reveal over the real editor (DOM) (6)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G     ✓ malformed / unknown input degrades to source, never blank or exception
+     ✓ strong marker decoration covers only the ** delimiters, not the content
+     ✓ link decoration covers only [ ] ( ) delimiters, not text or url
+     ✓ heading decoration covers the # marker only, not the heading text
+     ✓ a real buildDecorations throw degrades, survives, and recovers (next)
+     ⠹ a continuous buildDecorations throw keeps degrading but input and save su
+rvive
+     · owner registry wiring keeps the ConstructRange set identical (task 6.5 pa
+rity)
+     · an enabled task widget leaves ListItem local and does not duplicate TaskM
+arker decoration
+   · P4B task 7.1 — isConstructRevealed default (all cohort flags OFF) matches p
+re-7.1 radius logic (2)
+   · P4B task 7.1 — frozen visibility resolver (2)
+   · P4B task 7.1 ① — heading+strong cohort (headingStrong) (3)
+   · P4B task 7.1 ② — emphasis+strike+inline-code cohort (emphasisStrikeInlineCo
+de) (2)
+   · P4B task 7.1 ③ — links cohort (links, four-delimiter Link only) (2)
+   · P4B task 7.1 ④ — quote+lists cohort (quoteLists) (2)
+   · P4B task 7.1 ⑤ — fence cohort (fence, markers frozen empty) (2)
+   · P4B task 7.2 — per-cohort reveal over the real editor (DOM) (6)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[?25l[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G     ✓ malformed / unknown input degrades to source, never blank or exception
+     ✓ strong marker decoration covers only the ** delimiters, not the content
+     ✓ link decoration covers only [ ] ( ) delimiters, not text or url
+     ✓ heading decoration covers the # marker only, not the heading text
+     ✓ a real buildDecorations throw degrades, survives, and recovers (next)
+     ⠸ a continuous buildDecorations throw keeps degrading but input and save su
+rvive
+     · owner registry wiring keeps the ConstructRange set identical (task 6.5 pa
+rity)
+     · an enabled task widget leaves ListItem local and does not duplicate TaskM
+arker decoration
+   · P4B task 7.1 — isConstructRevealed default (all cohort flags OFF) matches p
+re-7.1 radius logic (2)
+   · P4B task 7.1 — frozen visibility resolver (2)
+   · P4B task 7.1 ① — heading+strong cohort (headingStrong) (3)
+   · P4B task 7.1 ② — emphasis+strike+inline-code cohort (emphasisStrikeInlineCo
+de) (2)
+   · P4B task 7.1 ③ — links cohort (links, four-delimiter Link only) (2)
+   · P4B task 7.1 ④ — quote+lists cohort (quoteLists) (2)
+   · P4B task 7.1 ⑤ — fence cohort (fence, markers frozen empty) (2)
+   · P4B task 7.2 — per-cohort reveal over the real editor (DOM) (6)
+ · src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[Gstdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote Enter at contentStart inserts a same-depth quote before it
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote Enter in content continues the same quote depth
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > empty quote line before a following quote removes only its current marker
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > empty inner quote line before a following quote removes only the inner marker
+leaf lmar 2
+leaf lmar 2
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > double quote Enter preserves every outer quote prefix
+leaf lmar 2
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > same-quote cross-line Backspace is one selection transaction with deterministic source and selection
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > full current quote-line selection deletes first then exits that one quote layer
+leaf lmar 1
+leaf lmar 1
+
+stdout | src/lib/lossless/structuralInteraction.test.ts > P4B structural interaction ADR matrix (task 7.2a) > quote continuation line without a current-line marker is exact source fallback, never a structural transaction
+leaf lmar 1
+leaf lmar 1
+
+[?25l     ✓ malformed / unknown input degrades to source, never blank or exception
+     ✓ strong marker decoration covers only the ** delimiters, not the content
+     ✓ link decoration covers only [ ] ( ) delimiters, not text or url
+     ✓ heading decoration covers the # marker only, not the heading text
+     ✓ a real buildDecorations throw degrades, survives, and recovers (next)
+     ⠼ a continuous buildDecorations throw keeps degrading but input and save su
+rvive
+     · owner registry wiring keeps the ConstructRange set identical (task 6.5 pa
+rity)
+     · an enabled task widget leaves ListItem local and does not duplicate TaskM
+arker decoration
+   · P4B task 7.1 — isConstructRevealed default (all cohort flags OFF) matches p
+re-7.1 radius logic (2)
+   · P4B task 7.1 — frozen visibility resolver (2)
+   · P4B task 7.1 ① — heading+strong cohort (headingStrong) (3)
+   · P4B task 7.1 ② — emphasis+strike+inline-code cohort (emphasisStrikeInlineCo
+de) (2)
+   · P4B task 7.1 ③ — links cohort (links, four-delimiter Link only) (2)
+   · P4B task 7.1 ④ — quote+lists cohort (quoteLists) (2)
+   · P4B task 7.1 ⑤ — fence cohort (fence, markers frozen empty) (2)
+   · P4B task 7.2 — per-cohort reveal over the real editor (DOM) (6)
+ ✓ src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G ✓ src/lib/lossless/cohortFlags.test.ts (11)
+ ✓ src/lib/lossless/projection.test.ts (34)
+ ✓ src/lib/lossless/renderOwnerRegistry.test.ts (33)
+ ✓ src/lib/lossless/structuralInteraction.test.ts (136)
+ ✓ src/lib/lossless/policy/frontmatterPolicy.test.ts (10)
+ ✓ src/lib/lossless/policy/rawHtmlPolicy.test.ts (15)
+ ✓ src/lib/lossless/widgets/p4bWidgets.test.ts (24)
+ ✓ src/lib/lossless/widgets/protocol.test.ts (16)
+
+ Test Files  8 passed (8)
+      Tests  279 passed (279)
+   Start at  08:07:41
+   Duration  949ms (transform 471ms, setup 0ms, collect 1.41s, tests 731ms, environment 1.53s, prepare 489ms)
+
+[?25h[?25h

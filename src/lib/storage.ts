@@ -134,6 +134,19 @@ export async function saveImageExport(data: string, fileName: string, extension:
 }
 
 export async function saveDocumentExport(content: string, defaultName: string, filterName: string, extensions: string[]): Promise<boolean> {
+  if (import.meta.env.MODE === 'e2e' && typeof window !== 'undefined') {
+    const capture = (window as unknown as {
+      __markflowDocumentExportCapture?: (payload: {
+        content: string;
+        defaultName: string;
+        filterName: string;
+        extensions: string[];
+      }) => boolean | Promise<boolean>;
+    }).__markflowDocumentExportCapture;
+    if (capture) {
+      return await capture({ content, defaultName, filterName, extensions: [...extensions] });
+    }
+  }
   return invoke<boolean>('save_document_export', { content, defaultName, filterName, extensions });
 }
 

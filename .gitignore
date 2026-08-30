@@ -40,3 +40,6 @@ Thumbs.db
 
 # Rust spike scratch build cache
 spike/**/target/
+
+# P4B real-IME helper: source is committed, binary is built on demand
+e2e/ime/activate

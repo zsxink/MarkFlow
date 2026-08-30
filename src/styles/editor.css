@@ -768,6 +768,124 @@
   border-radius: 2px;
 }
 
+/* ── P4B source-owned widget controls ────────────────────────────────────
+   Compact controls live inside the source editor, but never become source.
+   They inherit the application's theme tokens and keep an explicit keyboard
+   focus ring in every theme/contrast mode. */
+.source-editor-wrapper .cm-editor .mf-widget-control {
+  box-sizing: border-box;
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: 0.08em;
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-task {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55em;
+  height: 1.55em;
+  margin: 0 0.28em 0 0.05em;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-code);
+  font-size: 0.78em;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-task:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-task[data-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-task[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-fence {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: min(100%, 30rem);
+  margin-right: 0.45em;
+  padding: 2px 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-fence-badge {
+  max-width: 14ch;
+  overflow: hidden;
+  padding: 0 4px;
+  color: var(--fg);
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 22px;
+  text-overflow: ellipsis;
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-fence button {
+  min-width: 32px;
+  min-height: 24px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 12px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-fence button:hover {
+  background: var(--code-bg);
+  color: var(--accent);
+}
+
+.source-editor-wrapper .cm-editor .mf-widget-task:focus-visible,
+.source-editor-wrapper .cm-editor .mf-widget-fence button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-contrast: more) {
+  .source-editor-wrapper .cm-editor .mf-widget-task,
+  .source-editor-wrapper .cm-editor .mf-widget-fence {
+    border-color: currentColor;
+  }
+
+  .source-editor-wrapper .cm-editor .mf-widget-task:focus-visible,
+  .source-editor-wrapper .cm-editor .mf-widget-fence button:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+@media (forced-colors: active) {
+  .source-editor-wrapper .cm-editor .mf-widget-task,
+  .source-editor-wrapper .cm-editor .mf-widget-fence,
+  .source-editor-wrapper .cm-editor .mf-widget-fence button {
+    border: 1px solid ButtonText;
+    color: ButtonText;
+    forced-color-adjust: auto;
+  }
+}
+
 /* 活动行高亮 — 极淡背景 */
 .source-editor-wrapper .cm-editor .cm-activeLine {
   background: var(--accent-soft);

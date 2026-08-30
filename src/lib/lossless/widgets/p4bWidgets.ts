@@ -44,7 +44,7 @@ import {
   type WidgetSourceChange,
 } from './protocol';
 import { isCodeFenceControlsEnabled, isTaskCheckboxEnabled } from '../cohortFlags';
-import { registerConstructOwner } from '../renderOwnerRegistry';
+import { registerConstructOwner, resolveNestedEditableSlot } from '../renderOwnerRegistry';
 import {
   collectVisibleFenceTargets,
   collectVisibleTaskTargets,
@@ -219,11 +219,31 @@ function buildWidgetDecorations(view: EditorView): DecorationSet {
 
   if (isTaskCheckboxEnabled()) {
     for (const target of collectVisibleTaskTargets(view)) {
+      const owner = resolveNestedEditableSlot(
+        { kind: 'listItem', from: target.source.from, to: target.source.to },
+        { kind: 'taskCheckbox', from: target.marker.from, to: target.marker.to },
+      );
+      if (
+        owner.owner !== 'widget' ||
+        owner.source !== TASK_WIDGET_LABEL ||
+        owner.from !== target.marker.from ||
+        owner.to !== target.marker.to
+      ) continue;
       builder.add(target.marker.from, target.marker.to, taskCheckboxDecoration(view, target, 0));
     }
   }
   if (isCodeFenceControlsEnabled()) {
     for (const target of collectVisibleFenceTargets(view)) {
+      const owner = resolveNestedEditableSlot(
+        { kind: 'fence', from: target.source.from, to: target.source.to },
+        { kind: 'codeFenceControls', from: target.openMark.from, to: target.openMark.to },
+      );
+      if (
+        owner.owner !== 'widget' ||
+        owner.source !== FENCE_WIDGET_LABEL ||
+        owner.from !== target.openMark.from ||
+        owner.to !== target.openMark.to
+      ) continue;
       // The fence controls sit at the opening marker (CodeMark start) as an
       // inline widget; the source bytes under it remain fully selectable.
       builder.add(target.openMark.from, target.openMark.from, fenceControlsDecoration(view, target, 2));
@@ -252,6 +272,24 @@ function fenceControlsDecoration(_view: EditorView, target: FenceWidgetTarget, s
 
 // ── WidgetType: task checkbox ───────────────────────────────────────────────
 
+function isWidgetActivationKey(event: KeyboardEvent): boolean {
+  return !event.metaKey && !event.ctrlKey && !event.altKey
+    && (event.key === ' ' || event.key === 'Enter' || event.key === 'Spacebar');
+}
+
+/**
+ * Focused widget controls are not CodeMirror text inputs. Keep every plain key
+ * except Tab inside the control so navigation/editing keys cannot leak through
+ * the light DOM and mutate the source. Platform shortcuts remain available
+ * (notably Cmd/Ctrl+Z after a widget commit).
+ */
+function containWidgetKey(event: KeyboardEvent): boolean {
+  if (event.metaKey || event.ctrlKey || event.altKey || event.key === 'Tab') return false;
+  event.preventDefault();
+  event.stopPropagation();
+  return true;
+}
+
 /** An `HTMLElement` safe to append into a CM widget slot. */
 export function makeTaskCheckboxElement(view: EditorView, target: TaskWidgetTarget): HTMLElement {
   const dom = document.createElement('span');
@@ -269,9 +307,9 @@ export function makeTaskCheckboxElement(view: EditorView, target: TaskWidgetTarg
   if (readOnly) dom.setAttribute('aria-disabled', 'true');
 
   const toggle = (ev: Event) => {
-    if (readOnly) return;
     ev.preventDefault();
     ev.stopPropagation();
+    if (readOnly) return;
     // The commit re-resolves the CURRENT doc at a point strictly INSIDE the
     // marker (marker.from + 1, the space/x) — never the stale DOM-recorded
     // from, which sits on the `[` token boundary and Lezer resolves ambiguously.
@@ -286,10 +324,11 @@ export function makeTaskCheckboxElement(view: EditorView, target: TaskWidgetTarg
 
   dom.addEventListener('click', toggle);
   dom.addEventListener('keydown', (e) => {
-    if (readOnly) return;
-    if (e.key === ' ' || e.key === 'Enter' || e.key === 'Spacebar') {
+    if (isWidgetActivationKey(e)) {
       toggle(e);
+      return;
     }
+    containWidgetKey(e);
   });
   return dom;
 }
@@ -345,7 +384,7 @@ export function makeFenceControlsElement(view: EditorView, target: FenceWidgetTa
   root.className = `${WIDGET_CLASSES.fenceControls} mf-widget-control`;
   root.setAttribute('data-mf-widget', FENCE_WIDGET_ID);
   root.setAttribute('data-source-from', String(target.source.from));
-  root.setAttribute('role', 'group');
+  root.setAttribute('role', 'region');
   root.setAttribute('aria-label', `代码块 ${target.language || '无语言'}`);
   const readOnly = !view.state.facet(EditorView.editable);
 
@@ -360,7 +399,7 @@ export function makeFenceControlsElement(view: EditorView, target: FenceWidgetTa
   copy.className = 'mf-widget-fence-copy';
   copy.textContent = '复制';
   copy.setAttribute('data-action', 'copy');
-  copy.addEventListener('click', (e) => {
+  const copySource = (e: Event) => {
     e.preventDefault();
     e.stopPropagation();
     // Copy reads the SHARP source bytes (CodeText) directly from the doc —
@@ -368,6 +407,14 @@ export function makeFenceControlsElement(view: EditorView, target: FenceWidgetTa
     const text = sourceSlice(view.state, target.content.from, target.content.to);
     if (text.length === 0) return;
     void navigator.clipboard?.writeText(text).catch(() => undefined);
+  };
+  copy.addEventListener('click', copySource);
+  copy.addEventListener('keydown', (e) => {
+    if (isWidgetActivationKey(e)) {
+      copySource(e);
+      return;
+    }
+    containWidgetKey(e);
   });
   root.appendChild(copy);
 
@@ -377,16 +424,28 @@ export function makeFenceControlsElement(view: EditorView, target: FenceWidgetTa
     lang.className = 'mf-widget-fence-lang';
     lang.textContent = target.language || '语言';
     lang.setAttribute('data-action', 'language');
-    lang.addEventListener('click', (e) => {
+    const changeLanguage = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
-      // Commit re-resolves the CURRENT doc at the fence's CURRENT coords.
+      // Commit re-resolves the CURRENT doc at a point strictly INSIDE the
+      // opening marker. Its `from` sits on a Lezer boundary (and is commonly
+      // doc offset 0), where `resolveInner(..., 0)` may resolve outside the
+      // FencedCode node and turn a valid click into a silent no-op.
       queueWidgetCommit(view, (v) => {
-        const commit = fenceLanguageCommit(v.state, target.openMark.from, nextLanguage(target.language));
+        const anchor = target.openMark.from + 1;
+        const commit = fenceLanguageCommit(v.state, anchor, nextLanguage(target.language));
         if (!commit) return;
         v.focus();
         v.dispatch({ ...commit.spec[0], annotations: commit.spec[0].annotations });
       });
+    };
+    lang.addEventListener('click', changeLanguage);
+    lang.addEventListener('keydown', (e) => {
+      if (isWidgetActivationKey(e)) {
+        changeLanguage(e);
+        return;
+      }
+      containWidgetKey(e);
     });
     root.appendChild(lang);
   }
@@ -413,7 +472,7 @@ class FenceControlsWidget extends WidgetType {
   // owns.
 
   toDOM(view: EditorView): HTMLElement {
-    const fresh = fenceTargetFromState(view.state, this.target.openMark.from) ?? this.target;
+    const fresh = fenceTargetFromState(view.state, this.target.openMark.from + 1) ?? this.target;
     return makeFenceControlsElement(view, fresh);
   }
 
@@ -427,13 +486,17 @@ class FenceControlsWidget extends WidgetType {
 const TASK_DESCRIPTOR_INPUT = {
   id: TASK_WIDGET_ID,
   kind: 'checkbox',
-  ownerKind: 'listItem',
+  ownerKind: 'taskCheckbox',
   flag: 'taskCheckbox',
   label: TASK_WIDGET_LABEL,
-  ranges: (): SourceRangeSet | null => null,
+  ranges: (update: ViewUpdate): SourceRangeSet | null => {
+    if (!update.state.selection.main.empty) return null;
+    const target = taskTargetFromState(update.state, update.state.selection.main.head);
+    return target ? taskSourceRangeSet(target) : null;
+  },
   surface: { type: 'control' },
-  commit: (ctx: { state: EditorState; selection: { main: { anchor: number } } }): WidgetSourceChange | null =>
-    taskCheckboxCommit(ctx.state, ctx.selection.main.anchor),
+  commit: (ctx: { state: EditorState; selection: { main: { empty: boolean; head: number } } }): WidgetSourceChange | null =>
+    ctx.selection.main.empty ? taskCheckboxCommit(ctx.state, ctx.selection.main.head) : null,
   interaction: { commands: ['toggle', 'space', 'enter'], atomic: false, revealOnFocus: 'markers', readOnly: 'disabled' },
   atomic: false,
   async: { asyncAllowed: false, staleResultHandler: 'discard-and-log', retry: 'none' },
@@ -452,12 +515,21 @@ const TASK_DESCRIPTOR_INPUT = {
 const FENCE_DESCRIPTOR_INPUT = {
   id: FENCE_WIDGET_ID,
   kind: 'fence-language',
-  ownerKind: 'fence',
+  ownerKind: 'codeFenceControls',
   flag: 'codeFenceControls',
   label: FENCE_WIDGET_LABEL,
-  ranges: (_u: unknown): SourceRangeSet | null => null,
+  ranges: (update: ViewUpdate): SourceRangeSet | null => {
+    if (!update.state.selection.main.empty) return null;
+    const target = fenceTargetFromState(update.state, update.state.selection.main.head);
+    return target ? fenceSourceRangeSet(target) : null;
+  },
   surface: { type: 'composite' },
-  commit: (): WidgetSourceChange | null => null, // language patches arrive via fenceLanguageCommit
+  commit: (ctx: { state: EditorState; selection: { main: { empty: boolean; head: number } } }): WidgetSourceChange | null => {
+    if (!ctx.selection.main.empty) return null;
+    const anchor = ctx.selection.main.head;
+    const target = fenceTargetFromState(ctx.state, anchor);
+    return target ? fenceLanguageCommit(ctx.state, anchor, nextLanguage(target.language)) : null;
+  },
   interaction: { commands: ['toggle', 'enter', 'escape'], atomic: true, revealOnFocus: 'markers', readOnly: 'disabled' },
   atomic: true,
   async: { asyncAllowed: false, staleResultHandler: 'discard-and-log', retry: 'none' },
@@ -510,11 +582,11 @@ export function assertWidgetRangeValid(surface: SourceRangeSet, docLength: numbe
 
 // Module-init owner registration: inert while the flag is OFF (default).
 // Same-kind registration is idempotent/re-entrant; teardown is idempotent.
-const teardownTaskOwner = registerConstructOwner('listItem', 'widget', {
+const teardownTaskOwner = registerConstructOwner('taskCheckbox', 'widget', {
   flag: () => isTaskCheckboxEnabled(),
   label: TASK_WIDGET_LABEL,
 });
-const teardownFenceOwner = registerConstructOwner('fence', 'widget', {
+const teardownFenceOwner = registerConstructOwner('codeFenceControls', 'widget', {
   flag: () => isCodeFenceControlsEnabled(),
   label: FENCE_WIDGET_LABEL,
 });

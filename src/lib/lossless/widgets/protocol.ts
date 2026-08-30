@@ -332,7 +332,8 @@ export interface WidgetDescriptor {
   /**
    * Construct kind this widget will own when its flag is on (renderOwnerRegistry
    * `ownerKind`; only 'widget' ownership is legal — the ownerKind VALUE names
-   * the construct, e.g. 'listItem' for the task-checkbox widget).
+   * the construct identity, e.g. 'taskCheckbox' for the checkbox marker slot;
+   * its enclosing listItem remains a distinct local parent owner).
    */
   ownerKind: ConstructKind;
   /** Independent flag gating this widget (design 05 §5: one flag per widget;

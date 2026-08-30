@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { writeP4bCohortFixtures } from './p4b-cohort-fixtures.mjs';
 
 const suite = process.argv[2] ?? 'smoke';
-if (!['smoke', 'regression', 'p0s', 'lossless'].includes(suite)) {
+if (!['smoke', 'regression', 'p0s', 'lossless', 'ime'].includes(suite)) {
   throw new Error(`Unknown E2E suite: ${suite}`);
 }
 
@@ -18,6 +18,9 @@ const artifactsRoot = path.join(e2eDir, 'artifacts');
 // configuration. A short interval makes the two-tick wait deterministic in CI;
 // the product default 10000ms interval is covered by the manual desktop E3 and
 // the lifecycle integration tests (main.lifecycle.guard.test.ts).
+// ── The IME suite keeps autosave OFF: it asserts that a single Undo restores
+// the exact original source, and an intervening autosave tick would make that
+// assertion meaningless.
 const autosaveEnabled = suite === 'p0s' || suite === 'lossless';
 
 const defaultSettings = (workspace) => ({
@@ -133,6 +136,17 @@ try {
   // decoration E2E + a zero-edit mode-switch byte-contract case.
   if (suite === 'lossless') {
     await writeP4bCohortFixtures(workspace);
+    await writeFile(path.join(workspace, 'p4b-widget-task.md'), '- [ ] widget task 🚀\n- [x] already done\n');
+    await writeFile(path.join(workspace, 'p4b-widget-fence.md'), 'before\n\n```js title="keep"\nconst x = 1;\n```\n\nafter\n');
+    await writeFile(path.join(workspace, 'p4b-policy-html.md'), '<script>window.__p4bExecuted = true</script>\n<div data-x="1">raw</div>\n');
+    await writeFile(path.join(workspace, 'p4b-policy-frontmatter.md'), '---\ntitle: Exact source\ntags: [a, b]\n---\n\n# Body\n');
+  }
+  // ── P4B 7.3 real-IME fixtures ─────────────────────────────────────────
+  // `# marker\n` / `> marker\n` mirror the frozen strings from the earlier
+  // blocked attempt so the new evidence is directly comparable.
+  if (suite === 'ime') {
+    await writeFile(path.join(workspace, 'p4b-ime-zh-Hans.md'), '# marker\n');
+    await writeFile(path.join(workspace, 'p4b-ime-ja.md'), '> marker\n');
     await writeFile(path.join(workspace, 'p2-live-preview-switch.md'),
       '# 切换测试\n\n普通段落。\n');
     await writeFile(path.join(workspace, 'p2-live-preview-constructs.md'),

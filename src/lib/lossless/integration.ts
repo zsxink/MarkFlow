@@ -376,6 +376,16 @@ if (import.meta.env.MODE === 'e2e') {
       binding.setMode(mode);
       return 'set';
     },
+    // P4B desktop contract: exercise the SAME read-only compartment used by
+    // the product binding. Updating only the store would leave EditorView
+    // editable and could make widget read-only assertions a false positive.
+    setReadOnly: (readOnly: boolean) => {
+      const binding = getActiveLosslessBinding();
+      if (!binding) return 'no-binding';
+      binding.editor.setReadOnly(readOnly);
+      store.setState({ readOnly });
+      return 'set';
+    },
     // P4B 7.1/7.2: place a collapsed caret at `pos` (selection-driven reveal
     // E2E). Pure selection — the projection rebuilds on the selectionSet.
     caret: (pos: number) => {

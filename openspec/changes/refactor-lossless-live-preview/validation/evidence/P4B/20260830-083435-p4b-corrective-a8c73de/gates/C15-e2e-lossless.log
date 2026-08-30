@@ -12,25 +12,25 @@ vite v5.4.21 building for e2e...
 transforming...
 ✓ 2512 modules transformed.
 rendering chunks...
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-css/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-javascript/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-markdown/dist/index.js, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/imageUtils.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/lossless/editorSurfaceBinding.ts, /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.bubble.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.resolver.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.init.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.ts, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/plantuml.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/lib/editor.extensions.ts, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/editor.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/degradationBar.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/linkDialog.ts, /Users/xian/Project/book/MarkFlow/src/components/outline.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.conflict.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/statusbar.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, /Users/xian/Project/book/MarkFlow/src/utils/keyboard.ts, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, dynamic import will not move module into another chunk.
 
 computing gzip size...
@@ -114,12 +114,12 @@ dist/assets/index-C-1KFi1A.js                                 714.95 kB │ gzip
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 3.80s
+✓ built in 3.74s
    Compiling markflow v0.0.6 (/Users/xian/Project/book/MarkFlow/src-tauri)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.11s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.85s
        Built application at: /Users/xian/Project/book/MarkFlow/src-tauri/target/debug/markflow
 
-Execution of 1 workers started at 2026-08-30T01:12:30.509Z
+Execution of 1 workers started at 2026-08-30T02:03:26.681Z
 
 [0-0] RUNNING in undefined - file:///e2e/specs/lossless/all-lossless.e2e.mjs
 [0-0] PASSED in undefined - file:///e2e/specs/lossless/all-lossless.e2e.mjs
@@ -127,7 +127,7 @@ Execution of 1 workers started at 2026-08-30T01:12:30.509Z
  "spec" Reporter:
 ------------------------------------------------------------------
 [webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
-[webkit 605.1.15 macos #0-0] Session ID: ff2ce4de-4d98-44d0-92ce-d599c965d13a
+[webkit 605.1.15 macos #0-0] Session ID: f1a6f0f0-87e8-47bc-9c6c-6096b295c0ec
 [webkit 605.1.15 macos #0-0]
 [webkit 605.1.15 macos #0-0] » e2e/specs/lossless/all-lossless.e2e.mjs
 [webkit 605.1.15 macos #0-0] P1B lossless desktop lifecycle (flag ON, autosave ENABLED)
@@ -166,8 +166,8 @@ Execution of 1 workers started at 2026-08-30T01:12:30.509Z
 [webkit 605.1.15 macos #0-0]    ✓ preview projection can be disposed/recreated and cleanup leaves no widget flag residue
 [webkit 605.1.15 macos #0-0]    ✓ toolbar HTML export uses lossless source and never serializes widget DOM
 [webkit 605.1.15 macos #0-0]
-[webkit 605.1.15 macos #0-0] 28 passing (1m 38.2s)
+[webkit 605.1.15 macos #0-0] 28 passing (1m 38.7s)
 
 
-Spec Files:	 1 passed, 1 total (100% completed) in 00:01:38  
+Spec Files:	 1 passed, 1 total (100% completed) in 00:01:39
 

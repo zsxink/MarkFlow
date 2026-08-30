@@ -1,6 +1,6 @@
 # P4B 验证记录：投影交互底座与轻量 Widgets
 
-总体状态：`P4B-SUBSTRATE-GO` NOT STARTED；各 item NOT STARTED
+总体状态：`P4B-SUBSTRATE-GO` 进行中；真实 CJK/日文 IME baseline 已取得（中文通过、日文有已知 product gap），其余 item 按各自 run 记录更新
 
 正式设计：[P4B：Widgets 与 Cohorts](../../design/phases/P4B-widgets-cohorts.md)
 
@@ -12,7 +12,11 @@
 | --- | --- | --- | --- | --- | --- |
 | visibility/interaction harness | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
 | source clipboard/a11y/atomic protocol | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
-| real CJK/Japanese IME baseline | — | NOT STARTED | NOT STARTED | NOT STARTED | — |
+| real CJK/Japanese IME baseline | — | **EVIDENCE RECORDED** | PENDING | PENDING | — |
+
+- 中文 Pinyin：GO（`compositionstart/update/end` + 一次 Cmd+Z 恢复）
+- 日文 Kotoeri：**PARTIAL / PENDING PRODUCT FIX**（真实 composition + CJK 提交验证，但 `compositionend` 未触发、Cmd+Z 不恢复；见 `../issues/20260830-p4b-ja-kotoeri-undo-compositionend-gap.md`）
+- Run：`../evidence/P4B/20260830-083435-p4b-corrective-a8c73de/RUN.md` / `gates/C20-e2e-ime.log`
 | task checkbox | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
 | code fence controls | NOT RECORDED | NOT STARTED | NOT STARTED | NOT STARTED | OFF |
 | image | — | MOVED TO P7 | — | — | — |

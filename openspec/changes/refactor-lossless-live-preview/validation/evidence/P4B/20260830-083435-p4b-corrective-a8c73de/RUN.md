@@ -1,6 +1,6 @@
-# P4B Keyboard/Visual/Export Corrective Run
+# P4B Keyboard/Visual/Export/IME Corrective Run
 
-状态：PASS（19/19 gates；真实 IME 仍为独立 OPEN 项，见 `../../issues/20260830-p4b-real-ime-locked-session.md`）
+状态：PASS（20/20 gates；真实 IME 证据已补齐，中文完全通过，日文 Kotoeri 发现 compositionend/Undo product gap，见 `../../issues/20260830-p4b-real-ime-locked-session.md` 与 `../../issues/20260830-p4b-ja-kotoeri-undo-compositionend-gap.md`）
 
 ## Identity
 
@@ -20,6 +20,7 @@
 - Add unit and desktop regressions with one local commit, one Undo, and exact fixture-byte restoration.
 - Add compact token-based task/fence styles, visible focus, three themes, `prefers-contrast`/forced-colors handling, and synthetic 200% CSS-zoom stress screenshots.
 - Exercise the real toolbar HTML-export route through an E2E-only storage capture seam; assert logical source is exported and widget DOM is absent.
+- Add a real-system-IME harness (`e2e/ime/activate.swift`) that activates MarkFlow and posts physical keycodes through the Quartz HID event tap; drive it from `e2e/specs/lossless/p4b-real-ime.e2e.mjs` to record `compositionstart`/`compositionupdate`/`compositionend` traces for Chinese Pinyin and Japanese Kotoeri adjacent to a Markdown marker.
 
 ## Gates
 
@@ -44,6 +45,7 @@
 | C17 | desktop regression | PASS (1) | `gates/C17-e2e-regression.log` |
 | C18 | desktop P0S | PASS (4) | `gates/C18-e2e-p0s.log` |
 | C19 | diff check | PASS | `gates/C19-diff-check.log` |
+| C20 | desktop real Chinese/Japanese IME | PASS (1) — see IME finding below | `gates/C20-e2e-ime.log` |
 
 ## Corrected failures
 
@@ -58,23 +60,38 @@ closes all three:
 | fence copy did not activate from Enter | PASS — explicit Space/Enter activation on every control |
 | roundtrip byte mismatch (surviving evidence of the leak) | PASS — `Source↔Preview roundtrip preserves source, shared history, dirty state, and file bytes` |
 
-## Run hygiene note (two discarded runs)
+## Real IME evidence (C20)
 
-Two intermediate desktop runs are preserved as `gates/C15-rerun1.log` and were
-discarded, NOT rewritten into passes:
+The harness activates MarkFlow via `NSRunningApplication.activate` and posts
+physical keycodes through `CGEvent.post(tap: .cghidEventTap)`. It switches the
+system input source through Text Input Services (`TISEnableInputSource` /
+`TISSelectInputSource`) and restores the original source after the run.
 
-1. Run A — `A→B switch does not write A and leaves B clean` timed out waiting for
-   the unsaved-changes dialog.
-2. Run B (rerun1) — `headingStrong` marker-reveal click raised a WebDriver JS
-   exception.
+| Target | Input source | Keys | Result | Undo |
+| --- | --- | --- | --- | --- |
+| zh-Hans | `com.apple.inputmethod.SCIM.ITABC` | `zhongwen ` + Space | `compositionstart/update/end` all fire; `# marker\n` → `#中文 marker\n` | 1× Cmd+Z restores original |
+| ja | `com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese` | `nihongo` | `compositionstart/update` fire; `> marker\n` → `>日本語 marker\n` | **Cmd+Z does NOT restore** (3× tried) |
 
-Root cause for both was operator-induced, not product code: another GUI
-application was frontmost during the run (Tencent Lemon, and a TextEdit window
-the operator had opened to probe activation). Activating MarkFlow requires it to
-be frontmost; a foreign frontmost app makes clicks and dialog waits fail
-nondeterministically. Run C (`C15-e2e-lossless.log`) was executed with no other
-GUI activity and passed 28/28. **This is recorded as an environment hazard for
-every future desktop run, not as a flake to retry away.**
+The Japanese gap is recorded as a new product issue:
+`validation/issues/20260830-p4b-ja-kotoeri-undo-compositionend-gap.md`.
+
+## Run hygiene note (discarded / retried runs)
+
+Intermediate desktop runs are preserved in `gates/` and were discarded or
+retried, NOT silently rewritten into passes:
+
+1. `C15-rerun1.log` — `A→B switch` timed out and `headingStrong` raised a WebDriver
+   JS exception. Root cause: another GUI app was frontmost (Tencent Lemon / TextEdit
+   probe). Run C passed 28/28 when executed with no other GUI activity.
+2. A later multi-suite batch overwrote `C15-e2e-lossless.log` with failures caused
+   by an operator-introduced harness regression: P2 Live Preview fixtures had been
+   moved into the `ime` suite block, so the `lossless` suite could not find them.
+   The fixtures were restored to the `lossless` block and the suite was rerun clean
+   (28/28). The failing log was retained in `gates/C15-e2e-lossless.log` until the
+   pass was obtained; the final pass is what appears in the summary above.
+
+**Foreign frontmost apps and harness fixture placement are environment/operator
+hazards, not product flakes to retry away.**
 
 ## Environment adaptations (recorded, not hidden)
 

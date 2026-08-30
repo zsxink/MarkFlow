@@ -36,7 +36,10 @@ export const config = {
   reporters: ['spec'],
   mochaOpts: {
     ui: 'bdd',
-    timeout: 60_000,
+    // The real-IME suite drives physical keystrokes at ~70ms each across two
+    // input sources, so it legitimately needs far longer than the default.
+    // Kept suite-configurable so the ordinary suites stay fast-failing.
+    timeout: Number(process.env.MARKFLOW_E2E_MOCHA_TIMEOUT ?? 60_000),
   },
   services: [[
     'tauri',

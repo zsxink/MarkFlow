@@ -123,6 +123,9 @@ const environment = {
   MARKFLOW_E2E_DATA_DIR: dataDir,
   MARKFLOW_E2E_WORKSPACE: workspace,
   MARKFLOW_E2E_ARTIFACT_DIR: artifactsRoot,
+  // The real-IME suite posts physical keystrokes through the HID tap for two
+  // input sources; 60s is not enough and a timeout there is unactionable.
+  MARKFLOW_E2E_MOCHA_TIMEOUT: suite === 'ime' ? '240000' : '60000',
 };
 
 let failed = true;
@@ -140,13 +143,8 @@ try {
     await writeFile(path.join(workspace, 'p4b-widget-fence.md'), 'before\n\n```js title="keep"\nconst x = 1;\n```\n\nafter\n');
     await writeFile(path.join(workspace, 'p4b-policy-html.md'), '<script>window.__p4bExecuted = true</script>\n<div data-x="1">raw</div>\n');
     await writeFile(path.join(workspace, 'p4b-policy-frontmatter.md'), '---\ntitle: Exact source\ntags: [a, b]\n---\n\n# Body\n');
-  }
-  // ── P4B 7.3 real-IME fixtures ─────────────────────────────────────────
-  // `# marker\n` / `> marker\n` mirror the frozen strings from the earlier
-  // blocked attempt so the new evidence is directly comparable.
-  if (suite === 'ime') {
-    await writeFile(path.join(workspace, 'p4b-ime-zh-Hans.md'), '# marker\n');
-    await writeFile(path.join(workspace, 'p4b-ime-ja.md'), '> marker\n');
+    // P2 Live Preview fixtures cover every basic construct for the semantic
+    // decoration E2E + a zero-edit mode-switch byte-contract case.
     await writeFile(path.join(workspace, 'p2-live-preview-switch.md'),
       '# 切换测试\n\n普通段落。\n');
     await writeFile(path.join(workspace, 'p2-live-preview-constructs.md'),
@@ -160,6 +158,13 @@ try {
       ].join('\n'));
     await writeFile(path.join(workspace, 'p2-live-preview-zeroedit.md'),
       '# 零编辑切换\n\n内容不变。\n');
+  }
+  // ── P4B 7.3 real-IME fixtures ─────────────────────────────────────────
+  // `# marker\n` / `> marker\n` mirror the frozen strings from the earlier
+  // blocked attempt so the new evidence is directly comparable.
+  if (suite === 'ime') {
+    await writeFile(path.join(workspace, 'p4b-ime-zh-Hans.md'), '# marker\n');
+    await writeFile(path.join(workspace, 'p4b-ime-ja.md'), '> marker\n');
   }
   // ── P0S lifecycle fixtures (byte-contract copies, autosave ENABLED) ──
   if (autosaveEnabled) {

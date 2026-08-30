@@ -1,0 +1,4 @@
+openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/20260830-083435-p4b-corrective-a8c73de/gates/C17-e2e-regression.log:139: trailing whitespace.
++Spec Files:	 1 passed, 1 total (100% completed) in 00:00:00
+openspec/changes/refactor-lossless-live-preview/validation/evidence/P4B/20260830-083435-p4b-corrective-a8c73de/gates/C18-e2e-p0s.log:142: trailing whitespace.
++Spec Files:	 1 passed, 1 skipped, 2 total (100% completed) in 00:00:37

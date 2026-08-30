@@ -114,7 +114,27 @@ dist/assets/index-C-1KFi1A.js                                 714.95 kB │ gzip
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 3.94s
+✓ built in 3.72s
    Compiling markflow v0.0.6 (/Users/xian/Project/book/MarkFlow/src-tauri)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.94s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.75s
        Built application at: /Users/xian/Project/book/MarkFlow/src-tauri/target/debug/markflow
+
+Execution of 1 workers started at 2026-08-30T01:53:32.308Z
+
+[0-0] RUNNING in undefined - file:///e2e/specs/lossless/p4b-real-ime.e2e.mjs
+[0-0] PASSED in undefined - file:///e2e/specs/lossless/p4b-real-ime.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: 844cf6d1-1337-4de8-94f2-9749605ccf11
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » e2e/specs/lossless/p4b-real-ime.e2e.mjs
+[webkit 605.1.15 macos #0-0] P4B 7.3 — real system IME composition next to a marker
+[webkit 605.1.15 macos #0-0]    ✓ records a real composition trace for every required CJK input source
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 1 passing (20.9s)
+
+
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:21
+

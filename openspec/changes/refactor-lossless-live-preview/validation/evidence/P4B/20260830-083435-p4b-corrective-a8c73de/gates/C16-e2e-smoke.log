@@ -12,25 +12,25 @@ vite v5.4.21 building for e2e...
 transforming...
 ✓ 2512 modules transformed.
 rendering chunks...
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-css/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-javascript/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-html/dist/index.js is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/codemirror-languages.ts but also statically imported by /Users/xian/Project/book/MarkFlow/node_modules/@codemirror/lang-markdown/dist/index.js, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/imageUtils.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/lossless/editorSurfaceBinding.ts, /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.bubble.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.image.resolver.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.init.ts, /Users/xian/Project/book/MarkFlow/src/lib/editor.ts, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/plantuml-lazy.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/lib/plantuml.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/lib/editor.extensions.ts, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/editor.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/degradationBar.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts, /Users/xian/Project/book/MarkFlow/src/components/linkDialog.ts, /Users/xian/Project/book/MarkFlow/src/components/outline.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.conflict.ts, /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/components/statusbar.ts, /Users/xian/Project/book/MarkFlow/src/components/toolbar.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, /Users/xian/Project/book/MarkFlow/src/utils/keyboard.ts, dynamic import will not move module into another chunk.
 
-[plugin:vite:reporter] [plugin vite:reporter] 
+[plugin:vite:reporter] [plugin vite:reporter]
 (!) /Users/xian/Project/book/MarkFlow/src/lib/lossless/integration.ts is dynamically imported by /Users/xian/Project/book/MarkFlow/src/components/activeDocument.ts but also statically imported by /Users/xian/Project/book/MarkFlow/src/components/sidebar.fileops.ts, /Users/xian/Project/book/MarkFlow/src/main.ts, dynamic import will not move module into another chunk.
 
 computing gzip size...
@@ -114,12 +114,12 @@ dist/assets/index-C-1KFi1A.js                                 714.95 kB │ gzip
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 4.04s
+✓ built in 3.99s
    Compiling markflow v0.0.6 (/Users/xian/Project/book/MarkFlow/src-tauri)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.51s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.89s
        Built application at: /Users/xian/Project/book/MarkFlow/src-tauri/target/debug/markflow
 
-Execution of 6 workers started at 2026-08-30T01:14:40.393Z
+Execution of 6 workers started at 2026-08-30T01:54:51.056Z
 
 [0-0] RUNNING in undefined - file:///e2e/specs/smoke/all-smoke.e2e.mjs
 [0-0] PASSED in undefined - file:///e2e/specs/smoke/all-smoke.e2e.mjs
@@ -127,7 +127,7 @@ Execution of 6 workers started at 2026-08-30T01:14:40.393Z
  "spec" Reporter:
 ------------------------------------------------------------------
 [webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
-[webkit 605.1.15 macos #0-0] Session ID: 696212b2-b983-4975-acd8-7c41ac729140
+[webkit 605.1.15 macos #0-0] Session ID: ff3f4c69-b3e7-443a-ae66-62c0ae10e0fe
 [webkit 605.1.15 macos #0-0]
 [webkit 605.1.15 macos #0-0] » e2e/specs/smoke/all-smoke.e2e.mjs
 [webkit 605.1.15 macos #0-0] MarkFlow smoke: launch
@@ -145,8 +145,8 @@ Execution of 6 workers started at 2026-08-30T01:14:40.393Z
 [webkit 605.1.15 macos #0-0] MarkFlow smoke: settings panel
 [webkit 605.1.15 macos #0-0]    ✓ opens settings, switches tabs, toggles theme, and persists state on reopen
 [webkit 605.1.15 macos #0-0]
-[webkit 605.1.15 macos #0-0] 5 passing (1.4s)
+[webkit 605.1.15 macos #0-0] 5 passing (1.3s)
 
 
-Spec Files:	 1 passed, 5 skipped, 6 total (100% completed) in 00:00:04  
+Spec Files:	 1 passed, 5 skipped, 6 total (100% completed) in 00:00:04
 

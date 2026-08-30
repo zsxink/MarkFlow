@@ -1,5 +1,7 @@
 # m0-architecture-baseline Specification
 
+> Status: Deprecated historical record. The MarkFlow Core M0–M8 program is closed; the requirements below preserve its former planning baseline and MUST NOT be used to initiate new M0–M8 implementation work.
+
 ## Purpose
 
 Defines the executable M0 architecture baseline for MarkFlow Core before M1 Core Foundation begins.
@@ -9,9 +11,9 @@ Defines the executable M0 architecture baseline for MarkFlow Core before M1 Core
 ### Requirement: M0 freezes executable architecture baseline
 M0 SHALL freeze the MarkFlow Core architecture baseline as an executable planning artifact, not as a documentation-only discussion.
 
-#### Scenario: Baseline references stage documents
+#### Scenario: Baseline remains available after stage-document removal
 - **WHEN** M0 artifacts are reviewed
-- **THEN** they SHALL reference `docs/markflow-core-stages/product-plan.md`, `technical-plan.md`, `feature-migration-matrix.md`, and `m0-architecture-baseline.md` through `m8-export-ir-host-portability-full-migration.md`
+- **THEN** they SHALL be treated as self-contained historical records and SHALL NOT require the removed stage documents
 
 #### Scenario: Later proposals can cite M0
 - **WHEN** a later M1-M8 OpenSpec proposal is created

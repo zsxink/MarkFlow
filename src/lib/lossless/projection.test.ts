@@ -123,7 +123,7 @@ import {
   resetOwnerRegistry,
 } from './renderOwnerRegistry';
 import { createLosslessSourceEditor } from './losslessSourceEditor';
-import { runScopeHandlers, type EditorView } from '@codemirror/view';
+import { runScopeHandlers, EditorView } from '@codemirror/view';
 import type { Transaction } from '@codemirror/state';
 
 let dir: string;
@@ -1263,7 +1263,7 @@ describe('P6 M1 — hidden markers (heading + thematic break)', () => {
     expect(view.state.doc.toString()).toBe(md);
   });
 
-  it('hidden marker production does not create a doc transaction (History / bytes stable)', async () => {
+  it('hidden marker production does not create a doc-changing transaction (History / bytes stable)', async () => {
     setLosslessCoreSessionEnabled(true);
     setLivePreviewEnabled(true);
     const md = '# Heading\n\ntext\n';
@@ -1273,14 +1273,18 @@ describe('P6 M1 — hidden markers (heading + thematic break)', () => {
     const view = binding.editor.view;
     setLivePreviewProjection('heading', true);
     setLivePreviewHidden('heading', true);
-    // Entering preview + hiding builds decorations only — no doc-changing transaction.
-    const docBefore = view.state.doc.toString();
-    const revBefore = view.state.doc.length;
+    // Entering preview + hiding builds DECORATIONS only. `EditorState.doc` is an
+    // immutable `Text`: CodeMirror reuses the identical instance across every
+    // transaction that does not change the document, so asserting object identity
+    // here directly proves that NO docChanged transaction was dispatched — and
+    // therefore that no History entry was created. (The mode switch does dispatch
+    // a selection-only transaction; that is not a doc change and must not
+    // invalidate this.) A string/length compare alone could not make that claim.
+    const docBefore = view.state.doc;
     binding.setMode('preview');
     view.dispatch({ selection: { anchor: md.indexOf('text') } });
-    expect(view.state.doc.toString()).toBe(docBefore);
-    expect(view.state.doc.length).toBe(revBefore);
-    // The doc is byte-identical; no History entry for a pure projection change.
+    expect(view.state.doc).toBe(docBefore);
+    expect(view.state.doc.toString()).toBe(md);
     expect(getProjectionSnapshot().state).toBe('rendered');
   });
 

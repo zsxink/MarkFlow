@@ -1,5 +1,7 @@
 # M5: Core-backed WYSIWYG Editing MVP
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 建立 Core-backed 所见即所得编辑模式，作为 MarkFlow 长期 WYSIWYG 的新主路径。

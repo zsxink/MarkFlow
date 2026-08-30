@@ -1,5 +1,7 @@
 # M6: Core Edit Commands, History and Existing Feature Migration
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 将工具栏、快捷键、历史记录和现有编辑能力迁移到 Core/Editor Adapter，确保 Source Mode 与 WYSIWYG 行为一致。

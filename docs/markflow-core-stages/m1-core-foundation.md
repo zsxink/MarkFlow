@@ -1,5 +1,7 @@
 # M1: Core Foundation
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 建立 `markflow-core` 的最小文档内核，先证明 MarkFlow 可以做到：

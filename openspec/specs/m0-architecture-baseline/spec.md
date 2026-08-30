@@ -1,5 +1,7 @@
 # m0-architecture-baseline Specification
 
+> Status: Deprecated historical record. The MarkFlow Core M0–M8 program is closed; the requirements below preserve its former planning baseline and MUST NOT be used to initiate new M0–M8 implementation work.
+
 ## Purpose
 
 Defines the executable M0 architecture baseline for MarkFlow Core before M1 Core Foundation begins.

@@ -1,7 +1,7 @@
 # MarkFlow Core 重构产品方案
 
-> 状态：方案已校准，待 M0 技术基线冻结
-> 更新日期：2026-07-25
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+> 原更新日期：2026-07-25
 > 主题：将 MarkFlow 从富文本树驱动的 Markdown 编辑器，重构为 Lossless Markdown Engine 驱动的本地优先写作工具。
 > 配套文档：`technical-plan.md`、`feature-migration-matrix.md`
 

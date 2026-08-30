@@ -1,5 +1,7 @@
 # M4: SolidJS App Shell and Editor Adapter
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 以增量替换方式将应用外壳迁移到 SolidJS，并建立稳定的 Editor Adapter 边界。

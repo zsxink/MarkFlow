@@ -1,5 +1,7 @@
 # M2: Parse Index, StyleMap and Large Document Policy
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 让 Core 能理解 Markdown 的基础块结构，捕获原文风格信息，并建立按文件大小触发的大文件策略。

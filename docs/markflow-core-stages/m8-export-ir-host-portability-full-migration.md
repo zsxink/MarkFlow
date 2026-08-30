@@ -1,5 +1,7 @@
 # M8: Export IR, Host Portability and Full Migration
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 完成导出统一、Host Adapter 边界稳定和现有功能全量迁移，移除旧 ProseMirror serializer 保存真相链路。

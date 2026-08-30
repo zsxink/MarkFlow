@@ -1,7 +1,7 @@
 # MarkFlow Core 重构技术方案
 
-> 状态：方案已校准，待 M0 spike 冻结关键选型
-> 更新日期：2026-07-25
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+> 原更新日期：2026-07-25
 > 目标：设计 `markflow-core`，将 Markdown 文档核心能力从前端编辑器收拢到 Rust。
 > 配套文档：`product-plan.md`、`feature-migration-matrix.md`
 

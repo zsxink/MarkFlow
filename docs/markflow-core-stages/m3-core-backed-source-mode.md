@@ -1,5 +1,7 @@
 # M3: Core-backed Source Mode
 
+> 状态：已废弃（历史方案）。MarkFlow Core M0–M8 大重构已关闭；本文仅保留作历史架构记录，不得作为当前路线图或实施依据。
+
 ## 阶段目标
 
 让 Source Mode 率先接入 Core session，并让保存内容只来自 Core confirmed snapshot，不再来自前端 Markdown serializer。

@@ -468,6 +468,11 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 `run2.log` 的 `perKeyTrace` 现在把正确序列固定下来了：键入 → `Return` 确认
 （此时 `composing` 转 false）→ 再 `cmd+z`。P6 可直接复用这段作为 harness 范本。
 
+> **注意这句范本的代价**：它描述的是**绕开**问题，不是覆盖问题。
+> 真正的未覆盖场景（未提交 composition 时按 Cmd+Z）已登记为
+> **P6 open item ①**，见「交 P6 的 open items」一节。两处必须一起读，
+> 否则会误以为「按范本写就安全了」。
+
 ### 由此暴露的披露缺陷（执行流自己登记）
 
 `HUMAN-ACCEPTANCE.md:67` 写 `item3.recovered.projectionState = 'rendered'`，
@@ -503,15 +508,25 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 
 ## 已知缺口（交独立 Reviewer 判定，不由执行流自行关闭）
 
-1. **各 item 缺少独立 RUN 叙事**：7.9/7.10 要求「每项独立运行并记录 maturity/default/fallback」，
-   目前证据散落在 C01/C10/C15 的 gate 日志中，没有 per-item 的 RUN 记录。属**记录缺口**，
-   不是验证缺口；但必须先补上才谈得上 per-item Go。
-2. **source-based clipboard 只覆盖到 widget 按钮，选区 copy 无证据**（2026-08-30 缩小范围后重述）：
+1. ~~**各 item 缺少独立 RUN 叙事**~~ —— **已于 `4ed51b9`（08-30 11:13）补齐，本条过期**。
+   四个 per-item 文件均已存在且含 7.9/7.10 要求的 maturity / default / fallback 三要素：
+   `phases/P4B-task-checkbox.md`（81 行）、`P4B-code-fence-controls.md`（79 行）、
+   `P4B-frontmatter.md`（61 行）、`P4B-raw-html.md`（65 行）。
+   四者的裁决行统一为 **`P4B-ITEM-<name>-GO/NO-GO` = PENDING —— 不自我批准**。
+
+   **为什么这条过期陈述值得单独记一笔**：它写于 `ec718b4`（10:39），
+   而补齐动作发生在 **34 分钟后**的 `4ed51b9`（11:13）——同一个提交既补了文件、
+   又没回头删掉已被解决的缺口陈述，还顺带制造了 N-1（就地改写已封存 run）。
+   **「改了一处忘了另一处」在本项目已重复出现三次**（F-1 / N-1 / 本条）。
+   建议 P6 起：任何「关闭一个缺口」的提交，必须同提交内删除对应缺口陈述，
+   否则缺口清单会持续堆积幻觉 blocker，直接误导 PO 裁决。
+2. **source-based clipboard：选区 copy/cut 已闭合**（2026-08-30 已关闭；
+   原标题「选区 copy 无证据」为**过期标题**，正文早已记录关闭，标题与正文自相矛盾，已改）
    - **已有**：`e2e/specs/lossless/p4b-widgets.e2e.mjs:199` 与 `:233` 断言 fence widget 的
      copy 按钮（点击与 Enter 两种激活方式）写入 `const x = 1;`，即 fence 的 **source 内容**。
      这是一条真实存在的 source-based clipboard 断言，此前记成「未确认」是不准确的。
-   - **缺失**：**基于选区的 copy/cut（Cmd+C / Cmd+X）plain-text payload 是否为完整 Markdown
-     source** —— `src/lib/lossless/` 下无任何剪贴板单元测试，桌面 suite 中亦无对应断言。
+   - **曾经缺失（现已补）**：基于选区的 copy/cut（Cmd+C / Cmd+X）plain-text payload
+     是否为完整 Markdown source —— `src/lib/lossless/` 下仍无剪贴板**单元**测试。
    - **为什么这条不能只靠推理**：CodeMirror 的 `handlers.copy` 用
      `copiedRange()` → `state.sliceDoc()`，P4B 又不输出 `hidden`，所以**结构上**选区 copy
      天然产出 source。但「结构上应当如此」不等于「有证据」，而 P6 的

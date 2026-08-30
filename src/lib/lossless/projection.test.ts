@@ -108,8 +108,12 @@ import {
   resetProjectionSnapshot,
   setProjectionTestFailMode,
   linkFormGeometry,
+  blockQuoteGeometry,
+  blockListGeometry,
+  blockFenceGeometry,
   type ConstructRange,
   type LinkSub,
+  type FenceSub,
 } from './projection';
 import {
   resetAllCohortFlags,
@@ -2350,6 +2354,556 @@ describe('P6 M2b — link boundary delete keeps the paired syntax intact (ADR ma
       h.view.dispatch({ selection: { anchor: 27 } });
       h.press('Backspace');
       expect(h.view.state.doc.toString()).toBe('[text](https://example.com tail');
+    } finally {
+      h.destroy();
+    }
+  });
+});
+
+// ── P6 M3 — hidden markers for quote / list (ordered / unordered / task) / fence ──
+//
+// Fourth/fifth P6 cohorts, behind `livePreview.quote` / `livePreview.list` /
+// `livePreview.fence` (+ their `.hidden` switches), all default OFF. These are
+// BLOCK-level markers — the `>` of a blockquote, the `-`/`1.`/`- [ ]` of a list
+// item, and the opening/closing ``` of a fenced code block — unlike the M2a/M2b
+// inline delimiters. Three block-specific rules (design §4 / §9; tasks §9.6/9.8):
+//
+//   1. EMPTY blocks stay discoverable: an empty quote keeps its `>`, an empty
+//      list item keeps its bullet/number/checkbox, an empty fence keeps its
+//      shell + language.
+//   2. P4B widget linkage: a GFM task's `[ ]` checkbox is owned by the taskCheckbox
+//      WIDGET, never double-hidden by the list-item hide (only the `-` is hidden).
+//   3. A malformed (UNCLOSED) fence stays exact source — never a half-hidden
+//      fence. hidden-marker boundary delete keeps the block skeleton on
+//      Backspace/Delete (ADR §6 cross-cutting block rule).
+
+export function enableBlockConstructHidden(kind: 'quote' | 'list' | 'fence'): void {
+  setLivePreviewProjection(kind, true);
+  setLivePreviewHidden(kind, true);
+}
+
+interface M3Harness {
+  view: EditorView;
+  txs: Transaction[];
+  press(key: string, shift?: boolean): boolean;
+  destroy(): void;
+}
+
+/** Product-stack harness with the given block construct's hidden flag ON. */
+function m3Harness(source: string, kind: 'quote' | 'list' | 'fence', enableFlags = true): M3Harness {
+  const parent = document.createElement('div');
+  document.body.appendChild(parent);
+  const txs: Transaction[] = [];
+  const handle: ReturnType<typeof createLosslessSourceEditor> = createLosslessSourceEditor(
+    parent,
+    source,
+    {
+      livePreview: true,
+      mode: 'preview',
+      onTransaction(transactions) {
+        txs.push(...transactions);
+      },
+    },
+  );
+  if (enableFlags) enableBlockConstructHidden(kind);
+  return {
+    view: handle.view,
+    txs,
+    press(key, shift = false) {
+      return runScopeHandlers(
+        handle.view,
+        new KeyboardEvent('keydown', { key, shiftKey: shift, cancelable: true }),
+        'editor',
+      );
+    },
+    destroy: () => handle.destroy(),
+  };
+}
+
+describe('P6 M3 — block hidden geometry (quote / ordered / unordered / task / fence)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  it('quote hides every `>` marker, keeps quoted text visible, bytes untouched', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '> hello\n> world\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-quote.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('quote');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } }); // far away (>2)
+
+    const snapshot = getProjectionSnapshot();
+    const quote = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.blockquote)!;
+    expect(quote).toBeDefined();
+    expect(quote.visibility).toBe('hidden');
+    // Both `>` markers [0,1) and [8,9) are hidden atomic.
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 1], [8, 9]]));
+    // The `>` markers are replaced; the quoted text stays (CM renders each
+    // quoted line as its own `.mf-blockquote` element) and no `.mf-marker` ghost
+    // remains. The source bytes are untouched.
+    expect(view.contentDOM.textContent).toContain('hello');
+    expect(view.contentDOM.textContent).toContain('world');
+    expect(view.contentDOM.querySelectorAll('span.mf-marker').length).toBe(0);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('unordered list hides the `-`, keeps item text visible, bytes untouched', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '- apple\n- banana\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-list.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('list');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const items = snapshot.constructs.filter((c) => c.cls === PROJECTION_CLASSES.listItem);
+    expect(items.length).toBe(2);
+    expect(items.every((i) => i.visibility === 'hidden')).toBe(true);
+    // The two `-` markers [0,1) and [8,9) are hidden atomic.
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 1], [8, 9]]));
+    expect(view.contentDOM.querySelector('span.mf-list-item')?.textContent).toBe(' apple');
+    // The `-` marker is hidden: the rendered text no longer shows `- apple`.
+    expect(view.contentDOM.textContent).not.toContain('- apple');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('ordered list hides the number marker `1.` `2.`, keeps text visible', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '1. first\n2. second\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-olist.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('list');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const items = snapshot.constructs.filter((c) => c.cls === PROJECTION_CLASSES.listItem);
+    // Marker spans are the `1.` (len 2) and `2.` (len 2) ListMarks.
+    expect(items.every((i) => i.visibility === 'hidden')).toBe(true);
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 2], [9, 11]]));
+    expect(view.contentDOM.querySelector('span.mf-list-item')?.textContent).toBe(' first');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('task list: the `-` is hidden but the `[ ]` checkbox stays (P4B widget owns it)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '- [ ] todo\n- [x] done\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-task.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('list');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const items = snapshot.constructs.filter((c) => c.cls === PROJECTION_CLASSES.listItem);
+    expect(items.every((i) => i.visibility === 'hidden')).toBe(true);
+    // Only the two `-` bullets [0,1) and [11,12) are hidden — the `[ ]`/`[x]`
+    // TaskMarker (owner = widget) at [2,5) / [13,16) is NOT replaced by this
+    // projection (no double-hide of the widget's slot).
+    expect(snapshot.hiddenAtomic).toEqual([[0, 1], [11, 12]]);
+    expect(snapshot.hiddenAtomic.some(([f, t]) => (f >= 2 && t <= 5) || (f >= 13 && t <= 16))).toBe(false);
+    // The item body text stays visible.
+    expect(view.contentDOM.textContent).toContain('todo');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('fence hides the open/close ``` and language, keeps the code body visible', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '```js\nconst x = 1;\n```\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-fence.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('fence');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const fence = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.fence)!;
+    expect(fence).toBeDefined();
+    expect(fence.visibility).toBe('hidden');
+    // Open [0,3) ```, language [3,5) `js`, close [19,22) ``` hidden atomic.
+    expect(snapshot.hiddenAtomic).toEqual(expect.arrayContaining([[0, 3], [3, 5], [19, 22]]));
+    expect(view.contentDOM.querySelector('span.mf-fence')?.textContent).toBe('const x = 1;');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('empty quote keeps its `>` visible (discoverable), not hidden', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '>\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-emptyquote.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('quote');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const quote = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.blockquote)!;
+    expect(quote).toBeDefined();
+    expect(quote.visibility).toBe('visible'); // empty → discoverable, never hidden
+    expect(snapshot.hiddenAtomic).toEqual([]);
+    // The `>` bar stays visible as blockquote content (discoverable).
+    expect(view.contentDOM.querySelector('span.mf-blockquote')?.textContent).toContain('>');
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('empty list item keeps its bullet visible (discoverable), not hidden', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '- \n- item\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-emptylist.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('list');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const items = snapshot.constructs.filter((c) => c.cls === PROJECTION_CLASSES.listItem);
+    expect(items.length).toBe(2);
+    // The empty `- ` item (0,2) stays visible (bullet discoverable); the
+    // non-empty `- item` (3,9) is hidden.
+    const empty = items.find((i) => i.from === 0)!;
+    const nonEmpty = items.find((i) => i.from === 3)!;
+    expect(empty.visibility).toBe('visible');
+    expect(nonEmpty.visibility).toBe('hidden');
+    // Only the non-empty item's `-` [3,4) is hidden — never the empty bullet.
+    expect(snapshot.hiddenAtomic).toEqual([[3, 4]]);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('empty fence keeps its shell + language visible (discoverable), not hidden', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '```js\n```\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-emptyfence.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('fence');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    const fence = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.fence)!;
+    expect(fence).toBeDefined();
+    expect(fence.visibility).toBe('visible'); // no code body → shell discoverable
+    expect(snapshot.hiddenAtomic).toEqual([]);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('malformed (unclosed) fence is NOT hidden — stays exact source', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '```js\nconst x = 1;\n\n\n\n\ntail text\n'; // no closing ```
+    const path = await writeFixture('p6-m3-unclosed.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('fence');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('const') + 3 } });
+
+    const snapshot = getProjectionSnapshot();
+    const fence = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.fence);
+    // An unclosed fence still parses as a FencedCode; it must never be hidden
+    // (its open/close markers can't both be found) — dimmed at most, no atoms.
+    expect(fence).toBeDefined();
+    expect(fence!.visibility).not.toBe('hidden');
+    expect(snapshot.hiddenAtomic).toEqual([]);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('block geometry pure functions resolve quote/list/fence ranges exactly', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const doc = Text.of(['> hello\n', '> world\n', '\n', 'tail\n']);
+    const quote: ConstructRange = {
+      from: 0, to: 17,
+      markers: [[0, 1], [8, 9]],
+      cls: PROJECTION_CLASSES.blockquote,
+    };
+    const qg = blockQuoteGeometry(quote)!;
+    expect(qg.kind).toBe('quote');
+    expect(qg.hide).toEqual([[0, 1], [8, 9]]);
+
+    const item: ConstructRange = {
+      from: 20, to: 31,
+      markers: [[20, 21]],
+      cls: PROJECTION_CLASSES.listItem,
+    };
+    const lg = blockListGeometry(item)!;
+    expect(lg.kind).toBe('list');
+    expect(lg.hide).toEqual([[20, 21]]);
+    if (lg.kind !== 'list') throw new Error('unexpected block kind');
+    expect(lg.contentFrom).toBe(21);
+
+    const fence: ConstructRange = { from: 0, to: 21, markers: [], cls: PROJECTION_CLASSES.fence };
+    const subs: FenceSub[] = [
+      { name: 'CodeMark', from: 0, to: 3 },
+      { name: 'CodeInfo', from: 3, to: 5 },
+      { name: 'CodeText', from: 6, to: 18 },
+      { name: 'CodeMark', from: 18, to: 21 },
+    ];
+    const fg = blockFenceGeometry(fence, subs)!;
+    expect(fg.kind).toBe('fence');
+    expect(fg.hide).toEqual([[0, 3], [3, 5], [18, 21]]);
+    if (fg.kind !== 'fence') throw new Error('unexpected block kind');
+    expect(fg.bodyFrom).toBe(6);
+    expect(fg.bodyTo).toBe(18);
+
+    // Unclosed fence → null (exact source).
+    const unclosed = blockFenceGeometry(
+      { from: 0, to: 21, markers: [], cls: PROJECTION_CLASSES.fence },
+      [
+        { name: 'CodeMark', from: 0, to: 3 },
+        { name: 'CodeInfo', from: 3, to: 5 },
+        { name: 'CodeText', from: 6, to: 21 },
+      ],
+    );
+    expect(unclosed).toBeNull();
+
+    // `doc` is intentionally exercised to keep the helper's dependency visible.
+    expect(doc.length).toBeGreaterThan(0);
+  });
+
+  it('rollback: .hidden OFF dims the block; construct OFF returns to source — bytes never change', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '> hidden\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-rollback.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('quote');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    // hidden
+    let snapshot = getProjectionSnapshot();
+    expect(snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.blockquote)?.visibility).toBe('hidden');
+    expect(snapshot.hiddenAtomic.length).toBeGreaterThan(0);
+
+    // .hidden OFF → dimmed (marker shown weak, not hidden), no byte change.
+    setLivePreviewHidden('quote', false);
+    view.dispatch({ selection: { anchor: md.indexOf('tail') + 1 } }); // force rebuild
+    snapshot = getProjectionSnapshot();
+    expect(snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.blockquote)?.visibility).toBe('dimmed');
+    expect(snapshot.hiddenAtomic).toEqual([]);
+    expect(view.state.doc.toString()).toBe(md);
+
+    // construct OFF → source: blockquote is still a local construct (default
+    // owner), but no longer hidden-capable — it falls to dimmed, no atoms.
+    setLivePreviewProjection('quote', false);
+    view.dispatch({ selection: { anchor: md.indexOf('tail') + 2 } });
+    snapshot = getProjectionSnapshot();
+    const quoteAfter = snapshot.constructs.find((c) => c.cls === PROJECTION_CLASSES.blockquote);
+    expect(quoteAfter).toBeDefined();
+    expect(quoteAfter!.visibility).toBe('dimmed');
+    expect(snapshot.hiddenAtomic).toEqual([]);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+
+  it('hiding quote / list / fence dispatches no doc-changing transaction (History / bytes stable)', async () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const md = '> q\n- item\n```js\ncode\n```\n\n\n\n\ntail text\n';
+    const path = await writeFixture('p6-m3-notx.md', md);
+    expect(await openLosslessDocument(path)).toBe(true);
+    const binding = getActiveLosslessBinding()!;
+    const view = binding.editor.view;
+    enableBlockConstructHidden('quote');
+    enableBlockConstructHidden('list');
+    enableBlockConstructHidden('fence');
+    binding.setMode('preview');
+    view.dispatch({ selection: { anchor: md.indexOf('tail') } });
+
+    const snapshot = getProjectionSnapshot();
+    expect(snapshot.hiddenAtomic.length).toBeGreaterThan(0);
+    const docs = new Set([view.state.doc]);
+    // Toggle a flag and rebuild — the doc object must stay identical (the show/
+    // hide never dispatches a doc-changing transaction).
+    setLivePreviewHidden('list', false);
+    view.dispatch({ selection: { anchor: md.indexOf('tail') + 1 } });
+    expect(docs.has(view.state.doc)).toBe(true);
+    expect(view.state.doc.toString()).toBe(md);
+    // Re-enable and rebuild — still the identical doc.
+    setLivePreviewHidden('list', true);
+    view.dispatch({ selection: { anchor: md.indexOf('tail') + 2 } });
+    expect(docs.has(view.state.doc)).toBe(true);
+    expect(view.state.doc.toString()).toBe(md);
+  });
+});
+
+describe('P6 M3 — block boundary delete keeps the skeleton intact (ADR matrix)', () => {
+  beforeEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+  afterEach(() => {
+    resetAllLivePreviewFlags();
+    resetAllCohortFlags();
+  });
+
+  it('Backspace right after the hidden `>` of a quote does not delete it (NoOp)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('> hi\n', 'quote');
+    try {
+      // Quote `> hi\n` is Blockquote [0,4): `>` marker [0,1). Backspace at the
+      // inner boundary right after the `>` (pos 1) would eat the marker — the
+      // hidden-marker handler NoOps it so the `>` skeleton survives.
+      h.view.dispatch({ selection: { anchor: 1 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('> hi\n');
+      expect(h.txs.length).toBe(0); // consumed, no doc change
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace at the end of a quote deletes a content grapheme, keeps `>`', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('> ab\n', 'quote');
+    try {
+      // Caret at range.to (4) — not a marker boundary — is an ordinary source
+      // backspace that removes the last content grapheme `b`; `>` untouched.
+      h.view.dispatch({ selection: { anchor: 4 } });
+      h.press('Backspace');
+      expect(h.view.state.doc.toString()).toBe('> a\n');
+      expect(h.view.state.selection.main.anchor).toBe(3);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Delete right before the hidden `>` of a quote does not delete it (NoOp)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('> hi\n', 'quote');
+    try {
+      h.view.dispatch({ selection: { anchor: 0 } });
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('> hi\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace right after the hidden `-` of a list item keeps the bullet (NoOp)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('- hi\n', 'list');
+    try {
+      // ListItem [0,4): `-` marker [0,1). Backspace at the inner boundary right
+      // after the `-` (pos 1) would eat the bullet — the handler NoOps it.
+      h.view.dispatch({ selection: { anchor: 1 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('- hi\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace right before a fence closing ``` is a NoOp (never eats a backtick)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('```\nabc\n```\n', 'fence');
+    try {
+      // FencedCode [0,11): open ``` [0,3), body `abc` [4,7), close ``` [8,11).
+      // Backspace at closeFrom (8) would eat the first closing backtick — the
+      // handler NoOps it so both ``` marks survive.
+      h.view.dispatch({ selection: { anchor: 8 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('```\nabc\n```\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Backspace right after a fence opening ``` is a NoOp (never eats a backtick)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('```\nabc\n```\n', 'fence');
+    try {
+      h.view.dispatch({ selection: { anchor: 3 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('```\nabc\n```\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('Delete right before a fence opening ``` is a NoOp (never eats a backtick)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('```\nabc\n```\n', 'fence');
+    try {
+      h.view.dispatch({ selection: { anchor: 0 } });
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('```\nabc\n```\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('flag OFF leaves plain source deletion — the block handler is inert', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('> hi\n', 'quote', false);
+    try {
+      // With quote hidden OFF (default), Backspace is an ordinary source delete
+      // (no skeleton guard): it removes the char before the caret.
+      h.view.dispatch({ selection: { anchor: 3 } });
+      h.press('Backspace');
+      expect(h.view.state.doc.toString()).toBe('> i\n');
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('a task item checkbox is never part of the hidden atomic set (P4B widget linkage)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('- [ ] todo\n', 'list');
+    try {
+      const snapshot = getProjectionSnapshot();
+      expect(snapshot.state).toBe('rendered');
+      // The `[ ]` TaskMarker [2,5) must never be hidden/replaced by the list.
+      expect(
+        snapshot.hiddenAtomic.some(([f, t]) => f >= 2 && t <= 5),
+      ).toBe(false);
     } finally {
       h.destroy();
     }

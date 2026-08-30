@@ -36,6 +36,8 @@
 import { EditorState, Prec, type Extension } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
 import { EditorView, keymap, type KeyBinding } from '@codemirror/view';
+import { syntaxTree } from '@codemirror/language';
+import type { SyntaxNode } from '@lezer/common';
 import { getProjectionSnapshot, pairedInlineGeometry, type ConstructRange } from './projection';
 import { clsToLivePreviewConstruct, isLivePreviewHiddenOn } from './livePreviewFlags';
 
@@ -117,6 +119,89 @@ function linkBoundaryHit(range: ConstructRange, pos: number, backwards: boolean)
 }
 
 /**
+ * M3 block (quote / list / fence) boundary hit (ADR §6 cross-cutting block rule).
+ *
+ * The block markers are the OPENING syntax at each block line (`>` of a quote,
+ * `-`/`1.`/`- [ ]` of a list item) plus a fence's opening/closing ```. When the
+ * caret sits exactly at a block-marker inner boundary, an ordinary source
+ * Backspace/Delete would silently eat one of those invisible syntax characters
+ * and break the block skeleton — so the ADR protects it:
+ *
+ *   - Backspace right AFTER the opening marker (caret at content start) → reveal
+ *     and NoOp (a delimiter is never removed on its own); the deliberately
+ *     structural "remove a marker layer / list level" Backspace stays with
+ *     `structuralInteraction`, which runs FIRST and consumes it.
+ *   - Delete right BEFORE the opening marker → reveal and NoOp.
+ *   - For a fence, Backspace right BEFORE its CLOSING ``` deletes the body's
+ *     last grapheme (the closing mark stays whole).
+ *
+ * The fence's open/close geometry cannot come from `range.markers` (frozen
+ * empty) and is resolved here from the Lezer tree so the snapshot shape is
+ * untouched. Returns null at ordinary positions → source deletion.
+ */
+function blockBoundaryHit(
+  view: EditorView,
+  range: ConstructRange,
+  pos: number,
+  backwards: boolean,
+): BoundaryHit | null {
+  const kind = clsToLivePreviewConstruct(range.cls);
+  if (kind === 'quote' || kind === 'list') {
+    const m = range.markers;
+    if (m.length === 0) return null;
+    const afterMarker = m[0][1]; // content starts right after the first marker
+    if (backwards && pos === afterMarker) return { kind: 'noop' }; // don't eat `>`/`-`
+    if (!backwards && pos === range.from) return { kind: 'noop' }; // don't eat `>`/`-`
+    return null;
+  }
+  if (kind === 'fence') {
+    const marks = fenceMarksAt(view, range);
+    if (!marks) return null;
+    // Inner boundaries around EITHER ``` — never delete a single backtick
+    // (ADR §6 cross-cutting: Backspace after opening / before closing → reveal
+    // and NoOp). Block markers are opening-style, so the skeleton is preserved.
+    if (backwards && pos === marks.openTo) return { kind: 'noop' }; // after opening ```
+    if (!backwards && pos === range.from) return { kind: 'noop' }; // before opening ```
+    if (backwards && pos === marks.closeFrom) return { kind: 'noop' }; // before closing ```
+    return null;
+  }
+  return null;
+}
+
+/** Resolve a fence construct's open/close marks + body bounds from the Lezer tree. */
+interface FenceMarks {
+  openTo: number;
+  closeFrom: number;
+  bodyFrom: number;
+}
+function fenceMarksAt(view: EditorView, range: ConstructRange): FenceMarks | null {
+  const tree = syntaxTree(view.state);
+  // Resolve at range.from + 1, NOT range.from: a `side:0` resolution AT the exact
+  // fence start returns the Document root (the position sits on a node boundary),
+  // so walking `parent` never reaches FencedCode. One char in is guaranteed to be
+  // inside the opening ``` (a real fence's open mark is ≥3 backticks).
+  const node = tree.resolveInner(Math.min(range.from + 1, view.state.doc.length), 0);
+  let cur: SyntaxNode | null = node;
+  while (cur && cur.name !== 'FencedCode') cur = cur.parent;
+  if (!cur) return null;
+  let openTo = -1;
+  let closeFrom = -1;
+  let bodyFrom = -1;
+  let child: SyntaxNode | null = cur.firstChild;
+  for (; child; child = child.nextSibling) {
+    if (child.name === 'CodeMark' && openTo < 0) {
+      openTo = child.to;
+    } else if (child.name === 'CodeMark') {
+      closeFrom = child.from;
+    } else if (child.name === 'CodeText') {
+      bodyFrom = child.from;
+    }
+  }
+  if (openTo < 0 || closeFrom < 0) return null; // unclosed / no open mark — malformed
+  return { openTo, closeFrom, bodyFrom: bodyFrom < 0 ? openTo : bodyFrom };
+}
+
+/**
  * Find the paired inline construct whose marker boundary the caret sits at.
  * Returns `null` when the caret is at an ordinary source position, so Backspace/
  * Delete fall through to the default (exact-source) behaviour.
@@ -140,9 +225,19 @@ function boundaryHitAt(view: EditorView, pos: number, backwards: boolean): Bound
     // M2b link: non-symmetric multi-segment marker with its own boundary
     // resolution (a naked URL child has markers=[] → linkBoundaryHit returns
     // null and we keep scanning for a deeper/more relevant candidate).
-    if (clsToLivePreviewConstruct(range.cls) === 'link') {
+    const kind = clsToLivePreviewConstruct(range.cls);
+    // M2b link: non-symmetric multi-segment marker with its own boundary
+    // resolution (a naked URL child has markers=[] → linkBoundaryHit returns
+    // null and we keep scanning for a deeper/more relevant candidate).
+    if (kind === 'link') {
       const linkHit = linkBoundaryHit(range, pos, backwards);
       if (linkHit) return linkHit;
+      continue;
+    }
+    // M3 block (quote / list / fence): block-marker boundary resolution.
+    if (kind === 'quote' || kind === 'list' || kind === 'fence') {
+      const blockHit = blockBoundaryHit(view, range, pos, backwards);
+      if (blockHit) return blockHit;
       continue;
     }
     const geo = pairedInlineGeometry(range);

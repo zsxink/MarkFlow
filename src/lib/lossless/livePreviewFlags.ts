@@ -24,7 +24,12 @@ export type LivePreviewConstruct =
   | 'emphasis'
   | 'strikethrough'
   | 'inlineCode'
-  | 'link';
+  | 'link'
+  // M3 block cohort: quote / list / fence (each with its own independent
+  // projection ↔ hidden switch pair, default OFF).
+  | 'quote'
+  | 'list'
+  | 'fence';
 
 export const LIVE_PREVIEW_CONSTRUCTS: readonly LivePreviewConstruct[] = Object.freeze([
   'heading',
@@ -34,6 +39,9 @@ export const LIVE_PREVIEW_CONSTRUCTS: readonly LivePreviewConstruct[] = Object.f
   'strikethrough',
   'inlineCode',
   'link',
+  'quote',
+  'list',
+  'fence',
 ]);
 
 /**
@@ -192,5 +200,11 @@ export function clsToLivePreviewConstruct(cls: string): LivePreviewConstruct | n
   // same `mf-link` class but is NOT a hideable form (no LinkMark skeleton) — the
   // hiding path below declines it (markers.length < 2 → dimmed).
   if (cls === 'mf-link') return 'link';
+  // M3 block cohort: quote / list / fence. Their block markers are the
+  // QuoteMark / ListMark spans (fence markers stay frozen-empty; its open/close
+  // geometry is resolved separately from the FencedCode node sub-nodes).
+  if (cls === 'mf-blockquote') return 'quote';
+  if (cls === 'mf-list-item') return 'list';
+  if (cls === 'mf-fence') return 'fence';
   return null;
 }

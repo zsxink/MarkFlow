@@ -27,6 +27,7 @@
 import { RangeSet, RangeSetBuilder, type Extension, type Text } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, WidgetType, type ViewUpdate } from '@codemirror/view';
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import type { SyntaxNode } from '@lezer/common';
 import { getOwnerRegistrySnapshot, resolveConstructOwner, type ConstructKind } from './renderOwnerRegistry';
 import {
   isEmphasisStrikeInlineCodeEnabled,
@@ -330,6 +331,21 @@ export interface LinkSub {
   to: number;
 }
 
+/**
+ * A fenced-code sub-node captured during tree iteration. The projection keeps a
+ * fence's discrete marker set **frozen empty** (the GOLDEN parity oracle asserts
+ * `fence.markers === []` and the P4B fence cohort relies on it), so the open /
+ * close / language / body geometry needed to hide the fence is captured into this
+ * SEPARATE structure instead of becoming `range.markers`. Malformed (unclosed)
+ * fences carry no closing mark.
+ */
+export type FenceSubName = 'CodeMark' | 'CodeInfo' | 'CodeText';
+export interface FenceSub {
+  name: FenceSubName;
+  from: number;
+  to: number;
+}
+
 /** Resolved hidden geometry for one link-form construct (design §9.2). */
 export interface LinkFormGeometry {
   /** The Markdown sub-form of the link construct. */
@@ -399,6 +415,103 @@ export function linkFormGeometry(
   return null;
 }
 
+// ── M3: block (quote / list / fence) hidden geometry ──────────────────────
+//
+// Unlike the inline cohorts, a block's "marker" is the block-level syntax that
+// opens each block line: the `>` of a blockquote, the `-`/`1.`/`- [ ]` of a list
+// item, and the opening/closing ``` of a fenced code block. The inactive-hidden
+// state replaces those marker spans (and a fence's language) while keeping the
+// block's content visible. Three constraints drive the geometry:
+//
+//   1. EMPTY blocks stay discoverable (design §4): an empty quote keeps its bar,
+//      an empty list item keeps its bullet/number/checkbox, an empty fence keeps
+//      its shell + language. So a block whose content trims to '' is `visible`.
+//   2. The marker set stays frozen: quote/list markers ARE their QuoteMark/
+//      ListMark spans (already collected), but a FENCE's `markers` is frozen to
+//      `[]` by the parity oracle — its open/close/language geometry comes from
+//      captured `FenceSub` sub-nodes instead.
+//   3. Malformed (unclosed) fences → exact source: never hide half a fence.
+
+/** Resolved hidden geometry for an M3 block construct (design §4 / §9). */
+export type BlockHideGeometry =
+  | { kind: 'quote' | 'list'; hide: Array<[number, number]>; contentFrom: number; contentTo: number }
+  | { kind: 'fence'; hide: Array<[number, number]>; bodyFrom: number; bodyTo: number };
+
+/**
+ * Resolve the hidden geometry of a blockquote construct. `markers` are the
+ * QuoteMark `>` spans at each non-empty block line. The content is the whole
+ * Blockquote range; hiding replaces every `>` marker while the quoted text stays
+ * visible. Returns null only on malformed geometry (no marker — a real quote
+ * always has at least one `>`); the caller decides an EMPTY quote (content
+ * trims to '') stays discoverable rather than hidden.
+ */
+export function blockQuoteGeometry(range: ConstructRange): BlockHideGeometry | null {
+  const m = range.markers;
+  if (m.length === 0) return null; // malformed — no `>` marker to hide
+  return { kind: 'quote', hide: m, contentFrom: range.from, contentTo: range.to };
+}
+
+/**
+ * Resolve the hidden geometry of a list item. `markers` are the ListMark spans
+ * (`-`, `*`, `+`, `1.`, `- [ ]`). The item's content runs from the last marker's
+ * end to the item end; hiding replaces each ListMark (a GFM task's `[ ]`
+ * checkbox stays — its TaskMarker owner is a widget, never double-hidden).
+ * Returns null only on malformed geometry (no marker); the caller decides an
+ * EMPTY item (no text after the marker) stays discoverable.
+ */
+export function blockListGeometry(range: ConstructRange): BlockHideGeometry | null {
+  const m = range.markers;
+  if (m.length === 0) return null;
+  const lastMarkerEnd = m[m.length - 1][1];
+  return { kind: 'list', hide: m, contentFrom: lastMarkerEnd, contentTo: range.to };
+}
+
+/**
+ * Resolve the hidden geometry of a fenced code block from its captured sub-nodes
+ * (open `CodeMark`, optional `CodeInfo` language, `CodeText` body, closing
+ * `CodeMark`). A well-formed fence has both an open and a close mark; an unclosed
+ * (malformed) fence has no closing mark and returns null → exact source, never a
+ * half-hidden fence. An EMPTY fence (no code body) is NOT malformed — it returns
+ * `{ bodyFrom: bodyFrom, bodyTo: bodyFrom }` (empty body) so the caller can keep
+ * the shell + language discoverable. The regular `markers` array is never
+ * consulted — it is frozen empty for a fence.
+ */
+export function blockFenceGeometry(
+  range: ConstructRange,
+  fenceSubs: FenceSub[],
+): BlockHideGeometry | null {
+  const open = fenceSubs.find((s) => s.name === 'CodeMark' && s.from === range.from);
+  if (!open) return null; // no opening mark — malformed
+  // Unclosed fence → exact source (a well-formed fence has a closing `CodeMark`).
+  const closing = fenceSubs.filter((s) => s.name === 'CodeMark' && s.from !== range.from);
+  if (closing.length === 0) return null;
+  const closeMark = closing[closing.length - 1];
+  const body = fenceSubs.find((s) => s.name === 'CodeText');
+  // An EMPTY fence (no code body / no CodeText node) carries an empty body range
+  // (bodyFrom === bodyTo), so the caller's `blockIsEmpty` keeps the shell +
+  // language discoverable instead of hiding it. `open.to` is the wrong empty
+  // anchor — it would include the info-string language.
+  const bodyFrom = body ? body.from : closeMark.from;
+  const bodyTo = body ? body.to : closeMark.from;
+  const hide: Array<[number, number]> = [[open.from, open.to]];
+  // Hide the info-string language too (a fence with an empty language has no
+  // CodeInfo child — only the mark is hidden and the language stays as-is).
+  const info = fenceSubs.find((s) => s.name === 'CodeInfo');
+  if (info) hide.push([info.from, info.to]);
+  hide.push([closeMark.from, closeMark.to]);
+  return { kind: 'fence', hide, bodyFrom, bodyTo };
+}
+
+/** True when an M3 block is EMPTY, so its marker must stay discoverable (§4). */
+function blockIsEmpty(geo: BlockHideGeometry, doc: Text): boolean {
+  if (geo.kind === 'fence') return doc.sliceString(geo.bodyFrom, geo.bodyTo).trim() === '';
+  // quote: drop every leading `>` marker and check the remaining text.
+  const content = doc.sliceString(geo.contentFrom, geo.contentTo);
+  const visible =
+    geo.kind === 'quote' ? content.replace(/^>/gm, '').replace(/^\s*/gm, '') : content.replace(/^\s*/gm, '');
+  return visible.trim() === '';
+}
+
 /**
  * Build the hidden (replacing + atomic) decorations for ONE P6 construct and
  * push them into `additions`. Returns `'hidden'` when the construct was hidden
@@ -413,6 +526,7 @@ function buildHiddenConstruct(
   additions: Array<{ from: number; to: number; deco: Decoration }>,
   hiddenAtomicSpans: Array<[number, number]>,
   linkSubsByConstruct: Map<number, LinkSub[]>,
+  fenceSubsByConstruct: Map<number, FenceSub[]>,
 ): ConstructVisibility {
   // M2a paired inline constructs (`**bold**`, `*it*`, `~~s~~`, `` `c` ``): each
   // delimiter is replaced and published as its OWN atomic unit, and the content
@@ -489,6 +603,37 @@ function buildHiddenConstruct(
       to: range.to,
       deco: Decoration.mark({ class: `mf-construct ${range.cls}${levelCls}` }),
     });
+    return 'hidden';
+  }
+  // M3 block cohort (design §4 empty-construct / §9 geometry). A shared loop
+  // hides every block marker span and marks the block's content, preserving the
+  // marker skeleton on boundary delete and keeping empty blocks discoverable.
+  if (kind === 'quote' || kind === 'list' || kind === 'fence') {
+    const geo =
+      kind === 'quote'
+        ? blockQuoteGeometry(range)
+        : kind === 'list'
+          ? blockListGeometry(range)
+          : blockFenceGeometry(range, fenceSubsByConstruct.get(range.from) ?? []);
+    if (!geo) return 'dimmed'; // malformed (unclosed fence / no marker) → exact source
+    if (blockIsEmpty(geo, doc)) return 'visible'; // empty → marker stays discoverable
+    for (const [hf, ht] of geo.hide) {
+      hiddenAtomicSpans.push([hf, ht]);
+      additions.push({ from: hf, to: ht, deco: Decoration.replace({}) });
+    }
+    if (geo.kind === 'fence') {
+      additions.push({
+        from: geo.bodyFrom,
+        to: geo.bodyTo,
+        deco: Decoration.mark({ class: `mf-construct ${range.cls}` }),
+      });
+    } else {
+      additions.push({
+        from: geo.contentFrom,
+        to: geo.contentTo,
+        deco: Decoration.mark({ class: `mf-construct ${range.cls}` }),
+      });
+    }
     return 'hidden';
   }
   return 'dimmed';
@@ -738,6 +883,12 @@ function buildDecorations(view: EditorView): DecorationSet {
   // NOT part of `markers` (only the LinkMark delimiters are), so the enclosing
   // link construct needs them to hide its destination / title / label exactly.
   const linkSubs: LinkSub[] = [];
+  // M3: captured fenced-code sub-nodes (open/close `CodeMark`, `CodeInfo`,
+  // `CodeText`) used to resolve a fence's hide geometry. A fence's own `markers`
+  // is FROZEN empty (parity oracle) and buildDecorations does not descend into
+  // a FencedCode (its body is not Markdown), so these are grabbed from the
+  // FencedCode node's direct children at `enter`.
+  const fenceSubs: FenceSub[] = [];
   let count = 0;
 
   tree.iterate({
@@ -751,6 +902,17 @@ function buildDecorations(view: EditorView): DecorationSet {
       // M2b: capture link sub-nodes for the enclosing link-form construct.
       if (node.name === 'URL' || node.name === 'LinkTitle' || node.name === 'LinkLabel') {
         linkSubs.push({ name: node.name, from: nodeFrom, to: nodeTo });
+      }
+      // M3: capture a fenced code block's direct structural children (without
+      // descending — the code body is not Markdown). The regular `markers` array
+      // stays empty; these sub-nodes feed `blockFenceGeometry`.
+      if (node.name === 'FencedCode') {
+        let child: SyntaxNode | null = node.node.firstChild;
+        for (; child; child = child.nextSibling) {
+          if (child.name === 'CodeMark' || child.name === 'CodeInfo' || child.name === 'CodeText') {
+            fenceSubs.push({ name: child.name as FenceSubName, from: child.from, to: child.to });
+          }
+        }
       }
 
       // Collect exact marker spans from the Lezer delimiter nodes.
@@ -840,6 +1002,20 @@ function buildDecorations(view: EditorView): DecorationSet {
     }
   }
 
+  // M3: assign each captured fence sub-node to the enclosing `mf-fence`
+  // construct (keyed by its `from`). Only one fence per `from`, so a simple
+  // containment match suffices.
+  const fenceSubsByConstruct = new Map<number, FenceSub[]>();
+  const fenceConstructs = constructs.filter((c) => c.cls === PROJECTION_CLASSES.fence);
+  for (const sub of fenceSubs) {
+    const owner = fenceConstructs.find((f) => sub.from >= f.from && sub.to <= f.to);
+    if (owner) {
+      const arr = fenceSubsByConstruct.get(owner.from) ?? [];
+      arr.push(sub);
+      fenceSubsByConstruct.set(owner.from, arr);
+    }
+  }
+
   // Visibility is a pure function of source ranges + selection/composition,
   // never rendered DOM textContent. P4B may reveal or dim markers but cannot
   // hide them; P6 is the sole owner of replacing/atomic hidden decorations.
@@ -869,7 +1045,7 @@ function buildDecorations(view: EditorView): DecorationSet {
     });
     range.visibility = visibility;
     if (visibility === 'hidden') {
-      const hiddenOutcome = buildHiddenConstruct(range, doc, additions, hiddenAtomicSpans, linkSubsByConstruct);
+      const hiddenOutcome = buildHiddenConstruct(range, doc, additions, hiddenAtomicSpans, linkSubsByConstruct, fenceSubsByConstruct);
       if (hiddenOutcome === 'hidden') {
         // Hidden decorations were added; skip the normal visible/dimmed path.
         continue;

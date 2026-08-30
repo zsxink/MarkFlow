@@ -158,3 +158,50 @@ reference link 的 destination 在**定义行、不在引用点本行**（§9.5 
 跨位置就地编辑 dest**：reference 激活（revealed）时显示完整 `[text][ref]` 含标签供导航；
 destination 在定义行编辑——定义行的 dest URL 在 inactive 时保持可见（隐藏只去 `[ref]:` 标签），
 且 active（revealed）时整行揭示可编辑。本项在 RUN.md 声明为受限项。
+
+## 10. M3：quote / list（ordered / unordered / task）/ fence 的块级隐藏 marker
+
+> §10 记录 M3 的块级几何与交互决策（tasks.md §9.6/§9.8 的实现注脚；勾选由人工验收与
+> Program Owner 决定，M3 实现不自行勾选）。
+
+M3 是**块级** marker（`>`、`-`/`1.`/`- [ ]`、开闭 ```` ``` ````），与 M2a/M2b 的
+**行内** marker 不同。沿用「先解析子节点、再算隐藏 range」的 M2b 纯函数模式（`linkFormGeometry`），
+新增三个导出几何纯函数：
+
+- `blockQuoteGeometry(range)`：Blockquote 的 QuoteMark `>` 即其 markers；隐藏每个 `>`，
+  content 为整个 Blockquote range（mark 可跨 replace）。
+- `blockListGeometry(range)`：ListItem 的 ListMark（`-`/`*`/`+`/`1.`/`- [ ]`）即其 markers；
+  隐藏每个 ListMark，content 从最后一个 marker 之后到 item 末。
+- `blockFenceGeometry(range, fenceSubs)`：FencedCode 的 markers **冻结为空**（parity oracle 与
+  P4B fence cohort 依赖），开/闭/语言几何改从捕获的 FenceSub 子节点
+  （`CodeMark`/`CodeInfo`/`CodeText`）解析；open + language + close 一起隐藏，body 保留。
+
+### 10.1 三条块级规则
+
+1. **空块保持可发现（design §4）**：复用既有 `visible` 态（**不新增状态**）——空 quote 留 `>`、
+   空 list item 留 bullet/number/checkbox、空 fence 留 shell + language。各几何函数与
+   `blockIsEmpty(geo, doc)` 协作：content/body trim 空 → `visible`（marker 不隐藏）。
+2. **P4B widget 联动不重复隐藏**：`blockquote`/`listItem`/`fence` owner 均 `local`（可隐藏）；
+   `taskCheckbox` owner 为 `widget`——它的 `[ ]`/`[x]` TaskMarker 决不被 list 隐藏（buildDecorations
+   已跳过的针对 widget 的 TaskMarker 保留），list 只隐藏 `-`；`codeFenceControls` widget 拥有
+   开 fence 的语言徽标 slot（fence 隐藏与 P4B 控件并存，body 仍可 copy）；`frontmatter` owner 为
+   `source-fallback`——**不隐藏**。
+3. **malformed → 精确回源码**：unclosed fence（无闭合 `CodeMark`）→ `blockFenceGeometry` 返回
+   null → `dimmed`（不 half-hidden）。quote/list 无 malformed 形态。
+
+### 10.2 分类门控
+
+`mf-blockquote`/`mf-list-item`/`mf-fence` 各自经 `clsToLivePreviewConstruct` 映射到
+`quote`/`list`/`fence` 独立 flag（`livePreview.<c>` + `<c>.hidden`，默认 OFF）。与 M2b link 同：
+`hiddenRequested` 仅在 P6 映射命中时置位；flag OFF → 回 `dimmed`（源码可见）。`blockquote`/
+`listItem`/`fence` 的默认 owner 本就是 `local`，所以 flag OFF 不改变 GOLDEN parity 构造集。
+
+### 10.3 边界删除（ADR §6 跨块规则）
+
+块 marker 是**开头式**（非成对闭合），故保护语义为「marker 永不被单独删除」：
+- quote/list：`Backspace @ markers[0][1]`（开 marker 后）→ NoOp；`Delete @ range.from` → NoOp；
+  其余位置交回普通源码删除。真正的「退层/退级」Backspace 由 `structuralInteraction`（先装、同
+  `Prec.highest`）处理，二者不重叠。
+- fence：`Backspace`/`Delete` 在开 ```` ``` ```` 后/前 → NoOp；`Backspace` 在闭 ```` ``` ````
+  前 → NoOp（`fenceMarksAt` 从 syntax tree 解析开/闭/body，不用冻结的 markers）。flag OFF →
+  handler 返回 false → 普通源码删除（字节合同不变，可独立回滚）。

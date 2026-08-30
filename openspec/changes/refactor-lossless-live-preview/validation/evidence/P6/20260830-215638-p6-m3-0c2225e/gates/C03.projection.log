@@ -1,0 +1,16 @@
+npm notice run markflow@0.0.6 npx
+npm notice run 'vitest' run --no-cache src/lib/lossless/projection.test.ts
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+stdout | src/lib/lossless/projection.test.ts > P6 M3 — block hidden geometry (quote / ordered / unordered / task / fence) > quote hides every `>` marker, keeps quoted text visible, bytes untouched
+leaf lmar 1
+
+ ✓ src/lib/lossless/projection.test.ts (100 tests) 260ms
+
+ Test Files  1 passed (1)
+      Tests  100 passed (100)
+   Start at  21:57:25
+   Duration  719ms (transform 156ms, setup 0ms, collect 209ms, tests 260ms, environment 67ms, prepare 32ms)
+
+C03 exit=0

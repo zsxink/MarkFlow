@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/lossless/projection.test.ts (47 tests) 544ms
+
+ Test Files  1 passed (1)
+      Tests  47 passed (47)
+   Start at  18:11:48
+   Duration  7.31s (transform 475ms, setup 0ms, collect 1.08s, tests 544ms, environment 4.41s, prepare 452ms)
+

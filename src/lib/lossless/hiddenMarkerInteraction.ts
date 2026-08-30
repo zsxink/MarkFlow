@@ -125,15 +125,21 @@ function linkBoundaryHit(range: ConstructRange, pos: number, backwards: boolean)
  * `-`/`1.`/`- [ ]` of a list item) plus a fence's opening/closing ```. When the
  * caret sits exactly at a block-marker inner boundary, an ordinary source
  * Backspace/Delete would silently eat one of those invisible syntax characters
- * and break the block skeleton — so the ADR protects it:
+ * and break the block skeleton — so the ADR protects it. A quote carries one `>`
+ * per non-empty line and a fence carries an open ```, an optional language, and
+ * a close ```, so EVERY marker span's inner boundaries are protected, not just
+ * the first one (independent Review F1-F4):
  *
- *   - Backspace right AFTER the opening marker (caret at content start) → reveal
+ *   - Backspace right AFTER any opening marker (caret at content start) → reveal
  *     and NoOp (a delimiter is never removed on its own); the deliberately
  *     structural "remove a marker layer / list level" Backspace stays with
  *     `structuralInteraction`, which runs FIRST and consumes it.
- *   - Delete right BEFORE the opening marker → reveal and NoOp.
- *   - For a fence, Backspace right BEFORE its CLOSING ``` deletes the body's
- *     last grapheme (the closing mark stays whole).
+ *   - Delete right BEFORE any opening marker → reveal and NoOp.
+ *   - Fence open line: Backspace after the opening ``` or after the language →
+ *     NoOp (the language `[info]` range is hidden, so its end edge must not be
+ *     eaten); Delete before the opening ``` → NoOp.
+ *   - Fence closing ```: Backspace OR Delete right before it → NoOp (never eat a
+ *     single backtick of the hidden closing mark).
  *
  * The fence's open/close geometry cannot come from `range.markers` (frozen
  * empty) and is resolved here from the Lezer tree so the snapshot shape is
@@ -148,29 +154,36 @@ function blockBoundaryHit(
   const kind = clsToLivePreviewConstruct(range.cls);
   if (kind === 'quote' || kind === 'list') {
     const m = range.markers;
+    // Every `>` of a multi-line quote (and every list marker) has its own inner
+    // boundary. Backspace right after ANY marker, and Delete right before ANY
+    // marker, would eat the marker — NoOp each one.
     if (m.length === 0) return null;
-    const afterMarker = m[0][1]; // content starts right after the first marker
-    if (backwards && pos === afterMarker) return { kind: 'noop' }; // don't eat `>`/`-`
-    if (!backwards && pos === range.from) return { kind: 'noop' }; // don't eat `>`/`-`
+    if (backwards && m.some(([, t]) => pos === t)) return { kind: 'noop' };
+    if (!backwards && m.some(([f]) => pos === f)) return { kind: 'noop' };
     return null;
   }
   if (kind === 'fence') {
     const marks = fenceMarksAt(view, range);
     if (!marks) return null;
-    // Inner boundaries around EITHER ``` — never delete a single backtick
-    // (ADR §6 cross-cutting: Backspace after opening / before closing → reveal
-    // and NoOp). Block markers are opening-style, so the skeleton is preserved.
+    // Opening ``` + language inner boundaries — never eat a backtick or a hidden
+    // language character (F4: the language `[info]` end edge is not `openTo`).
     if (backwards && pos === marks.openTo) return { kind: 'noop' }; // after opening ```
+    if (backwards && marks.infoTo != null && pos === marks.infoTo) return { kind: 'noop' }; // after language
     if (!backwards && pos === range.from) return { kind: 'noop' }; // before opening ```
-    if (backwards && pos === marks.closeFrom) return { kind: 'noop' }; // before closing ```
+    // Closing ``` inner boundaries — Backspace AND Delete before it never eat a
+    // backtick (F3: the closing mark is a hidden atomic single character run).
+    if (backwards && pos === marks.closeFrom) return { kind: 'noop' };
+    if (!backwards && pos === marks.closeFrom) return { kind: 'noop' };
     return null;
   }
   return null;
 }
 
-/** Resolve a fence construct's open/close marks + body bounds from the Lezer tree. */
+/** Resolve a fence construct's open/close mark + language + body bounds from the Lezer tree. */
 interface FenceMarks {
   openTo: number;
+  /** The `CodeInfo` language range (absent → null). Hidden as part of the fence. */
+  infoTo: number | null;
   closeFrom: number;
   bodyFrom: number;
 }
@@ -185,6 +198,7 @@ function fenceMarksAt(view: EditorView, range: ConstructRange): FenceMarks | nul
   while (cur && cur.name !== 'FencedCode') cur = cur.parent;
   if (!cur) return null;
   let openTo = -1;
+  let infoTo: number | null = null;
   let closeFrom = -1;
   let bodyFrom = -1;
   let child: SyntaxNode | null = cur.firstChild;
@@ -193,12 +207,14 @@ function fenceMarksAt(view: EditorView, range: ConstructRange): FenceMarks | nul
       openTo = child.to;
     } else if (child.name === 'CodeMark') {
       closeFrom = child.from;
+    } else if (child.name === 'CodeInfo') {
+      infoTo = child.to;
     } else if (child.name === 'CodeText') {
       bodyFrom = child.from;
     }
   }
   if (openTo < 0 || closeFrom < 0) return null; // unclosed / no open mark — malformed
-  return { openTo, closeFrom, bodyFrom: bodyFrom < 0 ? openTo : bodyFrom };
+  return { openTo, infoTo, closeFrom, bodyFrom: bodyFrom < 0 ? openTo : bodyFrom };
 }
 
 /**

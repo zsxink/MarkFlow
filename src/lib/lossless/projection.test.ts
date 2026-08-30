@@ -2908,4 +2908,81 @@ describe('P6 M3 — block boundary delete keeps the skeleton intact (ADR matrix)
       h.destroy();
     }
   });
+
+  it('multi-line quote: Backspace after the 2nd `>` is a NoOp (every line marker protected)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('> a\n> b\n', 'quote');
+    try {
+      // 2nd line `>` at [4,5). Backspace right after it (pos 5) would eat the
+      // invisible marker — NoOp so every line's `>` survives.
+      h.view.dispatch({ selection: { anchor: 5 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('> a\n> b\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('multi-line quote: Delete before the 2nd `>` is a NoOp', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('> a\n> b\n', 'quote');
+    try {
+      h.view.dispatch({ selection: { anchor: 4 } });
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('> a\n> b\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('multi-item list: Backspace after the 2nd `-` is a NoOp (bullet survives)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('- a\n- b\n', 'list');
+    try {
+      // 2nd item `-` at [4,5); Backspace right after it (pos 5) → NoOp.
+      h.view.dispatch({ selection: { anchor: 5 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('- a\n- b\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('fence with language: Backspace after the language is a NoOp (hidden language char survives)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('```js\nabc\n```\n', 'fence');
+    try {
+      // Open ```[0,3), language `js`[3,5). Backspace right after the hidden
+      // language (pos 5) would eat the `s` — NoOp.
+      h.view.dispatch({ selection: { anchor: 5 } });
+      expect(h.press('Backspace')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('```js\nabc\n```\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
+
+  it('fence: Delete before the closing ``` is a NoOp (closing mark never eaten)', () => {
+    setLosslessCoreSessionEnabled(true);
+    setLivePreviewEnabled(true);
+    const h = m3Harness('```\nabc\n```\n', 'fence');
+    try {
+      // Closing ```[8,11). Delete right before it (pos 8) would eat a backtick
+      // — symmetric with the Backspace guard, never delete the closing mark.
+      h.view.dispatch({ selection: { anchor: 8 } });
+      expect(h.press('Delete')).toBe(true);
+      expect(h.view.state.doc.toString()).toBe('```\nabc\n```\n');
+      expect(h.txs.length).toBe(0);
+    } finally {
+      h.destroy();
+    }
+  });
 });

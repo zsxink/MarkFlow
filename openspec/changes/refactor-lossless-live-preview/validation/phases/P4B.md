@@ -228,6 +228,58 @@ product gap，而非通过）。但它确实改变了已封存 run 的结论与 
 动机全是「补一句更准确的说明」。但只要「历史证据可被就地编辑」这条通道开着，它就一定会被走，
 无论走的人多善意。修法只有一种：**关掉通道，并让关掉这件事在 CI 里会红。**
 
+### N-4 — 护栏首次全量扫描：新发现 8 次历史就地改写，另有 2 类结构性误报
+
+护栏 `scripts/check-evidence-immutable.sh` 建好后在**分支起点..HEAD**（`git merge-base main HEAD`
+= `6bfba453`）上跑了一次全量扫描，结果超出预期：除了已登记的 4 次 P4B 违规，
+**另有 8 次发生在 P1A / P1B / P3 的就地改写**，此前从未被发现。
+
+| 提交 | 被触碰的 run | 改动（`--numstat`） | 性质 |
+| --- | --- | --- | --- |
+| `8461f76` | P1A `20260813-p1a-core-0967a06` | `REVIEW.md` +3/-3 | reviewer 定稿指向最终候选 |
+| `1b87220` | P1B `20260814-p1b-core-bridge-06c4b0a` | `REVIEW.md` +15/-1 | reviewer 复评 |
+| `935195d` | P1B 同上 | `RUN.md` +1/-1 | 修正测试数 |
+| `e4981e3` | P1B 同上 | `RUN.md` +1/-1 | 对齐测试数 |
+| `fcba2f8` | P1B `20260816-p1b-human-acceptance-…` | `HUMAN-ACCEPTANCE.md` +3/-2 | 实现提交夹带验收文档改动 |
+| `54ee16a` | P1B 同上 | `HUMAN-ACCEPTANCE.md` +55/-49 | 写入人工验收 ACCEPTED 结论 |
+| `d308fa4` | P3 `20260821-p3-implementation-5.1-5.9` | `RUN.md` +1/-0 | 追加最终 gate 记录 |
+| ~~`e653ec6`~~ | P1B `20260814-p1b-core-bridge-06c4b0a` | `REVIEW.md` **+54/-0** | **不是违规**——经 `git show --name-status` 复核为 **A（新增）**，规则 3 本就放行；曾误列入 allowlist，已移除 |
+
+**这 8 次与 F-1 / N-1 是同一个结构性矛盾的又一次显现**：协议要求「复审/验收报告落在被审 run
+目录内」，而复审与验收**必然晚于** run 提交。于是每当报告文件已经在 run 里存在过一版，
+后续更新就机械地构成「就地改写」。P4B 的 4 次不是新鲜事，是这个流程从 P1A 起一直在发生的。
+
+处置：与 F-1 一致——**登记不回滚**（回滚即第二次篡改），全部写入护栏的 `ALLOWED_COMMITS`
+并附实测行数与原因。护栏仍会打印它们，保持可见。
+
+**扫描同时暴露了护栏自身的 3 个缺陷，已修**：
+
+1. **字段右移一位**：`sed` 把完整哈希**插入**而非替换第 2 列，导致所有判定字段错位
+   （表现为状态显示成 `o`、run 目录显示成提交号）。已改为吃掉原短哈希。
+2. **`archive` 搬迁误判**：`/opsx:archive` 把 change 目录搬进 `openspec/changes/archive/`
+   **且连目录名一起改**（`p0-lossless-byte-contract` → `2026-08-13-p0-lossless-byte-contract`）。
+   开 `--no-renames` 后呈现为 D+A 配对，被判成删除证据。已改为按
+   **evidence 相对后缀**（`<PHASE>/<RUN-ID>/<file>`）配对识别。
+3. **`artifact-manifest.sha256` 误判**：它是随目录内容机械重算的派生索引，不是证据结论。
+   纳入不可变性规则会造成稳定误报——每补一个文件就要重算 manifest，于是「补文件」连带变成
+   「改写证据」。已排除。
+
+**Reviewer-2 要求的加固，有一条实测不成立**：
+
+> 「新建 run 必须同时含 RUN.md 与 ENVIRONMENT.md」可设为零误报不变量。
+
+实测**不成立**：全仓库 61 个 evidence run 目录中有 **5 个缺 `RUN.md`**、**8 个缺 `ENVIRONMENT.md`**，
+其中 `20260830-122241-p4b-human-acceptance-1f1bd3c` 就落在当前分支的 PR 区间内。
+设为阻断会让 CI 当场飘红。故**降级为告警**：新建 run 仍须补齐，但不因历史欠账阻断。
+若将来把历史目录补齐，可提升为 `EXIT=2`。
+
+其余加固已采纳：按文件名白名单放行新增（`REVIEW*`/`HUMAN-ACCEPTANCE*`/`REBUTTAL*`/`ADDENDUM*`
+放行，`gates/*` 与其他一律告警）、allowlist 改用**完整哈希前缀匹配**（避免短哈希从 7 位
+增长到 8 位后静默失配）、CI 处理 `event.before` 全零（首次推送跳过而非飘红）。
+
+护栏现状：`bash scripts/check-evidence-immutable.sh $(git merge-base main HEAD) HEAD` → **EXIT=0**。
+反向能力测试 7 例（改写/删除/新增白名单/新增 gate/新建缺文件/非搬迁删除/archive 搬迁）全部符合预期。
+
 ### F-1 的可检测残留：候选 diff 存在空白行缺陷（C21 FAIL，EXIT=2）
 
 `20260830-113140-p4b-clipboard-b91de0e` 的 C21 把 `git diff --check` 的口径从
@@ -325,13 +377,25 @@ composition 未确认就按 Cmd+Z，命令被静默吞掉。这解释了 item 2 
 
 上面那组对比不是「状态随机泄漏」，而是**验收方在失败后修改了 spec 再重跑**。时间戳是决定性的：
 
+**完整时间线**（2026-08-30 补测补齐；harness 在 `/tmp`，无版本控制，只能靠 mtime）：
+
 | 时间 | 事件 |
 | --- | --- |
-| **12:10:24** | `run.log` —— 3 套件同时跑，item 2 / 3 / 6 失败 |
+| 12:05:30 | `wdio.conf.mjs` |
+| 12:06:49 | `specs/1-clipboard.e2e.mjs` |
+| **12:10:24** | `run.log` —— 3 套件同时跑，**item 2 / 3 / 6 失败** |
 | **12:17:31** | `specs/2-editing.e2e.mjs` 被修改（失败后 **+7 分钟**） |
 | **12:18:19** | `run2.log` —— spec 2 单独重跑，通过（改完 **+48 秒**） |
+| **12:20:15** | **`lib.mjs` 被修改**（+10 分钟）★ 首次记录 |
+| **12:20:31** | **`specs/3-visual-a11y-security.e2e.mjs` 被修改**（+10 分钟）★ 首次记录 |
+| **12:21:31** | `run3.log` —— spec 3 单独重跑，通过（改完 **+60 秒**） |
+| 12:22:31 | `run1.log` —— spec 1 单独重跑（spec 1 自 12:06:49 起**未改**） |
 
-spec 改了什么，从两次 run 的 **FINDING 命名空间差异**可以直接看出（run.log 里 `composing`
+**这条时间线推翻了本文件此前的一处结论。** 原先记为「spec 2 是唯一被改的 spec，
+item 6 是 3 条失败里唯一没有对应修复的」——**不成立**：`lib.mjs` 与 spec 3 也在两次 run
+之间被改，且 `lib.mjs` 改的正是 item 6 失败的那个函数。详见下面「item 6 机制」。
+
+spec 2 改了什么，从两次 run 的 **FINDING 命名空间差异**可以直接看出（run.log 里 `composing`
 只出现 1 次，run2.log 里有完整三段观测）：
 
 | | `run.log`（改前） | `run2.log`（改后） |
@@ -345,15 +409,59 @@ spec 改了什么，从两次 run 的 **FINDING 命名空间差异**可以直接
 即：**改前的 spec 在 composition 仍开着（`composing: true`）时就发 `cmd+z`，
 被冻结的 keymap 把命令吞了。改后补了 `Return` 确认步骤，于是通过。**
 
-**结论（修正）**：这是**测试 harness 的缺陷，且已被修复**——
+### item 6 机制：`lib.mjs` 改的正是失败函数本身
+
+item 6 失败在 `openDoc (lib.mjs:58)`——而 `lib.mjs` 在 **12:20:15** 被改，
+**76 秒后**（12:21:31）run3 就通过了。现在 `openDoc` 顶部的注释直接写出了该失败机制：
+
+```javascript
+// Never leave a dirty document behind: an unsaved-changes modal would block
+// the next file-tree click and make the following waitUntil time out.
+```
+
+并据此新增了两段防护：切文件前若 `isDirty()` 则先 `save(false)`，再
+`waitUntil(isDirty() === false, {timeout: 5_000})`。
+
+**因果链**：spec 3 里 **item 5（真实 Tab 遍历）排在 item 6 之前**，
+Tab 把文档改脏 → item 6 点文件树时被「未保存更改」弹窗挡住 →
+`activeFilePath` 一直没变 → 15s `waitUntil` 超时。
+
+**所以 item 6 既不是 flaky，也不是环境风险，而是 harness 缺陷——且已被修复。**
+本文件原先的「交 P6 作为环境风险持续观察」「与 C20 同源未证实」两处结论**一并撤回**。
+C20（仓库内 e2e 套件的 13 failing）与本项虽共用 `activeFilePath` 判据，
+但本项已有独立且自洽的机制解释，**不再作为 C20 的旁证使用**。
+
+诚实边界：spec 3 的具体改动内容**无法 diff**（harness 在 `/tmp` 且未纳入版本控制），
+只能证明「它被改过」+「共享的 `lib.mjs` 改了失败函数本身且注释与症状吻合」。
+因此这里给出的是**机制已识别并有代码自证**，不是受控 A/B 证明。
+
+**结论（修正）**：三条失败**全部**是测试 harness 的缺陷，且**全部已被修复**——
 既不是产品回归（keymap 冻结是已记录的设计事实），
 **也不是 flaky 或环境风险**（我先前与 Reviewer-2 都归错了因，此处一并更正）。
 
-**重跑结果可信吗？可信。** 改后的 spec 严格更严：它新增了 `composingBefore` /
-`composingAfterCommit` 观测并补了显式提交步骤，不是放宽断言。
-所以 item 2 / item 3 的 accept 结论**成立**，但**出处必须披露**——
-见下「披露缺陷」，以及归档目录 `122241/` 内混装了两个版本 spec 的产物
-（`run.log` 是改前、`run2.log` 与 `findings-editing.json` 是改后）却未作标注。
+### 处置：已用改后 spec 跑一次全量 run（2026-08-30 完成）
+
+Reviewer-2 Round 3  blocker **B-4** 的原话：「两条路都行，但不能既改 spec、又不披露、又不重跑。」
+执行流取**重跑**这条路——因为一旦重跑，就不再需要争论「改后 spec 是否更严」。
+
+新 run：**`20260830-134007-p4b-acceptance-full-b1e4c05`**（3 spec 同进程、改后 spec、退出码 0）。
+
+| 字段 | 旧全量 `run.log`<br>12:10:24・**改前** | 旧隔离 `run2/3.log`<br>12:18–12:21・改后 | **新全量 run**<br>13:40・**改后 + 全量** |
+| --- | --- | --- | --- |
+| `item2.typing.composingBefore` | （无该键） | `{"composing":false}` | `{"composing":false,"viewHasFocus":true}` |
+| `item2.typing.composingAfterTyping` | （无该键） | `{"composing":true}` | `{"composing":true,"viewHasFocus":true}` |
+| `item2.typing.composingAfterCommit` | （无该键） | `{"composing":false}` | `{"composing":false,"viewHasFocus":true}` |
+| `item2.typing.singleUndoRestoredBytes` | **false**（失败） | `true` | **`true`** |
+| `item3.recovered.projectionState` | **`"composing"`** | `"rendered"` | **`"rendered"`** |
+| `item3.fallbackEditable` | **`false`** | `true` | **`true`** |
+| `item6` | **失败**（`openDoc` 超时） | 通过 | **通过** |
+
+结果：**3 spec / 13 用例全过，退出码 0，耗时 1 分 33 秒**，
+与 12:10:24 那次失败的全量 run 是**同一口径**（同进程、同顺序）。
+
+由此：上表「关键对比」那组**混淆对比不再作为根因依据**——两次 run 之间同时变了
+隔离状态与 spec 版本，无法归因。取而代之的是新 run 与旧全量 run 的对比：
+**唯一变量是 spec/lib 的修复**。
 
 **顺带确认的真实设计事实（对 P6 有用）**：composition 未确认期间按 Cmd+Z 会被静默吞掉。
 GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷键」，与此一致。
@@ -374,17 +482,24 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 
 **处置**：执行流**不自行撤回**已签署的人工验收（撤回权在 Program Owner），但要求：
 
-1. 人工验收行的签署状态由「已签署」细化为 **「已签署，但披露不完整」**；
-2. 「编辑/输入/回退」与「失败后可回到源码」两行的依据标注为
-   **「改后 spec 的隔离重跑」**。结论**成立**（改后 spec 更严，不是放宽），
-   故**不要求**为这两项重跑一次全量 run；
+1. 人工验收行的签署状态由「已签署」细化为 **「已签署，出处已补齐」**
+   （原「披露不完整」已于 2026-08-30 消除，见下）；
+2. 「编辑/输入/回退」与「失败后可回到源码」两行的依据，
+   原来只能标为「改后 spec 的**隔离**重跑」。**该依据已被替换**：
+   执行流按 Reviewer-2 的建议跑了 `20260830-134007-p4b-acceptance-full-b1e4c05`
+   ——**改后 spec + 三 spec 全量同进程**，退出码 0，13 用例全过。
+   两行取值（`projectionState = "rendered"`、`fallbackEditable = true`）
+   在全量口径下**复现**，与验收报告一致。
+   **场景措辞同时收紧**：两行描述的都是「**composition 提交后**单次 Cmd+Z 还原」，
+   不是「任意时刻单次 Cmd+Z 还原」（后者见 P6 open item ①）；
 3. 归档目录 `122241/` 混装了两个版本 spec 的产物（`run.log` 改前 /
    `run2.log` + `findings-editing.json` 改后）且未标注——
    **这是记录缺陷，但不回写**（协议禁止）；仅在本文登记；
-4. **item 6 的 `openDoc` 超时仍然悬空**：它是 3 条失败里唯一**没有对应修复**的
-   （run3 只是原样隔离重跑，spec 未改），重跑通过属于「复现不出来」而非「已解决」。
-   它与 C20 的 13 failing 是否同源，**仍未证实**——两者都表现为文件切换卡住，
-   但本 run 只有 1 条命中，不足以建立因果。**交 P6 作为环境风险持续观察。**
+4. ~~**item 6 的 `openDoc` 超时仍然悬空**~~ —— **已撤回（2026-08-30）**。
+   原判据「run3 只是原样隔离重跑，spec 未改」被 mtime 证伪：
+   `lib.mjs`（12:20:15）与 spec 3（12:20:31）都在两次 run 之间被改，
+   且 `lib.mjs` 改的正是失败的 `openDoc`。item 6 是 harness 缺陷且已修复，
+   **不是环境风险，也不再作为 C20 同源的旁证**。详见上节。
 
 ## 已知缺口（交独立 Reviewer 判定，不由执行流自行关闭）
 
@@ -424,8 +539,10 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 - [x] real CJK/Japanese IME baseline（中/日文均 GO；人工验收未覆盖该行，见 Construct 表注 1）
 - [x] owner registry / nesting arbitration / source fallback（AI gate 全绿；人工 item3 复核）
 - [x] widget protocol / stale identity / rollback（AI gate 全绿）
-- [~] 人工验收已签署（2026-08-30，独立验收代理，6+1 项）—— **披露不完整，见 N-3 修正版**
-- [~] 独立 Reviewer 对**当前候选**签署 —— **已刷新，但带 3 个 blocker**（见下）
+- [~] 人工验收已签署（2026-08-30，独立验收代理，6+1 项）——
+      **出处已补齐**：`20260830-134007-p4b-acceptance-full-b1e4c05` 以改后 spec 重跑
+      三 spec 全量，EXIT=0，13 用例全过（见 N-3 修正版）
+- [~] 独立 Reviewer 对**当前候选**签署 —— **已刷新，B-1/B-2/B-3 已闭合，新增 B-4**（见下）
 
 决定：`P4B-SUBSTRATE-GO` **PENDING**（blocker B-1/B-2 已由执行流处置完毕，
 需 Reviewer 确认后 + Program Owner 裁决）。
@@ -435,9 +552,10 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 | 签署方 | 状态 | 说明 |
 | --- | --- | --- |
 | 实现（AI gate） | **已签署** | `20260830-113140-p4b-clipboard-b91de0e`，19/21 EXIT=0 |
-| 独立 Reviewer | **已刷新（有条件）** | 第二round 结论：`PASS WITH CONDITIONS`，3 个 blocker。
-  报告见 `20260830-113140-p4b-clipboard-b91de0e/REVIEW-ROUND2.md`（707 行）。
-  B-1/B-2 已由执行流处置，B-3 需外部 owner 签字 |
+| 独立 Reviewer | **已刷新（有条件）** | Round 3：B-1/B-2/B-3 **已闭合**，新增 **B-4（高）**。
+  B-4 已于 2026-08-30 由执行流处置（补登记 + 收紧场景措辞 + 登记 P6 open item +
+  跑改后 spec 全量 run）。报告见 `20260830-113140-p4b-clipboard-b91de0e/REVIEW-ROUND3.md`。
+  **Reviewer 明确声明：本 Reviewer 不批准最终 Go。** |
 | 人工验收 | **已签署（披露不完整）** | `20260830-122241-p4b-human-acceptance-1f1bd3c`，`conditional-accept`；
   但 `run.log` 含 3 次失败、报告未披露重跑，且引用值是隔离重跑的结果（见 N-3 修正版） |
 | Program Owner | **待裁决** | 含剪贴板合同归属、C21 处置、acceptance 套件分流、**raw HTML 安全签字**四项 |
@@ -462,6 +580,59 @@ GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷�
 **B-3 的执行流立场**：raw HTML 的技术行为已验证满足 inert（人工验收 + gate 均通过），
 缺的是**治理签字**，不是技术证据。在签字到位前，默认走 `NO-GO 保持 source fallback`
 ——这是保守方向，不需要额外判断，也不阻塞其余三项。
+
+### B-4（Round 3 新增，高）：人工验收签署的可采信性
+
+**Reviewer 原话**：「阻断 PO 采信『人工验收』签署，**不阻断 substrate 技术结论**。」
+三项登记动作 + 一句原则：「两条路都行，但不能既改 spec、又不披露、又不重跑。」
+
+| # | Reviewer 要求 | 执行流处置 | 状态 |
+| --- | --- | --- | --- |
+| ① | 补登记「改后 spec 的重跑」+ 撤销混淆对比的根因结论 | 混淆对比已在 N-3 节标注为**不再作为根因依据**（两次 run 同时变了隔离与 spec 版本）；
+  取而代之的是新 run `20260830-134007-p4b-acceptance-full-b1e4c05` | **已闭合** |
+| ② | 两行 accept 场景改为「composition 提交**后**单次 Cmd+Z 还原」 | 已在「由此暴露的披露缺陷」处置第 2 条收紧措辞 | **已闭合** |
+| ③ | 新增 P6 open item：`composing` 仅在 `compositionend` 复位 | 已登记为 P6 open item ①（见下） | **已闭合** |
+| — | （执行流自选）重跑一次三 spec 全量 | 已执行，EXIT=0，13/13，见 N-3 节 | **已闭合** |
+
+**关于「是否要求重跑」的口径统一**：执行流此前在消息里说「要求 P6/P7 复现全量 run 才算闭合」，
+而本文件写的是「故不要求重跑」——两处矛盾，由 Reviewer 指出。
+**现统一为：不需要下游补跑**，因为执行流自己在 P4B 内已经跑完了
+（`20260830-134007-p4b-acceptance-full-b1e4c05`）。P6/P7 沿用该 run 作为基线即可。
+
+### 交 P6 的 open items（2026-08-30 新增）
+
+**① 未提交 composition 期间按 Cmd+Z：静默失效且文档保持已修改**
+
+产品事实（执行流已在 `@codemirror/view/dist/index.js` 逐行核实，非推理）：
+
+| 位置 | 内容 | 含义 |
+| --- | --- | --- |
+| `:4486-4488` | `-1 means not in a composition. Otherwise, this counts the number of changes made during the composition.` | 语义定义 |
+| `:4490` | `this.composing = -1;` | 构造时初始化 |
+| `:5215` | `view.inputState.composing = 0;` | `compositionstart` 置 0 |
+| **`:5221`** | `view.inputState.composing = -1;`（在 `observers.compositionend` 内） | **唯一的复位点** |
+| `:7629` / `:7634` | `composing = 0` / `= -1` | editContext 路径 |
+
+- **`composing` 只在 `compositionend` 复位，blur / 失焦不复位。**
+- **`src/**` 下 composition 监听器命中数 = 0**（执行流全量搜索确认），即产品侧没有任何补偿逻辑。
+- 叠加已记录的 `InputState.ignoreDuringComposition()`：`composing > 0` 时**所有** `key*` 事件返回 `true`
+  → **整个 keymap 被冻结**。
+
+**后果**：用户在 IME composition 未确认时按 Cmd+Z，**命令被静默吞掉，且文档仍处于已修改状态**
+——用户会以为撤销成功了。
+
+**覆盖现状：零。** 改后的验收 spec 显式先发 `Return` 提交 composition 再按 Cmd+Z，
+也就是说**这条路径被绕开了，而不是被覆盖了**。这是 P4B 的已知盲区，不是回归。
+
+**P6 必须处理**：要么补一条「未提交 composition + Cmd+Z」的用例明确记录当前行为，
+要么在产品侧加失焦/超时复位。GOAL 已写明「P6 `9.2` 不得依赖 composition 期间的任何键盘快捷键」，
+与此一致——但那只是**不使用**，不等于**已验证**。
+
+**② 验收 harness 位于 `/tmp`，未纳入版本控制**
+
+`20260830-134007-*` 已把 harness 快照进 `specs/`（含 `wdio.conf.mjs`、`lib.mjs`、三个 spec），
+使该 run 可复现。但**后续 P6/P7 若要复用，必须先决定是否把这套 harness 收进仓库**
+（进 `e2e/` 会与「验收代理不得触碰 `e2e/**`」的约束冲突，需要 PO 裁决）。
 
 ### 人工验收留下的 still-open（不随 P4B 关闭）
 

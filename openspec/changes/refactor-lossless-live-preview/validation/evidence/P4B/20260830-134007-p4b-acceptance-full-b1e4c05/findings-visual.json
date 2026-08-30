@@ -1,0 +1,361 @@
+{
+  "substrate.losslessCoreSessionHook": "function",
+  "substrate.livePreviewHook": "function",
+  "substrate.p4bFlagHook": "object",
+  "substrate.p4bFlagNames": [
+    "headingStrong",
+    "emphasisStrikeInlineCode",
+    "links",
+    "quoteLists",
+    "fence",
+    "taskCheckbox",
+    "codeFenceControls",
+    "frontmatterPolicy",
+    "rawHtmlPolicy"
+  ],
+  "item4.task.themeMetrics": [
+    {
+      "theme": "light",
+      "metrics": {
+        "ariaChecked": "false",
+        "ariaDisabled": null,
+        "ariaLabel": "任务 - [ ] widget task 🚀",
+        "background": "rgb(255, 255, 255)",
+        "box": {
+          "h": 18,
+          "w": 24
+        },
+        "contrastFg": "rgb(118, 118, 118)",
+        "fontSize": "11.7px",
+        "role": "checkbox",
+        "tabindex": "0",
+        "text": "[ ]"
+      }
+    },
+    {
+      "theme": "dark",
+      "metrics": {
+        "ariaChecked": "false",
+        "ariaDisabled": null,
+        "ariaLabel": "任务 - [ ] widget task 🚀",
+        "background": "rgb(31, 31, 35)",
+        "box": {
+          "h": 18,
+          "w": 24
+        },
+        "contrastFg": "rgb(113, 113, 122)",
+        "fontSize": "11.7px",
+        "role": "checkbox",
+        "tabindex": "0",
+        "text": "[ ]"
+      }
+    },
+    {
+      "theme": "sepia",
+      "metrics": {
+        "ariaChecked": "false",
+        "ariaDisabled": null,
+        "ariaLabel": "任务 - [ ] widget task 🚀",
+        "background": "rgb(250, 246, 237)",
+        "box": {
+          "h": 18,
+          "w": 24
+        },
+        "contrastFg": "rgb(139, 115, 85)",
+        "fontSize": "11.7px",
+        "role": "checkbox",
+        "tabindex": "0",
+        "text": "[ ]"
+      }
+    }
+  ],
+  "item4.task.aria": {
+    "ariaChecked": "false",
+    "ariaDisabled": null,
+    "ariaLabel": "任务 - [ ] widget task 🚀",
+    "background": "rgb(255, 255, 255)",
+    "box": {
+      "h": 18,
+      "w": 24
+    },
+    "contrastFg": "rgb(118, 118, 118)",
+    "fontSize": "11.7px",
+    "role": "checkbox",
+    "tabindex": "0",
+    "text": "[ ]"
+  },
+  "item4.fence.themeMetrics": [
+    {
+      "theme": "light",
+      "metrics": {
+        "ariaChecked": null,
+        "ariaDisabled": null,
+        "ariaLabel": "代码块 js",
+        "background": "rgb(255, 255, 255)",
+        "box": {
+          "h": 30,
+          "w": 105
+        },
+        "contrastFg": "rgb(118, 118, 118)",
+        "fontSize": "12px",
+        "role": "region",
+        "tabindex": null,
+        "text": "js复制js"
+      }
+    },
+    {
+      "theme": "dark",
+      "metrics": {
+        "ariaChecked": null,
+        "ariaDisabled": null,
+        "ariaLabel": "代码块 js",
+        "background": "rgb(31, 31, 35)",
+        "box": {
+          "h": 30,
+          "w": 105
+        },
+        "contrastFg": "rgb(113, 113, 122)",
+        "fontSize": "12px",
+        "role": "region",
+        "tabindex": null,
+        "text": "js复制js"
+      }
+    },
+    {
+      "theme": "sepia",
+      "metrics": {
+        "ariaChecked": null,
+        "ariaDisabled": null,
+        "ariaLabel": "代码块 js",
+        "background": "rgb(250, 246, 237)",
+        "box": {
+          "h": 30,
+          "w": 105
+        },
+        "contrastFg": "rgb(139, 115, 85)",
+        "fontSize": "12px",
+        "role": "region",
+        "tabindex": null,
+        "text": "js复制js"
+      }
+    }
+  ],
+  "item4.fence.aria": {
+    "ariaChecked": null,
+    "ariaDisabled": null,
+    "ariaLabel": "代码块 js",
+    "background": "rgb(255, 255, 255)",
+    "box": {
+      "h": 30,
+      "w": 105
+    },
+    "contrastFg": "rgb(118, 118, 118)",
+    "fontSize": "12px",
+    "role": "region",
+    "tabindex": null,
+    "text": "js复制js"
+  },
+  "item4.fence.badge": {
+    "ariaChecked": null,
+    "ariaDisabled": null,
+    "ariaLabel": null,
+    "background": "rgba(0, 0, 0, 0)",
+    "box": {
+      "h": 22,
+      "w": 22
+    },
+    "contrastFg": "rgb(26, 26, 26)",
+    "fontSize": "11px",
+    "role": null,
+    "tabindex": null,
+    "text": "js"
+  },
+  "item4.fence.copyButton": {
+    "ariaChecked": null,
+    "ariaDisabled": null,
+    "ariaLabel": null,
+    "background": "rgba(0, 0, 0, 0)",
+    "box": {
+      "h": 24,
+      "w": 38
+    },
+    "contrastFg": "rgb(118, 118, 118)",
+    "fontSize": "12px",
+    "role": null,
+    "tabindex": null,
+    "text": "复制"
+  },
+  "item4.frontmatter.aria": null,
+  "item4.rawHtml.block": {
+    "ariaChecked": null,
+    "ariaDisabled": null,
+    "ariaLabel": null,
+    "background": "rgba(0, 0, 0, 0)",
+    "box": {
+      "h": 18,
+      "w": 408
+    },
+    "contrastFg": "rgb(26, 26, 26)",
+    "fontSize": "15px",
+    "role": null,
+    "tabindex": null,
+    "text": "<script>window.__p4bExecuted = true</script>"
+  },
+  "item5.startFocus": {
+    "ariaLabel": null,
+    "cls": "cm-content",
+    "dataAction": null,
+    "outline": "3px none",
+    "role": "textbox",
+    "tabindex": null,
+    "tag": "DIV"
+  },
+  "item5.tabWalk": [
+    {
+      "tab": 1,
+      "focus": {
+        "ariaLabel": "任务 - [ ] widget task 🚀",
+        "cls": "mf-widget-task mf-widget-control",
+        "dataAction": null,
+        "outline": "2px solid",
+        "role": "checkbox",
+        "tabindex": "0",
+        "tag": "SPAN"
+      }
+    },
+    {
+      "tab": 2,
+      "focus": {
+        "ariaLabel": "任务 - [x] already done",
+        "cls": "mf-widget-task mf-widget-control",
+        "dataAction": null,
+        "outline": "2px solid",
+        "role": "checkbox",
+        "tabindex": "0",
+        "tag": "SPAN"
+      }
+    },
+    {
+      "tab": 3,
+      "focus": {
+        "ariaLabel": null,
+        "cls": "",
+        "dataAction": null,
+        "outline": "3px none",
+        "role": null,
+        "tabindex": null,
+        "tag": "BODY"
+      }
+    },
+    {
+      "tab": 4,
+      "focus": {
+        "ariaLabel": null,
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    },
+    {
+      "tab": 5,
+      "focus": {
+        "ariaLabel": null,
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    },
+    {
+      "tab": 6,
+      "focus": {
+        "ariaLabel": null,
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    },
+    {
+      "tab": 7,
+      "focus": {
+        "ariaLabel": null,
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    },
+    {
+      "tab": 8,
+      "focus": {
+        "ariaLabel": "保存",
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    },
+    {
+      "tab": 9,
+      "focus": {
+        "ariaLabel": "导出",
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    },
+    {
+      "tab": 10,
+      "focus": {
+        "ariaLabel": "设置",
+        "cls": "toolbar-btn",
+        "dataAction": null,
+        "outline": "5px auto",
+        "role": null,
+        "tabindex": null,
+        "tag": "BUTTON"
+      }
+    }
+  ],
+  "item5.reachedTaskWidgetByTab": true,
+  "item5.widgetFocused": {
+    "ariaLabel": "任务 - [ ] widget task 🚀",
+    "cls": "mf-widget-task mf-widget-control",
+    "dataAction": null,
+    "outline": "2px solid",
+    "role": "checkbox",
+    "tabindex": "0",
+    "tag": "SPAN"
+  },
+  "item5.spaceToggledSource": true,
+  "item5.docAfterSpace": "- [x] widget task 🚀\n- [x] already done\n",
+  "item5.undoRestored": true,
+  "item6.flagOff.scriptExecuted": false,
+  "item6.flagOff.scriptElementsInEditor": 0,
+  "item6.flagOff.htmlBlockPresent": false,
+  "item6.flagOn": {
+    "divWithDataX": 0,
+    "editorText": "<script>window.__p4bExecuted = true</script><div data-x=\"1\">raw</div>",
+    "htmlBlockCount": 2,
+    "htmlBlockText": "<script>window.__p4bExecuted = true</script>",
+    "liveDivs": [],
+    "scriptElementsInEditor": 0,
+    "scriptExecuted": false
+  },
+  "item6.flagOn.sourceUnchanged": true
+}

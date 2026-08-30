@@ -75,6 +75,11 @@ jobs:
           else
             base="${{ github.event.before }}"
           fi
+          # 首次推送分支时 event.before 是全零：没有可比对的 base，跳过而不是飘红。
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "skip: 首次推送，无可比对基线"
+            exit 0
+          fi
           echo "range: ${base}..${{ github.sha }}"
           bash scripts/check-evidence-immutable.sh "$base" "${{ github.sha }}"
 

@@ -1,0 +1,142 @@
+{
+  "substrate.losslessCoreSessionHook": "function",
+  "substrate.livePreviewHook": "function",
+  "substrate.p4bFlagHook": "object",
+  "substrate.p4bFlagNames": [
+    "headingStrong",
+    "emphasisStrikeInlineCode",
+    "links",
+    "quoteLists",
+    "fence",
+    "taskCheckbox",
+    "codeFenceControls",
+    "frontmatterPolicy",
+    "rawHtmlPolicy"
+  ],
+  "clipboard.fence.source": "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n",
+  "clipboard.fence.widgetCount": 1,
+  "clipboard.fence.domText": "beforejs复制js```js title=\"keep\"const x = 1;```after",
+  "clipboard.hid.selectAll": {
+    "accessibilityTrusted": true,
+    "becameFrontmost": true,
+    "ok": true,
+    "pid": 7246,
+    "posted": [
+      "cmd+a"
+    ],
+    "unmapped": [],
+    "waitedMs": 0
+  },
+  "clipboard.fence.selectionAfterCmdA": {
+    "docLength": 51,
+    "from": 0,
+    "to": 51
+  },
+  "clipboard.hid.copy": {
+    "accessibilityTrusted": true,
+    "becameFrontmost": true,
+    "ok": true,
+    "pid": 7246,
+    "posted": [
+      "cmd+c"
+    ],
+    "unmapped": [],
+    "waitedMs": 0
+  },
+  "clipboard.fence.pastedText": "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n",
+  "clipboard.fence.pastedSha256": "faeda8aef88be91e9b6ddf84ebab258235ef78c36d296a7dbcf61d3e70b2b1b4",
+  "clipboard.fence.pastedLength": 51,
+  "clipboard.fence.sourceLength": 51,
+  "clipboard.fence.byteIdenticalToInMemoryDoc": true,
+  "clipboard.fence.byteIdenticalToDiskFile": true,
+  "clipboard.hid.cutSequence": [
+    {
+      "accessibilityTrusted": true,
+      "becameFrontmost": true,
+      "ok": true,
+      "pid": 7246,
+      "posted": [
+        "cmd+a"
+      ],
+      "unmapped": [],
+      "waitedMs": 0
+    },
+    {
+      "accessibilityTrusted": true,
+      "becameFrontmost": true,
+      "ok": true,
+      "pid": 7246,
+      "posted": [
+        "cmd+x"
+      ],
+      "unmapped": [],
+      "waitedMs": 0
+    }
+  ],
+  "clipboard.cut.pastedText": "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n",
+  "clipboard.cut.byteIdenticalToSource": true,
+  "clipboard.cut.docAfterCut": "",
+  "clipboard.cut.docEmptied": true,
+  "clipboard.hid.undo": {
+    "accessibilityTrusted": true,
+    "becameFrontmost": true,
+    "ok": true,
+    "pid": 7246,
+    "posted": [
+      "cmd+z"
+    ],
+    "unmapped": [],
+    "waitedMs": 0
+  },
+  "clipboard.cut.docAfterUndo": "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n",
+  "clipboard.cut.undoRestoredBytes": true,
+  "clipboard.cut.diskUnchangedAfterAutosaveWindow": true,
+  "clipboard.hid.partial": [
+    {
+      "accessibilityTrusted": true,
+      "becameFrontmost": true,
+      "ok": true,
+      "pid": 7246,
+      "posted": [
+        "cmd+Up"
+      ],
+      "unmapped": [],
+      "waitedMs": 0
+    },
+    {
+      "accessibilityTrusted": true,
+      "becameFrontmost": true,
+      "ok": true,
+      "pid": 7246,
+      "posted": [
+        "shift+Down",
+        "shift+Down",
+        "shift+Down"
+      ],
+      "unmapped": [],
+      "waitedMs": 0
+    },
+    {
+      "accessibilityTrusted": true,
+      "becameFrontmost": true,
+      "ok": true,
+      "pid": 7246,
+      "posted": [
+        "cmd+c"
+      ],
+      "unmapped": [],
+      "waitedMs": 0
+    }
+  ],
+  "clipboard.partial.selection": {
+    "from": 0,
+    "to": 27
+  },
+  "clipboard.partial.pastedText": "before\n\n```js title=\"keep\"\n",
+  "clipboard.partial.isSourceSubstring": true,
+  "clipboard.partial.isWholeDoc": false,
+  "clipboard.plain.source": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n",
+  "clipboard.plain.pastedText": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n",
+  "clipboard.plain.byteIdenticalToInMemoryDoc": true,
+  "clipboard.plain.byteIdenticalToDiskFile": true
+}

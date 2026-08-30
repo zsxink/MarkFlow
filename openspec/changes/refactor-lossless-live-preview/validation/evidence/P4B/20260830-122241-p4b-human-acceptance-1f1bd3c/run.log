@@ -1,0 +1,278 @@
+
+Execution of 3 workers started at 2026-08-30T04:08:57.476Z
+
+[0-0] RUNNING in undefined - file:///tmp/p4b-acc/specs/1-clipboard.e2e.mjs
+[0-0] [FINDING] substrate.losslessCoreSessionHook = "function"
+[0-0] [FINDING] substrate.livePreviewHook = "function"
+[0-0] [FINDING] substrate.p4bFlagHook = "object"
+[0-0] [FINDING] substrate.p4bFlagNames = ["headingStrong","emphasisStrikeInlineCode","links","quoteLists","fence","taskCheckbox","codeFenceControls","frontmatterPolicy","rawHtmlPolicy"]
+[0-0] [FINDING] clipboard.fence.source = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.fence.widgetCount = 1
+[0-0] [FINDING] clipboard.fence.domText = "beforejs复制js```js title=\"keep\"const x = 1;```after"
+[0-0] [FINDING] clipboard.hid.selectAll = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+a"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] clipboard.fence.selectionAfterCmdA = {"docLength":51,"from":0,"to":51}
+[0-0] [FINDING] clipboard.hid.copy = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+c"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] clipboard.fence.pastedText = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.fence.pastedSha256 = "faeda8aef88be91e9b6ddf84ebab258235ef78c36d296a7dbcf61d3e70b2b1b4"
+[0-0] [FINDING] clipboard.fence.pastedLength = 51
+[0-0] [FINDING] clipboard.fence.sourceLength = 51
+[0-0] [FINDING] clipboard.fence.byteIdenticalToInMemoryDoc = true
+[0-0] [FINDING] clipboard.fence.byteIdenticalToDiskFile = true
+[0-0] [FINDING] clipboard.hid.cutSequence = [{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+a"],"unmapped":[],"waitedMs":0},{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+x"],"unmapped":[],"waitedMs":0}]
+[0-0] [FINDING] clipboard.cut.pastedText = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.cut.byteIdenticalToSource = true
+[0-0] [FINDING] clipboard.cut.docAfterCut = ""
+[0-0] [FINDING] clipboard.cut.docEmptied = true
+[0-0] [FINDING] clipboard.hid.undo = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+z"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] clipboard.cut.docAfterUndo = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.cut.undoRestoredBytes = true
+[0-0] [FINDING] clipboard.cut.diskUnchangedAfterAutosaveWindow = true
+[0-0] [FINDING] clipboard.hid.partial = [{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+Up"],"unmapped":[],"waitedMs":0},{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["shift+Down","shift+Down","shift+Down"],"unmapped":[],"waitedMs":0},{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":75661,"posted":["cmd+c"],"unmapped":[],"waitedMs":0}]
+[0-0] [FINDING] clipboard.partial.selection = {"from":0,"to":27}
+[0-0] [FINDING] clipboard.partial.pastedText = "before\n\n```js title=\"keep\"\n"
+[0-0] [FINDING] clipboard.partial.isSourceSubstring = true
+[0-0] [FINDING] clipboard.partial.isWholeDoc = false
+[0-0] [FINDING] clipboard.plain.source = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n"
+[0-0] [FINDING] clipboard.plain.pastedText = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n"
+[0-0] [FINDING] clipboard.plain.byteIdenticalToInMemoryDoc = true
+[0-0] [FINDING] clipboard.plain.byteIdenticalToDiskFile = true
+[0-0] PASSED in undefined - file:///tmp/p4b-acc/specs/1-clipboard.e2e.mjs
+[0-1] RUNNING in undefined - file:///tmp/p4b-acc/specs/2-editing.e2e.mjs
+[0-1] [FINDING] substrate.losslessCoreSessionHook = "function"
+[0-1] [FINDING] substrate.livePreviewHook = "function"
+[0-1] [FINDING] substrate.p4bFlagHook = "object"
+[0-1] [FINDING] substrate.p4bFlagNames = ["headingStrong","emphasisStrikeInlineCode","links","quoteLists","fence","taskCheckbox","codeFenceControls","frontmatterPolicy","rawHtmlPolicy"]
+[0-1] [FINDING] item1.caretAway.markers = {"activeClasses":["mf-construct mf-h mf-active"],"activeConstructCount":1,"anyMarkerHidden":false,"domText":"# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。","firstMarkerColor":"rgb(113, 113, 122)","firstMarkerOpacity":"0.45","markerSpanCount":15,"markerTexts":["**","**","*","*","-","-",">","1.","2.","`","`","["]}
+[0-1] [FINDING] item1.boldSourceOffset = 14
+[0-1] [FINDING] item1.caretInsideBold.markers = {"activeClasses":["mf-construct mf-strong mf-active"],"activeConstructCount":1,"anyMarkerHidden":false,"domText":"# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。","firstMarkerColor":"rgb(113, 113, 122)","firstMarkerOpacity":"0.45","markerSpanCount":14,"markerTexts":["#","*","*","-","-",">","1.","2.","`","`","[","]"]}
+[0-1] [FINDING] item2.startOffset = 22
+[0-1] [FINDING] item2.arrowWalk = [{"press":1,"from":19,"delta":1,"charUnderCaret":"*"},{"press":2,"from":20,"delta":1,"charUnderCaret":"与"},{"press":3,"from":21,"delta":1,"charUnderCaret":" "},{"press":4,"from":22,"delta":1,"charUnderCaret":"*"},{"press":5,"from":23,"delta":1,"charUnderCaret":"斜"},{"press":6,"from":24,"delta":1,"charUnderCaret":"体"},{"press":7,"from":25,"delta":1,"charUnderCaret":"*"},{"press":8,"from":26,"delta":1,"charUnderCaret":" "},{"press":9,"from":27,"delta":1,"charUnderCaret":"混"},{"press":10,"from":28,"delta":1,"charUnderCaret":"排"},{"press":11,"from":29,"delta":1,"charUnderCaret":"的"},{"press":12,"from":30,"delta":1,"charUnderCaret":"正"}]
+[0-1] [FINDING] item2.allDeltasAreOne = true
+[0-1] [FINDING] item2.caretBeforeTyping = {"docLength":145,"from":145,"to":145}
+[0-1] [FINDING] item2.docAfterTyping = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc"
+[0-1] [FINDING] item2.typedInsertedAtCaret = true
+[0-1] [FINDING] item2.lengthDelta = 3
+[0-1] [FINDING] item2.caretAfterTyping = {"docLength":148,"from":148,"to":148}
+[0-1] [FINDING] item2.caretAdvancedBy3 = true
+[0-1] [FINDING] item2.docAfterSingleUndo = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc z"
+[0-1] [FINDING] item2.singleUndoRestoredBytes = false
+[0-1] Error in "P4B human acceptance — editing, caret, fallback.item 2 — real HID typing lands where the caret is and one Cmd+Z restores bytes"
+Error: expect(received).toBe(expected) // Object.is equality
+
+- Expected  - 1
++ Received  + 1
+
+  # 人工验收基线
+
+  这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。
+
+  - 列表项一
+  - 列表项二
+
+  > 引用行
+
+  1. 有序项甲
+  2. 有序项乙
+
+  `行内代码` 与 [链接](https://example.com) 结束。
+-
++ abc z
+    at Context.<anonymous> (file:///private/tmp/p4b-acc/specs/2-editing.e2e.mjs:142:20)
+[0-1] [FINDING] item3.before.decorations = {"mf-blockquote":1,"mf-emphasis":1,"mf-h":1,"mf-inline-code":1,"mf-link":2,"mf-list-item":4,"mf-strong":1}
+[0-1] [FINDING] item3.failMode = "armed"
+[0-1] [FINDING] item3.degraded.markers = {"activeClasses":[],"activeConstructCount":0,"anyMarkerHidden":false,"domText":"# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。abc z","firstMarkerColor":null,"firstMarkerOpacity":null,"markerSpanCount":0,"markerTexts":[]}
+[0-1] [FINDING] item3.degraded.projectionState = "degraded"
+[0-1] [FINDING] item3.degraded.decorations = {}
+[0-1] [FINDING] item3.degraded.sourceUnchanged = true
+[0-1] [FINDING] item3.docAfterTypingInFallback = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc zx y"
+[0-1] [FINDING] item3.fallbackEditable = false
+[0-1] [FINDING] item3.docAfterUndo = false
+[0-1] [FINDING] item3.saveResult = "skipped"
+[0-1] [FINDING] item3.clearFail = "cleared"
+[0-1] [FINDING] item3.recovered.projectionState = "composing"
+[0-1] [FINDING] item3.recovered.markerCount = 15
+[0-1] Error in "P4B human acceptance — editing, caret, fallback.item 3 — injected projection failure falls back to exact source and stays editable"
+Error: expect(received).toBe(expected) // Object.is equality
+
+- Expected  - 1
++ Received  + 1
+
+  # 人工验收基线
+
+  这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。
+
+  - 列表项一
+  - 列表项二
+
+  > 引用行
+
+  1. 有序项甲
+  2. 有序项乙
+
+  `行内代码` 与 [链接](https://example.com) 结束。
+- abc z
++ abc zx y z
+    at Context.<anonymous> (file:///private/tmp/p4b-acc/specs/2-editing.e2e.mjs:192:22)
+[0-1] FAILED in undefined - file:///tmp/p4b-acc/specs/2-editing.e2e.mjs
+[0-2] RUNNING in undefined - file:///tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs
+[0-2] [FINDING] substrate.losslessCoreSessionHook = "function"
+[0-2] [FINDING] substrate.livePreviewHook = "function"
+[0-2] [FINDING] substrate.p4bFlagHook = "object"
+[0-2] [FINDING] substrate.p4bFlagNames = ["headingStrong","emphasisStrikeInlineCode","links","quoteLists","fence","taskCheckbox","codeFenceControls","frontmatterPolicy","rawHtmlPolicy"]
+[0-2] [FINDING] item4.task.themeMetrics = [{"theme":"light","metrics":{"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(255, 255, 255)","box":{"h":18,"w":24},"contrastFg":"rgb(118, 118, 118)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}},{"theme":"dark","metrics":{"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(31, 31, 35)","box":{"h":18,"w":24},"contrastFg":"rgb(113, 113, 122)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}},{"theme":"sepia","metrics":{"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(250, 246, 237)","box":{"h":18,"w":24},"contrastFg":"rgb(139, 115, 85)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}}]
+[0-2] [FINDING] item4.task.aria = {"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(255, 255, 255)","box":{"h":18,"w":24},"contrastFg":"rgb(118, 118, 118)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}
+[0-2] [FINDING] item4.fence.themeMetrics = [{"theme":"light","metrics":{"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(255, 255, 255)","box":{"h":30,"w":105},"contrastFg":"rgb(118, 118, 118)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}},{"theme":"dark","metrics":{"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(31, 31, 35)","box":{"h":30,"w":105},"contrastFg":"rgb(113, 113, 122)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}},{"theme":"sepia","metrics":{"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(250, 246, 237)","box":{"h":30,"w":105},"contrastFg":"rgb(139, 115, 85)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}}]
+[0-2] [FINDING] item4.fence.aria = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(255, 255, 255)","box":{"h":30,"w":105},"contrastFg":"rgb(118, 118, 118)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}
+[0-2] [FINDING] item4.fence.badge = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":null,"background":"rgba(0, 0, 0, 0)","box":{"h":22,"w":22},"contrastFg":"rgb(26, 26, 26)","fontSize":"11px","role":null,"tabindex":null,"text":"js"}
+[0-2] [FINDING] item4.fence.copyButton = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":null,"background":"rgba(0, 0, 0, 0)","box":{"h":24,"w":38},"contrastFg":"rgb(118, 118, 118)","fontSize":"12px","role":null,"tabindex":null,"text":"复制"}
+[0-2] [FINDING] item4.frontmatter.aria = null
+[0-2] [FINDING] item4.rawHtml.block = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":null,"background":"rgba(0, 0, 0, 0)","box":{"h":18,"w":408},"contrastFg":"rgb(26, 26, 26)","fontSize":"15px","role":null,"tabindex":null,"text":"<script>window.__p4bExecuted = true</script>"}
+[0-2] [FINDING] item5.startFocus = {"ariaLabel":null,"cls":"cm-content","dataAction":null,"outline":"3px none","role":"textbox","tabindex":null,"tag":"DIV"}
+[0-2] [FINDING] item5.tabWalk = [{"tab":1,"focus":{"ariaLabel":"任务 - [ ] widget task 🚀","cls":"mf-widget-task mf-widget-control","dataAction":null,"outline":"2px solid","role":"checkbox","tabindex":"0","tag":"SPAN"}},{"tab":2,"focus":{"ariaLabel":"任务 - [x] already done","cls":"mf-widget-task mf-widget-control","dataAction":null,"outline":"2px solid","role":"checkbox","tabindex":"0","tag":"SPAN"}},{"tab":3,"focus":{"ariaLabel":null,"cls":"","dataAction":null,"outline":"3px none","role":null,"tabindex":null,"tag":"BODY"}},{"tab":4,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":5,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":6,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":7,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":8,"focus":{"ariaLabel":"保存","cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":9,"focus":{"ariaLabel":"导出","cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":10,"focus":{"ariaLabel":"设置","cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}}]
+[0-2] [FINDING] item5.reachedTaskWidgetByTab = true
+[0-2] [FINDING] item5.widgetFocused = {"ariaLabel":"任务 - [ ] widget task 🚀","cls":"mf-widget-task mf-widget-control","dataAction":null,"outline":"2px solid","role":"checkbox","tabindex":"0","tag":"SPAN"}
+[0-2] [FINDING] item5.spaceToggledSource = true
+[0-2] [FINDING] item5.docAfterSpace = "- [x] widget task 🚀\n- [x] already done\n"
+[0-2] [FINDING] item5.undoRestored = true
+[0-2] Error in "P4B human acceptance — visuals, keyboard-only, raw HTML.item 6 — raw HTML stays inert with the policy flag ON"
+Error: waitUntil condition timed out after 15000ms
+    at async openDoc (file:///private/tmp/p4b-acc/lib.mjs:58:3)
+    at async Context.<anonymous> (file:///private/tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs:151:5)
+[0-2] FAILED in undefined - file:///tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: c3e17870-4a20-45f8-87a4-b39c014b1843
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » tmp/p4b-acc/specs/1-clipboard.e2e.mjs
+[webkit 605.1.15 macos #0-0] P4B human acceptance — system pasteboard end to end
+[webkit 605.1.15 macos #0-0]    ✓ Cmd+A then Cmd+C puts byte-exact Markdown source on the system pasteboard (fence widget ON)
+[webkit 605.1.15 macos #0-0]    ✓ Cmd+A then Cmd+X puts source on the pasteboard, empties the doc, and one Cmd+Z restores bytes
+[webkit 605.1.15 macos #0-0]    ✓ partial selection with real HID (Shift+Down) copies a source sub-range, not DOM text
+[webkit 605.1.15 macos #0-0]    ✓ baseline document with every P4B flag OFF also copies byte-exact source
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 4 passing (26.5s)
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-1] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-1] Session ID: 061d1a8a-db40-416a-91e9-93ad813c09a5
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1] » tmp/p4b-acc/specs/2-editing.e2e.mjs
+[webkit 605.1.15 macos #0-1] P4B human acceptance — editing, caret, fallback
+[webkit 605.1.15 macos #0-1]    ✓ item 1 — dimmed markers stay discoverable and revealed markers follow the caret
+[webkit 605.1.15 macos #0-1]    ✓ item 2 — real ArrowRight advances exactly one source character per press
+[webkit 605.1.15 macos #0-1]    ✖ item 2 — real HID typing lands where the caret is and one Cmd+Z restores bytes
+[webkit 605.1.15 macos #0-1]    ✖ item 3 — injected projection failure falls back to exact source and stays editable
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1] 2 passing (23s)
+[webkit 605.1.15 macos #0-1] 2 failing
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1] 1) P4B human acceptance — editing, caret, fallback item 2 — real HID typing lands where the caret is and one Cmd+Z restores bytes
+[webkit 605.1.15 macos #0-1] expect(received).toBe(expected) // Object.is equality
+
+- Expected  - 1
++ Received  + 1
+
+  # 人工验收基线
+
+  这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。
+
+  - 列表项一
+  - 列表项二
+
+  > 引用行
+
+  1. 有序项甲
+  2. 有序项乙
+
+  `行内代码` 与 [链接](https://example.com) 结束。
+-
++ abc z
+[webkit 605.1.15 macos #0-1] Error: expect(received).toBe(expected) // Object.is equality
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1] - Expected  - 1
+[webkit 605.1.15 macos #0-1] + Received  + 1
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   # 人工验收基线
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   - 列表项一
+[webkit 605.1.15 macos #0-1]   - 列表项二
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   > 引用行
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   1. 有序项甲
+[webkit 605.1.15 macos #0-1]   2. 有序项乙
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   `行内代码` 与 [链接](https://example.com) 结束。
+[webkit 605.1.15 macos #0-1] -
+[webkit 605.1.15 macos #0-1] + abc z
+[webkit 605.1.15 macos #0-1]     at Context.<anonymous> (file:///private/tmp/p4b-acc/specs/2-editing.e2e.mjs:142:20)
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1] 2) P4B human acceptance — editing, caret, fallback item 3 — injected projection failure falls back to exact source and stays editable
+[webkit 605.1.15 macos #0-1] expect(received).toBe(expected) // Object.is equality
+
+- Expected  - 1
++ Received  + 1
+
+  # 人工验收基线
+
+  这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。
+
+  - 列表项一
+  - 列表项二
+
+  > 引用行
+
+  1. 有序项甲
+  2. 有序项乙
+
+  `行内代码` 与 [链接](https://example.com) 结束。
+- abc z
++ abc zx y z
+[webkit 605.1.15 macos #0-1] Error: expect(received).toBe(expected) // Object.is equality
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1] - Expected  - 1
+[webkit 605.1.15 macos #0-1] + Received  + 1
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   # 人工验收基线
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   - 列表项一
+[webkit 605.1.15 macos #0-1]   - 列表项二
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   > 引用行
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   1. 有序项甲
+[webkit 605.1.15 macos #0-1]   2. 有序项乙
+[webkit 605.1.15 macos #0-1]
+[webkit 605.1.15 macos #0-1]   `行内代码` 与 [链接](https://example.com) 结束。
+[webkit 605.1.15 macos #0-1] - abc z
+[webkit 605.1.15 macos #0-1] + abc zx y z
+[webkit 605.1.15 macos #0-1]     at Context.<anonymous> (file:///private/tmp/p4b-acc/specs/2-editing.e2e.mjs:192:22)
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-2] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-2] Session ID: d3af6bad-9504-4f70-98f3-b491d3430eda
+[webkit 605.1.15 macos #0-2]
+[webkit 605.1.15 macos #0-2] » tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs
+[webkit 605.1.15 macos #0-2] P4B human acceptance — visuals, keyboard-only, raw HTML
+[webkit 605.1.15 macos #0-2]    ✓ item 4 — task checkbox visuals across the three product themes
+[webkit 605.1.15 macos #0-2]    ✓ item 4 — code fence controls visuals across the three product themes
+[webkit 605.1.15 macos #0-2]    ✓ item 4 — frontmatter and raw HTML policy visuals
+[webkit 605.1.15 macos #0-2]    ✓ item 5 — keyboard-only: how far does real Tab travel from the editor?
+[webkit 605.1.15 macos #0-2]    ✖ item 6 — raw HTML stays inert with the policy flag ON
+[webkit 605.1.15 macos #0-2]
+[webkit 605.1.15 macos #0-2] 4 passing (35.7s)
+[webkit 605.1.15 macos #0-2] 1 failing
+[webkit 605.1.15 macos #0-2]
+[webkit 605.1.15 macos #0-2] 1) P4B human acceptance — visuals, keyboard-only, raw HTML item 6 — raw HTML stays inert with the policy flag ON
+[webkit 605.1.15 macos #0-2] waitUntil condition timed out after 15000ms
+[webkit 605.1.15 macos #0-2] Error: waitUntil condition timed out after 15000ms
+[webkit 605.1.15 macos #0-2]     at async openDoc (file:///private/tmp/p4b-acc/lib.mjs:58:3)
+[webkit 605.1.15 macos #0-2]     at async Context.<anonymous> (file:///private/tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs:151:5)
+
+
+Spec Files:	 1 passed, 2 failed, 3 total (100% completed) in 00:01:26  
+

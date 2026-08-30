@@ -1,0 +1,48 @@
+
+Execution of 1 workers started at 2026-08-30T04:21:07.190Z
+
+[0-0] RUNNING in undefined - file:///tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs
+[0-0] [FINDING] substrate.losslessCoreSessionHook = "function"
+[0-0] [FINDING] substrate.livePreviewHook = "function"
+[0-0] [FINDING] substrate.p4bFlagHook = "object"
+[0-0] [FINDING] substrate.p4bFlagNames = ["headingStrong","emphasisStrikeInlineCode","links","quoteLists","fence","taskCheckbox","codeFenceControls","frontmatterPolicy","rawHtmlPolicy"]
+[0-0] [FINDING] item4.task.themeMetrics = [{"theme":"light","metrics":{"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(255, 255, 255)","box":{"h":18,"w":24},"contrastFg":"rgb(118, 118, 118)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}},{"theme":"dark","metrics":{"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(31, 31, 35)","box":{"h":18,"w":24},"contrastFg":"rgb(113, 113, 122)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}},{"theme":"sepia","metrics":{"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(250, 246, 237)","box":{"h":18,"w":24},"contrastFg":"rgb(139, 115, 85)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}}]
+[0-0] [FINDING] item4.task.aria = {"ariaChecked":"false","ariaDisabled":null,"ariaLabel":"任务 - [ ] widget task 🚀","background":"rgb(255, 255, 255)","box":{"h":18,"w":24},"contrastFg":"rgb(118, 118, 118)","fontSize":"11.7px","role":"checkbox","tabindex":"0","text":"[ ]"}
+[0-0] [FINDING] item4.fence.themeMetrics = [{"theme":"light","metrics":{"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(255, 255, 255)","box":{"h":30,"w":105},"contrastFg":"rgb(118, 118, 118)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}},{"theme":"dark","metrics":{"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(31, 31, 35)","box":{"h":30,"w":105},"contrastFg":"rgb(113, 113, 122)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}},{"theme":"sepia","metrics":{"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(250, 246, 237)","box":{"h":30,"w":105},"contrastFg":"rgb(139, 115, 85)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}}]
+[0-0] [FINDING] item4.fence.aria = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":"代码块 js","background":"rgb(255, 255, 255)","box":{"h":30,"w":105},"contrastFg":"rgb(118, 118, 118)","fontSize":"12px","role":"region","tabindex":null,"text":"js复制js"}
+[0-0] [FINDING] item4.fence.badge = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":null,"background":"rgba(0, 0, 0, 0)","box":{"h":22,"w":22},"contrastFg":"rgb(26, 26, 26)","fontSize":"11px","role":null,"tabindex":null,"text":"js"}
+[0-0] [FINDING] item4.fence.copyButton = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":null,"background":"rgba(0, 0, 0, 0)","box":{"h":24,"w":38},"contrastFg":"rgb(118, 118, 118)","fontSize":"12px","role":null,"tabindex":null,"text":"复制"}
+[0-0] [FINDING] item4.frontmatter.aria = null
+[0-0] [FINDING] item4.rawHtml.block = {"ariaChecked":null,"ariaDisabled":null,"ariaLabel":null,"background":"rgba(0, 0, 0, 0)","box":{"h":18,"w":408},"contrastFg":"rgb(26, 26, 26)","fontSize":"15px","role":null,"tabindex":null,"text":"<script>window.__p4bExecuted = true</script>"}
+[0-0] [FINDING] item5.startFocus = {"ariaLabel":null,"cls":"cm-content","dataAction":null,"outline":"3px none","role":"textbox","tabindex":null,"tag":"DIV"}
+[0-0] [FINDING] item5.tabWalk = [{"tab":1,"focus":{"ariaLabel":"任务 - [ ] widget task 🚀","cls":"mf-widget-task mf-widget-control","dataAction":null,"outline":"2px solid","role":"checkbox","tabindex":"0","tag":"SPAN"}},{"tab":2,"focus":{"ariaLabel":"任务 - [x] already done","cls":"mf-widget-task mf-widget-control","dataAction":null,"outline":"2px solid","role":"checkbox","tabindex":"0","tag":"SPAN"}},{"tab":3,"focus":{"ariaLabel":null,"cls":"","dataAction":null,"outline":"3px none","role":null,"tabindex":null,"tag":"BODY"}},{"tab":4,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":5,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":6,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":7,"focus":{"ariaLabel":null,"cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":8,"focus":{"ariaLabel":"保存","cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":9,"focus":{"ariaLabel":"导出","cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}},{"tab":10,"focus":{"ariaLabel":"设置","cls":"toolbar-btn","dataAction":null,"outline":"5px auto","role":null,"tabindex":null,"tag":"BUTTON"}}]
+[0-0] [FINDING] item5.reachedTaskWidgetByTab = true
+[0-0] [FINDING] item5.widgetFocused = {"ariaLabel":"任务 - [ ] widget task 🚀","cls":"mf-widget-task mf-widget-control","dataAction":null,"outline":"2px solid","role":"checkbox","tabindex":"0","tag":"SPAN"}
+[0-0] [FINDING] item5.spaceToggledSource = true
+[0-0] [FINDING] item5.docAfterSpace = "- [x] widget task 🚀\n- [x] already done\n"
+[0-0] [FINDING] item5.undoRestored = true
+[0-0] [FINDING] item6.flagOff.scriptExecuted = false
+[0-0] [FINDING] item6.flagOff.scriptElementsInEditor = 0
+[0-0] [FINDING] item6.flagOff.htmlBlockPresent = false
+[0-0] [FINDING] item6.flagOn = {"divWithDataX":0,"editorText":"<script>window.__p4bExecuted = true</script><div data-x=\"1\">raw</div>","htmlBlockCount":2,"htmlBlockText":"<script>window.__p4bExecuted = true</script>","liveDivs":[],"scriptElementsInEditor":0,"scriptExecuted":false}
+[0-0] [FINDING] item6.flagOn.sourceUnchanged = true
+[0-0] PASSED in undefined - file:///tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: bf1f07aa-7798-4915-bed6-1ddc82fc93f1
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » tmp/p4b-acc/specs/3-visual-a11y-security.e2e.mjs
+[webkit 605.1.15 macos #0-0] P4B human acceptance — visuals, keyboard-only, raw HTML
+[webkit 605.1.15 macos #0-0]    ✓ item 4 — task checkbox visuals across the three product themes
+[webkit 605.1.15 macos #0-0]    ✓ item 4 — code fence controls visuals across the three product themes
+[webkit 605.1.15 macos #0-0]    ✓ item 4 — frontmatter and raw HTML policy visuals
+[webkit 605.1.15 macos #0-0]    ✓ item 5 — keyboard-only: how far does real Tab travel from the editor?
+[webkit 605.1.15 macos #0-0]    ✓ item 6 — raw HTML stays inert with the policy flag ON
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 5 passing (24.2s)
+
+
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:24  
+

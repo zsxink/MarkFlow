@@ -1,0 +1,57 @@
+
+Execution of 1 workers started at 2026-08-30T04:22:02.933Z
+
+[0-0] RUNNING in undefined - file:///tmp/p4b-acc/specs/1-clipboard.e2e.mjs
+[0-0] [FINDING] substrate.losslessCoreSessionHook = "function"
+[0-0] [FINDING] substrate.livePreviewHook = "function"
+[0-0] [FINDING] substrate.p4bFlagHook = "object"
+[0-0] [FINDING] substrate.p4bFlagNames = ["headingStrong","emphasisStrikeInlineCode","links","quoteLists","fence","taskCheckbox","codeFenceControls","frontmatterPolicy","rawHtmlPolicy"]
+[0-0] [FINDING] clipboard.fence.source = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.fence.widgetCount = 1
+[0-0] [FINDING] clipboard.fence.domText = "beforejs复制js```js title=\"keep\"const x = 1;```after"
+[0-0] [FINDING] clipboard.hid.selectAll = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+a"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] clipboard.fence.selectionAfterCmdA = {"docLength":51,"from":0,"to":51}
+[0-0] [FINDING] clipboard.hid.copy = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+c"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] clipboard.fence.pastedText = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.fence.pastedSha256 = "faeda8aef88be91e9b6ddf84ebab258235ef78c36d296a7dbcf61d3e70b2b1b4"
+[0-0] [FINDING] clipboard.fence.pastedLength = 51
+[0-0] [FINDING] clipboard.fence.sourceLength = 51
+[0-0] [FINDING] clipboard.fence.byteIdenticalToInMemoryDoc = true
+[0-0] [FINDING] clipboard.fence.byteIdenticalToDiskFile = true
+[0-0] [FINDING] clipboard.hid.cutSequence = [{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+a"],"unmapped":[],"waitedMs":0},{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+x"],"unmapped":[],"waitedMs":0}]
+[0-0] [FINDING] clipboard.cut.pastedText = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.cut.byteIdenticalToSource = true
+[0-0] [FINDING] clipboard.cut.docAfterCut = ""
+[0-0] [FINDING] clipboard.cut.docEmptied = true
+[0-0] [FINDING] clipboard.hid.undo = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+z"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] clipboard.cut.docAfterUndo = "before\n\n```js title=\"keep\"\nconst x = 1;\n```\n\nafter\n"
+[0-0] [FINDING] clipboard.cut.undoRestoredBytes = true
+[0-0] [FINDING] clipboard.cut.diskUnchangedAfterAutosaveWindow = true
+[0-0] [FINDING] clipboard.hid.partial = [{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+Up"],"unmapped":[],"waitedMs":0},{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["shift+Down","shift+Down","shift+Down"],"unmapped":[],"waitedMs":0},{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":87080,"posted":["cmd+c"],"unmapped":[],"waitedMs":0}]
+[0-0] [FINDING] clipboard.partial.selection = {"from":0,"to":27}
+[0-0] [FINDING] clipboard.partial.pastedText = "before\n\n```js title=\"keep\"\n"
+[0-0] [FINDING] clipboard.partial.isSourceSubstring = true
+[0-0] [FINDING] clipboard.partial.isWholeDoc = false
+[0-0] [FINDING] clipboard.plain.source = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n"
+[0-0] [FINDING] clipboard.plain.pastedText = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n"
+[0-0] [FINDING] clipboard.plain.byteIdenticalToInMemoryDoc = true
+[0-0] [FINDING] clipboard.plain.byteIdenticalToDiskFile = true
+[0-0] PASSED in undefined - file:///tmp/p4b-acc/specs/1-clipboard.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: b789133b-0aba-4d13-b17e-06467f4364c7
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » tmp/p4b-acc/specs/1-clipboard.e2e.mjs
+[webkit 605.1.15 macos #0-0] P4B human acceptance — system pasteboard end to end
+[webkit 605.1.15 macos #0-0]    ✓ Cmd+A then Cmd+C puts byte-exact Markdown source on the system pasteboard (fence widget ON)
+[webkit 605.1.15 macos #0-0]    ✓ Cmd+A then Cmd+X puts source on the pasteboard, empties the doc, and one Cmd+Z restores bytes
+[webkit 605.1.15 macos #0-0]    ✓ partial selection with real HID (Shift+Down) copies a source sub-range, not DOM text
+[webkit 605.1.15 macos #0-0]    ✓ baseline document with every P4B flag OFF also copies byte-exact source
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 4 passing (27.8s)
+
+
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:28  
+

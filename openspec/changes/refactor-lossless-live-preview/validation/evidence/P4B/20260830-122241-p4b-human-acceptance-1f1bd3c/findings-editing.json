@@ -1,0 +1,300 @@
+{
+  "substrate.losslessCoreSessionHook": "function",
+  "substrate.livePreviewHook": "function",
+  "substrate.p4bFlagHook": "object",
+  "substrate.p4bFlagNames": [
+    "headingStrong",
+    "emphasisStrikeInlineCode",
+    "links",
+    "quoteLists",
+    "fence",
+    "taskCheckbox",
+    "codeFenceControls",
+    "frontmatterPolicy",
+    "rawHtmlPolicy"
+  ],
+  "item1.caretAway.markers": {
+    "activeClasses": [
+      "mf-construct mf-h mf-active"
+    ],
+    "activeConstructCount": 1,
+    "anyMarkerHidden": false,
+    "domText": "# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。",
+    "firstMarkerColor": "rgb(113, 113, 122)",
+    "firstMarkerOpacity": "0.45",
+    "markerSpanCount": 15,
+    "markerTexts": [
+      "**",
+      "**",
+      "*",
+      "*",
+      "-",
+      "-",
+      ">",
+      "1.",
+      "2.",
+      "`",
+      "`",
+      "["
+    ]
+  },
+  "item1.boldSourceOffset": 14,
+  "item1.caretInsideBold.markers": {
+    "activeClasses": [
+      "mf-construct mf-strong mf-active"
+    ],
+    "activeConstructCount": 1,
+    "anyMarkerHidden": false,
+    "domText": "# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。",
+    "firstMarkerColor": "rgb(113, 113, 122)",
+    "firstMarkerOpacity": "0.45",
+    "markerSpanCount": 14,
+    "markerTexts": [
+      "#",
+      "*",
+      "*",
+      "-",
+      "-",
+      ">",
+      "1.",
+      "2.",
+      "`",
+      "`",
+      "[",
+      "]"
+    ]
+  },
+  "item2.startOffset": 22,
+  "item2.arrowWalk": [
+    {
+      "press": 1,
+      "from": 19,
+      "delta": 1,
+      "charUnderCaret": "*"
+    },
+    {
+      "press": 2,
+      "from": 20,
+      "delta": 1,
+      "charUnderCaret": "与"
+    },
+    {
+      "press": 3,
+      "from": 21,
+      "delta": 1,
+      "charUnderCaret": " "
+    },
+    {
+      "press": 4,
+      "from": 22,
+      "delta": 1,
+      "charUnderCaret": "*"
+    },
+    {
+      "press": 5,
+      "from": 23,
+      "delta": 1,
+      "charUnderCaret": "斜"
+    },
+    {
+      "press": 6,
+      "from": 24,
+      "delta": 1,
+      "charUnderCaret": "体"
+    },
+    {
+      "press": 7,
+      "from": 25,
+      "delta": 1,
+      "charUnderCaret": "*"
+    },
+    {
+      "press": 8,
+      "from": 26,
+      "delta": 1,
+      "charUnderCaret": " "
+    },
+    {
+      "press": 9,
+      "from": 27,
+      "delta": 1,
+      "charUnderCaret": "混"
+    },
+    {
+      "press": 10,
+      "from": 28,
+      "delta": 1,
+      "charUnderCaret": "排"
+    },
+    {
+      "press": 11,
+      "from": 29,
+      "delta": 1,
+      "charUnderCaret": "的"
+    },
+    {
+      "press": 12,
+      "from": 30,
+      "delta": 1,
+      "charUnderCaret": "正"
+    }
+  ],
+  "item2.allDeltasAreOne": true,
+  "item2.typing.hidGotoStart": {
+    "accessibilityTrusted": true,
+    "becameFrontmost": true,
+    "ok": true,
+    "pid": 83076,
+    "posted": [
+      "cmd+a",
+      "Down",
+      "Down",
+      "Down",
+      "Down",
+      "Down"
+    ],
+    "unmapped": [],
+    "waitedMs": 0
+  },
+  "item2.typing.caretBeforeTyping": {
+    "docLength": 145,
+    "from": 145,
+    "to": 145
+  },
+  "item2.typing.composingBefore": {
+    "composing": false,
+    "viewHasFocus": true
+  },
+  "item2.typing.perKeyTrace": [
+    {
+      "key": "a",
+      "hid": {
+        "accessibilityTrusted": true,
+        "becameFrontmost": true,
+        "ok": true,
+        "pid": 83076,
+        "posted": [
+          "a"
+        ],
+        "unmapped": [],
+        "waitedMs": 0
+      },
+      "doc": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\na",
+      "caret": {
+        "docLength": 146,
+        "from": 146,
+        "to": 146
+      },
+      "composing": true
+    },
+    {
+      "key": "b",
+      "hid": {
+        "accessibilityTrusted": true,
+        "becameFrontmost": true,
+        "ok": true,
+        "pid": 83076,
+        "posted": [
+          "b"
+        ],
+        "unmapped": [],
+        "waitedMs": 0
+      },
+      "doc": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\na b",
+      "caret": {
+        "docLength": 148,
+        "from": 148,
+        "to": 148
+      },
+      "composing": true
+    },
+    {
+      "key": "c",
+      "hid": {
+        "accessibilityTrusted": true,
+        "becameFrontmost": true,
+        "ok": true,
+        "pid": 83076,
+        "posted": [
+          "c"
+        ],
+        "unmapped": [],
+        "waitedMs": 0
+      },
+      "doc": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc",
+      "caret": {
+        "docLength": 148,
+        "from": 148,
+        "to": 148
+      },
+      "composing": true
+    }
+  ],
+  "item2.typing.docAfterTyping": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc",
+  "item2.typing.composingAfterTyping": {
+    "composing": true,
+    "viewHasFocus": true
+  },
+  "item2.typing.hidCommit": {
+    "accessibilityTrusted": true,
+    "becameFrontmost": true,
+    "ok": true,
+    "pid": 83076,
+    "posted": [
+      "Return"
+    ],
+    "unmapped": [],
+    "waitedMs": 0
+  },
+  "item2.typing.docAfterCommit": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc",
+  "item2.typing.composingAfterCommit": {
+    "composing": false,
+    "viewHasFocus": true
+  },
+  "item2.typing.hidUndo": {
+    "accessibilityTrusted": true,
+    "becameFrontmost": true,
+    "ok": true,
+    "pid": 83076,
+    "posted": [
+      "cmd+z"
+    ],
+    "unmapped": [],
+    "waitedMs": 0
+  },
+  "item2.typing.docAfterSingleUndo": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n",
+  "item2.typing.singleUndoRestoredBytes": true,
+  "item2.typing.typedTextPresent": true,
+  "item2.typing.diskUnchangedAfterAutosaveWindow": true,
+  "item3.before.decorations": {
+    "mf-blockquote": 1,
+    "mf-emphasis": 1,
+    "mf-h": 1,
+    "mf-inline-code": 1,
+    "mf-link": 2,
+    "mf-list-item": 4,
+    "mf-strong": 1
+  },
+  "item3.failMode": "armed",
+  "item3.degraded.markers": {
+    "activeClasses": [],
+    "activeConstructCount": 0,
+    "anyMarkerHidden": false,
+    "domText": "# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。",
+    "firstMarkerColor": null,
+    "firstMarkerOpacity": null,
+    "markerSpanCount": 0,
+    "markerTexts": []
+  },
+  "item3.degraded.projectionState": "degraded",
+  "item3.degraded.decorations": {},
+  "item3.degraded.sourceUnchanged": true,
+  "item3.docAfterTypingInFallback": "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nxy",
+  "item3.fallbackEditable": true,
+  "item3.undosNeededToRestore": 1,
+  "item3.restoredByUndo": true,
+  "item3.saveResult": "saved",
+  "item3.clearFail": "cleared",
+  "item3.recovered.projectionState": "rendered",
+  "item3.recovered.markerCount": 15
+}

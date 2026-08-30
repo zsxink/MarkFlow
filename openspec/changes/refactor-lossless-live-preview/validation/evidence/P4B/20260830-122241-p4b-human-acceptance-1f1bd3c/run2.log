@@ -1,0 +1,61 @@
+
+Execution of 1 workers started at 2026-08-30T04:17:38.851Z
+
+[0-0] RUNNING in undefined - file:///tmp/p4b-acc/specs/2-editing.e2e.mjs
+[0-0] [FINDING] substrate.losslessCoreSessionHook = "function"
+[0-0] [FINDING] substrate.livePreviewHook = "function"
+[0-0] [FINDING] substrate.p4bFlagHook = "object"
+[0-0] [FINDING] substrate.p4bFlagNames = ["headingStrong","emphasisStrikeInlineCode","links","quoteLists","fence","taskCheckbox","codeFenceControls","frontmatterPolicy","rawHtmlPolicy"]
+[0-0] [FINDING] item1.caretAway.markers = {"activeClasses":["mf-construct mf-h mf-active"],"activeConstructCount":1,"anyMarkerHidden":false,"domText":"# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。","firstMarkerColor":"rgb(113, 113, 122)","firstMarkerOpacity":"0.45","markerSpanCount":15,"markerTexts":["**","**","*","*","-","-",">","1.","2.","`","`","["]}
+[0-0] [FINDING] item1.boldSourceOffset = 14
+[0-0] [FINDING] item1.caretInsideBold.markers = {"activeClasses":["mf-construct mf-strong mf-active"],"activeConstructCount":1,"anyMarkerHidden":false,"domText":"# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。","firstMarkerColor":"rgb(113, 113, 122)","firstMarkerOpacity":"0.45","markerSpanCount":14,"markerTexts":["#","*","*","-","-",">","1.","2.","`","`","[","]"]}
+[0-0] [FINDING] item2.startOffset = 22
+[0-0] [FINDING] item2.arrowWalk = [{"press":1,"from":19,"delta":1,"charUnderCaret":"*"},{"press":2,"from":20,"delta":1,"charUnderCaret":"与"},{"press":3,"from":21,"delta":1,"charUnderCaret":" "},{"press":4,"from":22,"delta":1,"charUnderCaret":"*"},{"press":5,"from":23,"delta":1,"charUnderCaret":"斜"},{"press":6,"from":24,"delta":1,"charUnderCaret":"体"},{"press":7,"from":25,"delta":1,"charUnderCaret":"*"},{"press":8,"from":26,"delta":1,"charUnderCaret":" "},{"press":9,"from":27,"delta":1,"charUnderCaret":"混"},{"press":10,"from":28,"delta":1,"charUnderCaret":"排"},{"press":11,"from":29,"delta":1,"charUnderCaret":"的"},{"press":12,"from":30,"delta":1,"charUnderCaret":"正"}]
+[0-0] [FINDING] item2.allDeltasAreOne = true
+[0-0] [FINDING] item2.typing.hidGotoStart = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":83076,"posted":["cmd+a","Down","Down","Down","Down","Down"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] item2.typing.caretBeforeTyping = {"docLength":145,"from":145,"to":145}
+[0-0] [FINDING] item2.typing.composingBefore = {"composing":false,"viewHasFocus":true}
+[0-0] [FINDING] item2.typing.perKeyTrace = [{"key":"a","hid":{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":83076,"posted":["a"],"unmapped":[],"waitedMs":0},"doc":"# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\na","caret":{"docLength":146,"from":146,"to":146},"composing":true},{"key":"b","hid":{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":83076,"posted":["b"],"unmapped":[],"waitedMs":0},"doc":"# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\na b","caret":{"docLength":148,"from":148,"to":148},"composing":true},{"key":"c","hid":{"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":83076,"posted":["c"],"unmapped":[],"waitedMs":0},"doc":"# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc","caret":{"docLength":148,"from":148,"to":148},"composing":true}]
+[0-0] [FINDING] item2.typing.docAfterTyping = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc"
+[0-0] [FINDING] item2.typing.composingAfterTyping = {"composing":true,"viewHasFocus":true}
+[0-0] [FINDING] item2.typing.hidCommit = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":83076,"posted":["Return"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] item2.typing.docAfterCommit = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nabc"
+[0-0] [FINDING] item2.typing.composingAfterCommit = {"composing":false,"viewHasFocus":true}
+[0-0] [FINDING] item2.typing.hidUndo = {"accessibilityTrusted":true,"becameFrontmost":true,"ok":true,"pid":83076,"posted":["cmd+z"],"unmapped":[],"waitedMs":0}
+[0-0] [FINDING] item2.typing.docAfterSingleUndo = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\n"
+[0-0] [FINDING] item2.typing.singleUndoRestoredBytes = true
+[0-0] [FINDING] item2.typing.typedTextPresent = true
+[0-0] [FINDING] item2.typing.diskUnchangedAfterAutosaveWindow = true
+[0-0] [FINDING] item3.before.decorations = {"mf-blockquote":1,"mf-emphasis":1,"mf-h":1,"mf-inline-code":1,"mf-link":2,"mf-list-item":4,"mf-strong":1}
+[0-0] [FINDING] item3.failMode = "armed"
+[0-0] [FINDING] item3.degraded.markers = {"activeClasses":[],"activeConstructCount":0,"anyMarkerHidden":false,"domText":"# 人工验收基线这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。- 列表项一- 列表项二> 引用行1. 有序项甲2. 有序项乙`行内代码` 与 [链接](https://example.com) 结束。","firstMarkerColor":null,"firstMarkerOpacity":null,"markerSpanCount":0,"markerTexts":[]}
+[0-0] [FINDING] item3.degraded.projectionState = "degraded"
+[0-0] [FINDING] item3.degraded.decorations = {}
+[0-0] [FINDING] item3.degraded.sourceUnchanged = true
+[0-0] [FINDING] item3.docAfterTypingInFallback = "# 人工验收基线\n\n这是一段**加粗**与 *斜体* 混排的正文，用于观察 marker 的 visible/dimmed 表现。\n\n- 列表项一\n- 列表项二\n\n> 引用行\n\n1. 有序项甲\n2. 有序项乙\n\n`行内代码` 与 [链接](https://example.com) 结束。\nxy"
+[0-0] [FINDING] item3.fallbackEditable = true
+[0-0] [FINDING] item3.undosNeededToRestore = 1
+[0-0] [FINDING] item3.restoredByUndo = true
+[0-0] [FINDING] item3.saveResult = "saved"
+[0-0] [FINDING] item3.clearFail = "cleared"
+[0-0] [FINDING] item3.recovered.projectionState = "rendered"
+[0-0] [FINDING] item3.recovered.markerCount = 15
+[0-0] PASSED in undefined - file:///tmp/p4b-acc/specs/2-editing.e2e.mjs
+
+ "spec" Reporter:
+------------------------------------------------------------------
+[webkit 605.1.15 macos #0-0] Running: webkit (v605.1.15) on macos
+[webkit 605.1.15 macos #0-0] Session ID: 5455f403-6d0d-472c-a622-7b892adaa3fb
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] » tmp/p4b-acc/specs/2-editing.e2e.mjs
+[webkit 605.1.15 macos #0-0] P4B human acceptance — editing, caret, fallback
+[webkit 605.1.15 macos #0-0]    ✓ item 1 — dimmed markers stay discoverable and revealed markers follow the caret
+[webkit 605.1.15 macos #0-0]    ✓ item 2 — real ArrowRight advances exactly one source character per press
+[webkit 605.1.15 macos #0-0]    ✓ item 2 — real HID typing: per-keystroke trace including IME composition state
+[webkit 605.1.15 macos #0-0]    ✓ item 3 — injected projection failure falls back to exact source and stays editable
+[webkit 605.1.15 macos #0-0]
+[webkit 605.1.15 macos #0-0] 4 passing (39.7s)
+
+
+Spec Files:	 1 passed, 1 total (100% completed) in 00:00:40  
+

@@ -1,0 +1,12 @@
+npm notice run markflow@0.0.6 npx
+npm notice run 'vitest' run --no-cache src/lib/lossless/projection.test.ts
+
+ RUN  v2.1.9 /Users/xian/Project/book/MarkFlow
+
+ ✓ src/lib/lossless/projection.test.ts (79 tests) 251ms
+
+ Test Files  1 passed (1)
+      Tests  79 passed (79)
+   Start at  21:00:27
+   Duration  802ms (transform 173ms, setup 0ms, collect 245ms, tests 251ms, environment 74ms, prepare 37ms)
+

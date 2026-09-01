@@ -1,32 +1,49 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 
 const { renderMermaid, renderPlantUml, getCachedSettings, store } = vi.hoisted(() => ({
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
 vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource: vi.fn(() => false) })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
-import { BlockImage, CustomLink, mermaidCodeBlockExtension } from './editor.extensions';
-import { MarkdownSerializerState, defaultMarkdownParser } from 'prosemirror-markdown';
-
-/**
- * Helper to create a minimal codeBlock-like node for serializer tests.
- */
-function codeBlockNode(textContent: string, language = 'bash') {
-  return {
-    type: { name: 'codeBlock' },
-    attrs: { language },
-    textContent,
-  };
-}
+import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension, renderFencedCodeBlock } from './editor.extensions';
+import { createMarkdownExtension, markflowMarked } from './editor.init';
 
 /**
  * Run the custom codeBlock serialize function and return its output.
  */
 function serializeCodeBlock(textContent: string, language?: string): string {
-  // @internal — constructor and out are stripped from .d.ts but available at runtime
-  const state = new (MarkdownSerializerState as any)({}, {}, { tightLists: false });
-  const serialize = (mermaidCodeBlockExtension().config.addStorage!.call({} as any) as any).markdown.serialize;
-  serialize(state, codeBlockNode(textContent, language));
-  return (state as any).out;
+  return renderFencedCodeBlock(language ?? 'bash', textContent);
+}
+
+function createV3MarkdownEditor() {
+  return new Editor({
+    extensions: [
+      StarterKit.configure({
+        codeBlock: false,
+        link: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+        listKeymap: false,
+      }),
+      BulletList,
+      OrderedList,
+      ListItem,
+      ListKeymap,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      MarkdownSafeTable,
+      TableRow,
+      TableCell,
+      TableHeader,
+      CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
+      mermaidCodeBlockExtension(),
+      createMarkdownExtension(),
+    ],
+  });
 }
 
 describe('editor extensions', () => {
@@ -42,8 +59,24 @@ describe('editor extensions', () => {
 
   it('serializes links as explicit Markdown links and disables paste autolinks', () => {
     expect(CustomLink.config.addPasteRules!.call({} as never)).toEqual([]);
-    const close = (CustomLink.config.addStorage!.call({} as never) as any).markdown.serialize.close;
-    expect(close(null, { attrs: { href: 'https://a.test/(x)', title: 'A "title"' } })).toBe('](https://a.test/\\(x\\) "A \\"title\\"")');
+    const render = CustomLink.config.renderMarkdown!;
+    expect(render(
+      { attrs: { href: 'https://a.test/(x)', title: 'A "title"' } },
+      { renderChildren: () => 'link text' } as never,
+      {} as never,
+    )).toBe('[link text](https://a.test/\\(x\\) "A \\"title\\"")');
+    const parse = CustomLink.config.parseMarkdown!;
+    expect(parse(
+      { href: 'https://a.test', title: 'title', tokens: [{ type: 'text', text: 'link text' }] },
+      {
+        parseInline: () => [{ type: 'text', text: 'link text' }],
+        applyMark: (mark: string, content: unknown[], attrs?: unknown) => ({ mark, content, attrs }),
+      } as never,
+    )).toEqual({
+      mark: 'link',
+      content: [{ type: 'text', text: 'link text' }],
+      attrs: { href: 'https://a.test', title: 'title' },
+    });
     expect(CustomLink.config.addInputRules!.call({} as never)).toHaveLength(1);
   });
 
@@ -73,24 +106,58 @@ describe('editor extensions', () => {
       expect(result).toBe('```\nplain code\n\n```');
     });
 
-    it('round-trips code block trailing newlines through serialize → parse', () => {
-      // Serialize with custom serializer, then parse back with standard parser
+    it('parses serialized code blocks through the v3 Markdown content type', () => {
+      getCachedSettings.mockReturnValue({ plantumlServerUrl: '' });
+      const editor = createV3MarkdownEditor();
       const markdown = serializeCodeBlock('sudo apt update\n');
-      const doc = defaultMarkdownParser.parse(markdown);
-      expect(doc).not.toBeNull();
-      const codeBlock = doc!.firstChild;
-      expect(codeBlock?.type.name).toBe('code_block');
-      expect(codeBlock?.textContent).toBe('sudo apt update\n');
+      editor.commands.setContent(markdown, { contentType: 'markdown' });
+      expect(editor.state.doc.firstChild?.type.name).toBe('codeBlock');
+      expect(editor.state.doc.firstChild?.textContent).toBe('sudo apt update\n');
+      expect(editor.getMarkdown()).toContain(markdown);
+      editor.destroy();
     });
 
-    it('round-trips code block with no trailing newline (no phantom newline)', () => {
-      const markdown = serializeCodeBlock('sudo apt update');
-      const doc = defaultMarkdownParser.parse(markdown);
-      expect(doc).not.toBeNull();
-      const codeBlock = doc!.firstChild;
-      expect(codeBlock?.type.name).toBe('code_block');
-      expect(codeBlock?.textContent).toBe('sudo apt update');
+    it('uses a longer fence when code content contains a closing fence candidate', () => {
+      expect(renderFencedCodeBlock('text', 'a\n```\nb')).toBe('````text\na\n```\nb\n````');
     });
+  });
+
+  it('registers every customized v3 capability exactly once', () => {
+    const editor = createV3MarkdownEditor();
+    const names = editor.extensionManager.extensions.map(extension => extension.name);
+    for (const name of ['link', 'bulletList', 'orderedList', 'listItem', 'listKeymap', 'taskList', 'taskItem', 'codeBlock']) {
+      expect(names.filter(extensionName => extensionName === name)).toHaveLength(1);
+    }
+    editor.destroy();
+  });
+
+  it('uses the application-owned isolated Marked instance', () => {
+    const editor = createV3MarkdownEditor();
+    expect(editor.markdown?.instance).toBe(markflowMarked);
+    editor.destroy();
+  });
+
+  it('escapes literal pipes in table cells across repeated Markdown round trips', () => {
+    const editor = createV3MarkdownEditor();
+    const source = '| A | B | C |\n| :--- | ---: | :---: |\n|  | a \\| b |  |';
+    editor.commands.setContent(source, { contentType: 'markdown' });
+    const first = editor.getJSON();
+    const markdown = editor.getMarkdown();
+    expect(markdown).toContain('a \\| b');
+    editor.commands.setContent(markdown, { contentType: 'markdown' });
+    expect(editor.getJSON()).toEqual(first);
+    editor.destroy();
+  });
+
+  it('runs CustomLink v3 hooks through a real Markdown editor', () => {
+    const editor = createV3MarkdownEditor();
+    const markdown = '[link text](https://a.test/\\(x\\) "A \\"title\\"")';
+    editor.commands.setContent(markdown, { contentType: 'markdown' });
+
+    const link = editor.state.doc.firstChild?.firstChild?.marks.find(mark => mark.type.name === 'link');
+    expect(link?.attrs).toMatchObject({ href: 'https://a.test/(x)', title: 'A "title"' });
+    expect(editor.getMarkdown()).toContain(markdown);
+    editor.destroy();
   });
 
   it('creates, updates and destroys Mermaid diagram node views', async () => {

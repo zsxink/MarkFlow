@@ -1,5 +1,5 @@
 import { writeFile } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification } from '../lib/editor';
+import { getMarkdownResult, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification } from '../lib/editor';
 import { showToast } from './toast';
 import { showDialog } from './ui/dialog';
 import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
@@ -36,7 +36,12 @@ async function restoreDeletedActiveDocument() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
-  const content = getMarkdown();
+  const candidate = getMarkdownResult();
+  if (!candidate.ok) {
+    showToast('Markdown 转换失败，未写入文件');
+    return false;
+  }
+  const content = candidate.markdown;
 
   try {
     suppressNextWatcherRefresh(filePath);

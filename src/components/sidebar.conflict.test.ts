@@ -12,15 +12,21 @@ const { mockState, reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile, sh
   clearActiveDocument: vi.fn(),
 }));
 
-vi.mock('../lib/storage', () => ({ writeFile: vi.fn() }));
+const { getMarkdownResult, writeFile, showToast } = vi.hoisted(() => ({
+  getMarkdownResult: vi.fn<() => any>(() => ({ ok: true, markdown: '# current' })),
+  writeFile: vi.fn(),
+  showToast: vi.fn(),
+}));
+
+vi.mock('../lib/storage', () => ({ writeFile }));
 vi.mock('../lib/editor', () => ({
-  getMarkdown: vi.fn(() => '# current'),
+  getMarkdownResult,
   hasExternalModification: vi.fn(() => mockState.external),
   isDocumentDirty: vi.fn(() => mockState.dirty),
   markDocumentPersisted: vi.fn(),
   markExternalModification: vi.fn(() => { mockState.external = true; }),
 }));
-vi.mock('./toast', () => ({ showToast: vi.fn() }));
+vi.mock('./toast', () => ({ showToast }));
 vi.mock('./ui/dialog', () => ({ showDialog }));
 vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), refreshFileTree: vi.fn() }));
 vi.mock('./outline', () => ({ refreshOutline: vi.fn() }));
@@ -43,6 +49,9 @@ beforeEach(() => {
   saveActiveDocumentAsNewFile.mockReset();
   showDialog.mockReset();
   clearActiveDocument.mockReset();
+  getMarkdownResult.mockReturnValue({ ok: true, markdown: '# current' });
+  writeFile.mockReset();
+  showToast.mockReset();
 });
 
 describe('external modification conflict decisions', () => {
@@ -67,5 +76,16 @@ describe('external modification conflict decisions', () => {
   it('ignores deletion events outside the active document', async () => {
     await expect(handleExternalDeletion('/workspace/other.md')).resolves.toBe('ignored');
     expect(clearActiveDocument).not.toHaveBeenCalled();
+  });
+
+  it('does not restore a deleted file with an empty fallback after serialization fails', async () => {
+    mockState.dirty = true;
+    showDialog.mockResolvedValue('resave');
+    getMarkdownResult.mockReturnValue({ ok: false, error: { stage: 'serialize', code: 'unknown-node' } });
+
+    await expect(handleExternalDeletion('/workspace/note.md')).resolves.toBe('failed');
+
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith('Markdown 转换失败，未写入文件');
   });
 });

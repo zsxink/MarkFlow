@@ -2,6 +2,8 @@ import type { EditorMode } from '../types/editor';
 import type { Editor } from '@tiptap/core';
 import { getFileName } from './pathUtils';
 import { store } from './store';
+import type { MarkdownPipelineMode } from './editor.markdown.types';
+import { onPipelineModeChanged } from './editor.markdown.opaque.session';
 
 // ── Module-level state (editor-internal, not in global Store) ────────
 
@@ -11,6 +13,8 @@ export const assetToOriginalMap = new Map<string, string>();
 const documentState = {
   externallyModified: false,
   programmaticUpdate: false,
+  programmaticUpdateDepth: 0,
+  pipelineMode: 'v3-compatible' as MarkdownPipelineMode,
   lastPersistedMarkdown: '',
   // Revision tracking — incremented on each content edit, used to detect
   // whether new edits arrived during an in-flight save.
@@ -29,6 +33,37 @@ const documentState = {
 export function setEditor(e: Editor | null) { editor = e; }
 export function getEditor(): Editor | null { return editor; }
 export function getDocumentState() { return documentState; }
+
+/**
+ * Runs representation changes without allowing nested editor callbacks to be
+ * mistaken for user edits. The finally block is deliberately shared by every
+ * programmatic parse and source synchronization path.
+ */
+export function withProgrammaticUpdate<T>(operation: () => T): T {
+  documentState.programmaticUpdateDepth += 1;
+  documentState.programmaticUpdate = true;
+  try {
+    return operation();
+  } finally {
+    documentState.programmaticUpdateDepth = Math.max(0, documentState.programmaticUpdateDepth - 1);
+    documentState.programmaticUpdate = documentState.programmaticUpdateDepth > 0;
+  }
+}
+
+export function isProgrammaticUpdate(): boolean {
+  return documentState.programmaticUpdateDepth > 0;
+}
+
+export function getMarkdownPipelineMode(): MarkdownPipelineMode {
+  return documentState.pipelineMode;
+}
+
+export function setMarkdownPipelineMode(mode: MarkdownPipelineMode): void {
+  documentState.pipelineMode = mode;
+  // Task 7.6: degrading below `opaque` must drop the live opaque session so no
+  // stale holder can survive a kill-switch / mode regression.
+  onPipelineModeChanged(mode);
+}
 
 // ── Mode (migrated to Store) ─────────────────────────────────────────
 

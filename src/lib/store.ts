@@ -13,6 +13,7 @@ const DEFAULT_STATE: StoreState = {
   readOnly: false,
   settings: { ...DEFAULT_SETTINGS },
   autosaveErrorCount: 0,
+  reconcileError: null,
 };
 
 // ── Store implementation ─────────────────────────────────────────────

@@ -1,13 +1,11 @@
 import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
-import { Markdown } from 'tiptap-markdown';
+import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import { Markdown } from '@tiptap/markdown';
+import { Marked } from 'marked';
+import type { marked as MarkedFunction } from 'marked';
 
 import { copyLocalFileToStorage, imagePathToSrc, pasteImageFile, getImageSettings } from './imageUtils';
 import type { ImageSettings } from '../types/image';
@@ -22,8 +20,10 @@ import { complexityLimitExtension } from './editor.complexity';
 import {
   CustomLink,
   BlockImage,
+  MarkdownSafeTable,
   mermaidCodeBlockExtension,
 } from './editor.extensions';
+import { OpaqueNode } from './editor.markdown.opaque.extension';
 
 import {
   setEditor,
@@ -33,12 +33,38 @@ import {
   getActiveDocPath,
   assetToOriginalMap,
   bumpRevision,
+  isProgrammaticUpdate,
 } from './editor.state';
 import { store } from './store';
 import { scheduler } from './taskScheduler';
 import { getSourceContent } from './editor.source';
-import { normalizeImageMarkdown, replaceAssetUrlsWithOriginal } from './editor.serializer';
+import { normalizeImageMarkdown } from './editor.serializer';
+import { serializeMarkdown } from './editor.markdown.bridge';
 import { ensureContinuationParagraph } from './editor.continuation';
+import { endOpaqueSession } from './editor.markdown.opaque.session';
+
+/**
+ * MarkFlow deliberately owns this parser instead of using Marked's module
+ * singleton, so extension tokenizers and parse options cannot leak to other
+ * consumers or tests.
+ */
+export const markflowMarked = new Marked({
+  gfm: true,
+  breaks: false,
+});
+
+/** Kept as a factory so each editor receives a v3 Markdown extension. */
+export function createMarkdownExtension() {
+  return Markdown.configure({
+    // @tiptap/markdown accepts a Marked instance at runtime; its declaration
+    // currently models the callable singleton rather than the Marked class.
+    marked: markflowMarked as unknown as typeof MarkedFunction,
+    markedOptions: {
+      gfm: true,
+      breaks: false,
+    },
+  });
+}
 
 export async function initEditor() {
   const container = document.getElementById('editor-area');
@@ -57,15 +83,24 @@ export async function initEditor() {
     extensions: [
       StarterKit.configure({
         codeBlock: false,
+        link: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+        listKeymap: false,
       }),
       Placeholder.configure({
         placeholder: '开始写作 — 输入即所得',
       }),
+      BulletList,
+      OrderedList,
+      ListItem,
+      ListKeymap,
       TaskList,
       TaskItem.configure({
         nested: true,
       }),
-      Table.configure({
+      MarkdownSafeTable.configure({
         resizable: true,
       }),
       TableRow,
@@ -84,13 +119,8 @@ export async function initEditor() {
       }),
       complexityLimitExtension(),
       mermaidCodeBlockExtension(),
-      Markdown.configure({
-        html: false,
-        tightLists: true,
-        bulletListMarker: '-',
-        transformPastedText: true,
-        transformCopiedText: false,
-      }),
+      OpaqueNode,
+      createMarkdownExtension(),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
       Extension.create({
@@ -102,12 +132,18 @@ export async function initEditor() {
     ],
     content: '',
     onUpdate: () => {
-      const currentMd = getMode() === 'source'
+      const mode = getMode();
+      const serialized = mode === 'source' ? null : serializeMarkdown(getEditor()!);
+      const currentMd = mode === 'source'
         ? normalizeImageMarkdown(getSourceContent())
-        : normalizeImageMarkdown(replaceAssetUrlsWithOriginal(getEditor()!.storage.markdown.getMarkdown()));
+        : serialized?.ok ? normalizeImageMarkdown(serialized.markdown) : null;
+      // Snapshot the scoped guard while handling the transaction. A later
+      // scheduler callback runs after the guard's finally block has restored
+      // its depth, so querying it there would misclassify programmatic writes.
+      const isUserUpdate = !isProgrammaticUpdate();
 
       scheduler.schedule('dirty-check', 400, () => {
-        if (!getDocumentState().programmaticUpdate) {
+        if (currentMd !== null && isUserUpdate) {
           bumpRevision();
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
@@ -120,6 +156,11 @@ export async function initEditor() {
     onSelectionUpdate: () => {
       // Selection changes need immediate dispatch (cursor position in status bar)
       store.emit({ type: 'editor:update' });
+    },
+    onDestroy: () => {
+      // Task 7.6: tearing down the editor must drop the live opaque session so
+      // its slots and nonce are never reused outside it.
+      endOpaqueSession();
     },
   }));
 

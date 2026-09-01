@@ -3,17 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(), writeFile: vi.fn(), addRecentFile: vi.fn(), getFileMetadata: vi.fn(),
   authorizeImageStorage: vi.fn(), preparePendingImagesForSave: vi.fn(), completePendingImagesSave: vi.fn(), abortPendingImagesSave: vi.fn(), discardActiveImageDraft: vi.fn(),
-  getMarkdown: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(),
+  getMarkdownResult: vi.fn(), getSavePlan: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(),
   save: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(),
 }));
 vi.mock('../lib/storage', () => ({ readFile: mocks.readFile, writeFile: mocks.writeFile, addRecentFile: mocks.addRecentFile, authorizeImageStorage: mocks.authorizeImageStorage, getFileMetadata: mocks.getFileMetadata }));
 vi.mock('../lib/imageUtils', () => ({ preparePendingImagesForSave: mocks.preparePendingImagesForSave, completePendingImagesSave: mocks.completePendingImagesSave, abortPendingImagesSave: mocks.abortPendingImagesSave, discardActiveImageDraft: mocks.discardActiveImageDraft }));
-vi.mock('../lib/editor', () => ({ getMarkdown: mocks.getMarkdown, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor }));
+vi.mock('../lib/editor', () => ({ getMarkdownResult: mocks.getMarkdownResult, getSavePlan: mocks.getSavePlan, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor }));
 vi.mock('../lib/editor.source', () => ({ setSourceReadOnly: vi.fn() })); vi.mock('./toast', () => ({ showToast: mocks.showToast })); vi.mock('./fileTree', () => ({ suppressNextWatcherRefresh: vi.fn(), applyFileTreeEvents: vi.fn() })); vi.mock('./outline', () => ({ refreshOutline: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(), logDebug: vi.fn() })); vi.mock('@tauri-apps/plugin-dialog', () => ({ save: mocks.save })); vi.mock('./ui/dialog', () => ({ showDialog: vi.fn() })); vi.mock('./activeDocument', () => ({ getActiveFilePath: mocks.getActiveFilePath, setActiveFilePath: mocks.setActiveFilePath })); vi.mock('./sidebar.conflict', () => ({ handleActiveDocumentExternalModification: vi.fn() })); vi.mock('../lib/fileSizeTier', () => ({ determineTier: vi.fn(() => 'normal'), formatFileSize: vi.fn() })); vi.mock('./degradationBar', () => ({ showDegradationBar: vi.fn(), hideDegradationBar: vi.fn() })); vi.mock('../lib/store', () => ({ store: { setState: vi.fn() } })); vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 import { openFileInEditor, reloadActiveDocumentFromDisk, saveActiveDocument } from './sidebar.fileops';
 
 beforeEach(() => {
-  vi.clearAllMocks(); mocks.getMarkdown.mockReturnValue('# edited'); mocks.getRevision.mockReturnValue(4); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => ({ markdown, draftId: null })); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
+  vi.clearAllMocks(); mocks.getMarkdownResult.mockReturnValue({ ok: true, markdown: '# edited' }); mocks.getSavePlan.mockReturnValue({ kind: 'legacy' }); mocks.getRevision.mockReturnValue(4); mocks.getLastReadMtime.mockReturnValue(0); mocks.getLastReadSize.mockReturnValue(0); mocks.hasExternalModification.mockReturnValue(false); mocks.isDocumentDirty.mockReturnValue(false); mocks.writeFile.mockResolvedValue(undefined); mocks.addRecentFile.mockResolvedValue(undefined); mocks.invoke.mockResolvedValue({ mtime: 10, size: 9 }); mocks.preparePendingImagesForSave.mockImplementation(async (markdown: string) => ({ markdown, draftId: null })); mocks.completePendingImagesSave.mockResolvedValue(undefined); mocks.discardActiveImageDraft.mockResolvedValue(undefined); mocks.authorizeImageStorage.mockResolvedValue('/work/images');
 });
 
 describe('active document file operations', () => {
@@ -83,5 +83,30 @@ describe('active document file operations', () => {
     expect(mocks.setMarkdown).toHaveBeenCalledWith('# opened');
     expect(mocks.discardActiveImageDraft.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.setMarkdown.mock.invocationCallOrder[0]);
+  });
+  it('does not write to disk when Markdown serialization has no safe candidate', async () => {
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    mocks.getMarkdownResult.mockReturnValue({ ok: false, error: { stage: 'serialize', code: 'unknown-node' } });
+    await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.writeFile).not.toHaveBeenCalled();
+    expect(mocks.showToast).toHaveBeenCalledWith('Markdown 转换失败，未写入文件');
+  });
+  it('suppresses the write and keeps dirty on a reconcile conflict (8.5)', async () => {
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    mocks.getSavePlan.mockReturnValue({ kind: 'conflict', write: false, code: 'stale-source' });
+    // Even though serialization yields a candidate, the reconcile gate must win.
+    mocks.getMarkdownResult.mockReturnValue({ ok: true, markdown: '# edited' });
+    await expect(saveActiveDocument()).resolves.toBe('failed');
+    expect(mocks.writeFile).not.toHaveBeenCalled();
+    expect(mocks.completePendingImagesSave).not.toHaveBeenCalled();
+    expect(mocks.showToast).toHaveBeenCalledWith('保存被阻止：文档存在冲突，未写入磁盘');
+  });
+  it('skips the write entirely on an unchanged reconcile result (8.3)', async () => {
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    mocks.getSavePlan.mockReturnValue({ kind: 'unchanged', write: false });
+    mocks.getMarkdownResult.mockReturnValue({ ok: true, markdown: '# edited' });
+    await expect(saveActiveDocument()).resolves.toBe('saved');
+    expect(mocks.writeFile).not.toHaveBeenCalled(); // exact source already on disk
+    expect(mocks.showToast).toHaveBeenCalledWith('内容无变化，未重复写入');
   });
 });

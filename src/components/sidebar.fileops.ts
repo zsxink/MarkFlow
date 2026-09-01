@@ -1,5 +1,5 @@
 import { readFile, writeFile, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
+import { getMarkdownResult, getSavePlan, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
@@ -69,7 +69,16 @@ export async function saveActiveDocumentAsNewFile() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
-  const currentContent = getMarkdown();
+  const candidate = getMarkdownResult();
+  if (!candidate.ok) {
+    logException('sidebar.save', 'Markdown conversion failed before save-as', undefined, {
+      stage: candidate.error.stage,
+      code: candidate.error.code,
+    });
+    showToast('Markdown 转换失败，未写入文件');
+    return false;
+  }
+  const currentContent = candidate.markdown;
   const targetPath = await save({
     title: '另存为',
     defaultPath: getConflictSavePath(filePath),
@@ -123,7 +132,9 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (!targetPath) return 'skipped';
-    const content = getMarkdown();
+    const candidate = getMarkdownResult();
+    if (!candidate.ok) return reportConversionFailure(candidate.error.stage, candidate.error.code, interactive);
+    const content = candidate.markdown;
     const revision = getRevision();
     savingInProgress = true;
     try {
@@ -195,8 +206,26 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     }
   }
 
+  // ── Reconcile boundary (opaque/reconcile mode, task 8.5) ──────────
+  const plan = getSavePlan();
+  if (plan.kind !== 'legacy') {
+    if (plan.kind === 'unchanged') {
+      // Exact source baseline is already on disk; never rewrite it.
+      if (interactive) showToast('内容无变化，未重复写入');
+      return 'saved';
+    }
+    if (plan.kind === 'conflict') {
+      // Suppressed: no disk write, dirty kept, reconcileError set by getSavePlan.
+      if (interactive) showToast('保存被阻止：文档存在冲突，未写入磁盘');
+      return 'failed';
+    }
+  }
+
   // ── Atomic save with revision tracking ──────────────────────────
-  const content = getMarkdown();
+  const candidate = getMarkdownResult();
+  if (!candidate.ok) return reportConversionFailure(candidate.error.stage, candidate.error.code, interactive);
+  // In safe-edit mode the reconcile boundary's verified candidate is written.
+  const content = plan.kind === 'safe-edit' ? plan.markdown : candidate.markdown;
   const revision = getRevision();
   savingInProgress = true;
   try {
@@ -232,6 +261,12 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   } finally {
     savingInProgress = false;
   }
+}
+
+function reportConversionFailure(stage: string, code: string, interactive: boolean): SaveResult {
+  logException('sidebar.save', 'Markdown conversion failed before disk write', undefined, { stage, code });
+  if (interactive) showToast('Markdown 转换失败，未写入文件');
+  return 'failed';
 }
 
 export async function reloadActiveDocumentFromDisk(options: { force?: boolean } = {}) {

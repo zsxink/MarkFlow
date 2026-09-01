@@ -120,6 +120,17 @@ try {
   await Promise.all([mkdir(dataDir, { recursive: true }), mkdir(workspace, { recursive: true }), mkdir(artifactsDir, { recursive: true })]);
   await writeFile(path.join(dataDir, 'settings.json'), `${JSON.stringify(defaultSettings(workspace), null, 2)}\n`);
   await writeFile(path.join(workspace, 'welcome.md'), '# MarkFlow E2E Testing\n\n这是 E2E 测试的初始文档，包含段落内容。\n\n- 列表项一\n- 列表项二\n- 列表项三\n');
+  // Disk-safety (5.5) fixture: multi-construct Markdown staged verbatim before
+  // launch; a NO-EDIT open → switch → save → reload must leave these exact
+  // bytes untouched on disk. Constructs are limited to the stage-one byte-stable
+  // set (heading/paragraph/nested list/link/image/fenced code), and the file
+  // ends on a fenced code block (a canonical clean ending) to avoid the
+  // file-tail / table canonicalizations.
+  // NOTE: GFM tables are intentionally excluded here — v3 canonicalizes their
+  // column padding and inserts a separation blank line on save (approved
+  // `table-column-padding` canonicalization, differential gate 5.4); exact
+  // no-edit byte restore for tables is stage-two `reconcile` territory (8.3).
+  await writeFile(path.join(workspace, 'disk-safety-fixture.md'), '# Disk Safety\n\n这是段落内容。\n\n- 列表项一\n  - 子项\n- 列表项二\n\n[链接](https://example.test)\n\n![图](./img.png)\n\n```ts\nconst a = 1;\n```\n');
   await run('npm', ['run', 'test:e2e:build'], environment);
   await run('npx', ['wdio', 'run', 'e2e/wdio.conf.mjs', '--suite', suite], environment);
   failed = false;

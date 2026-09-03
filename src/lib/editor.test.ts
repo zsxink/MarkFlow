@@ -63,6 +63,22 @@ describe('stage-one Markdown bridge integration', () => {
     expect(getDocumentState().trailingNewlines).toBe(2);
   });
 
+  it('resets dirty state when a source-only document is loaded after a dirty one', () => {
+    // A reference-style link is classified `source-only` (kept in Source mode),
+    // which early-returns from setMarkdown before the normal persisted-baseline
+    // reset. The freshly loaded file must not inherit the previous dirty state.
+    store.setState({ dirty: true, autosaveErrorCount: 1 });
+    getDocumentState().lastPersistedMarkdown = '<previous-document-baseline>';
+
+    setMarkdown('[text][ref]\n\n[ref]: https://example.com\n');
+
+    expect(store.getState().dirty).toBe(false);
+    expect(store.getState().autosaveErrorCount).toBe(0);
+    // Source mode keeps the normalized content (including any trailing newline)
+    // as the persisted baseline, not a WYSIWYG-stripped form.
+    expect(getDocumentState().lastPersistedMarkdown).toBe('[text][ref]\n\n[ref]: https://example.com\n');
+  });
+
   it('keeps an unedited WYSIWYG → Source round trip clean and restores original image URLs and tail newlines', () => {
     const editor = editorDouble({ getMarkdown: vi.fn(() => 'before ![](asset://runtime-image) after') });
     setEditor(editor);

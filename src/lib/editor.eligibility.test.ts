@@ -21,6 +21,18 @@ const CASES: Case[] = [
   { name: 'task-list', source: '- [ ] todo\n- [x] done\n', verdict: 'eligible', reason: 'supported' },
   { name: 'gfm-table', source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n', verdict: 'eligible', reason: 'supported' },
   { name: 'code-fence', source: '```ts\nconst a = 1;\n```\n', verdict: 'eligible', reason: 'supported' },
+  {
+    name: 'code-fence-protected-literals',
+    source: '```ts\ntype T = Result<Value<T>, Error>;\nconst samples = ["$x$", "[^1]", "[x][ref]"];\n```\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    name: 'inline-code-protected-literals',
+    source: 'Use `Result<T, E>`, `<url>`, `$x$`, `[^1]`, and `[x][ref]`.\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
   { name: 'empty', source: '', verdict: 'eligible', reason: 'supported' },
   { name: 'link-rel', source: '[home](../index.md)\n', verdict: 'eligible', reason: 'supported' },
   { name: 'image', source: '![alt](./img.png)\n', verdict: 'eligible', reason: 'supported' },
@@ -107,6 +119,18 @@ const CASES: Case[] = [
     verdict: 'source-only',
     reason: 'ambiguous-boundary',
   },
+  {
+    name: 'gfm-table-header-delimiter-mismatch',
+    source: '| A | B |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n',
+    verdict: 'source-only',
+    reason: 'malformed-table',
+  },
+  {
+    name: 'gfm-table-body-mismatch',
+    source: '| A | B |\n| --- | --- |\n| 1 | 2 | 3 |\n',
+    verdict: 'source-only',
+    reason: 'malformed-table',
+  },
 ];
 
 describe('eligibility classifier (6.2)', () => {
@@ -126,6 +150,20 @@ describe('eligibility classifier (6.2)', () => {
     const r = classifyEligibility(source);
     expect(r.verdict).toBe('eligible-with-opaque');
     expect(r.reason).toBe('opaque-covered');
+  });
+
+  it('still rejects unsupported prose adjacent to protected code', () => {
+    const source = '`<safe>` followed by <span>unsafe</span>\n';
+    expect(classifyEligibility(source)).toEqual({
+      verdict: 'source-only',
+      reason: 'unknown-construct',
+      category: 'inline-html',
+    });
+  });
+
+  it('counts escaped and code-span pipes as table cell content', () => {
+    const source = '| A | B |\n| --- | --- |\n| a\\|b | `x|y` |\n';
+    expect(classifyEligibility(source)).toEqual({ verdict: 'eligible', reason: 'supported' });
   });
 
   it('returns a stable reason code for every verdict (exhaustive)', () => {

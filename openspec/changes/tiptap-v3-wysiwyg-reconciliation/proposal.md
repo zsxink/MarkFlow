@@ -9,6 +9,7 @@ MarkFlow 当前的 TipTap v2 + `tiptap-markdown` 链路无法可靠承载表格�
 - 阶段一以 v2 冻结基线、round-trip differential corpus、单元测试、类型检查、构建、关键 E2E、只读真实文档扫描、性能对比和回退演练作为硬验收门。
 - **硬停止点**：阶段一验收报告未达到全部 PASS 时，实施 MUST 停止在 `v3-compatible`，不得开始完整 B；失败项必须先修复或回退，再重新执行整套验收。
 - **阶段二——完整方案 B**：仅在阶段一全部通过并获得维护者确认后，依次实现 WYSIWYG 资格门禁、opaque placeholder token、三方 reconcile、失败保护与 Source 恢复路径。
+- **Orca 技术栈对齐**：完整方案 B MUST 采用与 Orca 相同的 Markdown 核心技术栈与边界模型：TipTap v3、`@tiptap/markdown`（Marked 系）、隔离的 Marked 兼容实例/门面、`contentType: 'markdown'`、自定义扩展的 `markdownTokenizer` / `renderMarkdown` 双向 hooks，以及资格门禁 → opaque placeholder → reconcile。对齐指核心 Markdown 栈和安全架构一致，不要求锁定相同 patch，也不包含 Orca 的 UI 框架或全部产品功能。
 - 完整 B 启用后，只有满足安全往返契约的文档才能进入可编辑 WYSIWYG；可安全透传的未知块逐字节恢复，无法证明安全的保存候选不得覆盖原文。
 
 ## Delivery Strategy
@@ -16,7 +17,7 @@ MarkFlow 当前的 TipTap v2 + `tiptap-markdown` 链路无法可靠承载表格�
 | 阶段 | 包含 | 明确排除 | 完成条件 |
 |---|---|---|---|
 | 一：降风险版 B | v3 依赖迁移、v3 Markdown hooks、统一 bridge、现有能力兼容与回归基线 | 资格门禁、opaque、reconcile、新 dirty 语义 | 阶段一验收报告所有门禁为 PASS，且回退演练成功 |
-| 二：完整 B | 资格门禁 → opaque → reconcile → dirty/autosave 安全集成 | 自动合并外部修改、数学公式、Live Preview | 每个子阶段独立测试通过，最终完整回归与恢复路径通过 |
+| 二：完整 B | Orca 对齐的 Markdown 栈、资格门禁 → opaque → reconcile → dirty/autosave 安全集成 | Orca UI/应用壳、自动合并外部修改、数学公式、Live Preview | 栈对齐审计与每个子阶段独立测试通过，最终完整回归与恢复路径通过 |
 
 “没有问题”在本 change 中不表示无法证明的绝对无缺陷，而表示：已定义的自动化、差分、E2E、真实文档只读扫描、性能和回退门禁均无阻断结果，且所有已知差异均被登记为允许规范化或修复完成。
 
@@ -36,7 +37,7 @@ MarkFlow 当前的 TipTap v2 + `tiptap-markdown` 链路无法可靠承载表格�
 ## Impact
 
 - 主要代码：`src/lib/editor.init.ts`、`src/lib/editor.ts`、`src/lib/editor.extensions.ts`、`src/lib/editor.serializer.ts`、`src/lib/editor.state.ts`、Source/WYSIWYG 切换与保存调用链，以及对应单元/E2E 测试。
-- 依赖：升级 `@tiptap/*` 到 v3，引入 `@tiptap/markdown` 与 v3 列表聚合包，移除 `tiptap-markdown`、废弃的 task-list/task-item 分包和独立 table row/cell/header 分包；marked facade 是否自建由设计验证决定。
+- 依赖：升级 `@tiptap/*` 到单一 TipTap v3 patch，引入 `@tiptap/markdown` 与 v3 列表聚合包，使用由 bridge 独占的隔离 Marked 兼容实例/门面，移除 `tiptap-markdown`、生产链路中的 markdown-it 转换器、废弃的 task-list/task-item 分包和独立 table row/cell/header 分包。
 - 数据：磁盘上的 Markdown 仍是唯一持久化格式；迁移不得批量重写既有文件，opaque token 与 reconcile 元数据仅存在于内存。
 - 兼容性：现有编辑器公共 API、Tauri 命令、Source 模式和保存流程保持可用；不满足 WYSIWYG 安全契约的文档会被降级到 Source，而不是冒险改写。
 - 交付：对应 GitHub Issue #258；阶段一和阶段二分别形成验收证据，阶段一未通过时完整 B 不得启动。

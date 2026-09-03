@@ -34,6 +34,114 @@ describe('semantic fingerprint (6.3)', () => {
     expect(semanticFingerprint(a)).toBe(semanticFingerprint(b));
   });
 
+  it('normalizes parser-path-only default attributes', () => {
+    const withDefaults = doc([
+      {
+        type: 'orderedList',
+        attrs: { start: 1, type: null },
+        content: [{
+          type: 'listItem',
+          content: [{
+            type: 'paragraph',
+            content: [{
+              type: 'text',
+              text: 'link',
+              marks: [{
+                type: 'link',
+                attrs: {
+                  href: '/a', title: null, class: null,
+                  rel: 'noopener noreferrer nofollow', target: '_blank',
+                },
+              }],
+            }],
+          }],
+        }],
+      },
+      {
+        type: 'table',
+        content: [{
+          type: 'tableRow',
+          content: [{
+            type: 'tableCell',
+            attrs: { colspan: 1, rowspan: 1 },
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+          }],
+        }],
+      },
+      { type: 'image', attrs: { src: 'asset://a', alt: 'a', width: null, height: null } },
+    ]);
+    const omittedDefaults = doc([
+      {
+        type: 'orderedList',
+        content: [{
+          type: 'listItem',
+          content: [{
+            type: 'paragraph',
+            content: [{
+              type: 'text', text: 'link', marks: [{ type: 'link', attrs: { href: '/a' } }],
+            }],
+          }],
+        }],
+      },
+      {
+        type: 'table',
+        content: [{
+          type: 'tableRow',
+          content: [{
+            type: 'tableCell',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+          }],
+        }],
+      },
+      { type: 'image', attrs: { src: 'asset://b', alt: 'a' } },
+    ]);
+
+    expect(semanticFingerprint(withDefaults)).toBe(semanticFingerprint(omittedDefaults));
+  });
+
+  it('normalizes mark-set order but preserves mark membership and range', () => {
+    const boldItalic = doc([{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'x', marks: [{ type: 'bold' }, { type: 'italic' }] }],
+    }]);
+    const italicBold = doc([{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'x', marks: [{ type: 'italic' }, { type: 'bold' }] }],
+    }]);
+    const boldOnly = doc([{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'x', marks: [{ type: 'bold' }] }],
+    }]);
+
+    expect(semanticFingerprint(boldItalic)).toBe(semanticFingerprint(italicBold));
+    expect(semanticFingerprint(boldItalic)).not.toBe(semanticFingerprint(boldOnly));
+  });
+
+  it('preserves non-default table spans and authored link attributes', () => {
+    const base = doc([{
+      type: 'tableCell',
+      attrs: { colspan: 1, rowspan: 1 },
+      content: [{
+        type: 'paragraph',
+        content: [{
+          type: 'text', text: 'x', marks: [{ type: 'link', attrs: { href: '/a', title: 'A' } }],
+        }],
+      }],
+    }]);
+    const merged = doc([{
+      type: 'tableCell',
+      attrs: { colspan: 2, rowspan: 1 },
+      content: [{
+        type: 'paragraph',
+        content: [{
+          type: 'text', text: 'x', marks: [{ type: 'link', attrs: { href: '/b', title: 'B' } }],
+        }],
+      }],
+    }]);
+
+    expect(semanticFingerprint(base)).not.toBe(semanticFingerprint(merged));
+  });
+
   it('is stable across key ordering (sorted keys)', () => {
     const a: JSONContent = { type: 'paragraph', attrs: { title: 'x' }, content: [{ type: 'text', text: 'hi' }] };
     const b: JSONContent = { content: [{ type: 'text', text: 'hi' }], attrs: { title: 'x' }, type: 'paragraph' };

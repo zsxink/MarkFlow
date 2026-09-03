@@ -20,9 +20,150 @@
 // boundaries. Generic fenced code blocks are supported (not opaque).
 
 import type { EligibilityResult } from './editor.markdown.types';
-import { scanCodeRegions, scanOpaqueSpans, type OpaqueSpan } from './editor.markdown.opaque';
+import {
+  scanCodeRegions,
+  scanOpaqueSpans,
+  type CodeRegion,
+  type OpaqueSpan,
+} from './editor.markdown.opaque';
 
 export type { OpaqueSpan } from './editor.markdown.opaque';
+
+type ProtectedRange = Pick<CodeRegion, 'from' | 'to'>;
+
+/** Return the source segments not covered by any protected range. */
+function unprotectedSegments(len: number, ranges: ProtectedRange[]): ProtectedRange[] {
+  const sorted = [...ranges].sort((a, b) => a.from - b.from || a.to - b.to);
+  const segments: ProtectedRange[] = [];
+  let cursor = 0;
+  for (const range of sorted) {
+    if (range.to <= cursor) continue;
+    if (range.from > cursor) segments.push({ from: cursor, to: range.from });
+    cursor = Math.max(cursor, range.to);
+  }
+  if (cursor < len) segments.push({ from: cursor, to: len });
+  return segments;
+}
+
+/**
+ * Find complete CommonMark-style backtick code spans outside block-level
+ * protected ranges. A closing run must contain exactly as many backticks as
+ * its opener; unmatched runs remain visible prose.
+ */
+function scanInlineCodeRegions(source: string, excluded: ProtectedRange[]): ProtectedRange[] {
+  const spans: ProtectedRange[] = [];
+  for (const segment of unprotectedSegments(source.length, excluded)) {
+    let i = segment.from;
+    while (i < segment.to) {
+      if (source[i] !== '`') {
+        i += 1;
+        continue;
+      }
+
+      let openerEnd = i + 1;
+      while (openerEnd < segment.to && source[openerEnd] === '`') openerEnd += 1;
+      const openerLength = openerEnd - i;
+      let cursor = openerEnd;
+      let closeEnd = -1;
+
+      while (cursor < segment.to) {
+        const next = source.indexOf('`', cursor);
+        if (next === -1 || next >= segment.to) break;
+        let runEnd = next + 1;
+        while (runEnd < segment.to && source[runEnd] === '`') runEnd += 1;
+        if (runEnd - next === openerLength) {
+          closeEnd = runEnd;
+          break;
+        }
+        cursor = runEnd;
+      }
+
+      if (closeEnd !== -1) {
+        spans.push({ from: i, to: closeEnd });
+        i = closeEnd;
+      } else {
+        i = openerEnd;
+      }
+    }
+  }
+  return spans;
+}
+
+/** Blank protected bytes while retaining newlines and therefore line offsets. */
+function maskRanges(source: string, ranges: ProtectedRange[]): string {
+  const sorted = [...ranges].sort((a, b) => a.from - b.from || a.to - b.to);
+  let out = '';
+  let cursor = 0;
+  for (const range of sorted) {
+    if (range.to <= cursor) continue;
+    const from = Math.max(cursor, range.from);
+    if (from > cursor) out += source.slice(cursor, from);
+    const to = Math.max(from, range.to);
+    out += source.slice(from, to).replace(/[^\n]/g, ' ');
+    cursor = to;
+  }
+  out += source.slice(cursor);
+  return out;
+}
+
+/** Split a GFM table row without treating escaped/code-span pipes as cells. */
+function splitTableRow(line: string): string[] | null {
+  const trimmed = line.trim();
+  if (!trimmed.includes('|')) return null;
+
+  const hasLeadingPipe = trimmed.startsWith('|');
+  const hasTrailingPipe = trimmed.endsWith('|') && !trimmed.endsWith('\\|');
+  const from = hasLeadingPipe ? 1 : 0;
+  const to = hasTrailingPipe ? trimmed.length - 1 : trimmed.length;
+  const cells: string[] = [];
+  let cellStart = from;
+  let codeTicks = 0;
+  let i = from;
+
+  while (i < to) {
+    if (trimmed[i] === '\\') {
+      i = Math.min(to, i + 2);
+      continue;
+    }
+    if (trimmed[i] === '`') {
+      let runEnd = i + 1;
+      while (runEnd < to && trimmed[runEnd] === '`') runEnd += 1;
+      const runLength = runEnd - i;
+      if (codeTicks === 0) codeTicks = runLength;
+      else if (codeTicks === runLength) codeTicks = 0;
+      i = runEnd;
+      continue;
+    }
+    if (trimmed[i] === '|' && codeTicks === 0) {
+      cells.push(trimmed.slice(cellStart, i).trim());
+      cellStart = i + 1;
+    }
+    i += 1;
+  }
+  cells.push(trimmed.slice(cellStart, to).trim());
+  return cells;
+}
+
+/** Whether a prose-only source contains a GFM table that can drop cells. */
+function hasInconsistentGfmTable(source: string): boolean {
+  const lines = source.split('\n');
+  for (let i = 1; i < lines.length; i += 1) {
+    const delimiter = splitTableRow(lines[i]);
+    if (!delimiter || delimiter.length === 0
+      || !delimiter.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+
+    const header = splitTableRow(lines[i - 1]);
+    if (!header || header.length !== delimiter.length) return true;
+
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (lines[j].trim().length === 0) break;
+      const row = splitTableRow(lines[j]);
+      if (!row) break;
+      if (row.length !== delimiter.length) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Deterministic eligibility classification. Returns `source-only` for any
@@ -31,7 +172,6 @@ export type { OpaqueSpan } from './editor.markdown.opaque';
  */
 export function classifyEligibility(source: string): EligibilityResult {
   const src = source.replace(/\r\n/g, '\n');
-  const len = src.length;
   if (src.trim().length === 0) {
     return { verdict: 'eligible', reason: 'supported' };
   }
@@ -54,29 +194,18 @@ export function classifyEligibility(source: string): EligibilityResult {
   const opaque: OpaqueSpan[] = scan.spans;
 
   // ── 2. Disqualify unsupported / source-only syntax ──────────────────
-  // These run on the text OUTSIDE opaque spans so a front-matter or comment
-  // containing them does not wrongly block admission.
+  // These run only on prose. Opaque payloads, fenced code and complete inline
+  // code spans may legitimately contain HTML/math/reference-looking literals.
+  const blockProtected: ProtectedRange[] = [...opaque, ...codeRegions.regions];
+  const inlineCode = scanInlineCodeRegions(src, blockProtected);
+  const body = maskRanges(src, [...blockProtected, ...inlineCode]);
 
-  const visible = (from: number, to: number) => {
-    // Rebuild a string with opaque spans blanked, so `$`/links inside
-    // front matter / comments don't trigger false source-only.
-    let out = '';
-    let i = from;
-    while (i < to) {
-      const covering = opaque.find((o) => i >= o.from && i < o.to);
-      if (covering) {
-        out += ' '.repeat(Math.max(0, covering.to - covering.from));
-        i = covering.to;
-      } else {
-        const next = opaque.find((o) => o.from > i);
-        const segEnd = next ? Math.min(next.from, to) : to;
-        out += src.slice(i, segEnd);
-        i = segEnd;
-      }
-    }
-    return out;
-  };
-  const body = visible(0, len);
+  // Marked may silently discard extra cells on its first parse. Detect the
+  // source-level ambiguity before semantic round-trip verification so an edit
+  // cannot save a candidate that has already lost authored table content.
+  if (hasInconsistentGfmTable(body)) {
+    return { verdict: 'source-only', reason: 'malformed-table', category: 'malformed-table' };
+  }
 
   // Reference-style link definitions: `[label]: url`
   if (/^\s*\[[^\]]+\]:\s*\S+/m.test(body)) {

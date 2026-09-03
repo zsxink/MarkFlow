@@ -29,6 +29,28 @@ function isRuntimeOnlyKey(key: string): boolean {
   return RUNTIME_ONLY_KEYS.has(key) || key.startsWith('data-');
 }
 
+/** Parser/extension defaults that have no authored Markdown representation. */
+function isDefaultAttribute(node: JSONContent, key: string, value: unknown): boolean {
+  // `setContent` materializes absent optional attrs as null while manager.parse
+  // omits them. Markdown cannot distinguish those representations.
+  if (value === null || value === undefined) return true;
+
+  if ((node.type === 'tableCell' || node.type === 'tableHeader')
+    && (key === 'colspan' || key === 'rowspan') && value === 1) return true;
+
+  if (node.type === 'orderedList' && key === 'start' && value === 1) return true;
+
+  // CustomLink injects these DOM-safety defaults; Markdown authors only control
+  // href/title. Preserve href/title below, but ignore extension configuration.
+  if (node.type === 'link') {
+    if (key === 'class') return true;
+    if (key === 'rel' && value === 'noopener noreferrer nofollow') return true;
+    if (key === 'target' && value === '_blank') return true;
+  }
+
+  return false;
+}
+
 /**
  * Produce a normalized, semantically-stable JSON string for a document node.
  * Node/mark types, text, and *authored* attributes (alt, title, href, language,
@@ -43,8 +65,12 @@ function normalizeNode(node: JSONContent): unknown {
     if (key === 'marks') {
       // Marks are a list of { type, attrs }; normalize each deeply. An empty
       // marks array is omitted so the two parse paths (setContent vs manager
-      // .parse, which differ on empty arrays) fingerprint identically.
-      const normalized = ((value as JSONContent[] | undefined) ?? []).map(normalizeNode);
+      // .parse, which differ on empty arrays) fingerprint identically. A mark
+      // set is unordered in ProseMirror semantics, so parser-specific order is
+      // normalized without changing mark ranges or authored attributes.
+      const normalized = ((value as JSONContent[] | undefined) ?? [])
+        .map(normalizeNode)
+        .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
       if (normalized.length > 0) out[key] = normalized;
     } else if (key === 'content') {
       const normalized = ((value as JSONContent[] | undefined) ?? []).map(normalizeNode);
@@ -55,7 +81,7 @@ function normalizeNode(node: JSONContent): unknown {
       const attrs = (value as Record<string, unknown> | undefined) ?? {};
       const sorted: Record<string, unknown> = {};
       for (const aKey of Object.keys(attrs).sort()) {
-        if (isRuntimeOnlyKey(aKey)) continue;
+        if (isRuntimeOnlyKey(aKey) || isDefaultAttribute(node, aKey, attrs[aKey])) continue;
         sorted[aKey] = attrs[aKey];
       }
       if (Object.keys(sorted).length > 0) out[key] = sorted;
@@ -85,6 +111,20 @@ export const CANONICALIZATIONS = [
   'link-href-escaping',
   'soft-break-normalization',
 ] as const;
+
+// ── Known-but-NOT-registered canonicalization ──────────────────────────
+//
+// `inline-code-trailing-space` is deliberately absent from the allowlist. A
+// code span with a trailing space (e.g. `` `# ` ``, `` `- ` ``, `` `1. ` ``)
+// does NOT round-trip through the v3 markdown serializer: the trailing space
+// is moved out of the code span and re-attached to the following text
+// (`` `# ` `` → `` `#` `` + `" 前缀"`), so the re-parsed fingerprint differs
+// from the source. Because the code *content* changes, treating it as neutral
+// would weaken the no-loss guarantee, so `verifyAdmission` rejects such docs
+// to `source-only` (reason `parse-verification-failed`). Documenting per
+// issue decision: keep them in Source until a lossless serializer fix (or an
+// explicit, reviewed canonicalization) exists. Do NOT add this to
+// `CANONICALIZATIONS` without revisiting that decision.
 
 export type Canonicalization = (typeof CANONICALIZATIONS)[number];
 

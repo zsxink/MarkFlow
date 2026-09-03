@@ -91,4 +91,19 @@
 - [x] 10.1 更新与实现一致的编辑器架构/迁移说明和 pipeline mode 运维说明，并通过文档中的命令与路径逐项核对可执行
 - [x] 10.2 运行 `npx openspec validate tiptap-v3-wysiwyg-reconciliation --strict` 与 `npx openspec validate --all`，确认 change 和主规范均无错误
 - [x] 10.3 汇总各阶段 exit gate、已知 canonicalization、source-only 原因和回退演练证据，并验证从 `reconcile` 逐级降到 `source-only` 时原始 fixture 均可读取保存
-- [x] 10.4 在 merge 或 archive 前派独立 reviewer agent 静态复核实现与规范，并由 reviewer 运行 `npm test`、`npx tsc --noEmit` 和关键回归命令；只有复核无阻断问题后才进入合入/归档
+- [x] 10.4 在 merge 或 archive 前派独立 reviewer agent 静态复核实现与规范，并由 reviewer 运行 `npm test`、`npx tsc --noEmit` 和关键回归命令；只有复核无阻断问题后才进入合入/归档（第 11、12 节完成后须重新复核）
+
+## 11. 真实文档 WYSIWYG admission 回归
+
+- [x] 11.1 让 eligibility 扫描屏蔽围栏代码与完整行内代码，并增加 HTML、数学、脚注和引用链接字面量回归测试
+- [x] 11.2 在 eligibility 阶段识别表头、分隔行或数据行列数不一致的 GFM 表格，确保可能丢失单元格的文档保持 `source-only`
+- [x] 11.3 规范化两条 TipTap 解析路径的缺省/null 属性、扩展默认属性、默认列表/表格值和 mark 集合顺序，同时保留非默认 authored values 的指纹差异
+- [x] 11.4 增加 frontmatter + 表格/链接/图片、代码字面量和畸形表格的完整 admission 回归语料，验证误拒绝文档恢复 WYSIWYG 且不安全文档继续降级 Source
+- [x] 11.5 运行相关 Vitest、完整 `npm test`、`npx tsc --noEmit`、`npm run build` 与 OpenSpec 校验，确认回归修复满足现有安全契约
+
+## 12. Orca 技术栈对齐收口
+
+- [x] 12.1 建立完整 B 与 Orca Markdown 核心栈的可审计映射，逐项确认 TipTap/ProseMirror v3、`@tiptap/markdown`、隔离 Marked 兼容实例/门面、Markdown content type、`markdownTokenizer` / `renderMarkdown` hooks、资格门禁、opaque placeholder 和 reconcile 均由当前权威链路承载；同时登记 patch 与应用壳差异为允许差异
+- [x] 12.2 增加依赖与源码门禁，验证生产依赖不存在 `tiptap-markdown` 或 markdown-it 转换器、业务代码不存在 `storage.markdown` 直连、所有 Markdown 解析/序列化/保存候选都经统一 bridge；markdown-it 仅可存在于只读 v2 差分测试
+- [x] 12.3 增加生产调用链集成测试，验证普通 `eligible` 与 `eligible-with-opaque` 文档在完整 B 下均建立同一类已验证会话，并在保存与 Source 切换时经过 reconcile；缺失 session/registry 或内部 token 泄漏必须 fail closed，不能回退 legacy 保存
+- [x] 12.4 更新架构说明和阶段二证据中的 Orca 对齐矩阵，运行 `npm test`、`npx tsc --noEmit`、`npm run build`、`npx openspec validate tiptap-v3-wysiwyg-reconciliation --strict` 与 `npx openspec validate --all`，所有门禁通过后再执行 10.4 独立复核

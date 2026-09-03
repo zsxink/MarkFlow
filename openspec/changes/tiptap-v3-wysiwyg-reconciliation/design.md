@@ -72,6 +72,19 @@ Alternative considered: update each existing caller to the new v3 API. Rejected 
 
 All `@tiptap/*` packages must resolve to one exact v3 patch in the lock file. The implementation spike selects a version at or above the official custom-tokenizer injection fix and verifies it against the corpus before committing the dependency migration. The bridge owns a dedicated Marked instance so parser options and custom tokenizers cannot leak across editor instances or tests. `gfm` is enabled and `breaks` is disabled; soft-break behavior receives an explicit compatibility adapter/test rather than using `breaks: true`, which would change CommonMark semantics.
 
+This is the explicit Orca-alignment contract for complete B. “Same technology stack” means the Markdown core and safety boundaries are architecturally equivalent, while allowing MarkFlow to select a newer verified patch and retain its Tauri + native TypeScript application shell:
+
+| Layer | Complete B contract |
+|---|---|
+| editor model | TipTap / ProseMirror v3 |
+| Markdown engine | first-party `@tiptap/markdown` using the Marked token model |
+| parser ownership | one bridge-owned, isolated Marked-compatible instance or facade |
+| Markdown entry | `setContent(..., { contentType: 'markdown' })` behind the adapter |
+| extension integration | `markdownTokenizer` and `renderMarkdown` for authored syntax that needs custom behavior |
+| safety pipeline | eligibility admission → opaque placeholder registry/atom → three-way reconcile → Source recovery |
+
+The alignment is deliberately not patch lockstep or a source-code fork of Orca. Orca-specific UI components, React integration, KaTeX, CodeMirror Live Preview, automatic external-edit merge and unrelated product features remain outside this change unless separately specified. Production code must not keep a parallel `tiptap-markdown`/markdown-it serializer or access TipTap v2 `storage.markdown` APIs; differential tests may retain markdown-it only as a read-only v2 baseline.
+
 Package migration:
 
 - replace `tiptap-markdown` with `@tiptap/markdown`;
@@ -113,6 +126,8 @@ The initial opaque allowlist is deliberately narrow:
 Reference-style links, footnotes, inline HTML, math delimiters and malformed/unclosed blocks are `source-only` in the first release because their meaning can cross span boundaries. They can move to supported or opaque in later changes after dedicated contracts exist. Generic fenced code blocks remain supported rather than opaque.
 
 Admission verification does not require byte equality. It parses the restored candidate again and compares a semantic fingerprint of supported structure plus exact opaque bytes. Any difference not listed in the canonicalization policy rejects admission.
+
+Unsupported-syntax detection runs only on prose ranges: opaque spans, fenced code regions and complete inline-code spans are masked before scanning for inline HTML, math, footnotes or reference links. The fingerprint normalizes parser-path-only defaults (null attributes, default list/table values, extension link defaults and mark-set ordering) without erasing non-default authored values. Independently, malformed GFM tables with inconsistent column counts are rejected before admission because parse→serialize→parse alone cannot prove that the initial parse retained every source cell.
 
 Alternative considered: allow every parseable document into WYSIWYG and rely on save-time checks. Rejected because damage may already be introduced by a lossy initial parse, leaving no trustworthy editor baseline.
 

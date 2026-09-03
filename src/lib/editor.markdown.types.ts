@@ -69,6 +69,7 @@ export type EligibilityReason =
   | 'parse-verification-failed'
   | 'ambiguous-boundary'
   | 'construct-crosses-boundary'
+  | 'malformed-table'
   | 'unknown-construct'
   | 'too-large'
   | 'manual';

@@ -4,6 +4,24 @@
 
 ## ADDED Requirements
 
+### Requirement: 完整方案 B 与 Orca 的 Markdown 核心技术栈对齐
+系统 MUST 使用与 Orca 相同类别的 Markdown 核心技术栈实现完整方案 B：TipTap / ProseMirror v3、`@tiptap/markdown` 的 Marked token 模型、由统一 bridge 独占的隔离 Marked 兼容实例或门面、Markdown content type，以及自定义扩展的 tokenizer / renderer 双向契约。生产转换链路 MUST 只有一个权威 bridge，不得同时保留 v2 `tiptap-markdown`、markdown-it 转换器或业务层直接访问 `storage.markdown` 的旁路。
+
+#### Scenario: Markdown 通过 Orca 对齐栈进入编辑器
+- **WHEN** 调用方把 Markdown 加载到 WYSIWYG
+- **THEN** 统一 bridge 通过 TipTap v3 Markdown content type 完成解析
+- **THEN** 自定义链接、图片、列表、表格和代码块等 authored syntax 通过登记的 tokenizer / renderer hooks 保持双向契约
+
+#### Scenario: 完整 B 使用同一安全边界
+- **WHEN** 文档申请进入完整 B 的可编辑 WYSIWYG 并在保存或切换 Source 时产生候选
+- **THEN** 系统依次使用资格门禁、opaque placeholder 和三方 reconcile 组成的权威安全路径
+- **THEN** 任一阶段无法证明安全时降级 Source，且不得回退到第二套 Markdown 转换器生成保存候选
+
+#### Scenario: 技术栈对齐不扩张产品范围
+- **WHEN** Orca 还包含不同 UI 框架、特定 TipTap patch、数学公式、Live Preview 或自动外部修改合并能力
+- **THEN** 本变更不因技术栈对齐而自动纳入这些能力
+- **THEN** MarkFlow 可以保留 Tauri + 原生 TypeScript 应用壳，并使用经过本项目语料验证的 TipTap v3 patch
+
 ### Requirement: 受支持 Markdown 结构往返保真
 系统 MUST 对标题、段落、强调、加粗、删除线、行内代码、链接、图片、引用、分隔线、普通列表、有序列表、任务列表、围栏代码块、GFM 表格和换行语义提供双向解析与序列化。文档经过 Markdown → WYSIWYG → Markdown 往返后 MUST 保留文本内容、节点顺序、嵌套关系和用户可观察属性。
 
@@ -39,6 +57,11 @@
 - **THEN** 系统不得将该差异视为安全规范化
 - **THEN** 文档进入对账或 Source 降级流程
 
+#### Scenario: 两条解析路径的默认属性表示等价
+- **WHEN** 编辑器解析路径与非变异校验路径仅在缺省属性、扩展运行时默认值或 mark 集合顺序上存在差异
+- **THEN** 语义指纹将缺省值与等价默认值规范化为相同表示
+- **THEN** 非默认表格跨度、链接目标、图片 authored attributes 和正文 mark 范围仍保持语义敏感
+
 ### Requirement: 解析与序列化失败必须显式返回
 Markdown 转换 MUST 以成功结果或带阶段和原因的失败结果完成，不得用空字符串、部分文档或纯文本降级伪装成功。
 
@@ -63,4 +86,3 @@ Markdown 转换 MUST 以成功结果或带阶段和原因的失败结果完成�
 #### Scenario: 历史缺陷回归
 - **WHEN** 语料库运行表格、任务列表、链接转义、代码块尾换行、Mermaid 和 PlantUML 历史缺陷样例
 - **THEN** 每个样例均产生完整且可再次解析的 Markdown
-

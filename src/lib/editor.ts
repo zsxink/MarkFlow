@@ -222,6 +222,12 @@ export function setMarkdown(content: string) {
       setMarkdownPipelineMode('source-only');
       showToast('Markdown 无法安全转换，已保留源码模式');
       enterSourceMode(normalized);
+      // The freshly loaded source-only document is the persisted baseline:
+      // reset dirty/externallyModified so a prior dirty document does not
+      // leak into this one.
+      getDocumentState().lastPersistedMarkdown = normalized;
+      getDocumentState().externallyModified = false;
+      store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
       return;
     }
     // Stage-two admission (6.5 + 8.1): only fully-supported documents advance
@@ -237,6 +243,12 @@ export function setMarkdown(content: string) {
       setMarkdownPipelineMode('source-only');
       showToast(`已保留源码模式：${admissionReasonLabel(admission.reason)}`);
       enterSourceMode(normalized);
+      // Same baseline reset as the parse-failure branch above: a document
+      // admitted to source-only is loaded clean and must not inherit a prior
+      // document's dirty state or stale lastPersistedMarkdown.
+      getDocumentState().lastPersistedMarkdown = normalized;
+      getDocumentState().externallyModified = false;
+      store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
       return;
     }
     setMarkdownPipelineMode(admission.mode); // 'gated' | 'opaque'

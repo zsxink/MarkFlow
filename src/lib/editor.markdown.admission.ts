@@ -86,6 +86,7 @@ const REASON_LABELS: Record<EligibilityReason, string> = {
   'parse-verification-failed': '往返校验未通过，已保留源码',
   'ambiguous-boundary': '检测到未闭合/歧义语法边界',
   'construct-crosses-boundary': '存在跨越受支持与保留区域的语法',
+  'malformed-table': '表格列数不一致，无法安全转换',
   'unknown-construct': '包含暂不支持的语法',
   'too-large': '文档过大',
   manual: '手动确认',

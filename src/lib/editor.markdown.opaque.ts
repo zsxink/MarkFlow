@@ -304,7 +304,7 @@ export function scanOpaqueSpans(
 //   sentinel  ::=  "⟦MF-OPAQUE:" nonce "." index "⟧"
 //   slot      :=  nonce "." index         (unique within the session)
 //
-// `digest` is a bounded sha-256 prefix used for one-to-one restore validation.
+// `digest` is a bounded FNV-1a prefix used for one-to-one restore validation.
 
 /** Characters that delimit an opaque sentinel (never expected in prose). */
 export const OPAQUE_SENTINEL_PREFIX = '⟦MF-OPAQUE:'; // ⟦MF-OPAQUE:

@@ -86,14 +86,14 @@ const CASES: Case[] = [
   {
     name: 'math-inline',
     source: 'the value $x$ here\n',
-    verdict: 'source-only',
-    reason: 'unknown-construct',
+    verdict: 'eligible',
+    reason: 'supported',
   },
   {
     name: 'math-block',
     source: '$$\n\\int x dx\n$$\n',
-    verdict: 'source-only',
-    reason: 'unknown-construct',
+    verdict: 'eligible',
+    reason: 'supported',
   },
   {
     name: 'unclosed-fence',

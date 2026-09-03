@@ -15,9 +15,11 @@
 //   - YAML front matter at the start of the file
 //   - complete block HTML
 //   - complete HTML comments
-// Reference-style links, footnotes, inline HTML and math delimiters are
-// `source-only` in the first release because their meaning can cross span
-// boundaries. Generic fenced code blocks are supported (not opaque).
+// Reference-style links, footnotes and inline HTML are `source-only` because
+// their meaning can cross span boundaries. Math delimiters (`$..$` / `$$..$$`)
+// are now supported: they pass through the markdown pipeline as plain text and
+// are rendered by the KaTeX plugin (`editor.katex.ts`), so they are `eligible`.
+// Generic fenced code blocks are supported (not opaque).
 
 import type { EligibilityResult } from './editor.markdown.types';
 import {
@@ -233,10 +235,9 @@ export function classifyEligibility(source: string): EligibilityResult {
   if (/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^>]*)?>/.test(body)) {
     return { verdict: 'source-only', reason: 'unknown-construct', category: 'inline-html' };
   }
-  // Math delimiters: `$$ ... $$` block on its own line, or `$...$` inline.
-  if (/^\$\$[\s\S]*?\$\$$/m.test(body) || /(?<!\\)\$(?!\s)\S+?\$(?![\w])/.test(body)) {
-    return { verdict: 'source-only', reason: 'unknown-construct', category: 'math' };
-  }
+  // Math delimiters (`$..$` / `$$..$$`) are now supported via the KaTeX plugin
+  // (editor.katex.ts). Formulas pass through Marked as plain text and are
+  // rendered as decorations in WYSIWYG mode. No rejection needed.
   // Unclosed fenced code is already rejected in section 1 by `scanCodeRegions`
   // (which also handles `~~~` fences), so no separate parity check is needed.
 

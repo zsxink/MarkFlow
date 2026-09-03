@@ -12,6 +12,7 @@ import { registerEditorModeTests } from './editor-mode.e2e.mjs';
 import { registerEditSaveTests } from './edit-save-reload.e2e.mjs';
 import { registerSettingsPanelTests } from './settings-panel.e2e.mjs';
 import { registerDiskSafetyTests } from './disk-safety.e2e.mjs';
+import { registerKatexTests } from './katex.e2e.mjs';
 
 registerLaunchTests();
 registerFileOpenTests();
@@ -19,3 +20,4 @@ registerEditorModeTests();
 registerEditSaveTests();
 registerSettingsPanelTests();
 registerDiskSafetyTests();
+registerKatexTests();

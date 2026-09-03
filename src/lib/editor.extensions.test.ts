@@ -219,7 +219,7 @@ describe('editor extensions', () => {
 
   it('keeps blank configured PlantUML editable and recreates when source crosses preview boundary', () => {
     getCachedSettings.mockReturnValue({ plantumlServerUrl: 'https://plantuml.test' });
-    isBlankPlantUmlSource.mockImplementation((source: string) => source.trim().length === 0);
+    isBlankPlantUmlSource.mockImplementation(((source: string) => source.trim().length === 0) as never);
     const create = mermaidCodeBlockExtension().config.addNodeView!.call({} as never) as (args: any) => any;
     const editor = { view: { state: { tr: {} }, dispatch: vi.fn() } };
     const blank = { type: { name: 'codeBlock' }, attrs: { language: 'plantuml' }, textContent: '', nodeSize: 2 };

@@ -1,6 +1,6 @@
 {
   "gate": "PASS",
-  "scanned": 33,
+  "scanned": 35,
   "failures": [],
   "rows": [
     {
@@ -181,26 +181,42 @@
     },
     {
       "file": "openspec/specs/autosave-dirty-guard/spec.md",
-      "bytes": 1684,
-      "digest": "f4cdc81327c2",
-      "sourceStructs": 27,
-      "serializedStructs": 27,
+      "bytes": 3036,
+      "digest": "f5928cdc18c6",
+      "sourceStructs": 48,
+      "serializedStructs": 48,
       "status": "pass"
     },
     {
       "file": "openspec/specs/code-block-serialization/spec.md",
-      "bytes": 1598,
-      "digest": "bbdf8fbdcd26",
-      "sourceStructs": 23,
-      "serializedStructs": 23,
+      "bytes": 2250,
+      "digest": "4ba1acff0ee6",
+      "sourceStructs": 31,
+      "serializedStructs": 31,
       "status": "pass"
     },
     {
       "file": "openspec/specs/codemirror-source-editor/spec.md",
-      "bytes": 9190,
-      "digest": "c1cd5d26bcf9",
-      "sourceStructs": 122,
-      "serializedStructs": 122,
+      "bytes": 10463,
+      "digest": "7cef4352f6cc",
+      "sourceStructs": 137,
+      "serializedStructs": 137,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/wysiwyg-markdown-reconciliation/spec.md",
+      "bytes": 7052,
+      "digest": "31d0210e795c",
+      "sourceStructs": 84,
+      "serializedStructs": 84,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/wysiwyg-markdown-round-trip/spec.md",
+      "bytes": 6008,
+      "digest": "3517f0172235",
+      "sourceStructs": 62,
+      "serializedStructs": 62,
       "status": "pass"
     },
     {

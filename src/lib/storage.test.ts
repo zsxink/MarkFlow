@@ -15,15 +15,17 @@ describe('storage IPC facade', () => {
     invoke.mockResolvedValueOnce('markdown').mockResolvedValueOnce({ entries: [] });
     await expect(storage.readFile('/a.md')).resolves.toBe('markdown');
     await storage.writeFile('/a.md', '# A');
+    await storage.writeFileIfUnchanged('/a.md', '# A', 100, 3);
     await storage.readDirPage('/work', { cursor: 'next', limit: 20, generation: 'g1' });
     await storage.renamePath('/a.md', '/b.md');
     await storage.deletePath('/b.md');
 
     expect(invoke).toHaveBeenNthCalledWith(1, 'read_file', { path: '/a.md' });
     expect(invoke).toHaveBeenNthCalledWith(2, 'write_file', { path: '/a.md', content: '# A' });
-    expect(invoke).toHaveBeenNthCalledWith(3, 'read_dir', { path: '/work', cursor: 'next', limit: 20, generation: 'g1' });
-    expect(invoke).toHaveBeenNthCalledWith(4, 'rename_path', { from: '/a.md', to: '/b.md' });
-    expect(invoke).toHaveBeenNthCalledWith(5, 'delete_path', { path: '/b.md' });
+    expect(invoke).toHaveBeenNthCalledWith(3, 'write_file_if_unchanged', { path: '/a.md', content: '# A', expectedMtime: 100, expectedSize: 3 });
+    expect(invoke).toHaveBeenNthCalledWith(4, 'read_dir', { path: '/work', cursor: 'next', limit: 20, generation: 'g1' });
+    expect(invoke).toHaveBeenNthCalledWith(5, 'rename_path', { from: '/a.md', to: '/b.md' });
+    expect(invoke).toHaveBeenNthCalledWith(6, 'delete_path', { path: '/b.md' });
   });
 
   it('uses null directory paging defaults and caches merged settings after saving', async () => {

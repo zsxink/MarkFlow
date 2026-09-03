@@ -1,0 +1,294 @@
+{
+  "engine": {
+    "v2": "markdown-it",
+    "v3": "tiptap-v3-@tiptap/markdown"
+  },
+  "note": "v3 per-fixture round-trip status is asserted by src/lib/tiptap-v3-spike.test.ts (TIPTAP_V3_CORPUS_RESULTS must be all supported=pass).",
+  "supported": [
+    {
+      "id": "heading-basic",
+      "category": "heading",
+      "bytes": 29,
+      "v2": {
+        "tokenCount": 6,
+        "signatureChecksum": "97-1851482655"
+      },
+      "canonical": []
+    },
+    {
+      "id": "heading-edge-depth",
+      "category": "heading",
+      "bytes": 32,
+      "v2": {
+        "tokenCount": 6,
+        "signatureChecksum": "97-911219711"
+      },
+      "canonical": []
+    },
+    {
+      "id": "inline-basic",
+      "category": "inline",
+      "bytes": 51,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": []
+    },
+    {
+      "id": "inline-nested",
+      "category": "inline",
+      "bytes": 42,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": []
+    },
+    {
+      "id": "link-basic",
+      "category": "link",
+      "bytes": 48,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": []
+    },
+    {
+      "id": "link-escaped-target",
+      "category": "link",
+      "bytes": 47,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": [
+        "link-href-escaping"
+      ]
+    },
+    {
+      "id": "image-basic",
+      "category": "image",
+      "bytes": 45,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": []
+    },
+    {
+      "id": "image-remote",
+      "category": "image",
+      "bytes": 51,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": []
+    },
+    {
+      "id": "break-soft",
+      "category": "break",
+      "bytes": 17,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": [
+        "soft-break-normalization"
+      ]
+    },
+    {
+      "id": "break-hard",
+      "category": "break",
+      "bytes": 35,
+      "v2": {
+        "tokenCount": 6,
+        "signatureChecksum": "99-226930513"
+      },
+      "canonical": []
+    },
+    {
+      "id": "nested-list-basic",
+      "category": "nested-list",
+      "bytes": 46,
+      "v2": {
+        "tokenCount": 26,
+        "signatureChecksum": "507--1497134436"
+      },
+      "canonical": []
+    },
+    {
+      "id": "nested-list-continuation",
+      "category": "nested-list",
+      "bytes": 46,
+      "v2": {
+        "tokenCount": 12,
+        "signatureChecksum": "231--1149936726"
+      },
+      "canonical": [
+        "list-continuation-indent"
+      ]
+    },
+    {
+      "id": "task-list-basic",
+      "category": "task-list",
+      "bytes": 21,
+      "v2": {
+        "tokenCount": 12,
+        "signatureChecksum": "229-1664461406"
+      },
+      "canonical": []
+    },
+    {
+      "id": "task-list-nested",
+      "category": "task-list",
+      "bytes": 52,
+      "v2": {
+        "tokenCount": 19,
+        "signatureChecksum": "367-1263872820"
+      },
+      "canonical": []
+    },
+    {
+      "id": "table-basic",
+      "category": "table",
+      "bytes": 72,
+      "v2": {
+        "tokenCount": 30,
+        "signatureChecksum": "431-1263454291"
+      },
+      "canonical": [
+        "table-column-padding"
+      ]
+    },
+    {
+      "id": "table-empty-escaped",
+      "category": "table",
+      "bytes": 54,
+      "v2": {
+        "tokenCount": 28,
+        "signatureChecksum": "403-419452834"
+      },
+      "canonical": [
+        "table-column-padding",
+        "table-pipe-escaping"
+      ]
+    },
+    {
+      "id": "code-basic",
+      "category": "code-block",
+      "bytes": 28,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": []
+    },
+    {
+      "id": "code-trailing-lines",
+      "category": "code-block",
+      "bytes": 17,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": [
+        "code-trailing-newline"
+      ]
+    },
+    {
+      "id": "mermaid-basic",
+      "category": "mermaid",
+      "bytes": 33,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": []
+    },
+    {
+      "id": "mermaid-empty",
+      "category": "mermaid",
+      "bytes": 15,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": [
+        "code-trailing-newline"
+      ]
+    },
+    {
+      "id": "plantuml-basic",
+      "category": "plantuml",
+      "bytes": 53,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": []
+    },
+    {
+      "id": "plantuml-unconfigured",
+      "category": "plantuml",
+      "bytes": 46,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": []
+    },
+    {
+      "id": "trailing-none",
+      "category": "trailing-newline",
+      "bytes": 18,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "47--106388159"
+      },
+      "canonical": []
+    },
+    {
+      "id": "trailing-multiple",
+      "category": "trailing-newline",
+      "bytes": 23,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "47--106388159"
+      },
+      "canonical": [
+        "file-tail-newline"
+      ]
+    }
+  ],
+  "invalid": [
+    {
+      "id": "invalid-unclosed-fence",
+      "category": "invalid",
+      "bytes": 30,
+      "v2": {
+        "tokenCount": 1,
+        "signatureChecksum": "12-1238904531"
+      },
+      "canonical": []
+    },
+    {
+      "id": "invalid-table-width",
+      "category": "invalid",
+      "bytes": 35,
+      "v2": {
+        "tokenCount": 3,
+        "signatureChecksum": "49--341146893"
+      },
+      "canonical": []
+    }
+  ],
+  "gate": "PASS",
+  "counts": {
+    "supported": 24,
+    "invalid": 2,
+    "canonicalizations": 7
+  }
+}

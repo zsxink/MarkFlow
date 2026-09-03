@@ -1,4 +1,3 @@
-import type { Node as PMNode } from '@tiptap/pm/model';
 import { assetToOriginalMap } from './editor.state';
 
 // ── Asset URL replacement ──────────────────────────────────────────────
@@ -67,36 +66,3 @@ function fixImageNewlines(markdown: string): string {
 export function normalizeImageMarkdown(markdown: string): string {
   return fixImageNewlines(fixCorruptedImageNewlines(markdown));
 }
-
-// ── Emergency fallback ─────────────────────────────────────────────────
-
-export function extractDocAsFallback(doc: PMNode): string {
-  const lines: string[] = [];
-  doc.forEach((node) => {
-    if (node.type.name === 'paragraph') {
-      lines.push(node.textContent);
-    } else if (node.type.name === 'heading') {
-      const level = node.attrs.level || 1;
-      lines.push('#'.repeat(level) + ' ' + node.textContent);
-    } else if (node.type.name === 'bulletList' || node.type.name === 'orderedList' || node.type.name === 'taskList') {
-      node.forEach((item, _pos) => {
-        const prefix = node.type.name === 'orderedList'
-          ? '1. '
-          : node.type.name === 'taskList'
-            ? `- [${item.attrs.checked ? 'x' : ' '}] `
-            : '- ';
-        lines.push(prefix + item.textContent);
-      });
-    } else if (node.type.name === 'blockquote') {
-      lines.push('> ' + node.textContent);
-    } else if (node.type.name === 'codeBlock') {
-      lines.push('```');
-      lines.push(node.textContent);
-      lines.push('```');
-    } else {
-      lines.push(node.textContent || '');
-    }
-  });
-  return lines.join('\n\n');
-}
-

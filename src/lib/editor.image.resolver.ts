@@ -40,7 +40,7 @@ export function imageSrcResolverPlugin(): Extension {
               if (newSrc !== src) {
                 assetToOriginalMap.set(newSrc, src);
                 if (!imageTr) imageTr = newState.tr;
-                imageTr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc });
+                imageTr.setNodeMarkup(pos, undefined, { ...node.attrs, src: newSrc, authoredSrc: src });
               }
             });
             return imageTr;

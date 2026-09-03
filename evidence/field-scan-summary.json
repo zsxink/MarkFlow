@@ -1,0 +1,271 @@
+{
+  "gate": "PASS",
+  "scanned": 33,
+  "failures": [],
+  "rows": [
+    {
+      "file": "README.md",
+      "bytes": 6106,
+      "digest": "70af2972d26c",
+      "sourceStructs": 106,
+      "serializedStructs": 106,
+      "status": "pass"
+    },
+    {
+      "file": "README.en.md",
+      "bytes": 5494,
+      "digest": "206f8af3a002",
+      "sourceStructs": 95,
+      "serializedStructs": 95,
+      "status": "pass"
+    },
+    {
+      "file": "CLAUDE.md",
+      "bytes": 2797,
+      "digest": "cf6d14106d4b",
+      "sourceStructs": 47,
+      "serializedStructs": 47,
+      "status": "pass"
+    },
+    {
+      "file": "AGENTS.md",
+      "bytes": 3674,
+      "digest": "8fd8c3ad6549",
+      "sourceStructs": 51,
+      "serializedStructs": 51,
+      "status": "pass"
+    },
+    {
+      "file": "docs/next-phase-roadmap.md",
+      "bytes": 8866,
+      "digest": "95032839b659",
+      "sourceStructs": 77,
+      "serializedStructs": 77,
+      "status": "pass"
+    },
+    {
+      "file": "docs/file-tree-performance.md",
+      "bytes": 1629,
+      "digest": "5476b2f0dde5",
+      "sourceStructs": 2,
+      "serializedStructs": 2,
+      "status": "pass"
+    },
+    {
+      "file": "docs/bundle-baseline.md",
+      "bytes": 1778,
+      "digest": "bed3287d4dc6",
+      "sourceStructs": 33,
+      "serializedStructs": 33,
+      "status": "pass"
+    },
+    {
+      "file": "docs/wysiwyg-reconciliation/tiptap-v3-upgrade-assessment.md",
+      "bytes": 10735,
+      "digest": "ffdd33e6b8e7",
+      "sourceStructs": 78,
+      "serializedStructs": 78,
+      "status": "pass"
+    },
+    {
+      "file": "docs/wysiwyg-reconciliation/tiptap-v3-spike.md",
+      "bytes": 4806,
+      "digest": "5e6afc26ba92",
+      "sourceStructs": 30,
+      "serializedStructs": 30,
+      "status": "pass"
+    },
+    {
+      "file": "docs/wysiwyg-reconciliation/v2-baseline.md",
+      "bytes": 1794,
+      "digest": "61a60954fbe4",
+      "sourceStructs": 10,
+      "serializedStructs": 10,
+      "status": "pass"
+    },
+    {
+      "file": "docs/cleanup-plan/code-standards.md",
+      "bytes": 6607,
+      "digest": "3aaeb27ff022",
+      "sourceStructs": 58,
+      "serializedStructs": 58,
+      "status": "pass"
+    },
+    {
+      "file": "example/example-en.md",
+      "bytes": 2535,
+      "digest": "2ecbc9a3fc61",
+      "sourceStructs": 49,
+      "serializedStructs": 50,
+      "status": "pass"
+    },
+    {
+      "file": "example/example-zh.md",
+      "bytes": 2486,
+      "digest": "ec0ea5e78bd2",
+      "sourceStructs": 49,
+      "serializedStructs": 50,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/memory/MEMORY.md",
+      "bytes": 1683,
+      "digest": "6e3b9b771fab",
+      "sourceStructs": 30,
+      "serializedStructs": 30,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/memory/architecture-frontend.md",
+      "bytes": 4921,
+      "digest": "cc1e28cb549b",
+      "sourceStructs": 47,
+      "serializedStructs": 47,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/memory/architecture-backend.md",
+      "bytes": 4965,
+      "digest": "4c0b1735036a",
+      "sourceStructs": 79,
+      "serializedStructs": 79,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/memory/troubleshooting-tiptap-markdown-serializer.md",
+      "bytes": 1690,
+      "digest": "8af904c2f00f",
+      "sourceStructs": 12,
+      "serializedStructs": 13,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/memory/source-mode-line-wrapping.md",
+      "bytes": 1093,
+      "digest": "1ecbcd97c5f0",
+      "sourceStructs": 0,
+      "serializedStructs": 1,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/rules/branch-first.md",
+      "bytes": 655,
+      "digest": "4192719f3dbb",
+      "sourceStructs": 8,
+      "serializedStructs": 8,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/rules/git-commit.md",
+      "bytes": 1307,
+      "digest": "91185797f35f",
+      "sourceStructs": 31,
+      "serializedStructs": 32,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/rules/css-layout.md",
+      "bytes": 668,
+      "digest": "2573d59771d0",
+      "sourceStructs": 5,
+      "serializedStructs": 6,
+      "status": "pass"
+    },
+    {
+      "file": ".claude/rules/line-numbers.md",
+      "bytes": 568,
+      "digest": "55ab866daf7a",
+      "sourceStructs": 5,
+      "serializedStructs": 6,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/autosave-dirty-guard/spec.md",
+      "bytes": 1684,
+      "digest": "f4cdc81327c2",
+      "sourceStructs": 27,
+      "serializedStructs": 27,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/code-block-serialization/spec.md",
+      "bytes": 1598,
+      "digest": "bbdf8fbdcd26",
+      "sourceStructs": 23,
+      "serializedStructs": 23,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/codemirror-source-editor/spec.md",
+      "bytes": 9190,
+      "digest": "c1cd5d26bcf9",
+      "sourceStructs": 122,
+      "serializedStructs": 122,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/block-continuation-paragraph/spec.md",
+      "bytes": 4045,
+      "digest": "c58168541328",
+      "sourceStructs": 51,
+      "serializedStructs": 51,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/document-size-tier/spec.md",
+      "bytes": 4327,
+      "digest": "eef586e26766",
+      "sourceStructs": 62,
+      "serializedStructs": 62,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/trailing-newlines-preservation/spec.md",
+      "bytes": 2004,
+      "digest": "da4dcb8eea64",
+      "sourceStructs": 24,
+      "serializedStructs": 24,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/lazy-mermaid/spec.md",
+      "bytes": 1897,
+      "digest": "309e717bbe28",
+      "sourceStructs": 22,
+      "serializedStructs": 22,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/file-tree-incremental-update/spec.md",
+      "bytes": 2604,
+      "digest": "7611997458d1",
+      "sourceStructs": 35,
+      "serializedStructs": 35,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/image-streaming/spec.md",
+      "bytes": 5817,
+      "digest": "32e8d33dcb07",
+      "sourceStructs": 90,
+      "serializedStructs": 90,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/atomic-save/spec.md",
+      "bytes": 3137,
+      "digest": "77ec1b4d6321",
+      "sourceStructs": 49,
+      "serializedStructs": 49,
+      "status": "pass"
+    },
+    {
+      "file": "openspec/specs/enter-content-integrity/spec.md",
+      "bytes": 7125,
+      "digest": "48793f94453e",
+      "sourceStructs": 92,
+      "serializedStructs": 92,
+      "status": "pass"
+    }
+  ]
+}

@@ -129,6 +129,42 @@ pub fn resolve_path(raw: &str, _state: &State<AppState>) -> Result<PathBuf, Stri
 /// 3. `fs::rename()` to the target (POSIX-atomic)
 /// 4. On any failure the temp file is cleaned up and the original remains intact.
 pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
+    atomic_write_checked(path, content, None)
+}
+
+/// Stable, content-free error reported when a verified document changed after
+/// the frontend captured its disk identity.  Callers must treat this as a
+/// conflict, never as a retryable successful save.
+pub const FILE_CHANGED_DURING_SAVE: &str = "FILE_CHANGED_DURING_SAVE";
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct ExpectedFileStats {
+    pub mtime: u64,
+    pub size: u64,
+}
+
+fn stats_from_metadata(metadata: &fs::Metadata) -> FileStats {
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    FileStats { mtime, size: metadata.len() }
+}
+
+/// Write through a same-directory temp file and, for a verified existing
+/// document, compare its source identity immediately before the final rename.
+///
+/// The comparison deliberately lives in the backend command rather than in a
+/// separate frontend stat call: image staging can take time, and a second
+/// process may modify the target during that interval.  A mismatch removes the
+/// temporary file and leaves the original target untouched.
+fn atomic_write_checked(
+    path: &Path,
+    content: &str,
+    expected: Option<ExpectedFileStats>,
+) -> Result<(), String> {
     let parent = path.parent().ok_or("Cannot determine parent directory")?;
     fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
 
@@ -150,6 +186,14 @@ pub fn atomic_write(path: &Path, content: &str) -> Result<(), String> {
                 .map_err(|e| format!("Failed to write temp file: {}", e))?;
             file.sync_all()
                 .map_err(|e| format!("Failed to sync temp file: {}", e))?;
+        }
+        if let Some(expected) = expected {
+            let actual = fs::metadata(path)
+                .map(|metadata| stats_from_metadata(&metadata))
+                .map_err(|_| FILE_CHANGED_DURING_SAVE.to_string())?;
+            if actual.mtime != expected.mtime || actual.size != expected.size {
+                return Err(FILE_CHANGED_DURING_SAVE.to_string());
+            }
         }
         // Atomic rename — on POSIX this is always atomic; on Windows uses
         // MOVEFILE_REPLACE_EXISTING via the `winapi` crate internally.
@@ -264,6 +308,27 @@ pub fn write_file(path: String, content: String, state: State<AppState>) -> Resu
     // Workspace boundary is enforced by file-tree commands, not by document save.
     let path = resolve_path(&path, &state)?;
     atomic_write(&path, &content)
+}
+
+/// Compare-and-write for a previously opened verified document.  Unlike
+/// `write_file`, this command never creates a missing target and never accepts
+/// unknown metadata: callers supply the mtime/size observed at open or after a
+/// successful save, and the final comparison happens in this command directly
+/// before replacement.
+#[tauri::command]
+pub fn write_file_if_unchanged(
+    path: String,
+    content: String,
+    expected_mtime: u64,
+    expected_size: u64,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let path = resolve_path(&path, &state)?;
+    atomic_write_checked(
+        &path,
+        &content,
+        Some(ExpectedFileStats { mtime: expected_mtime, size: expected_size }),
+    )
 }
 
 fn select_export_path(
@@ -666,16 +731,7 @@ pub fn get_file_stats(path: String, state: State<AppState>) -> Result<FileStats,
     let path = resolve_path(&path, &state)?;
     let metadata =
         fs::metadata(&path).map_err(|e| format!("Failed to read file metadata: {}", e))?;
-    let mtime = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_millis() as u64) // millisecond precision to detect rapid edits
-        .unwrap_or(0);
-    Ok(FileStats {
-        mtime,
-        size: metadata.len(),
-    })
+    Ok(stats_from_metadata(&metadata))
 }
 
 #[tauri::command]
@@ -746,6 +802,53 @@ mod tests {
         fs::write(&path, "old content").unwrap();
         atomic_write(&path, "new content").unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), "new content");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn checked_atomic_write_replaces_matching_existing_file() {
+        let dir = temp_dir();
+        let path = dir.join("checked-match.md");
+        fs::write(&path, "old").unwrap();
+        let stats = stats_from_metadata(&fs::metadata(&path).unwrap());
+
+        atomic_write_checked(&path, "new", Some(ExpectedFileStats { mtime: stats.mtime, size: stats.size }))
+            .unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "new");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn checked_atomic_write_rejects_size_mismatch_without_replacing_target() {
+        let dir = temp_dir();
+        let path = dir.join("checked-size-mismatch.md");
+        fs::write(&path, "external change").unwrap();
+        let stats = stats_from_metadata(&fs::metadata(&path).unwrap());
+
+        let error = atomic_write_checked(
+            &path,
+            "editor candidate",
+            Some(ExpectedFileStats { mtime: stats.mtime, size: stats.size - 1 }),
+        ).unwrap_err();
+        assert_eq!(error, FILE_CHANGED_DURING_SAVE);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "external change");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn checked_atomic_write_rejects_same_size_mtime_mismatch_without_replacing_target() {
+        let dir = temp_dir();
+        let path = dir.join("checked-mtime-mismatch.md");
+        fs::write(&path, "same").unwrap();
+        let stats = stats_from_metadata(&fs::metadata(&path).unwrap());
+
+        let error = atomic_write_checked(
+            &path,
+            "new!",
+            Some(ExpectedFileStats { mtime: stats.mtime.saturating_add(1), size: stats.size }),
+        ).unwrap_err();
+        assert_eq!(error, FILE_CHANGED_DURING_SAVE);
+        assert_eq!(fs::read_to_string(&path).unwrap(), "same");
         let _ = fs::remove_dir_all(&dir);
     }
 

@@ -1,8 +1,9 @@
-import { readFile, writeFile, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
-import { getMarkdown, hasExternalModification, isDocumentDirty, markDocumentPersisted, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getLastReadMtime, getLastReadSize, setLastReadStats, getEditor } from '../lib/editor';
+import { readFile, writeFile, writeFileIfUnchanged, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
+import { getMarkdownResult, getSavePlan, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getSourceRevision, getLastReadMtime, getLastReadSize, hasLastReadStats, clearLastReadStats, setLastReadStats, getEditor, getPipelineMode } from '../lib/editor';
+import { shouldUseReconcileBoundary } from '../lib/editor.save.reconcile';
 import { setSourceReadOnly } from '../lib/editor.source';
 import { showToast } from './toast';
-import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
+import { suppressNextWatcherRefresh, cancelSuppressedWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';
 import { logException, logInfo, logDebug } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
@@ -69,7 +70,16 @@ export async function saveActiveDocumentAsNewFile() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
-  const currentContent = getMarkdown();
+  const candidate = getMarkdownResult();
+  if (!candidate.ok) {
+    logException('sidebar.save', 'Markdown conversion failed before save-as', undefined, {
+      stage: candidate.error.stage,
+      code: candidate.error.code,
+    });
+    showToast('Markdown 转换失败，未写入文件');
+    return false;
+  }
+  const currentContent = candidate.markdown;
   const targetPath = await save({
     title: '另存为',
     defaultPath: getConflictSavePath(filePath),
@@ -123,7 +133,9 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (!targetPath) return 'skipped';
-    const content = getMarkdown();
+    const candidate = getMarkdownResult();
+    if (!candidate.ok) return reportConversionFailure(candidate.error.stage, candidate.error.code, interactive);
+    const content = candidate.markdown;
     const revision = getRevision();
     savingInProgress = true;
     try {
@@ -175,10 +187,17 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   // ── Pre-save mtime + size validation ────────────────────────────
   const lastMtime = getLastReadMtime();
   const lastSize = getLastReadSize();
-  if (lastMtime > 0 || lastSize > 0) {
+  const verifiedSave = shouldUseReconcileBoundary(getPipelineMode());
+  if (hasLastReadStats()) {
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
       if (stats.mtime !== lastMtime || stats.size !== lastSize) {
+        if (verifiedSave) {
+          // A verified session's reconcile baseline names the old file. Do
+          // not turn an interactive "overwrite" click into a stale verified
+          // write; invalidate it and let the established conflict path decide.
+          markExternalModification();
+        }
         if (!interactive) {
           logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
           return 'skipped';
@@ -190,25 +209,68 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
         }
       }
     } catch (e) {
-      // If stat fails, proceed with save anyway
-      logDebug('fileops', 'Pre-save stat check failed, proceeding with save', { path: filePath, error: String(e) });
+      // Legacy saves keep their established best-effort policy. A verified
+      // reconcile session is stricter: without a fresh stat we cannot prove
+      // its source baseline still names the disk file, so invalidate it and
+      // let the existing stale-source conflict path suppress the write.
+      if (verifiedSave) markExternalModification();
+      logDebug('fileops', 'Pre-save stat check failed', { path: filePath, error: String(e) });
+    }
+  } else if (verifiedSave) {
+    // Existing-file verified sessions require a known disk identity. New-file
+    // and save-as branches returned above and are intentionally unaffected.
+    markExternalModification();
+  }
+
+  // ── Reconcile boundary (opaque/reconcile mode, task 8.5) ──────────
+  const plan = getSavePlan();
+  if (plan.kind !== 'legacy') {
+    if (plan.kind === 'unchanged') {
+      // Exact source baseline is already on disk; never rewrite it.
+      if (interactive) showToast('内容无变化，未重复写入');
+      return 'saved';
+    }
+    if (plan.kind === 'conflict') {
+      // Suppressed: no disk write, dirty kept, reconcileError set by getSavePlan.
+      if (interactive) showToast('保存被阻止：文档存在冲突，未写入磁盘');
+      return 'failed';
     }
   }
 
   // ── Atomic save with revision tracking ──────────────────────────
-  const content = getMarkdown();
+  const candidate = getMarkdownResult();
+  if (!candidate.ok) return reportConversionFailure(candidate.error.stage, candidate.error.code, interactive);
+  // In safe-edit mode the reconcile boundary's verified candidate is written.
+  const content = plan.kind === 'safe-edit' ? plan.markdown : candidate.markdown;
   const revision = getRevision();
+  const sourceRevision = getSourceRevision();
   savingInProgress = true;
   try {
     const prepared = await preparePendingImagesForSave(content, filePath);
     suppressNextWatcherRefresh(filePath);
-    await writeFile(filePath, prepared.markdown);
+    if (verifiedSave) {
+      // A Source/reload change during image staging invalidates the admission
+      // session before touching disk. The backend then rechecks the exact disk
+      // mtime+size immediately before its atomic rename.
+      if (sourceRevision !== getSourceRevision() || !hasLastReadStats()) {
+        markExternalModification();
+        throw new Error('FILE_CHANGED_DURING_SAVE');
+      }
+      await writeFileIfUnchanged(filePath, prepared.markdown, lastMtime, lastSize);
+    } else {
+      await writeFile(filePath, prepared.markdown);
+    }
     if (prepared.markdown !== content) setMarkdown(prepared.markdown);
     // Record mtime + size after successful write
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
       setLastReadStats(stats.mtime, stats.size);
-    } catch (e) { logDebug('fileops', 'Failed to get file stats after write (non-critical)', { path: filePath, error: String(e) }); }
+    } catch (e) {
+      // The write succeeded but we cannot prove the identity for a later
+      // verified save. Force a fresh admission/reload rather than reuse it.
+      clearLastReadStats();
+      logDebug('fileops', 'Failed to get file stats after write', { path: filePath, error: String(e) });
+    }
     markDocumentPersisted(prepared.markdown, revision);
     try {
       await completePendingImagesSave(prepared.draftId);
@@ -224,7 +286,14 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     }
     return 'saved';
   } catch (e) {
+    cancelSuppressedWatcherRefresh(filePath);
     abortPendingImagesSave();
+    if (verifiedSave && String(e).includes('FILE_CHANGED_DURING_SAVE')) {
+      markExternalModification();
+      // Populate the production reconcile error (stale-source) now; this is
+      // what suppresses following autosaves until the user resolves it.
+      getSavePlan();
+    }
     // Keep dirty state on failure — user sees error toast in interactive mode
     logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
     if (interactive) showToast('保存失败，请重试');
@@ -232,6 +301,12 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   } finally {
     savingInProgress = false;
   }
+}
+
+function reportConversionFailure(stage: string, code: string, interactive: boolean): SaveResult {
+  logException('sidebar.save', 'Markdown conversion failed before disk write', undefined, { stage, code });
+  if (interactive) showToast('Markdown 转换失败，未写入文件');
+  return 'failed';
 }
 
 export async function reloadActiveDocumentFromDisk(options: { force?: boolean } = {}) {
@@ -244,6 +319,14 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
   try {
     const content = await readFile(filePath);
     setMarkdown(content);
+    try {
+      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
+      setLastReadStats(stats.mtime, stats.size);
+    } catch (e) {
+      // A verified session cannot safely overwrite an unstatable reload.
+      if (shouldUseReconcileBoundary(getPipelineMode())) markExternalModification();
+      logDebug('fileops', 'Failed to stat reloaded document', { path: filePath, error: String(e) });
+    }
     refreshOutline();
     return true;
   } catch (e) {

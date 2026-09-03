@@ -25,6 +25,10 @@ export interface StoreState {
   /// Consecutive autosave failure count; >0 means a persistent failure banner
   /// should be shown (not a transient toast). 0 means healthy.
   autosaveErrorCount: number;
+  /// Reason the last save/reconcile boundary was a `conflict` (content-free),
+  /// or `null` when no conflict is pending. A conflict suppresses autosave and
+  /// keeps the document dirty.
+  reconcileError: string | null;
 }
 
 // ── File System Events ────────────────────────────────────────────────

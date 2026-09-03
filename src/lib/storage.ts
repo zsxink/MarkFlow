@@ -15,6 +15,20 @@ export async function writeFile(path: string, content: string): Promise<void> {
   return invoke('write_file', { path, content });
 }
 
+/**
+ * Backend compare-and-write for an already-opened verified document.  The
+ * backend rechecks this exact source identity immediately before its atomic
+ * replacement, so a stale WYSIWYG candidate cannot overwrite an external edit.
+ */
+export async function writeFileIfUnchanged(
+  path: string,
+  content: string,
+  expectedMtime: number,
+  expectedSize: number,
+): Promise<void> {
+  return invoke('write_file_if_unchanged', { path, content, expectedMtime, expectedSize });
+}
+
 export async function saveMermaidSvgExport(svg: string, defaultName: string): Promise<boolean> {
   return invoke<boolean>('save_mermaid_svg_export', { svg, defaultName });
 }

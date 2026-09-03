@@ -15,6 +15,10 @@ import {
   setLastReadStats,
   getLastReadMtime,
   getLastReadSize,
+  getMarkdownPipelineMode,
+  isProgrammaticUpdate,
+  setMarkdownPipelineMode,
+  withProgrammaticUpdate,
 } from './editor.state';
 import { store } from './store';
 
@@ -30,6 +34,8 @@ beforeEach(() => {
   // Reset module-level mutable state.
   getDocumentState().externallyModified = false;
   getDocumentState().programmaticUpdate = false;
+  getDocumentState().programmaticUpdateDepth = 0;
+  setMarkdownPipelineMode('v3-compatible');
   getDocumentState().lastPersistedMarkdown = '';
   getDocumentState().revision = 0;
   getDocumentState().trailingNewlines = 0;
@@ -174,5 +180,26 @@ describe('revision and file snapshot tracking', () => {
     setLastReadStats(1234, 56);
     expect(getLastReadMtime()).toBe(1234);
     expect(getLastReadSize()).toBe(56);
+  });
+});
+
+describe('programmatic conversion guard and pipeline mode', () => {
+  it('keeps the guard active until nested conversions complete', () => {
+    withProgrammaticUpdate(() => {
+      expect(isProgrammaticUpdate()).toBe(true);
+      withProgrammaticUpdate(() => expect(isProgrammaticUpdate()).toBe(true));
+      expect(isProgrammaticUpdate()).toBe(true);
+    });
+    expect(isProgrammaticUpdate()).toBe(false);
+  });
+
+  it('clears the guard when a conversion throws', () => {
+    expect(() => withProgrammaticUpdate(() => { throw new Error('parse failed'); })).toThrow('parse failed');
+    expect(isProgrammaticUpdate()).toBe(false);
+  });
+
+  it('keeps source-only as an explicit reduced-risk fallback mode', () => {
+    setMarkdownPipelineMode('source-only');
+    expect(getMarkdownPipelineMode()).toBe('source-only');
   });
 });

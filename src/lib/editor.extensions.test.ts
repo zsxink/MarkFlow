@@ -1,32 +1,49 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 
-const { renderMermaid, renderPlantUml, getCachedSettings, store } = vi.hoisted(() => ({
-  renderMermaid: vi.fn(), renderPlantUml: vi.fn(), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
+const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings, store } = vi.hoisted(() => ({
+  renderMermaid: vi.fn(), renderPlantUml: vi.fn(), isBlankPlantUmlSource: vi.fn(() => false), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
-vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource: vi.fn(() => false) })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
-import { BlockImage, CustomLink, mermaidCodeBlockExtension } from './editor.extensions';
-import { MarkdownSerializerState, defaultMarkdownParser } from 'prosemirror-markdown';
-
-/**
- * Helper to create a minimal codeBlock-like node for serializer tests.
- */
-function codeBlockNode(textContent: string, language = 'bash') {
-  return {
-    type: { name: 'codeBlock' },
-    attrs: { language },
-    textContent,
-  };
-}
+vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
+import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension, renderFencedCodeBlock } from './editor.extensions';
+import { createMarkdownExtension, markflowMarked } from './editor.init';
 
 /**
  * Run the custom codeBlock serialize function and return its output.
  */
 function serializeCodeBlock(textContent: string, language?: string): string {
-  // @internal — constructor and out are stripped from .d.ts but available at runtime
-  const state = new (MarkdownSerializerState as any)({}, {}, { tightLists: false });
-  const serialize = (mermaidCodeBlockExtension().config.addStorage!.call({} as any) as any).markdown.serialize;
-  serialize(state, codeBlockNode(textContent, language));
-  return (state as any).out;
+  return renderFencedCodeBlock(language ?? 'bash', textContent);
+}
+
+function createV3MarkdownEditor() {
+  return new Editor({
+    extensions: [
+      StarterKit.configure({
+        codeBlock: false,
+        link: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+        listKeymap: false,
+      }),
+      BulletList,
+      OrderedList,
+      ListItem,
+      ListKeymap,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      MarkdownSafeTable,
+      TableRow,
+      TableCell,
+      TableHeader,
+      CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
+      mermaidCodeBlockExtension(),
+      createMarkdownExtension(),
+    ],
+  });
 }
 
 describe('editor extensions', () => {
@@ -42,8 +59,24 @@ describe('editor extensions', () => {
 
   it('serializes links as explicit Markdown links and disables paste autolinks', () => {
     expect(CustomLink.config.addPasteRules!.call({} as never)).toEqual([]);
-    const close = (CustomLink.config.addStorage!.call({} as never) as any).markdown.serialize.close;
-    expect(close(null, { attrs: { href: 'https://a.test/(x)', title: 'A "title"' } })).toBe('](https://a.test/\\(x\\) "A \\"title\\"")');
+    const render = CustomLink.config.renderMarkdown!;
+    expect(render(
+      { attrs: { href: 'https://a.test/(x)', title: 'A "title"' } },
+      { renderChildren: () => 'link text' } as never,
+      {} as never,
+    )).toBe('[link text](https://a.test/\\(x\\) "A \\"title\\"")');
+    const parse = CustomLink.config.parseMarkdown!;
+    expect(parse(
+      { href: 'https://a.test', title: 'title', tokens: [{ type: 'text', text: 'link text' }] },
+      {
+        parseInline: () => [{ type: 'text', text: 'link text' }],
+        applyMark: (mark: string, content: unknown[], attrs?: unknown) => ({ mark, content, attrs }),
+      } as never,
+    )).toEqual({
+      mark: 'link',
+      content: [{ type: 'text', text: 'link text' }],
+      attrs: { href: 'https://a.test', title: 'title' },
+    });
     expect(CustomLink.config.addInputRules!.call({} as never)).toHaveLength(1);
   });
 
@@ -73,24 +106,58 @@ describe('editor extensions', () => {
       expect(result).toBe('```\nplain code\n\n```');
     });
 
-    it('round-trips code block trailing newlines through serialize → parse', () => {
-      // Serialize with custom serializer, then parse back with standard parser
+    it('parses serialized code blocks through the v3 Markdown content type', () => {
+      getCachedSettings.mockReturnValue({ plantumlServerUrl: '' });
+      const editor = createV3MarkdownEditor();
       const markdown = serializeCodeBlock('sudo apt update\n');
-      const doc = defaultMarkdownParser.parse(markdown);
-      expect(doc).not.toBeNull();
-      const codeBlock = doc!.firstChild;
-      expect(codeBlock?.type.name).toBe('code_block');
-      expect(codeBlock?.textContent).toBe('sudo apt update\n');
+      editor.commands.setContent(markdown, { contentType: 'markdown' });
+      expect(editor.state.doc.firstChild?.type.name).toBe('codeBlock');
+      expect(editor.state.doc.firstChild?.textContent).toBe('sudo apt update\n');
+      expect(editor.getMarkdown()).toContain(markdown);
+      editor.destroy();
     });
 
-    it('round-trips code block with no trailing newline (no phantom newline)', () => {
-      const markdown = serializeCodeBlock('sudo apt update');
-      const doc = defaultMarkdownParser.parse(markdown);
-      expect(doc).not.toBeNull();
-      const codeBlock = doc!.firstChild;
-      expect(codeBlock?.type.name).toBe('code_block');
-      expect(codeBlock?.textContent).toBe('sudo apt update');
+    it('uses a longer fence when code content contains a closing fence candidate', () => {
+      expect(renderFencedCodeBlock('text', 'a\n```\nb')).toBe('````text\na\n```\nb\n````');
     });
+  });
+
+  it('registers every customized v3 capability exactly once', () => {
+    const editor = createV3MarkdownEditor();
+    const names = editor.extensionManager.extensions.map(extension => extension.name);
+    for (const name of ['link', 'bulletList', 'orderedList', 'listItem', 'listKeymap', 'taskList', 'taskItem', 'codeBlock']) {
+      expect(names.filter(extensionName => extensionName === name)).toHaveLength(1);
+    }
+    editor.destroy();
+  });
+
+  it('uses the application-owned isolated Marked instance', () => {
+    const editor = createV3MarkdownEditor();
+    expect(editor.markdown?.instance).toBe(markflowMarked);
+    editor.destroy();
+  });
+
+  it('escapes literal pipes in table cells across repeated Markdown round trips', () => {
+    const editor = createV3MarkdownEditor();
+    const source = '| A | B | C |\n| :--- | ---: | :---: |\n|  | a \\| b |  |';
+    editor.commands.setContent(source, { contentType: 'markdown' });
+    const first = editor.getJSON();
+    const markdown = editor.getMarkdown();
+    expect(markdown).toContain('a \\| b');
+    editor.commands.setContent(markdown, { contentType: 'markdown' });
+    expect(editor.getJSON()).toEqual(first);
+    editor.destroy();
+  });
+
+  it('runs CustomLink v3 hooks through a real Markdown editor', () => {
+    const editor = createV3MarkdownEditor();
+    const markdown = '[link text](https://a.test/\\(x\\) "A \\"title\\"")';
+    editor.commands.setContent(markdown, { contentType: 'markdown' });
+
+    const link = editor.state.doc.firstChild?.firstChild?.marks.find(mark => mark.type.name === 'link');
+    expect(link?.attrs).toMatchObject({ href: 'https://a.test/(x)', title: 'A "title"' });
+    expect(editor.getMarkdown()).toContain(markdown);
+    editor.destroy();
   });
 
   it('creates, updates and destroys Mermaid diagram node views', async () => {
@@ -105,5 +172,68 @@ describe('editor extensions', () => {
     expect(view.update({ ...node, textContent: 'graph LR' })).toBe(true);
     view.destroy();
     expect(store.off).toHaveBeenCalledWith('settings:changed', expect.any(Function));
+  });
+
+  it('renders PlantUML for both the plantuml and puml language aliases', async () => {
+    getCachedSettings.mockReturnValue({ plantumlServerUrl: 'https://www.plantuml.com/plantuml' });
+    renderPlantUml.mockResolvedValue('<svg data-plantuml></svg>');
+    const extension = mermaidCodeBlockExtension();
+    const create = extension.config.addNodeView!.call({} as never) as (args: any) => any;
+    const editor = { view: { state: { tr: {} }, dispatch: vi.fn() } };
+    for (const language of ['plantuml', 'puml']) {
+      const node = { type: { name: 'codeBlock' }, attrs: { language }, textContent: '@startuml\nAlice -> Bob\n@enduml', nodeSize: 20 };
+      const view = create({ node, editor, getPos: () => 1 });
+      await Promise.resolve();
+      expect(view.dom.className).toBe('mermaid-block');
+      expect(view.dom.querySelector('.mermaid-preview')?.innerHTML).toContain('data-plantuml');
+      view.destroy();
+    }
+    expect(renderPlantUml).toHaveBeenCalledTimes(2);
+  });
+
+  it('recreates a PlantUML NodeView when enabling or disabling its service changes contentDOM mode', () => {
+    const make = (url: string) => {
+      const registrations = vi.fn();
+      store.on.mockImplementation(registrations);
+      getCachedSettings.mockReturnValue({ plantumlServerUrl: url });
+      const create = mermaidCodeBlockExtension().config.addNodeView!.call({} as never) as (args: any) => any;
+      const dispatch = vi.fn();
+      const node = { type: { name: 'codeBlock' }, attrs: { language: 'puml' }, textContent: '@startuml\nA->B\n@enduml', nodeSize: 20 };
+      const view = create({ node, editor: { view: { state: { tr: {} }, dispatch } }, getPos: () => 1 });
+      const listener = registrations.mock.calls.find(([event]) => event === 'settings:changed')?.[1] as (event: any) => void;
+      return { view, node, dispatch, listener };
+    };
+
+    const disabled = make('');
+    disabled.listener({ settings: { plantumlServerUrl: 'https://plantuml.test' } });
+    expect(disabled.dispatch).toHaveBeenCalledOnce();
+    expect(disabled.view.update(disabled.node)).toBe(false);
+    disabled.view.destroy();
+
+    const enabled = make('https://plantuml.test');
+    enabled.listener({ settings: { plantumlServerUrl: '' } });
+    expect(enabled.dispatch).toHaveBeenCalledOnce();
+    expect(enabled.view.update(enabled.node)).toBe(false);
+    enabled.view.destroy();
+  });
+
+  it('keeps blank configured PlantUML editable and recreates when source crosses preview boundary', () => {
+    getCachedSettings.mockReturnValue({ plantumlServerUrl: 'https://plantuml.test' });
+    isBlankPlantUmlSource.mockImplementation((source: string) => source.trim().length === 0);
+    const create = mermaidCodeBlockExtension().config.addNodeView!.call({} as never) as (args: any) => any;
+    const editor = { view: { state: { tr: {} }, dispatch: vi.fn() } };
+    const blank = { type: { name: 'codeBlock' }, attrs: { language: 'plantuml' }, textContent: '', nodeSize: 2 };
+    const nonBlank = { ...blank, textContent: '@startuml\nA->B\n@enduml', nodeSize: 20 };
+
+    const blankView = create({ node: blank, editor, getPos: () => 1 });
+    expect(blankView.contentDOM).toBeDefined();
+    expect(blankView.dom.className).toBe('code-block-view');
+    expect(blankView.update(nonBlank)).toBe(false);
+    blankView.destroy();
+
+    const previewView = create({ node: nonBlank, editor, getPos: () => 1 });
+    expect(previewView.contentDOM).toBeUndefined();
+    expect(previewView.update(blank)).toBe(false);
+    previewView.destroy();
   });
 });

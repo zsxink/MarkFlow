@@ -1,9 +1,9 @@
 import { InputRule } from '@tiptap/core';
-import type { Mark } from '@tiptap/pm/model';
-import type { MarkdownSerializerState } from 'prosemirror-markdown';
+import type { JSONContent, MarkdownParseHelpers, MarkdownRendererHelpers, MarkdownToken } from '@tiptap/core';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { Table } from '@tiptap/extension-table';
 import { common, createLowlight } from 'lowlight';
 import { renderMermaid } from './mermaid';
 import { renderPlantUml } from './plantuml';
@@ -38,27 +38,116 @@ export const CustomLink = Link.extend({
       }),
     ];
   },
-  addStorage() {
-    return {
-      markdown: {
-        serialize: {
-          open: '[',
-          close: (_state: MarkdownSerializerState, mark: Mark) => {
-            const href = mark.attrs.href.replace(/[\(\)"]/g, '\\$&');
-            const title = mark.attrs.title ? ` "${mark.attrs.title.replace(/"/g, '\\"')}"` : '';
-            return `](${href}${title})`;
-          },
-          mixable: true,
-        },
-        parse: {},
-      },
-    };
+  parseMarkdown(token: MarkdownToken, helpers: MarkdownParseHelpers) {
+    return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
+      href: String(token.href ?? ''),
+      title: token.title ? String(token.title) : null,
+    });
+  },
+  renderMarkdown(node: JSONContent, helpers: MarkdownRendererHelpers) {
+    const href = String(node.attrs?.href ?? '').replace(/[\(\)"]/g, '\\$&');
+    const title = node.attrs?.title ? ` "${String(node.attrs.title).replace(/"/g, '\\"')}"` : '';
+    return `[${helpers.renderChildren(node)}](${href}${title})`;
   },
 });
 
 // ── Block Image extension ──────────────────────────────────────────────
 
+function escapeTableCellPipes(value: string): string {
+  let escaped = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character !== '|') {
+      escaped += character;
+      continue;
+    }
+
+    let precedingBackslashes = 0;
+    for (let cursor = index - 1; cursor >= 0 && value[cursor] === '\\'; cursor -= 1) {
+      precedingBackslashes += 1;
+    }
+    escaped += precedingBackslashes % 2 === 0 ? '\\|' : '|';
+  }
+  return escaped;
+}
+
+/**
+ * TipTap 3.30.5 serializes a literal pipe in a table cell without escaping it.
+ * On the next parse Marked treats that pipe as a column separator. Keep the
+ * upstream table schema and commands, but make its Markdown renderer lossless.
+ */
+export const MarkdownSafeTable = Table.extend({
+  renderMarkdown(node: JSONContent, helpers: MarkdownRendererHelpers) {
+    if (!node.content?.length) return '';
+
+    const rows = node.content.map(row => (row.content ?? []).map(cell => {
+      const parts = (cell.content ?? []).map(child => helpers.renderChildren(child));
+      const text = escapeTableCellPipes(parts.join('\n'))
+        .replace(/[ \t]*\r?\n[ \t]*/g, '<br>')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const align = cell.attrs?.align;
+      return {
+        text,
+        isHeader: cell.type === 'tableHeader',
+        align: align === 'left' || align === 'right' || align === 'center' ? align : null,
+      };
+    }));
+
+    const columnCount = rows.reduce((maximum, row) => Math.max(maximum, row.length), 0);
+    if (columnCount === 0) return '';
+
+    const widths = Array.from({ length: columnCount }, (_, column) => Math.max(
+      3,
+      ...rows.map(row => row[column]?.text.length ?? 0),
+    ));
+    const pad = (value: string, width: number) => value + ' '.repeat(Math.max(0, width - value.length));
+    const header = rows[0];
+    const hasHeader = header.some(cell => cell.isHeader);
+    const alignments = Array.from({ length: columnCount }, (_, column) =>
+      rows.find(row => row[column]?.align)?.[column]?.align ?? null,
+    );
+    const headerTexts = Array.from({ length: columnCount }, (_, column) =>
+      hasHeader ? header[column]?.text ?? '' : '',
+    );
+
+    let markdown = `\n| ${headerTexts.map((text, column) => pad(text, widths[column])).join(' | ')} |\n`;
+    markdown += `| ${widths.map((width, column) => {
+      const dashes = '-'.repeat(Math.max(3, width));
+      if (alignments[column] === 'left') return `:${dashes}`;
+      if (alignments[column] === 'right') return `${dashes}:`;
+      if (alignments[column] === 'center') return `:${dashes}:`;
+      return dashes;
+    }).join(' | ')} |\n`;
+
+    for (const row of hasHeader ? rows.slice(1) : rows) {
+      markdown += `| ${Array.from({ length: columnCount }, (_, column) =>
+        pad(row[column]?.text ?? '', widths[column])).join(' | ')} |\n`;
+    }
+    return markdown;
+  },
+});
+
 export const BlockImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      // Resolver-only, node-local authored source. It survives ProseMirror
+      // transactions but is intentionally absent from DOM and Markdown output
+      // except as the value used by our renderer below.
+      authoredSrc: {
+        default: null,
+        rendered: false,
+        parseHTML: () => null,
+      },
+    };
+  },
+  renderMarkdown(node: JSONContent) {
+    const src = String(node.attrs?.authoredSrc ?? node.attrs?.src ?? '').replace(/[()]/g, '\\$&');
+    const alt = String(node.attrs?.alt ?? '').replace(/[\[\]]/g, '\\$&');
+    const title = node.attrs?.title ? ` \"${String(node.attrs.title).replace(/\"/g, '\\\"')}\"` : '';
+    return `![${alt}](${src}${title})`;
+  },
   addNodeView() {
     return ({ node, HTMLAttributes }) => {
       const img = document.createElement('img');
@@ -134,32 +223,36 @@ export const BlockImage = Image.extend({
 
 const lowlight = createLowlight(common);
 
+/**
+ * Serialize code block content using a fence that cannot be closed by its own
+ * body.  The final separator newline is intentionally separate from the body,
+ * which preserves 0..N authored trailing newlines.
+ */
+export function renderFencedCodeBlock(language: string, content: string): string {
+  const longestBacktickRun = Math.max(0, ...Array.from(content.matchAll(/`+/g), match => match[0].length));
+  const fence = '`'.repeat(Math.max(3, longestBacktickRun + 1));
+  return `${fence}${language}\n${content}\n${fence}`;
+}
+
 export function mermaidCodeBlockExtension() {
   return CodeBlockLowlight.configure({ lowlight }).extend({
-    addStorage() {
-      return {
-        markdown: {
-          serialize(state: any, node: any) {
-            state.write("```" + (node.attrs.language || "") + "\n");
-            state.text(node.textContent, false);
-            state.write("\n");
-            state.write("```");
-            state.closeBlock(node);
-          },
-          parse: {
-            updateDOM(el: HTMLElement) {
-              // markdown-it's fence parser always appends a trailing \n to fence
-              // token content, causing code blocks to gain an extra empty line
-              // when parsed into ProseMirror. Strip it here.
-              el.querySelectorAll('pre code').forEach((code) => {
-                if (code.textContent.endsWith('\n')) {
-                  code.textContent = code.textContent.slice(0, -1);
-                }
-              });
-            },
-          },
-        },
-      };
+    parseMarkdown(token: MarkdownToken, helpers: MarkdownParseHelpers) {
+      const raw = token.raw ?? '';
+      if (!raw.startsWith('```') && !raw.startsWith('~~~') && token.codeBlockStyle !== 'indented') {
+        return [];
+      }
+      const text = typeof token.text === 'string' ? token.text : '';
+      return helpers.createNode(
+        'codeBlock',
+        { language: token.lang ? String(token.lang) : null },
+        text ? [helpers.createTextNode(text)] : [],
+      );
+    },
+    renderMarkdown(node: JSONContent, helpers: MarkdownRendererHelpers) {
+      return renderFencedCodeBlock(
+        String(node.attrs?.language ?? ''),
+        node.content ? helpers.renderChildren(node.content) : '',
+      );
     },
     addNodeView() {
       return ({ node, editor, getPos }) => {
@@ -182,8 +275,12 @@ export function mermaidCodeBlockExtension() {
 
         const getLanguage = () => String(currentNode.attrs.language || '').toLowerCase();
         const isMermaid = () => getLanguage() === 'mermaid';
-        const isPlantUml = () => getLanguage() === 'plantuml';
-        const isDiagram = () => isMermaid() || (isPlantUml() && Boolean(plantUmlServerUrl));
+        const isPlantUml = () => ['plantuml', 'puml'].includes(getLanguage());
+        // This local value is updated by settings:changed. It intentionally
+        // drives the static contentDOM mode so a transition can recreate this
+        // NodeView rather than leaving an editable DOM behind a preview.
+        const isDiagram = () => isMermaid()
+          || (isPlantUml() && Boolean(plantUmlServerUrl) && !isBlankPlantUmlSource(currentNode.textContent));
         const diagramName = () => isPlantUml() ? 'PlantUML' : 'Mermaid';
 
         const setCodeBlock = () => {
@@ -220,8 +317,9 @@ export function mermaidCodeBlockExtension() {
           previewEl.className = 'mermaid-preview is-rendering';
           previewEl.textContent = `正在渲染 ${diagramName()} 图表…`;
           try {
+            const serverUrl = plantUmlServerUrl;
             const svg = isPlantUml()
-              ? await renderPlantUml(plantUmlServerUrl, code)
+              ? await renderPlantUml(serverUrl, code)
               : await renderMermaid(code);
             if (destroyed || version !== renderVersion || !previewEl) return;
             renderedSvg = svg;
@@ -407,6 +505,7 @@ export function mermaidCodeBlockExtension() {
 
         render();
 
+        let requiresNodeViewRecreate = false;
         const handleSettingsChanged = (event: { settings: { plantumlServerUrl?: string } }) => {
           const nextUrl = event.settings.plantumlServerUrl?.trim() ?? '';
           if (nextUrl === plantUmlServerUrl) return;
@@ -414,9 +513,11 @@ export function mermaidCodeBlockExtension() {
           plantUmlServerUrl = nextUrl;
           if (!isPlantUml()) return;
           if (wasDiagram !== isDiagram()) {
-            // isDiagram() flipped — dispatch empty transaction to trigger
-            // ProseMirror to call update(), which calls render() in the
-            // diagram/code-block path
+            // `contentDOM` is fixed when a NodeView is constructed. A flip
+            // must make update() return false so ProseMirror creates a fresh
+            // view; rendering in place leaves a stale editable/non-editable
+            // contract behind.
+            requiresNodeViewRecreate = true;
             editor.view.dispatch(editor.view.state.tr);
           } else {
             render();
@@ -429,6 +530,10 @@ export function mermaidCodeBlockExtension() {
           contentDOM: isDiagram() ? undefined : contentDOM || undefined,
           update(updatedNode) {
             if (updatedNode.type !== currentNode.type) return false;
+            if (requiresNodeViewRecreate) {
+              requiresNodeViewRecreate = false;
+              return false;
+            }
             const previousLanguage = getLanguage();
             const wasDiagram = isDiagram();
             currentNode = updatedNode;

@@ -295,7 +295,7 @@ function insertImageSrc(src: string) {
       renderSrc = imagePathToSrc(src, getActiveDocPath());
       if (renderSrc !== src) assetToOriginalMap.set(renderSrc, src);
     }
-    getEditor()?.chain().focus().setImage({ src: renderSrc }).run();
+    getEditor()?.chain().focus().setImage({ src: renderSrc, authoredSrc: src } as any).run();
     ensureContinuationParagraph();
   }
 }

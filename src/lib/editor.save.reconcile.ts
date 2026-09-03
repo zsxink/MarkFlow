@@ -36,7 +36,7 @@ export interface SaveBoundaryInput extends ReconcileSaveInput {
  * serialization path is authoritative.
  */
 export function shouldUseReconcileBoundary(mode: MarkdownPipelineMode): boolean {
-  return mode === 'opaque' || mode === 'reconcile';
+  return mode === 'gated' || mode === 'opaque' || mode === 'reconcile';
 }
 
 /** Derive dirty from a successful candidate compared against the persisted baseline (8.6). */

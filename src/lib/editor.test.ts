@@ -21,9 +21,9 @@ vi.mock('../components/toast', () => ({ showToast: mocks.showToast }));
 vi.mock('./logger', () => ({ logWarn: mocks.logWarn }));
 vi.mock('./taskScheduler', () => ({ scheduler: { cancel: mocks.cancel, schedule: mocks.schedule } }));
 
-import { getMode, getRevision, setEditor, setMode, getDocumentState, assetToOriginalMap } from './editor.state';
+import { getMode, getRevision, setEditor, setMode, getDocumentState, assetToOriginalMap, setMarkdownPipelineMode } from './editor.state';
 import { store } from './store';
-import { setMarkdown, switchToSource, switchToWysiwyg } from './editor';
+import { getMarkdownResult, getSavePlan, setMarkdown, switchToSource, switchToWysiwyg } from './editor';
 
 function editorDouble(overrides: Record<string, unknown> = {}) {
   return {
@@ -44,8 +44,10 @@ beforeEach(() => {
   state.programmaticUpdateDepth = 0;
   state.lastPersistedMarkdown = '';
   state.revision = 0;
+  state.sourceRevision = 0;
   state.trailingNewlines = 0;
   assetToOriginalMap.clear();
+  setMarkdownPipelineMode('v3-compatible');
   mocks.getSourceContent.mockReturnValue('');
   setEditor(editorDouble());
 });
@@ -95,7 +97,10 @@ describe('stage-one Markdown bridge integration', () => {
   });
 
   it('parses Source into WYSIWYG with the v3 Markdown content type and destroys Source only on success', () => {
-    const editor = editorDouble();
+    const editor = editorDouble({
+      getMarkdown: vi.fn(() => '# source'),
+      markdown: { parse: vi.fn(() => ({ type: 'doc', content: [] })) },
+    });
     setEditor(editor);
     setMode('source');
     (document.getElementById('source-editor-wrapper') as HTMLElement).hidden = false;
@@ -142,5 +147,22 @@ describe('stage-one Markdown bridge integration', () => {
     );
     expect(getMode()).toBe('source');
     expect(mocks.showToast).toHaveBeenCalledWith('Markdown 序列化失败，已恢复到上次安全源码');
+  });
+
+  it('fails closed through production serialization and save-plan entry points when a verified session disappears', () => {
+    setMode('wysiwyg');
+    setMarkdownPipelineMode('reconcile');
+    expect(getMarkdownResult()).toMatchObject({ ok: false, error: { code: 'reconcile-session-missing' } });
+    expect(getSavePlan()).toEqual({ kind: 'conflict', write: false, code: 'session-missing' });
+  });
+
+  it('keeps an opaque reload in Source as raw authored markdown and no session-backed sentinel surface', () => {
+    setMode('source');
+    const opaque = '---\ntitle: raw\n---\n\n<!-- keep -->\n';
+    setMarkdown(opaque);
+    mocks.getSourceContent.mockReturnValue(opaque);
+    expect(mocks.setSourceContent).toHaveBeenCalledWith(opaque);
+    expect(mocks.setSourceContent).not.toHaveBeenCalledWith(expect.stringContaining('__MARKFLOW_OPAQUE'));
+    expect(getMarkdownResult()).toEqual({ ok: true, markdown: opaque });
   });
 });

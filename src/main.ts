@@ -9,6 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
 import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
+import { shouldSuppressAutosave } from './lib/editor.save.reconcile';
 import { showToast } from './components/toast';
 import { setToastReporter } from './lib/error';
 import { store } from './lib/store';
@@ -61,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return DEFAULT_SETTINGS;
   });
   settings = loadedSettings;
+  // Notify all listeners (including diagram node views) that settings are ready.
+  // initEditor() runs before loadSettings(), so node views captured empty defaults.
+  store.emit({ type: 'settings:changed', settings: loadedSettings });
 
   // Poll for CLI file with retries (macOS RunEvent may arrive late)
   let cliFilePath: string | null = null;
@@ -194,6 +198,7 @@ async function restoreWorkspace() {
 export async function runAutoSaveTick() {
   if (isSavingInProgress()) return; // skip — previous save still running
   if (!isDocumentDirty()) return;   // skip — no changes to persist
+  if (shouldSuppressAutosave(store.getState().reconcileError)) return;
   const filePath = getActiveFilePath();
   if (filePath) {
     const result = await saveActiveDocument({ interactive: false });

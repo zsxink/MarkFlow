@@ -5,9 +5,10 @@ import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } fro
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension } from './editor.extensions';
 import { createMarkdownExtension } from './editor.init';
+import { OpaqueNode } from './editor.markdown.opaque.extension';
 import { store } from './store';
-import { getMode, setEditor, getMarkdownPipelineMode, getRevision, getDocumentState } from './editor.state';
-import { setMarkdown, switchToWysiwyg, degradeToSourceOnly } from './editor';
+import { bumpRevision, getEditor, getMode, setEditor, getMarkdownPipelineMode, getRevision, getDocumentState } from './editor.state';
+import { getSavePlan, setMarkdown, switchToSource, switchToWysiwyg, degradeToSourceOnly } from './editor';
 
 const mocks = vi.hoisted(() => ({
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(),
@@ -56,6 +57,7 @@ function createAppEditor() {
       TableRow, TableCell, TableHeader,
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       BlockImage.configure({ allowBase64: true }),
+      OpaqueNode,
       mermaidCodeBlockExtension(),
       createMarkdownExtension(),
     ],
@@ -78,9 +80,9 @@ beforeEach(() => {
 });
 
 describe('stage-two eligibility UI wiring (6.5)', () => {
-  it('opens a supported document into WYSIWYG with pipeline = gated', () => {
+  it('opens a supported document into WYSIWYG with pipeline = reconcile', () => {
     setMarkdown('# Title\n\nsupported **body** and *em*.\n');
-    expect(getMarkdownPipelineMode()).toBe('gated');
+    expect(getMarkdownPipelineMode()).toBe('reconcile');
     expect(getMode()).toBe('wysiwyg');
     // No degradation toast for a supported doc.
     expect(mocks.showToast).not.toHaveBeenCalled();
@@ -122,15 +124,62 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
     setMarkdown('# Open\n\n- one\n- two\n');
     expect(getRevision()).toBe(0);
     expect(store.getState().dirty).toBe(false);
-    expect(getMarkdownPipelineMode()).toBe('gated');
+    expect(getMarkdownPipelineMode()).toBe('reconcile');
+  });
+
+  it('turns Source→WYS opaque text differing from disk into a write candidate, including EOF newlines', () => {
+    const diskA = '<!-- disk A -->\n\n# Title\n';
+    const sourceB = '<!-- source B -->\n\n# Title\n\n';
+    setMarkdown(diskA);
+    // Real TipTap admission/session path: initial WYS load must retain the
+    // exact persisted baseline and skip a manual no-edit save.
+    expect(getSavePlan()).toEqual({ kind: 'unchanged', write: false });
+    switchToSource();
+    mocks.getSourceContent.mockReturnValue(sourceB);
+    // The real CM6 update callback marks the pending Source edit dirty before
+    // it is re-admitted into WYSIWYG.
+    store.setState({ dirty: true });
+    switchToWysiwyg();
+
+    // No WYSIWYG transaction occurred, so reconcile itself says unchanged.
+    // The production save plan must compare admission text to disk A and
+    // require a write rather than skipping and losing Source B.
+    expect(getMarkdownPipelineMode()).toBe('opaque');
+    expect(getSavePlan()).toEqual({ kind: 'safe-edit', write: true, markdown: sourceB });
+  });
+
+  it('keeps CRLF and multiple EOF newlines in the initial persisted baseline', () => {
+    const disk = '<!-- keep -->\r\n\r\n# Title\r\n\r\n';
+    setMarkdown(disk);
+    expect(getSavePlan()).toEqual({ kind: 'unchanged', write: false });
+    expect(getDocumentState().lastPersistedMarkdown).toBe(disk);
+  });
+
+  it.each([0, 1, 2, 3])('restores exactly %i EOF newline(s) for a WYS safe edit', (eofNewlines) => {
+    const source = '# Title' + '\n'.repeat(eofNewlines);
+    setMarkdown(source);
+    getEditor()!.commands.insertContent(' edited');
+    // This fixture constructs the real TipTap/session path without initEditor;
+    // emulate the synchronous production transaction revision update.
+    bumpRevision();
+    store.setState({ dirty: true });
+
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') {
+      expect(plan.markdown).toContain('edited');
+      expect(plan.markdown.endsWith('\n'.repeat(eofNewlines))).toBe(true);
+      if (eofNewlines === 0) expect(plan.markdown.endsWith('\n')).toBe(false);
+      else expect(plan.markdown.slice(0, -eofNewlines)).not.toMatch(/\n$/);
+    }
   });
 });
 
 describe('stage-two gated kill-switch (6.6)', () => {
-  it('degrades gated → source-only and reloads Source from the ORIGINAL source', () => {
+  it('degrades verified mode → source-only and reloads Source from the ORIGINAL source', () => {
     const original = '# Hello\n\nworld\n';
     setMarkdown(original);
-    expect(getMarkdownPipelineMode()).toBe('gated');
+    expect(getMarkdownPipelineMode()).toBe('reconcile');
 
     // Force a canonicalization so the editor's serialization differs from the
     // original source baseline (this is what a kill-switch must NOT leak back).

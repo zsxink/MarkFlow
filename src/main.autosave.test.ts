@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => ({
   getActiveFilePath: vi.fn(),
   saveActiveDocument: vi.fn(),
   store: { getState: vi.fn(), setState: vi.fn() },
+  shouldSuppressAutosave: vi.fn(),
 }));
 
 vi.mock('./lib/logger', () => ({ logDebug: vi.fn(), logInfo: vi.fn(), logException: vi.fn() }));
 vi.mock('./lib/store', () => ({ store: mocks.store }));
+vi.mock('./lib/editor.save.reconcile', () => ({ shouldSuppressAutosave: mocks.shouldSuppressAutosave }));
 vi.mock('./components/toast', () => ({ showToast: vi.fn() }));
 vi.mock('./components/sidebar', () => ({
   initSidebar: vi.fn(),
@@ -39,6 +41,7 @@ beforeEach(() => {
   mocks.isDocumentDirty.mockReturnValue(false);
   mocks.getActiveFilePath.mockReturnValue(null);
   mocks.store.getState.mockReturnValue({ autosaveErrorCount: 0 });
+  mocks.shouldSuppressAutosave.mockReturnValue(false);
 });
 
 describe('autosave tick', () => {
@@ -51,6 +54,15 @@ describe('autosave tick', () => {
   it('skips when document is not dirty', async () => {
     mocks.isDocumentDirty.mockReturnValue(false);
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    await runAutoSaveTick();
+    expect(mocks.saveActiveDocument).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke the production save entry point while reconciliation is conflicted', async () => {
+    mocks.isDocumentDirty.mockReturnValue(true);
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    mocks.store.getState.mockReturnValue({ autosaveErrorCount: 2, reconcileError: 'stale-source' });
+    mocks.shouldSuppressAutosave.mockReturnValue(true);
     await runAutoSaveTick();
     expect(mocks.saveActiveDocument).not.toHaveBeenCalled();
   });

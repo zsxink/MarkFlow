@@ -5,6 +5,7 @@ export {
   getWorkspacePath,
   setWorkspacePath,
   suppressNextWatcherRefresh,
+  cancelSuppressedWatcherRefresh,
   isSuppressedPath,
   suppressAllDescendants,
   refreshFileTree,

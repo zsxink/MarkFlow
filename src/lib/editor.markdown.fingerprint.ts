@@ -14,6 +14,7 @@
 // considered equivalent for round-trip safety.
 
 import type { JSONContent } from '@tiptap/core';
+import { assetToOriginalMap } from './editor.state';
 
 /**
  * Attributes that are runtime-only and must never affect the semantic
@@ -23,7 +24,7 @@ import type { JSONContent } from '@tiptap/core';
  * (1:1 restore validates raw + digest), never by the slot bytes, so a candidate
  * re-rendered with a fresh nonce still fingerprints equal to the live doc.
  */
-const RUNTIME_ONLY_KEYS = new Set(['src', 'colgroup', 'colwidth', 'rowspan-real', 'data-pos', 'slot']);
+const RUNTIME_ONLY_KEYS = new Set(['colgroup', 'colwidth', 'rowspan-real', 'data-pos', 'slot', 'authoredSrc']);
 
 function isRuntimeOnlyKey(key: string): boolean {
   return RUNTIME_ONLY_KEYS.has(key) || key.startsWith('data-');
@@ -49,6 +50,16 @@ function isDefaultAttribute(node: JSONContent, key: string, value: unknown): boo
   }
 
   return false;
+}
+
+function authoredImageSource(attrs: Record<string, unknown>): unknown {
+  // The resolver records this on the node, not only in a global Map.  A global
+  // URL map cannot distinguish `a/../img.png` from `img.png` when both resolve
+  // to the same runtime asset URL.
+  const authored = attrs.authoredSrc;
+  if (typeof authored === 'string') return authored;
+  const src = attrs.src;
+  return typeof src === 'string' ? (assetToOriginalMap.get(src) ?? src) : src;
 }
 
 /**
@@ -83,6 +94,10 @@ function normalizeNode(node: JSONContent): unknown {
       for (const aKey of Object.keys(attrs).sort()) {
         if (isRuntimeOnlyKey(aKey) || isDefaultAttribute(node, aKey, attrs[aKey])) continue;
         sorted[aKey] = attrs[aKey];
+      }
+      if (node.type === 'image') {
+        const src = authoredImageSource(attrs);
+        if (src !== undefined) sorted.src = src;
       }
       if (Object.keys(sorted).length > 0) out[key] = sorted;
     } else {

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { switchToSource, switchToWysiwyg, getMode, getEditor, showContextMenuStatic, exportRenderedDocument } = vi.hoisted(() => ({ switchToSource: vi.fn(), switchToWysiwyg: vi.fn(), getMode: vi.fn(), getEditor: vi.fn(), showContextMenuStatic: vi.fn(), exportRenderedDocument: vi.fn() }));
-vi.mock('../lib/editor', () => ({ switchToSource, switchToWysiwyg, getMode, getEditor }));
+const { switchToSource, switchToWysiwyg, getMode, getEditor, ensureContinuationParagraph, showContextMenuStatic, exportRenderedDocument, showModal, handleNetworkImage, getImageSettings, imagePathToSrc, getActiveDocPath, assetToOriginalMap } = vi.hoisted(() => ({ switchToSource: vi.fn(), switchToWysiwyg: vi.fn(), getMode: vi.fn(), getEditor: vi.fn(), ensureContinuationParagraph: vi.fn(), showContextMenuStatic: vi.fn(), exportRenderedDocument: vi.fn(), showModal: vi.fn(), handleNetworkImage: vi.fn(), getImageSettings: vi.fn(), imagePathToSrc: vi.fn((path: string) => path), getActiveDocPath: vi.fn(), assetToOriginalMap: new Map<string, string>() }));
+vi.mock('../lib/editor', () => ({ switchToSource, switchToWysiwyg, getMode, getEditor, ensureContinuationParagraph }));
 vi.mock('./fileTree', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), getWorkspacePath: vi.fn() }));
 vi.mock('./newFileDialog', () => ({ showNewFileDialog: vi.fn() })); vi.mock('./linkDialog', () => ({ showLinkDialog: vi.fn() })); vi.mock('./toast', () => ({ showToast: vi.fn() })); vi.mock('./ui/modal', () => ({ showModal: vi.fn() }));
-vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage: vi.fn(), getImageSettings: vi.fn(), imagePathToSrc: vi.fn((path: string) => path) })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath: vi.fn(), assetToOriginalMap: new Map() })); vi.mock('../lib/editor.source', () => ({ getSourceView: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
-vi.mock('../lib/documentExport', () => ({ exportRenderedDocument })); vi.mock('./ui/contextMenu', () => ({ showContextMenuStatic })); vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
+vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage, getImageSettings, imagePathToSrc })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath, assetToOriginalMap })); vi.mock('../lib/editor.source', () => ({ getSourceView: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
+vi.mock('../lib/documentExport', () => ({ exportRenderedDocument })); vi.mock('./ui/contextMenu', () => ({ showContextMenuStatic })); vi.mock('./ui/modal', () => ({ showModal })); vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
 import { initToolbar } from './toolbar';
 
 function buildToolbarHTML() {
@@ -17,6 +17,7 @@ function buildToolbarHTML() {
     <button class="toolbar-btn" id="btn-italic" data-tooltip="斜体"></button>
     <button class="toolbar-btn" id="btn-strike" data-tooltip="删除线"></button>
     <button class="toolbar-btn" id="btn-code" data-tooltip="行内代码"></button>
+    <button class="toolbar-btn" id="btn-image" data-tooltip="图片"></button>
     <span class="toolbar-separator"></span>
     <button class="toolbar-btn active" id="btn-wysiwyg" aria-label="所见即所得"></button>
     <button class="toolbar-btn" id="btn-source" aria-label="源码模式"></button>
@@ -26,7 +27,17 @@ function buildToolbarHTML() {
   <span id="mode-indicator"></span>`;
 }
 
-beforeEach(() => { document.body.innerHTML = buildToolbarHTML(); vi.clearAllMocks(); });
+beforeEach(() => {
+  document.body.innerHTML = buildToolbarHTML(); vi.clearAllMocks();
+  getMode.mockReturnValue('wysiwyg');
+  getImageSettings.mockResolvedValue({});
+  showModal.mockImplementation(({ content }: { content: string }) => {
+    const modal = document.createElement('div');
+    modal.innerHTML = content;
+    document.body.appendChild(modal);
+    return { hide: vi.fn(() => modal.remove()) };
+  });
+});
 describe('toolbar', () => {
   it('switches modes and updates active state and indicator', () => {
     initToolbar();
@@ -72,5 +83,19 @@ describe('toolbar', () => {
     expect(document.getElementById('btn-theme')).toBeNull();
     initToolbar();
     expect(document.getElementById('btn-theme')).toBeNull();
+  });
+  it('writes the authored image URL onto the WYS node even when rendering collides', async () => {
+    const setImage = vi.fn(() => ({ run: vi.fn() }));
+    getEditor.mockReturnValue({ chain: () => ({ focus: () => ({ setImage }) }) });
+    handleNetworkImage.mockResolvedValue('./images/second.png');
+    imagePathToSrc.mockReturnValue('asset://same-runtime-image');
+    initToolbar();
+    document.getElementById('btn-image')!.click();
+    document.querySelector<HTMLElement>('[data-tab="url"]')!.click();
+    (document.getElementById('image-url-input') as HTMLInputElement).value = 'https://example.test/two.png';
+    document.getElementById('image-confirm')!.click();
+    await Promise.resolve(); await Promise.resolve();
+    expect(setImage).toHaveBeenCalledWith({ src: 'asset://same-runtime-image', authoredSrc: './images/second.png' });
+    expect(assetToOriginalMap.get('asset://same-runtime-image')).toBe('./images/second.png');
   });
 });

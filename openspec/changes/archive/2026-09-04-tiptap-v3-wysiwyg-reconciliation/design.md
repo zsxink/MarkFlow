@@ -237,6 +237,14 @@ v3-compatible → gated → opaque → reconcile
 
 `source-only` remains an emergency kill switch in every build. Lower modes ignore and clear higher-mode session state. The setting is internal/config-controlled for this change; no end-user preferences UI is added.
 
+### Review-repair safety invariants
+
+All verified WYSIWYG admissions, including plain `eligible` documents, create a `MarkdownSession`; a plain document uses an empty opaque registry. `gated`, `opaque`, and `reconcile` therefore share the same reconcile boundary. A missing session or registry is a conflict, never a legacy serializer fallback.
+
+`sourceRevision` is a monotonic in-memory source/file identity. It advances on load/reload, raw Source edits, and watcher-reported external modification. A reconcile save whose file stat cannot be obtained invalidates the session and follows the existing stale-source conflict policy. The Source editor remains authoritative whenever visible: it receives raw Markdown only, owns EOF newline counts, and has no live opaque registry.
+
+The stage-one 54KiB/~380ms pathological fixture is enforced as deterministic admission limits of 54KiB or 2,500 lines. This routes dense documents to Source without relying on wall-clock measurements. Image fingerprints include authored `src`; resolver-only runtime URLs are normalized only through the node-local authored source (or a reversible mapping).
+
 Exit gates:
 
 - `v3-compatible`: all existing editor unit tests, type check and build pass; supported corpus has no new loss; critical mode-switch/save E2E passes.

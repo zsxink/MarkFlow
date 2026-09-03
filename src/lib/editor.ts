@@ -22,7 +22,11 @@ import {
   getRevision,
   getLastReadMtime,
   getLastReadSize,
+  hasLastReadStats,
   setLastReadStats,
+  clearLastReadStats,
+  bumpSourceRevision,
+  getSourceRevision,
   setMarkdownPipelineMode,
   getMarkdownPipelineMode,
   withProgrammaticUpdate,
@@ -50,7 +54,10 @@ export {
   getRevision,
   getLastReadMtime,
   getLastReadSize,
+  hasLastReadStats,
   setLastReadStats,
+  clearLastReadStats,
+  getSourceRevision,
 };
 export { getWordCount, getLineCount, getCursorPos } from './editor.stats';
 export { initEditor } from './editor.init';
@@ -71,16 +78,19 @@ function appendTrailingNewlines(markdown: string): string {
   return trailingNewlines > 0 ? markdown + '\n'.repeat(trailingNewlines) : markdown;
 }
 
+function restoreWysiwygTrailingNewlines(markdown: string): string {
+  const body = markdown.replace(/(?:\r?\n)+$/, '');
+  const count = getDocumentState().trailingNewlines;
+  return count > 0 ? body + '\n'.repeat(count) : body;
+}
+
 // ── Markdown serialization ────────────────────────────────────────────
 
 export function getMarkdownResult(): MarkdownSerializeResult {
   if (getMode() === 'source') {
-    const src = normalizeImageMarkdown(getSourceContent());
-    // If the user typed trailing newlines in source mode, preserve them
-    // directly.  Otherwise fall back to the metadata captured on open
-    // (e.g. after WYSIWYG→source switch, where the CodeMirror content
-    // was populated from the ProseMirror serializer which drops them).
-    return { ok: true, markdown: appendTrailingNewlines(src) };
+    // CM6 holds authored text. Never add WYSIWYG tail metadata here: doing so
+    // resurrects removed/newline-count-edited text on the next save.
+    return { ok: true, markdown: normalizeImageMarkdown(getSourceContent()) };
   }
   const editor = getEditor();
   if (!editor) return { ok: false, error: { stage: 'serialize', code: 'editor-unavailable' } };
@@ -95,12 +105,12 @@ export function getMarkdownResult(): MarkdownSerializeResult {
       const decision = runSaveBoundary(editor, {
         session,
         registry,
-        currentSourceRevision: 1,
+        currentSourceRevision: getSourceRevision(),
         currentUserRevision: getRevision(),
         pipelineMode: getMarkdownPipelineMode(),
       });
       if (decision.kind === 'safe-edit') {
-        return { ok: true, markdown: appendTrailingNewlines(decision.markdown) };
+        return { ok: true, markdown: restoreWysiwygTrailingNewlines(decision.markdown) };
       }
       if (decision.kind === 'unchanged') {
         return { ok: true, markdown: appendTrailingNewlines(session.sourceBaseline) };
@@ -109,6 +119,9 @@ export function getMarkdownResult(): MarkdownSerializeResult {
         return { ok: false, error: { stage: 'serialize', code: `reconcile-${decision.code}` } };
       }
     }
+    // A verified pipeline without its session or registry is unsafe: the raw
+    // serializer may emit an opaque sentinel. Do not silently fall back.
+    return { ok: false, error: { stage: 'serialize', code: 'reconcile-session-missing' } };
   }
 
   const result = serializeMarkdown(editor);
@@ -142,15 +155,40 @@ export function getSavePlan(): SavePlan {
   const editor = getEditor();
   const session = getOpaqueSession();
   const registry = getOpaqueRegistry();
-  if (!editor || !session || !registry) return { kind: 'legacy' };
+  if (!editor || !session || !registry) {
+    store.setState({ dirty: true, reconcileError: 'session-missing' });
+    return { kind: 'conflict', write: false, code: 'session-missing' };
+  }
 
   const decision = runSaveBoundary(editor, {
     session,
     registry,
-    currentSourceRevision: 1,
+    currentSourceRevision: getSourceRevision(),
     currentUserRevision: getRevision(),
     pipelineMode: mode,
   });
+
+  // A Source→WYSIWYG admission deliberately captures the current Source text
+  // (so it can prove it is safe) without changing the disk baseline. The
+  // reconcile classifier correctly calls this session "unchanged" because no
+  // WYSIWYG transaction followed admission, but it is still a pending disk
+  // edit when its exact authored text differs from the persisted file.
+  if (decision.kind === 'unchanged') {
+    const admissionSource = appendTrailingNewlines(session.sourceBaseline);
+    // A byte comparison alone is insufficient: parser/render normalization can
+    // make an untouched CRLF baseline look different. Source edits set dirty
+    // before admission; only that pending edit may turn reconcile's no-WYS
+    // transaction result into a disk write.
+    if (isDocumentDirty()
+      && normalizeImageMarkdown(admissionSource) !== getDocumentState().lastPersistedMarkdown) {
+      store.setState({ reconcileError: null });
+      return { kind: 'safe-edit', write: true, markdown: admissionSource };
+    }
+  }
+
+  if (decision.kind === 'safe-edit') {
+    return { ...decision, markdown: restoreWysiwygTrailingNewlines(decision.markdown) };
+  }
 
   if (decision.kind === 'conflict') {
     store.setState({ dirty: true, reconcileError: decision.code });
@@ -172,10 +210,10 @@ export function resetEditorScroll() {
 }
 
 export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
-  // Store the persisted content as the new baseline, without trailing newlines.
-  // ProseMirror's serializer never produces trailing newlines, so all dirty
-  // comparisons deal with content trimmed of them on both sides.
-  getDocumentState().lastPersistedMarkdown = stripTrailingNewlines(markdown);
+  // The disk baseline is exact authored text, including EOF newline count.
+  // Source owns that count; stripping it here would make a subsequent
+  // Source→WYSIWYG save restore stale metadata.
+  getDocumentState().lastPersistedMarkdown = normalizeImageMarkdown(markdown);
 
   // If a revision was captured at save-start, only clear dirty when no newer
   // edits arrived during the write.  Without a revision (legacy callers) we
@@ -195,7 +233,7 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
     store.setState({ dirty: true });
     return;
   }
-  const currentMd = stripTrailingNewlines(normalizeImageMarkdown(current.markdown));
+  const currentMd = normalizeImageMarkdown(current.markdown);
   // A successful save clears the persistent autosave-failure banner, regardless
   // of whether the save came from autosave or an interactive (Ctrl+S) save.
   store.setState({
@@ -208,24 +246,44 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
 export function setMarkdown(content: string) {
   const ed = getEditor();
   if (ed) {
+    // Cancel any pending dirty-check from a previous document's onUpdate.
+    // Without this, a stale task captures old content and, when it fires
+    // 400 ms later, compares it against the new baseline — incorrectly
+    // marking the freshly loaded document dirty.
+    scheduler.cancel('dirty-check');
     // Task 7.6: opening/switching a document ends any previous opaque session so
     // old slots from the prior document can never resolve in this one.
     endOpaqueSession();
+    const sourceRevision = bumpSourceRevision();
+    clearLastReadStats();
     assetToOriginalMap.clear();
     // Capture trailing newlines before ProseMirror strips them
     const match = content.match(/\n+$/);
     getDocumentState().trailingNewlines = match ? match[0].length : 0;
-    const normalized = normalizeImageMarkdown(content);
-    const stripped = stripTrailingNewlines(normalized);
+    // Keep the persisted/admission source byte-faithful. Image normalization
+    // belongs to an actual write candidate, not an open-time baseline: it
+    // would otherwise erase CRLF spelling before an untouched save decision.
+    const stripped = stripTrailingNewlines(content);
+    // When Source is active it is the authoritative surface.  In particular,
+    // do not place opaque sentinels in CM6 and do not retain an opaque session
+    // that would make a later Source save read stale WYSIWYG content.
+    if (getMode() === 'source') {
+      setMarkdownPipelineMode('source-only');
+      setSourceContent(content);
+      getDocumentState().lastPersistedMarkdown = content;
+      getDocumentState().externallyModified = false;
+      store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
+      return;
+    }
     const parsed = withProgrammaticUpdate(() => parseMarkdown(ed, stripped));
     if (!parsed.ok) {
       setMarkdownPipelineMode('source-only');
       showToast('Markdown 无法安全转换，已保留源码模式');
-      enterSourceMode(normalized);
+      enterSourceMode(content);
       // The freshly loaded source-only document is the persisted baseline:
       // reset dirty/externallyModified so a prior dirty document does not
       // leak into this one.
-      getDocumentState().lastPersistedMarkdown = normalized;
+      getDocumentState().lastPersistedMarkdown = content;
       getDocumentState().externallyModified = false;
       store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
       return;
@@ -237,29 +295,27 @@ export function setMarkdown(content: string) {
     // disk. The verification re-parse is programmatic, so it must not register
     // as a user edit, bump the revision, or mark the document dirty.
     const admission = withProgrammaticUpdate(() =>
-      decideAdmission(ed, stripped, { sourceRevision: 1, userRevisionAtAdmission: getRevision() }),
+      decideAdmission(ed, content, { sourceRevision, userRevisionAtAdmission: getRevision() }),
     );
     if (admission.mode === 'source-only') {
       setMarkdownPipelineMode('source-only');
       showToast(`已保留源码模式：${admissionReasonLabel(admission.reason)}`);
-      enterSourceMode(normalized);
+      enterSourceMode(content);
       // Same baseline reset as the parse-failure branch above: a document
       // admitted to source-only is loaded clean and must not inherit a prior
       // document's dirty state or stale lastPersistedMarkdown.
-      getDocumentState().lastPersistedMarkdown = normalized;
+      getDocumentState().lastPersistedMarkdown = content;
       getDocumentState().externallyModified = false;
       store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
       return;
     }
-    setMarkdownPipelineMode(admission.mode); // 'gated' | 'opaque'
-    if (getMode() === 'source') {
-      setSourceContent(admission.mode === 'opaque' ? admission.renderedSource ?? normalized : normalized);
-    }
+    setMarkdownPipelineMode(admission.mode);
     // Opening/reloading establishes a source baseline. Do not reserialize it
     // here: v3 canonicalization is representation work, not a user edit.
-    getDocumentState().lastPersistedMarkdown = admission.mode === 'opaque'
-      ? (admission.session?.sourceBaseline ?? stripped)
-      : stripped;
+    // This is the on-disk baseline, not the admission render baseline. Keep
+    // the normalized file text intact (including CRLF/EOF newline count) so
+    // an untouched WYSIWYG open remains `unchanged` and never rewrites mtime.
+    getDocumentState().lastPersistedMarkdown = content;
     getDocumentState().externallyModified = false;
     store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
   }
@@ -305,6 +361,7 @@ function enterSourceMode(content: string) {
   const isReadOnly = store.getState().readOnly;
   const view = createSourceEditor(wrapper, content, (doc) => {
     bumpRevision();
+    bumpSourceRevision();
     store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
     scheduler.schedule('source-update', 50, () => {
       store.emit({ type: 'editor:update' });
@@ -323,6 +380,10 @@ export function switchToWysiwyg() {
   const editor = getEditor();
   if (!editor) return;
   const source = getSourceContent();
+  // Source owns exact EOF newlines. Capture its current metadata before
+  // parsing so the first WYSIWYG save cannot restore a stale open-time count.
+  const trailing = source.match(/\n+$/);
+  getDocumentState().trailingNewlines = trailing ? trailing[0].length : 0;
   const stripped = stripTrailingNewlines(source);
   const parsed = withProgrammaticUpdate(() => parseMarkdown(editor, stripped));
   if (!parsed.ok) {
@@ -334,7 +395,7 @@ export function switchToWysiwyg() {
   // the CM6 editor (no disk rewrite, no WYSIWYG surface); admit opaque docs to
   // `opaque` with a verified session.
   const admission = withProgrammaticUpdate(() =>
-    decideAdmission(editor, stripped, { sourceRevision: 1, userRevisionAtAdmission: getRevision() }),
+    decideAdmission(editor, source, { sourceRevision: getSourceRevision(), userRevisionAtAdmission: getRevision() }),
   );
   if (admission.mode === 'source-only') {
     setMarkdownPipelineMode('source-only');
@@ -343,10 +404,9 @@ export function switchToWysiwyg() {
     return;
   }
   setMarkdownPipelineMode(admission.mode);
-  if (admission.mode === 'opaque') {
-    // admitOpaque already parsed the sentinel source into the editor.
-    getDocumentState().lastPersistedMarkdown = admission.session?.sourceBaseline ?? stripped;
-  }
+  // Keep `lastPersistedMarkdown` as the disk baseline. The current Source
+  // value is only an admission baseline; replacing this would make its first
+  // save appear unchanged and lose the edit.
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
   destroySourceEditor();

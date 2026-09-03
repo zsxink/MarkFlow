@@ -107,3 +107,25 @@
 - [x] 12.2 增加依赖与源码门禁，验证生产依赖不存在 `tiptap-markdown` 或 markdown-it 转换器、业务代码不存在 `storage.markdown` 直连、所有 Markdown 解析/序列化/保存候选都经统一 bridge；markdown-it 仅可存在于只读 v2 差分测试
 - [x] 12.3 增加生产调用链集成测试，验证普通 `eligible` 与 `eligible-with-opaque` 文档在完整 B 下均建立同一类已验证会话，并在保存与 Source 切换时经过 reconcile；缺失 session/registry 或内部 token 泄漏必须 fail closed，不能回退 legacy 保存
 - [x] 12.4 更新架构说明和阶段二证据中的 Orca 对齐矩阵，运行 `npm test`、`npx tsc --noEmit`、`npm run build`、`npx openspec validate tiptap-v3-wysiwyg-reconciliation --strict` 与 `npx openspec validate --all`，所有门禁通过后再执行 10.4 独立复核
+
+## 13. 复核修复（2026-09）
+
+- [x] 13.1 Source 活跃时打开/reload opaque 文档只更新原始 CM6 文本并清理 session；保存路径不得输出 sentinel。
+- [x] 13.2 分离 admission 当前 Source 基线与磁盘 persisted baseline，保证 Source 编辑后首次 WYSIWYG 保存不会被判为 unchanged，并保留 Source 编辑的 EOF 换行数量。
+- [x] 13.3 在实际用户 transaction 同步递增 revision，保留 deferred dirty 比较且隔离程序化更新。
+- [x] 13.4 为普通 eligible 建立空 opaque registry 的 verified MarkdownSession，并令 gated/opaque/reconcile 共用三方 reconcile 保存边界。
+- [x] 13.5 对 verified mode 的缺失 editor/session/registry fail closed；生产 getMarkdownResult/getSavePlan/磁盘保存入口不得回退 legacy 或持久化 sentinel。
+- [x] 13.6 接入单调 source/file revision：加载、Source 修改和 watcher 外部修改均失效旧 session；reconcile mode 的 stat 失败进入既有 stale-source 冲突边界。
+- [x] 13.7 指纹保留图片 authored src，runtime asset URL 仅在有逐节点 authoredSrc 或可逆映射时规范化；覆盖不同 authored URL 与 runtime 等价路径。
+- [x] 13.8 将 reconcileError 接入生产 autosave tick，冲突时不调用 saveActiveDocument、不重复累计 autosave 失败。
+- [x] 13.9 以确定性 54KiB/2500 行 admission 阈值将大/密文档路由 Source，补齐边界测试并避免运行时计时抖动。
+- [x] 13.10 修正 PlantUML/puml 设置热切换：contentDOM 模式改变时强制重建 NodeView，覆盖启用与禁用生命周期。
+- [x] 13.11 运行相关 Vitest、两次独立全量 npm test、类型/构建/OpenSpec/依赖/diff 检查；结果记录在 `evidence/review-repair-validation-2026-09-04.md`。
+
+## 14. 最终独立复核修复
+
+- [x] 14.1 verified 保存要求有效 stat；reload 刷新 stats，未知/失败 stat 使 verified session 失效，记录双检仍存在的 TOCTOU 限制。
+- [x] 14.2 WYS 候选按 EOF metadata 恢复 0/1/N 换行；Source 保持原始文本。
+- [x] 14.3 图片节点声明并写入非渲染 `authoredSrc`，避免 runtime asset URL 碰撞。
+- [x] 14.4 PlantUML/puml 仅在已配置且非空时进入 preview，空源码保留可编辑代码块。
+- [x] 14.5 gated/opaque/reconcile 都保留 verified session，降级到其它模式才清理。

@@ -347,6 +347,7 @@ pub fn run() {
             files::read_file,
             files::file_metadata,
             files::write_file,
+            files::write_file_if_unchanged,
             files::save_mermaid_svg_export,
             files::save_mermaid_png_export,
             files::save_plantuml_svg_export,

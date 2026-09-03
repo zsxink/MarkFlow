@@ -6,18 +6,33 @@ import {
   isSemanticallyEquivalent,
   CANONICALIZATIONS,
 } from './editor.markdown.fingerprint';
+import { assetToOriginalMap } from './editor.state';
 
 const doc = (content: JSONContent[]): JSONContent => ({ type: 'doc', content });
 
 describe('semantic fingerprint (6.3)', () => {
-  it('ignores runtime-only image src, preserving alt/title', () => {
+  it('preserves authored image source rather than globally ignoring src', () => {
     const a = doc([
       { type: 'paragraph', content: [{ type: 'image', attrs: { src: 'asset://abc', alt: '图', title: 't' } }] },
     ]);
     const b = doc([
       { type: 'paragraph', content: [{ type: 'image', attrs: { src: 'asset://xyz', alt: '图', title: 't' } }] },
     ]);
-    expect(semanticFingerprint(a)).toBe(semanticFingerprint(b));
+    expect(semanticFingerprint(a)).not.toBe(semanticFingerprint(b));
+  });
+
+  it('normalizes a runtime asset URL back to its authored source for comparison', () => {
+    assetToOriginalMap.set('asset://runtime', './images/photo.png');
+    const runtime = doc([{ type: 'paragraph', content: [{ type: 'image', attrs: { src: 'asset://runtime', alt: 'p' } }] }]);
+    const authored = doc([{ type: 'paragraph', content: [{ type: 'image', attrs: { src: './images/photo.png', alt: 'p' } }] }]);
+    expect(semanticFingerprint(runtime)).toBe(semanticFingerprint(authored));
+    assetToOriginalMap.clear();
+  });
+
+  it('uses per-node authoredSrc when runtime URLs collide', () => {
+    const first = doc([{ type: 'paragraph', content: [{ type: 'image', attrs: { src: 'asset://same', authoredSrc: './one.png' } }] }]);
+    const second = doc([{ type: 'paragraph', content: [{ type: 'image', attrs: { src: 'asset://same', authoredSrc: './two.png' } }] }]);
+    expect(semanticFingerprint(first)).not.toBe(semanticFingerprint(second));
   });
 
   it('ignores table layout-only attributes (colgroup/colwidth)', () => {
@@ -68,7 +83,7 @@ describe('semantic fingerprint (6.3)', () => {
           }],
         }],
       },
-      { type: 'image', attrs: { src: 'asset://a', alt: 'a', width: null, height: null } },
+      { type: 'image', attrs: { src: 'asset://a', authoredSrc: 'images/a.png', alt: 'a', width: null, height: null } },
     ]);
     const omittedDefaults = doc([
       {
@@ -93,7 +108,7 @@ describe('semantic fingerprint (6.3)', () => {
           }],
         }],
       },
-      { type: 'image', attrs: { src: 'asset://b', alt: 'a' } },
+      { type: 'image', attrs: { src: 'asset://b', authoredSrc: 'images/a.png', alt: 'a' } },
     ]);
 
     expect(semanticFingerprint(withDefaults)).toBe(semanticFingerprint(omittedDefaults));

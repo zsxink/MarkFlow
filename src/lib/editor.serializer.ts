@@ -66,4 +66,3 @@ function fixImageNewlines(markdown: string): string {
 export function normalizeImageMarkdown(markdown: string): string {
   return fixImageNewlines(fixCorruptedImageNewlines(markdown));
 }
-

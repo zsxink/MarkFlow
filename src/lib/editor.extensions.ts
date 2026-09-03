@@ -129,6 +129,25 @@ export const MarkdownSafeTable = Table.extend({
 });
 
 export const BlockImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      // Resolver-only, node-local authored source. It survives ProseMirror
+      // transactions but is intentionally absent from DOM and Markdown output
+      // except as the value used by our renderer below.
+      authoredSrc: {
+        default: null,
+        rendered: false,
+        parseHTML: () => null,
+      },
+    };
+  },
+  renderMarkdown(node: JSONContent) {
+    const src = String(node.attrs?.authoredSrc ?? node.attrs?.src ?? '').replace(/[()]/g, '\\$&');
+    const alt = String(node.attrs?.alt ?? '').replace(/[\[\]]/g, '\\$&');
+    const title = node.attrs?.title ? ` \"${String(node.attrs.title).replace(/\"/g, '\\\"')}\"` : '';
+    return `![${alt}](${src}${title})`;
+  },
   addNodeView() {
     return ({ node, HTMLAttributes }) => {
       const img = document.createElement('img');
@@ -256,8 +275,12 @@ export function mermaidCodeBlockExtension() {
 
         const getLanguage = () => String(currentNode.attrs.language || '').toLowerCase();
         const isMermaid = () => getLanguage() === 'mermaid';
-        const isPlantUml = () => getLanguage() === 'plantuml';
-        const isDiagram = () => isMermaid() || (isPlantUml() && Boolean(plantUmlServerUrl));
+        const isPlantUml = () => ['plantuml', 'puml'].includes(getLanguage());
+        // This local value is updated by settings:changed. It intentionally
+        // drives the static contentDOM mode so a transition can recreate this
+        // NodeView rather than leaving an editable DOM behind a preview.
+        const isDiagram = () => isMermaid()
+          || (isPlantUml() && Boolean(plantUmlServerUrl) && !isBlankPlantUmlSource(currentNode.textContent));
         const diagramName = () => isPlantUml() ? 'PlantUML' : 'Mermaid';
 
         const setCodeBlock = () => {
@@ -294,8 +317,9 @@ export function mermaidCodeBlockExtension() {
           previewEl.className = 'mermaid-preview is-rendering';
           previewEl.textContent = `正在渲染 ${diagramName()} 图表…`;
           try {
+            const serverUrl = plantUmlServerUrl;
             const svg = isPlantUml()
-              ? await renderPlantUml(plantUmlServerUrl, code)
+              ? await renderPlantUml(serverUrl, code)
               : await renderMermaid(code);
             if (destroyed || version !== renderVersion || !previewEl) return;
             renderedSvg = svg;
@@ -481,6 +505,7 @@ export function mermaidCodeBlockExtension() {
 
         render();
 
+        let requiresNodeViewRecreate = false;
         const handleSettingsChanged = (event: { settings: { plantumlServerUrl?: string } }) => {
           const nextUrl = event.settings.plantumlServerUrl?.trim() ?? '';
           if (nextUrl === plantUmlServerUrl) return;
@@ -488,9 +513,11 @@ export function mermaidCodeBlockExtension() {
           plantUmlServerUrl = nextUrl;
           if (!isPlantUml()) return;
           if (wasDiagram !== isDiagram()) {
-            // isDiagram() flipped — dispatch empty transaction to trigger
-            // ProseMirror to call update(), which calls render() in the
-            // diagram/code-block path
+            // `contentDOM` is fixed when a NodeView is constructed. A flip
+            // must make update() return false so ProseMirror creates a fresh
+            // view; rendering in place leaves a stale editable/non-editable
+            // contract behind.
+            requiresNodeViewRecreate = true;
             editor.view.dispatch(editor.view.state.tr);
           } else {
             render();
@@ -503,6 +530,10 @@ export function mermaidCodeBlockExtension() {
           contentDOM: isDiagram() ? undefined : contentDOM || undefined,
           update(updatedNode) {
             if (updatedNode.type !== currentNode.type) return false;
+            if (requiresNodeViewRecreate) {
+              requiresNodeViewRecreate = false;
+              return false;
+            }
             const previousLanguage = getLanguage();
             const wasDiagram = isDiagram();
             currentNode = updatedNode;

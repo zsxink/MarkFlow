@@ -4,10 +4,10 @@ import StarterKit from '@tiptap/starter-kit';
 import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } from '@tiptap/extension-list';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 
-const { renderMermaid, renderPlantUml, getCachedSettings, store } = vi.hoisted(() => ({
-  renderMermaid: vi.fn(), renderPlantUml: vi.fn(), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
+const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings, store } = vi.hoisted(() => ({
+  renderMermaid: vi.fn(), renderPlantUml: vi.fn(), isBlankPlantUmlSource: vi.fn(() => false), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
-vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource: vi.fn(() => false) })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
+vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
 import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension, renderFencedCodeBlock } from './editor.extensions';
 import { createMarkdownExtension, markflowMarked } from './editor.init';
 
@@ -172,5 +172,68 @@ describe('editor extensions', () => {
     expect(view.update({ ...node, textContent: 'graph LR' })).toBe(true);
     view.destroy();
     expect(store.off).toHaveBeenCalledWith('settings:changed', expect.any(Function));
+  });
+
+  it('renders PlantUML for both the plantuml and puml language aliases', async () => {
+    getCachedSettings.mockReturnValue({ plantumlServerUrl: 'https://www.plantuml.com/plantuml' });
+    renderPlantUml.mockResolvedValue('<svg data-plantuml></svg>');
+    const extension = mermaidCodeBlockExtension();
+    const create = extension.config.addNodeView!.call({} as never) as (args: any) => any;
+    const editor = { view: { state: { tr: {} }, dispatch: vi.fn() } };
+    for (const language of ['plantuml', 'puml']) {
+      const node = { type: { name: 'codeBlock' }, attrs: { language }, textContent: '@startuml\nAlice -> Bob\n@enduml', nodeSize: 20 };
+      const view = create({ node, editor, getPos: () => 1 });
+      await Promise.resolve();
+      expect(view.dom.className).toBe('mermaid-block');
+      expect(view.dom.querySelector('.mermaid-preview')?.innerHTML).toContain('data-plantuml');
+      view.destroy();
+    }
+    expect(renderPlantUml).toHaveBeenCalledTimes(2);
+  });
+
+  it('recreates a PlantUML NodeView when enabling or disabling its service changes contentDOM mode', () => {
+    const make = (url: string) => {
+      const registrations = vi.fn();
+      store.on.mockImplementation(registrations);
+      getCachedSettings.mockReturnValue({ plantumlServerUrl: url });
+      const create = mermaidCodeBlockExtension().config.addNodeView!.call({} as never) as (args: any) => any;
+      const dispatch = vi.fn();
+      const node = { type: { name: 'codeBlock' }, attrs: { language: 'puml' }, textContent: '@startuml\nA->B\n@enduml', nodeSize: 20 };
+      const view = create({ node, editor: { view: { state: { tr: {} }, dispatch } }, getPos: () => 1 });
+      const listener = registrations.mock.calls.find(([event]) => event === 'settings:changed')?.[1] as (event: any) => void;
+      return { view, node, dispatch, listener };
+    };
+
+    const disabled = make('');
+    disabled.listener({ settings: { plantumlServerUrl: 'https://plantuml.test' } });
+    expect(disabled.dispatch).toHaveBeenCalledOnce();
+    expect(disabled.view.update(disabled.node)).toBe(false);
+    disabled.view.destroy();
+
+    const enabled = make('https://plantuml.test');
+    enabled.listener({ settings: { plantumlServerUrl: '' } });
+    expect(enabled.dispatch).toHaveBeenCalledOnce();
+    expect(enabled.view.update(enabled.node)).toBe(false);
+    enabled.view.destroy();
+  });
+
+  it('keeps blank configured PlantUML editable and recreates when source crosses preview boundary', () => {
+    getCachedSettings.mockReturnValue({ plantumlServerUrl: 'https://plantuml.test' });
+    isBlankPlantUmlSource.mockImplementation((source: string) => source.trim().length === 0);
+    const create = mermaidCodeBlockExtension().config.addNodeView!.call({} as never) as (args: any) => any;
+    const editor = { view: { state: { tr: {} }, dispatch: vi.fn() } };
+    const blank = { type: { name: 'codeBlock' }, attrs: { language: 'plantuml' }, textContent: '', nodeSize: 2 };
+    const nonBlank = { ...blank, textContent: '@startuml\nA->B\n@enduml', nodeSize: 20 };
+
+    const blankView = create({ node: blank, editor, getPos: () => 1 });
+    expect(blankView.contentDOM).toBeDefined();
+    expect(blankView.dom.className).toBe('code-block-view');
+    expect(blankView.update(nonBlank)).toBe(false);
+    blankView.destroy();
+
+    const previewView = create({ node: nonBlank, editor, getPos: () => 1 });
+    expect(previewView.contentDOM).toBeUndefined();
+    expect(previewView.update(blank)).toBe(false);
+    previewView.destroy();
   });
 });

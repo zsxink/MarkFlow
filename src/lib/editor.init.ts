@@ -142,9 +142,13 @@ export async function initEditor() {
       // its depth, so querying it there would misclassify programmatic writes.
       const isUserUpdate = !isProgrammaticUpdate();
 
+      // Revision is a correctness boundary (save/source switches can happen
+      // before the deferred dirty comparison). Bump synchronously for the
+      // transaction, while retaining the debounce for serialization work.
+      if (isUserUpdate) bumpRevision();
+
       scheduler.schedule('dirty-check', 400, () => {
         if (currentMd !== null && isUserUpdate) {
-          bumpRevision();
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
       });
@@ -232,7 +236,7 @@ export async function initEditor() {
         src = imagePathToSrc(reference, docPath);
         if (src !== reference) assetToOriginalMap.set(src, reference);
       }
-      getEditor()?.chain().focus().setImage({ src }).run();
+      getEditor()?.chain().focus().setImage({ src, authoredSrc: reference } as any).run();
     }
     // Only create one continuation paragraph after all images are inserted
     if (srcs.length > 0) {

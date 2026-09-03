@@ -29,6 +29,12 @@ import {
 
 export type { OpaqueSpan } from './editor.markdown.opaque';
 
+// Stage-one measured the pathological fixture at ~54KB / 2,800 lines around
+// 380ms. Admission must be deterministic: do not use wall-clock timing, which
+// turns CI contention into a correctness decision.
+export const WYSIWYG_MAX_ADMISSION_BYTES = 54 * 1024;
+export const WYSIWYG_MAX_ADMISSION_LINES = 2_500;
+
 type ProtectedRange = Pick<CodeRegion, 'from' | 'to'>;
 
 /** Return the source segments not covered by any protected range. */
@@ -172,6 +178,10 @@ function hasInconsistentGfmTable(source: string): boolean {
  */
 export function classifyEligibility(source: string): EligibilityResult {
   const src = source.replace(/\r\n/g, '\n');
+  if (new TextEncoder().encode(src).byteLength >= WYSIWYG_MAX_ADMISSION_BYTES
+    || src.split('\n').length > WYSIWYG_MAX_ADMISSION_LINES) {
+    return { verdict: 'source-only', reason: 'too-large', category: 'admission-threshold' };
+  }
   if (src.trim().length === 0) {
     return { verdict: 'eligible', reason: 'supported' };
   }

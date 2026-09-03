@@ -210,6 +210,11 @@ export function suppressNextWatcherRefresh(path: string) {
   suppressPaths.set(path, Date.now());
 }
 
+/** Remove a just-created suppression when its local write does not complete. */
+export function cancelSuppressedWatcherRefresh(path: string) {
+  suppressPaths.delete(path);
+}
+
 export function isSuppressedPath(path: string): boolean {
   const now = Date.now();
   for (const [suppressed, addedAt] of suppressPaths) {

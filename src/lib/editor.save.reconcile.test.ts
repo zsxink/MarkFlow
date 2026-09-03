@@ -52,8 +52,8 @@ describe('save-boundary reconcile (8.5, 8.6)', () => {
   it('reconcile boundary engages only for opaque-aware modes (8.5)', () => {
     expect(shouldUseReconcileBoundary('opaque')).toBe(true);
     expect(shouldUseReconcileBoundary('reconcile')).toBe(true);
-    // Lower modes keep the legacy serialization save path.
-    expect(shouldUseReconcileBoundary('gated')).toBe(false);
+    // Verified eligible documents use the same full boundary as opaque docs.
+    expect(shouldUseReconcileBoundary('gated')).toBe(true);
     expect(shouldUseReconcileBoundary('v3-compatible')).toBe(false);
     expect(shouldUseReconcileBoundary('source-only')).toBe(false);
   });

@@ -25,7 +25,7 @@ vi.mock('./storage', () => ({ getCachedSettings: mocks.getCachedSettings }));
 vi.mock('./store', () => ({ store: mocks.store }));
 vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: mocks.showMermaidContextMenu }));
 vi.mock('../components/plantumlContextMenu', () => ({ showPlantumlContextMenu: mocks.showPlantumlContextMenu }));
-vi.mock('./editor.state', () => ({ getMermaidExportBaseName: mocks.getMermaidExportBaseName, getPlantUmlExportBaseName: mocks.getPlantUmlExportBaseName }));
+vi.mock('./editor.state', () => ({ getMermaidExportBaseName: mocks.getMermaidExportBaseName, getPlantUmlExportBaseName: mocks.getPlantUmlExportBaseName, assetToOriginalMap: new Map() }));
 vi.mock('./logger', () => ({ logDebug: mocks.logDebug, logWarn: mocks.logWarn, logException: mocks.logException }));
 
 function createAppEditor() {
@@ -117,7 +117,7 @@ describe('admission verification (6.4)', () => {
     ].join('\n');
 
     expect(decideAdmission(editor, src)).toMatchObject({
-      mode: 'gated', verdict: 'eligible', reason: 'supported',
+      mode: 'reconcile', verdict: 'eligible', reason: 'supported',
     });
   });
 

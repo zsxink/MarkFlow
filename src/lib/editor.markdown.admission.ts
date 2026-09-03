@@ -37,7 +37,7 @@ export function decideAdmission(
   source: string,
   revisions: AdmissionRevisionsSpec = { sourceRevision: 1, userRevisionAtAdmission: 0 },
 ): {
-  mode: 'gated' | 'opaque' | 'source-only';
+  mode: 'gated' | 'opaque' | 'reconcile' | 'source-only';
   verdict: Eligibility;
   reason: EligibilityReason;
   session?: MarkdownSession;
@@ -66,12 +66,20 @@ export function decideAdmission(
     }
     return { mode: 'source-only', verdict: 'source-only', reason: 'parse-verification-failed' };
   }
-  // eligible: prove the round-trip is lossless on the actual editor.
-  const v = verifyAdmission(editor, source);
-  if (!v.ok) {
+  // Fully supported documents use the same verified-session boundary as opaque
+  // ones. `renderOpaque` simply creates an empty registry here; this avoids a
+  // second, legacy save path that could normalize an untouched source.
+  const admitted = admitOpaque(editor, source, revisions);
+  if (!admitted.ok) {
     return { mode: 'source-only', verdict: 'source-only', reason: 'parse-verification-failed' };
   }
-  return { mode: 'gated', verdict: 'eligible', reason: 'supported' };
+  return {
+    mode: 'reconcile',
+    verdict: 'eligible',
+    reason: 'supported',
+    session: admitted.session,
+    renderedSource: admitted.renderedSource,
+  };
 }
 
 /** Revisions captured at admission (source/file + user edit counter). */

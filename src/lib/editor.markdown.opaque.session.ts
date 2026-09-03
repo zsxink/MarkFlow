@@ -83,8 +83,9 @@ export function installOpaqueSession(session: MarkdownSession, registry: OpaqueR
  * remain active and the document must reload from exact Source.
  */
 export function onPipelineModeChanged(mode: string): void {
-  // Any mode below `opaque` cannot hold opaque state safely.
-  if (mode !== 'opaque' && mode !== 'reconcile') {
+  // Every verified save-boundary mode owns the same MarkdownSession. `gated`
+  // is retained for compatibility and must not silently discard it.
+  if (mode !== 'gated' && mode !== 'opaque' && mode !== 'reconcile') {
     endOpaqueSession();
   }
 }

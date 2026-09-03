@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyEligibility } from './editor.markdown.eligibility';
+import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from './editor.markdown.eligibility';
 import type { Eligibility, EligibilityReason } from './editor.markdown.types';
 
 /**
@@ -172,5 +172,11 @@ describe('eligibility classifier (6.2)', () => {
       expect(typeof r.reason).toBe('string');
       expect(r.reason.length).toBeGreaterThan(0);
     }
+  });
+
+  it('uses deterministic measured size and line thresholds for source-only admission', () => {
+    expect(classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES - 1)).verdict).toBe('eligible');
+    expect(classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES)).reason).toBe('too-large');
+    expect(classifyEligibility(Array.from({ length: WYSIWYG_MAX_ADMISSION_LINES + 1 }, () => 'a').join('\n')).reason).toBe('too-large');
   });
 });

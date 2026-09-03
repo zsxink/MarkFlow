@@ -105,6 +105,7 @@ export function createSourceEditor(
 
   const extList: any[] = [
     basicSetup,
+    EditorView.lineWrapping,
     highlightCompartment.of(syntaxHighlighting(
       getCachedSettings().codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
     )),

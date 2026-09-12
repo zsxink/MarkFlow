@@ -42,6 +42,7 @@ import { normalizeImageMarkdown } from './editor.serializer';
 import { serializeMarkdown } from './editor.markdown.bridge';
 import { ensureContinuationParagraph } from './editor.continuation';
 import { endOpaqueSession } from './editor.markdown.opaque.session';
+import { katexPlugin } from './editor.katex';
 
 /**
  * MarkFlow deliberately owns this parser instead of using Marked's module
@@ -119,6 +120,7 @@ export async function initEditor() {
       }),
       complexityLimitExtension(),
       mermaidCodeBlockExtension(),
+      katexPlugin(),
       OpaqueNode,
       createMarkdownExtension(),
       imageSrcResolverPlugin(),

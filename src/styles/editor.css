@@ -765,3 +765,79 @@
 .source-editor-wrapper .cm-editor .cm-selectionMatch {
   background: var(--accent-soft);
 }
+
+/* KaTeX math formulas */
+.ProseMirror .katex-inline {
+  display: inline;
+  vertical-align: middle;
+}
+
+.ProseMirror .katex-block {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+/* The raw $..$ / $$..$$ source is kept in the document (round-trip preserved)
+   but hidden behind the rendered KaTeX widget. */
+.ProseMirror .katex-hidden {
+  display: none;
+}
+
+/* Loading indicator while KaTeX is fetched */
+.ProseMirror .katex-loading {
+  display: inline;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Inline source editor shown while editing a formula */
+.ProseMirror .katex-source-editor {
+  width: 100%;
+  min-height: 3em;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-code);
+  font-size: 0.9em;
+  resize: vertical;
+}
+
+.ProseMirror .katex-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+}
+
+.ProseMirror .katex-actions button {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.ProseMirror .katex-actions button:hover {
+  background: var(--accent-soft);
+}
+
+.ProseMirror .katex-error-inline,
+.ProseMirror .katex-error-block {
+  color: var(--danger, #dc2626);
+  background: rgba(220, 38, 38, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-code);
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.ProseMirror .katex-error-block {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}

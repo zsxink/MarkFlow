@@ -23,12 +23,24 @@ import {renderKatex} from './katex-render';
 
 const katexPluginKey = new PluginKey('katex');
 
-/** Cache of rendered formula HTML / errors, keyed by formula range. */
+/**
+ * Rendered-output cache.
+ * htmlByKey / errorByKey / pendingKeys are keyed by formula CONTENT
+ * (`${type}:${content}`) so a formula that stays identical keeps its rendered
+ * result even when unrelated edits shift its position — that avoids flashing
+ * the loading placeholder on every keystroke. editingKeys is keyed by the
+ * positional `from:to` range (only one formula occupies a range at a time).
+ */
 interface KaTeXCache {
   htmlByKey: Map<string, string>;
   errorByKey: Map<string, string>;
-  editingKeys: Set<string>;
   pendingKeys: Set<string>;
+  editingKeys: Set<string>;
+}
+
+/** Content-based cache key for a formula (shared across positions). */
+function formulaCacheKey(formula: FormulaMatch): string {
+  return `${formula.type}:${formula.content}`;
 }
 
 /**
@@ -36,12 +48,12 @@ interface KaTeXCache {
  * refreshing decorations by dispatching an empty transaction.
  */
 async function renderFormula(
-  key: string,
   formula: FormulaMatch,
   cache: KaTeXCache,
   getView: () => EditorView | undefined,
 ) {
-  if (cache.editingKeys.has(key) || cache.pendingKeys.has(key)) return;
+  const key = formulaCacheKey(formula);
+  if (cache.pendingKeys.has(key)) return;
   cache.pendingKeys.add(key);
   const result = await renderKatex(formula.content, formula.type === 'block');
   cache.pendingKeys.delete(key);
@@ -56,11 +68,12 @@ async function renderFormula(
  */
 function buildFormulaWidget(
   formula: FormulaMatch,
-  key: string,
+  positionKey: string,
   cache: KaTeXCache,
   getView: () => EditorView | undefined,
 ): {dom: HTMLElement} {
-  const editing = cache.editingKeys.has(key);
+  const editing = cache.editingKeys.has(positionKey);
+  const contentKey = formulaCacheKey(formula);
   const wrapper = document.createElement('span');
   wrapper.className = formula.type === 'block' ? 'katex-block' : 'katex-inline';
 
@@ -70,14 +83,14 @@ function buildFormulaWidget(
     textarea.className = 'katex-source-editor';
     textarea.value = formula.content;
     textarea.spellcheck = false;
-    const commit = () => commitFormula(key, formula, textarea.value, cache, getView);
+    const commit = () => commitFormula(positionKey, formula, textarea.value, cache, getView);
     textarea.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
         commit();
       } else if (e.key === 'Escape') {
         e.preventDefault();
-        cache.editingKeys.delete(key);
+        cache.editingKeys.delete(positionKey);
         getView()?.dispatch(getView()!.state.tr);
       }
     });
@@ -87,12 +100,17 @@ function buildFormulaWidget(
     const confirmBtn = document.createElement('button');
     confirmBtn.type = 'button';
     confirmBtn.textContent = '确认';
+    // preventDefault on mousedown keeps focus in the textarea, so blur (which
+    // auto-commits) does not fire before the click — otherwise every click on
+    // the Confirm/Cancel buttons would first blur-commit the edit.
+    confirmBtn.addEventListener('mousedown', (e) => e.preventDefault());
     confirmBtn.addEventListener('click', commit);
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.textContent = '取消';
+    cancelBtn.addEventListener('mousedown', (e) => e.preventDefault());
     cancelBtn.addEventListener('click', () => {
-      cache.editingKeys.delete(key);
+      cache.editingKeys.delete(positionKey);
       getView()?.dispatch(getView()!.state.tr);
     });
     actions.append(confirmBtn, cancelBtn);
@@ -100,8 +118,8 @@ function buildFormulaWidget(
     return {dom: wrapper};
   }
 
-  const error = cache.errorByKey.get(key);
-  const html = cache.htmlByKey.get(key);
+  const error = cache.errorByKey.get(contentKey);
+  const html = cache.htmlByKey.get(contentKey);
   if (error) {
     wrapper.className = formula.type === 'block' ? 'katex-error-block' : 'katex-error-inline';
     wrapper.textContent = `公式语法错误：${error}`;
@@ -116,8 +134,8 @@ function buildFormulaWidget(
   wrapper.addEventListener('dblclick', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    cache.editingKeys.add(key);
-    cache.pendingKeys.delete(key);
+    cache.editingKeys.add(positionKey);
+    cache.pendingKeys.delete(contentKey);
     getView()?.dispatch(getView()!.state.tr);
   });
 
@@ -142,17 +160,24 @@ function commitFormula(
   }
   // Re-locate the formula range so we replace the CURRENT source text.
   const {from, to} = locateFormula(view, formula);
+  const delimiters = formula.type === 'block' ? '$$' : '$';
+  // Keep the user's content. `$` is legal inside LaTeX (currency, `\$`), so
+  // only strip exactly one delimiter pair at the edges rather than every `$`.
+  let content = nextContent.trim();
+  if (formula.type === 'block') {
+    content = content.replace(/^\$\$/g, '').replace(/\$\$$/g, '');
+  } else {
+    content = content.replace(/^\$/g, '').replace(/\$$/g, '');
+  }
   if (from !== -1) {
-    const delimiters = formula.type === 'block' ? '$$' : '$';
-    // Preserve the user's content, trimmed of stray delimiters.
-    const content = nextContent.replace(/\$\$/g, '').replace(/\$/g, '').trim();
     view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(`${delimiters}${content}${delimiters}`)));
   }
   cache.editingKeys.delete(key);
-  cache.htmlByKey.delete(key);
-  cache.errorByKey.delete(key);
-  // Re-render from the newly scanned text on the next decoration pass.
-  void key;
+  // Invalidate the rendered result for the OLD content (we just changed it).
+  const oldContentKey = formulaCacheKey(formula);
+  cache.htmlByKey.delete(oldContentKey);
+  cache.errorByKey.delete(oldContentKey);
+  cache.pendingKeys.delete(oldContentKey);
 }
 
 /**
@@ -214,23 +239,29 @@ export function katexPlugin() {
               if (!tr.docChanged) {
                 return old.map(tr.mapping, tr.doc);
               }
-              // Document changed: drop formula caches so ranges re-scan
-              // against the new text. Edit-mode keys persist so an open source
-              // editor keeps showing while unrelated edits land; drop any
-              // editing key whose formula no longer exists in the new doc so
-              // deleted formulas cannot leak a stale key.
-              cache.htmlByKey.clear();
-              cache.errorByKey.clear();
-              cache.pendingKeys.clear();
-              const liveKeys = new Set<string>();
+              // Compute which formulas exist in the NEW document. Rendered
+              // output is content-keyed, so an unchanged formula keeps its
+              // cache entry across unrelated edits (no loading flash); only
+              // content/positions that vanished get evicted so the cache does
+              // not grow without bound.
+              const liveContentKeys = new Set<string>();
+              const livePositionKeys = new Set<string>();
               tr.doc.descendants((node, pos) => {
                 if (!node.isText || !node.text) return;
                 for (const f of scanFormulas(node.text)) {
-                  liveKeys.add(`${pos + f.from}:${pos + f.to}`);
+                  liveContentKeys.add(formulaCacheKey(f));
+                  livePositionKeys.add(`${pos + f.from}:${pos + f.to}`);
                 }
               });
-              for (const key of cache.editingKeys) {
-                if (!liveKeys.has(key)) cache.editingKeys.delete(key);
+              for (const contentKey of cache.htmlByKey.keys()) {
+                if (!liveContentKeys.has(contentKey)) cache.htmlByKey.delete(contentKey);
+              }
+              for (const contentKey of cache.errorByKey.keys()) {
+                if (!liveContentKeys.has(contentKey)) cache.errorByKey.delete(contentKey);
+              }
+              // Editing keys are positional: drop any whose formula vanished.
+              for (const positionKey of cache.editingKeys) {
+                if (!livePositionKeys.has(positionKey)) cache.editingKeys.delete(positionKey);
               }
               return DecorationSet.empty;
             },
@@ -247,7 +278,8 @@ export function katexPlugin() {
                 for (const formula of formulas) {
                   const from = pos + formula.from;
                   const to = pos + formula.to;
-                  const key = `${from}:${to}`;
+                  const positionKey = `${from}:${to}`;
+                  const contentKey = formulaCacheKey(formula);
 
                   // Hide the raw source text.
                   decorations.push(
@@ -257,20 +289,21 @@ export function katexPlugin() {
                     }),
                   );
 
-                  // Lazy-render (fire once).
+                  // Lazy-render (fire once). Content-keyed: unchanged formulas
+                  // keep their cached result across unrelated edits.
                   if (
-                    !cache.pendingKeys.has(key)
-                    && !cache.htmlByKey.has(key)
-                    && !cache.errorByKey.has(key)
-                    && !cache.editingKeys.has(key)
+                    !cache.pendingKeys.has(contentKey)
+                    && !cache.htmlByKey.has(contentKey)
+                    && !cache.errorByKey.has(contentKey)
+                    && !cache.editingKeys.has(positionKey)
                   ) {
-                    void renderFormula(key, formula, cache, getView);
+                    void renderFormula(formula, cache, getView);
                   }
 
                   // Insert the rendered/source widget at the formula start.
                   decorations.push(
                     Decoration.widget(from, () => {
-                      const {dom} = buildFormulaWidget(formula, key, cache, getView);
+                      const {dom} = buildFormulaWidget(formula, positionKey, cache, getView);
                       return dom;
                     }),
                   );

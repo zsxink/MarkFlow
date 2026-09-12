@@ -2,6 +2,7 @@
  * KaTeX lazy loader — singleton dynamic import.
  * KaTeX is only loaded when a document actually contains $..$ or $$..$$ formulas.
  */
+import 'katex/dist/katex.min.css';
 import type katex from 'katex';
 
 let promise: Promise<typeof katex> | null = null;

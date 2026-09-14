@@ -37,10 +37,10 @@
     },
     {
       "file": "docs/next-phase-roadmap.md",
-      "bytes": 8866,
-      "digest": "95032839b659",
-      "sourceStructs": 77,
-      "serializedStructs": 77,
+      "bytes": 9561,
+      "digest": "28b575fba3c0",
+      "sourceStructs": 81,
+      "serializedStructs": 81,
       "status": "pass"
     },
     {
@@ -109,10 +109,10 @@
     },
     {
       "file": ".claude/memory/MEMORY.md",
-      "bytes": 1683,
-      "digest": "6e3b9b771fab",
-      "sourceStructs": 30,
-      "serializedStructs": 30,
+      "bytes": 2029,
+      "digest": "a2502d5cc532",
+      "sourceStructs": 34,
+      "serializedStructs": 34,
       "status": "pass"
     },
     {
@@ -213,10 +213,10 @@
     },
     {
       "file": "openspec/specs/wysiwyg-markdown-round-trip/spec.md",
-      "bytes": 6008,
-      "digest": "3517f0172235",
-      "sourceStructs": 62,
-      "serializedStructs": 62,
+      "bytes": 7214,
+      "digest": "b15cdd8217d8",
+      "sourceStructs": 74,
+      "serializedStructs": 74,
       "status": "pass"
     },
     {

@@ -15,6 +15,8 @@ import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
 import { imageSrcResolverPlugin } from './editor.image.resolver';
 import { imageBubblePlugin } from './editor.image.bubble';
+import { tablePlugin } from './editor.table';
+import { TableHandleView } from './editor.table-handles';
 import { complexityLimitExtension } from './editor.complexity';
 
 import {
@@ -103,6 +105,7 @@ export async function initEditor() {
       }),
       MarkdownSafeTable.configure({
         resizable: true,
+        View: TableHandleView,
       }),
       TableRow,
       TableCell,
@@ -125,6 +128,7 @@ export async function initEditor() {
       createMarkdownExtension(),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
+      tablePlugin(),
       Extension.create({
         name: 'urlAutoDetect',
         addProseMirrorPlugins() {

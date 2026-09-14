@@ -21,3 +21,5 @@
 
 ## 踩坑记录
 - [tiptap-markdown 序列化器限制](troubleshooting-tiptap-markdown-serializer.md) — HTMLNode fallback 陷阱 + defense-in-depth 策略
+- [表格输入规则 InputRule 陷阱](table-wysiwyg-input-rule.md) — 匹配文本只含当前段落、resolve(start) 与 node start、空续段触发时机
+- [表格 WYSIWYG 交互交付陷阱](table-wysiwyg-interaction.md) — TableView 类型约束、tables.css 未引入 selectedCell 需自补、align 解析路径、hidden 显式 display

@@ -15,6 +15,8 @@ import { logException } from './logger';
 import { createUrlDecorationPlugin } from './urlDecorationPlugin';
 import { imageSrcResolverPlugin } from './editor.image.resolver';
 import { imageBubblePlugin } from './editor.image.bubble';
+import { tablePlugin } from './editor.table';
+import { TableHandleView } from './editor.table-handles';
 import { complexityLimitExtension } from './editor.complexity';
 
 import {
@@ -103,6 +105,7 @@ export async function initEditor() {
       }),
       MarkdownSafeTable.configure({
         resizable: true,
+        View: TableHandleView,
       }),
       TableRow,
       TableCell,
@@ -125,6 +128,7 @@ export async function initEditor() {
       createMarkdownExtension(),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
+      tablePlugin(),
       Extension.create({
         name: 'urlAutoDetect',
         addProseMirrorPlugins() {
@@ -133,7 +137,15 @@ export async function initEditor() {
       }),
     ],
     content: '',
-    onUpdate: () => {
+    onUpdate: ({ transaction, appendedTransactions }) => {
+      scheduler.schedule('editor-update', 80, () => {
+        store.emit({ type: 'editor:update' });
+      });
+      // setEditable also emits update, with an unchanged document. Such UI
+      // updates must neither advance the revision nor replace a pending edit
+      // check with a comparison of canonical Markdown against disk spelling.
+      if (!transaction.docChanged && !appendedTransactions.some((tr) => tr.docChanged)) return;
+
       const mode = getMode();
       const serialized = mode === 'source' ? null : serializeMarkdown(getEditor()!);
       const currentMd = mode === 'source'
@@ -153,10 +165,6 @@ export async function initEditor() {
         if (currentMd !== null && isUserUpdate) {
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
-      });
-
-      scheduler.schedule('editor-update', 80, () => {
-        store.emit({ type: 'editor:update' });
       });
     },
     onSelectionUpdate: () => {

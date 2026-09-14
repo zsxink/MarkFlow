@@ -437,7 +437,7 @@ function setReadOnly(readOnly: boolean): void {
   // ProseMirror (WYSIWYG) read-only
   const editor = getEditor();
   if (editor) {
-    editor.setEditable(!readOnly);
+    editor.setEditable(!readOnly, false);
   }
   // CodeMirror (source mode) read-only
   setSourceReadOnly(readOnly);

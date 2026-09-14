@@ -100,7 +100,7 @@ describe('TableHandleView (边界 + 句柄)', () => {
     const view = editor.view as any;
     const host = getHost(view);
     expect(visibleHandles(host).length).toBe(0);
-    // 命中 (row=1, col=0) 单元格
+    // 命中 (row=1, col=0) 单元格，列句柄应显示最左列前置分界 b=0
     const target = host.querySelectorAll('tr')[1].querySelector('td') as HTMLElement;
     target.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
     const visible = visibleHandles(host);
@@ -118,13 +118,13 @@ describe('TableHandleView (边界 + 句柄)', () => {
     loadColumns(editor, 'A,B', ['1,2', '3,4']);
     const view = editor.view as any;
     const host = getHost(view);
-    // 移到第 2 行第 1 列
+    // 移到第 2 行第 1 列（末列），列句柄显示右边缘 b=2
     const cell21 = host.querySelectorAll('tr')[2].querySelectorAll('td')[1] as HTMLElement;
     cell21.dispatchEvent(new MouseEvent('mousemove', { bubbles: true }));
     const visible = visibleHandles(host);
     expect(visible.length).toBe(2);
     expect(visible.some(el => el.classList.contains('table-row-handle') && el.dataset.row === '2')).toBe(true);
-    expect(visible.some(el => el.classList.contains('table-column-handle') && el.dataset.col === '1')).toBe(true);
+    expect(visible.some(el => el.classList.contains('table-column-handle') && el.dataset.col === '2')).toBe(true);
     // mouseleave 隐藏
     host.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
     expect(visibleHandles(host).length).toBe(0);

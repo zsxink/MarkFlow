@@ -136,8 +136,10 @@ export function parseTableInput(source: string): { columns: number; header: stri
 
 /**
  * Build a GFM table node from parsed row texts: one header row (tableHeader
- * cells) + one data row (tableCell cells). Every cell wraps its authored text
- * in a paragraph to satisfy the `block+` cell content spec.
+ * cells) + at least one data row (tableCell cells). When the user typed only
+ * header + delimiter (rows is empty) we synthesise one empty data row so the
+ * cursor lands in a usable cell. Every cell wraps its authored text in a
+ * paragraph to satisfy the `block+` cell content spec.
  */
 function buildTableNode(schema: { nodes: Record<string, any> }, parsed: { columns: number; header: string[]; rows: string[][] }): PMNode | null {
   const { table, tableRow, tableHeader, tableCell, paragraph } = schema.nodes;
@@ -224,9 +226,11 @@ export const MarkdownSafeTable = Table.extend({
           if (blocks.length < 2) return null;
 
           const parsed = parseTableInput(blocks.map(b => b.text).join('\n'));
-          // A table requires a content row too; parseTableInput also rejects
-          // mismatched column counts, so malformed input stays as text.
-          if (!parsed || parsed.rows.length < 1) return null;
+          // parseTableInput rejects mismatched column counts, so malformed
+          // input stays as text.  rows may be empty when the user just typed
+          // header + delimiter and pressed Enter — buildTableNode synthesises
+          // an empty data row in that case.
+          if (!parsed) return null;
 
           const tableNode = buildTableNode(state.schema as any, parsed);
           if (!tableNode) return null;

@@ -273,12 +273,16 @@ export class TableHandleView implements NodeViewLike {
       btn.hidden = !(btn.dataset.row === String(row));
     }
     const colBtns = Array.from(this.topRail.querySelectorAll('.' + COL_HANDLE_CLASS)) as HTMLElement[];
+    // 句柄 b 位于「b 列之前」的分界：b=0 表最前，b≥1 在 th[b-1] 右缘、点按后在 b-1 右侧插列。
+    // hover col：最左列(col=0)显示 b=0（点击后新增列成为最左列）；其余列(col≥1)显示 b=col+1，
+    // 位于该列顶部右上角，点击后「在该列右侧插入一列」（末列 b=cols 在表尾追加）。
+    const colBoundary = col === 0 ? 0 : col + 1;
     for (const btn of colBtns) {
-      btn.hidden = !(btn.dataset.col === String(col));
+      btn.hidden = !(btn.dataset.col === String(colBoundary));
     }
 
     this.positionRowHandle(row, rowBtns);
-    this.positionColHandle(col, colBtns);
+    this.positionColHandle(colBoundary, colBtns);
   }
 
   /** 行句柄定位于该行左外侧、与下边框线齐平（行「下端」）。 */
@@ -295,19 +299,18 @@ export class TableHandleView implements NodeViewLike {
     btn.style.transform = 'translateY(-50%)';
   }
 
-  /** 列句柄定位于该列顶部右上角（分界线 b 右侧的列 b，浮于表格右上缘）。 */
-  private positionColHandle(col: number, colBtns: HTMLElement[]) {
-    // 列句柄 data-col=b 对应「在 b 右侧插列」的分界线；鼠标在该列(col)时显示 col 列句柄
-    const btn = colBtns.find(b => b.dataset.col === String(col));
+  /** 列句柄定位于该列顶部（b=0 于最左列右上方，b≥1 于 th[b-1] 右缘，b=cols 于最右列右缘）。 */
+  private positionColHandle(b: number, colBtns: HTMLElement[]) {
+    const btn = colBtns.find(btn => btn.dataset.col === String(b));
     if (!btn) return;
     const ths = this.host.querySelectorAll('tr')[0]?.querySelectorAll('th') ?? [];
-    if (col >= ths.length) return;
+    if (ths.length === 0) return;
     const hostRect = this.host.getBoundingClientRect();
-    const th = ths[col];
-    const rect = th.getBoundingClientRect();
     btn.style.position = 'absolute';
     btn.style.top = '-12px';
-    btn.style.left = `${rect.right - hostRect.left}px`; // 右上角
+    const th = ths[Math.min(Math.max(0, b - 1), ths.length - 1)];
+    const rect = th.getBoundingClientRect();
+    btn.style.left = `${rect.right - hostRect.left}px`;
     btn.style.transform = 'translateX(-50%)';
   }
 

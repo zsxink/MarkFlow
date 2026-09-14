@@ -779,6 +779,12 @@
   overflow-x: auto;
 }
 
+/* KaTeX compensates its 2px vlist spacer with a negative margin. For
+   right-aligned equation numbers that spacer overflows the scroll container. */
+.ProseMirror .katex-block .katex-tag > .vlist-t2 {
+  margin-right: 0;
+}
+
 /* The raw $..$ / $$..$$ source is kept in the document (round-trip preserved)
    but hidden behind the rendered KaTeX widget. */
 .ProseMirror .katex-hidden {

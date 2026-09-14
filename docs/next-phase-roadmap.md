@@ -49,13 +49,19 @@
 
 **目标：** GFM 表格 WYSIWYG 内实时编辑——点选/Tab 导航/增删行列/对齐，对标 Typora 表格体验。
 
-**技术路径：**
-- 需在 Tiptap 里实现/补完自定义 `Table` node 扩展（`feat/issue-228-m7a-gfm-table` 历史分支已有基础，可复用）
-- 核心能力：行列选中、Tab/Shift-Tab 单元格导航、行/列增删、对齐选择
-- 涉及序列化：tiptap-markdown 的 table 序列化（已有基础）需验证边界（嵌套表格、空单元格、对齐属性）
-- 渲染侧：导出（HTML/DOCX/PDF）表表格渲染已有基础（`documentExport`），需确保新 WYSIWYG 表格能正确序列化导出
+**状态：✅ 已交付（issue #262，`feat/issue-262-table-wysiwyg-interaction`）**
 
-**已知约束：** 成本中高，核心工作量在 Tiptap node 扩展 + 交互实现；历史分支 `m7a-gfm-table` 可作为起点复用。
+已实现能力：
+- **输入即表格**：`MarkdownSafeTable` 自定义 InputRule（表头+分隔行+数据行后回车自动成表，光标落于首个数据单元格），非法/列数不一致输入保持原文不转换
+- **单元格右键菜单**：`tableContextMenu.ts` 复用 `showContextMenuStatic`，提供上/下行、左/右列、删行/删列/删表 + 左/中/右对齐 + 表头行切换；作用域解析到触发单元格所在行列
+- **边界插入句柄**：`TableHandleView` 逐边界 `+` 句柄（每数据行左侧、每列分界线顶端 W+1 条），点击插行/列，悬停显形、移出隐藏、无 DOM 残留；句柄上右键同样弹出表格菜单，作用域解析到最近行列
+- **对齐持久化**：`setCellAttribute('align')` → 序列化为 `:--- / :---: / ---:` 对齐标记行，重解析保留
+- **写入安全**：所有交互编辑走既有 admission/eligibility/reconcile 安全管道，往返保真回归覆盖（`wysiwyg-markdown-roundtrip.section3` 4.1/4.2 场景）
+
+**已知约束（后续变更边界）：**
+- 合并/拆分单元格、列拖拽重排、嵌套表格、HTML 表格导入不在已交付范围
+- 源码模式（CodeMirror）表格无交互
+- 历史分支 `m7a-gfm-table` 已被本实现吸收（非复用基础）
 
 ---
 

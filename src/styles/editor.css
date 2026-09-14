@@ -616,6 +616,58 @@
   margin-bottom: 1em;
 }
 
+/* ── 表格边界插入句柄（替代悬停工具条） ─────────────────
+   宿主相对定位；左/上 rail 绝对定位于表格边缘（不参与内容布局）。 */
+.table-handle-host {
+  position: relative;
+}
+
+.table-left-handles,
+.table-top-handles {
+  position: absolute;
+  z-index: 151; /* 高于 .selectedCell:after(2) 与 resize handle，低于浮层工具条 */
+  pointer-events: auto;
+}
+
+/* css-layout 规则：display 非 none 的元素不能依赖 hidden，需显式覆盖 */
+.table-left-handles[hidden],
+.table-top-handles[hidden] {
+  display: none;
+  pointer-events: none;
+}
+
+.table-row-handle,
+.table-column-handle {
+  border: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-ui);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.table-row-handle:hover,
+.table-column-handle:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+/* 单个句柄隐藏时彻底不显示（display 非 none 元素不依赖全局 hidden） */
+.table-row-handle[hidden],
+.table-column-handle[hidden] {
+  display: none;
+  pointer-events: none;
+}
+
 .ProseMirror th, .ProseMirror td {
   border: 1px solid var(--border);
   padding: 8px 12px;
@@ -625,6 +677,22 @@
 .ProseMirror th {
   background: var(--code-bg);
   font-weight: 600;
+}
+
+/* ── 表格选中态（CellSelection，task 5.1） ───────────────────
+   prosemirror-tables 的 tables.css 未随包导出/引入，.selectedCell
+   没有默认样式；这里按主题 token 补齐列/行选区的视觉覆盖层。 */
+.ProseMirror .selectedCell:after {
+  z-index: 2; /* 在单元格边框之上、工具条(z=150)之下 */
+  position: absolute;
+  content: '';
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: var(--accent-soft);
+  pointer-events: none; /* 不拦截单元格内交互 */
+}
+
+.ProseMirror td, .ProseMirror th {
+  position: relative; /* selectedCell 覆盖层以此为定位容器 */
 }
 
 .ProseMirror ul[data-type="taskList"] {

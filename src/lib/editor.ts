@@ -1,4 +1,5 @@
 import { showToast } from '../components/toast';
+import { refreshFrontmatterPanel } from '../components/frontmatterPanel';
 import {
   normalizeImageMarkdown,
 } from './editor.serializer';
@@ -79,9 +80,7 @@ function appendTrailingNewlines(markdown: string): string {
 }
 
 function restoreWysiwygTrailingNewlines(markdown: string): string {
-  const body = markdown.replace(/(?:\r?\n)+$/, '');
-  const count = getDocumentState().trailingNewlines;
-  return count > 0 ? body + '\n'.repeat(count) : body;
+  return markdown.replace(/(?:\r?\n)+$/, '');
 }
 
 // ── Markdown serialization ────────────────────────────────────────────
@@ -149,7 +148,7 @@ export type SavePlan =
  * store's `reconcileError` (8.5). Returns `legacy` when the boundary is not
  * active so the existing serialization path is untouched.
  */
-export function getSavePlan(): SavePlan {
+export function getSavePlan(options: { allowConfirmedExternalOverwrite?: boolean } = {}): SavePlan {
   const mode = getMarkdownPipelineMode();
   if (!shouldUseReconcileBoundary(mode)) return { kind: 'legacy' };
   const editor = getEditor();
@@ -163,7 +162,7 @@ export function getSavePlan(): SavePlan {
   const decision = runSaveBoundary(editor, {
     session,
     registry,
-    currentSourceRevision: getSourceRevision(),
+    currentSourceRevision: options.allowConfirmedExternalOverwrite ? session.sourceRevision : getSourceRevision(),
     currentUserRevision: getRevision(),
     pipelineMode: mode,
   });
@@ -273,6 +272,7 @@ export function setMarkdown(content: string) {
       getDocumentState().lastPersistedMarkdown = content;
       getDocumentState().externallyModified = false;
       store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
+      refreshFrontmatterPanel(content);
       return;
     }
     const parsed = withProgrammaticUpdate(() => parseMarkdown(ed, stripped));
@@ -286,6 +286,7 @@ export function setMarkdown(content: string) {
       getDocumentState().lastPersistedMarkdown = content;
       getDocumentState().externallyModified = false;
       store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
+      refreshFrontmatterPanel(content);
       return;
     }
     // Stage-two admission (6.5 + 8.1): only fully-supported documents advance
@@ -307,6 +308,7 @@ export function setMarkdown(content: string) {
       getDocumentState().lastPersistedMarkdown = content;
       getDocumentState().externallyModified = false;
       store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
+      refreshFrontmatterPanel(content);
       return;
     }
     setMarkdownPipelineMode(admission.mode);
@@ -318,7 +320,24 @@ export function setMarkdown(content: string) {
     getDocumentState().lastPersistedMarkdown = content;
     getDocumentState().externallyModified = false;
     store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
+    refreshFrontmatterPanel(content);
   }
+}
+
+/** Applies a user-authored frontmatter patch through the normal admission path. */
+export function applyFrontmatterMarkdown(content: string): void {
+  if (store.getState().readOnly || content === getMarkdown()) return;
+  const persistedBaseline = getDocumentState().lastPersistedMarkdown;
+  // Advance the user revision before admission so the rebuilt opaque session
+  // captures it as its baseline. Advancing it afterwards makes reconciliation
+  // mistake this programmatic re-admission for an untracked WYSIWYG edit.
+  bumpRevision();
+  setMarkdown(content);
+  // `setMarkdown` is also the document-load path and therefore establishes a
+  // clean baseline. A panel patch is a user edit, so retain the disk baseline.
+  getDocumentState().lastPersistedMarkdown = persistedBaseline;
+  store.setState({ dirty: normalizeImageMarkdown(content) !== persistedBaseline });
+  store.emit({ type: 'editor:update' });
 }
 
 // ── Mode switching ────────────────────────────────────────────────────
@@ -353,6 +372,7 @@ function enterSourceMode(content: string) {
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   setMode('source');
+  refreshFrontmatterPanel(content);
 
   // Clear stale scheduler task from any previous CM6 session
   scheduler.cancel('source-update');
@@ -411,6 +431,7 @@ export function switchToWysiwyg() {
   wrapper.hidden = true;
   destroySourceEditor();
   setMode('wysiwyg');
+  refreshFrontmatterPanel(source);
   editor.commands.focus();
   // Immediate refresh so outline/statusbar show WYSIWYG data right away
   store.emit({ type: 'editor:update' });

@@ -179,6 +179,19 @@ export const OpaqueNode = Node.create({
       dom.setAttribute('data-category', category);
       dom.contentEditable = 'false';
 
+      // A document-leading frontmatter block has its own metadata region in
+      // WYSIWYG. Do not render the legacy opaque placeholder in the body.
+      if (category === 'frontmatter') {
+        dom.hidden = true;
+        dom.setAttribute('aria-hidden', 'true');
+        return {
+          dom,
+          ignoreMutation: () => true,
+          stopEvent: () => true,
+          update(updatedNode) { return updatedNode.type === node.type; },
+        };
+      }
+
       const label = document.createElement('span');
       label.className = 'opaque-atom-label';
       label.textContent = `[ ${CATEGORY_LABELS[category] ?? '保留片段'} — 源码中查看 ]`;

@@ -155,7 +155,7 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
     expect(getDocumentState().lastPersistedMarkdown).toBe(disk);
   });
 
-  it.each([0, 1, 2, 3])('restores exactly %i EOF newline(s) for a WYS safe edit', (eofNewlines) => {
+  it.each([0, 1, 2, 3])('removes historical EOF newline(s) after a WYS safe edit', (eofNewlines) => {
     const source = '# Title' + '\n'.repeat(eofNewlines);
     setMarkdown(source);
     getEditor()!.commands.insertContent(' edited');
@@ -168,9 +168,7 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
     expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
     if (plan.kind === 'safe-edit') {
       expect(plan.markdown).toContain('edited');
-      expect(plan.markdown.endsWith('\n'.repeat(eofNewlines))).toBe(true);
-      if (eofNewlines === 0) expect(plan.markdown.endsWith('\n')).toBe(false);
-      else expect(plan.markdown.slice(0, -eofNewlines)).not.toMatch(/\n$/);
+      expect(plan.markdown.endsWith('\n')).toBe(false);
     }
   });
 });

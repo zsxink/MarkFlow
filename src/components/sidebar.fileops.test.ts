@@ -144,6 +144,21 @@ describe('active document file operations', () => {
     expect(mocks.markDocumentPersisted).toHaveBeenCalledWith('# verified', 4);
   });
 
+  it('uses the latest observed identity after a confirmed external overwrite', async () => {
+    mocks.getActiveFilePath.mockReturnValue('/work/note.md');
+    mocks.shouldUseReconcileBoundary.mockReturnValue(true);
+    mocks.getPipelineMode.mockReturnValue('opaque');
+    mocks.hasLastReadStats.mockReturnValue(true);
+    mocks.getLastReadMtime.mockReturnValue(123);
+    mocks.getLastReadSize.mockReturnValue(45);
+    mocks.invoke.mockResolvedValueOnce({ mtime: 124, size: 46 }).mockResolvedValue({ mtime: 125, size: 11 });
+    mocks.getSavePlan.mockReturnValue({ kind: 'safe-edit', write: true, markdown: '# verified' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await expect(saveActiveDocument()).resolves.toBe('saved');
+    expect(mocks.getSavePlan).toHaveBeenCalledWith({ allowConfirmedExternalOverwrite: true });
+    expect(mocks.writeFileIfUnchanged).toHaveBeenCalledWith('/work/note.md', '# verified', 124, 46);
+  });
+
   it('turns an atomic compare-and-write conflict into a dirty reconcile failure', async () => {
     mocks.getActiveFilePath.mockReturnValue('/work/note.md');
     mocks.shouldUseReconcileBoundary.mockReturnValue(true);

@@ -1,4 +1,7 @@
-import { getEditor, getMode, switchToSource, switchToWysiwyg, ensureContinuationParagraph } from '../lib/editor';
+import { applyFrontmatterMarkdown, getEditor, getMarkdown, getMode, switchToSource, switchToWysiwyg, ensureContinuationParagraph } from '../lib/editor';
+import { createEmptyFrontmatter, extractFrontmatter } from '../lib/frontmatter';
+import { store } from '../lib/store';
+import { openNewFrontmatterField } from './frontmatterPanel';
 import { open } from '@tauri-apps/plugin-dialog';
 import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './fileTree';
 import { showNewFileDialog } from './newFileDialog';
@@ -131,6 +134,13 @@ function bindToolbarEvents() {
   });
 
   bind('btn-image', () => showImageInsertDialog());
+  bind('btn-frontmatter', () => {
+    if (getMode() !== 'wysiwyg' || store.getState().readOnly) return;
+    const markdown = getMarkdown();
+    if (extractFrontmatter(markdown)) return;
+    applyFrontmatterMarkdown(createEmptyFrontmatter(markdown));
+    openNewFrontmatterField();
+  });
 
   bind('btn-wysiwyg', () => {
     switchToWysiwyg();
@@ -195,7 +205,7 @@ function initAriaAttributes() {
   ]);
   wrapGroup('toolbar-group-block', '块级格式', [
     'btn-h1', 'btn-h2', 'btn-quote', 'btn-link',
-    'btn-ul', 'btn-ol', 'btn-hr', 'btn-codeblock', 'btn-image',
+    'btn-ul', 'btn-ol', 'btn-hr', 'btn-codeblock', 'btn-image', 'btn-frontmatter',
   ]);
   wrapGroup('toolbar-group-view', '视图模式', [
     'btn-wysiwyg', 'btn-source', 'btn-focus',

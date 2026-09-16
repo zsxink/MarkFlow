@@ -20,7 +20,7 @@ describe('Markdown bridge', () => {
 
     expect(parsed).toEqual({ ok: true, markdown: '# heading', doc: { type: 'doc', content: [] } });
     expect(serialized).toEqual({ ok: true, markdown: '# heading' });
-    expect(editor.commands.setContent).toHaveBeenCalledWith('# heading', { contentType: 'markdown' });
+    expect(editor.commands.setContent).toHaveBeenCalledWith('# heading', { contentType: 'markdown', emitUpdate: false });
   });
 
   it('returns an explicit parse failure with the untouched source', () => {

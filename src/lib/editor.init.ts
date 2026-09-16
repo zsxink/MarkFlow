@@ -26,6 +26,7 @@ import {
   mermaidCodeBlockExtension,
 } from './editor.extensions';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
+import { mountFrontmatterPanel } from '../components/frontmatterPanel';
 
 import {
   setEditor,
@@ -77,6 +78,7 @@ export async function initEditor() {
   editorDiv.className = 'editor-container';
   editorDiv.innerHTML = '<div id="wysiwyg-editor" data-testid="editor-wysiwyg"></div><div id="source-editor-wrapper" class="source-editor-wrapper" data-testid="editor-source" hidden></div>';
   container.appendChild(editorDiv);
+  mountFrontmatterPanel(editorDiv);
 
   const editorEl = document.getElementById('wysiwyg-editor');
   if (!editorEl) return;

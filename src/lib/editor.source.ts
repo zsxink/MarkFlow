@@ -3,9 +3,11 @@ import { markdown } from '@codemirror/lang-markdown';
 import { Compartment } from '@codemirror/state';
 import { HighlightStyle, syntaxHighlighting, LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { Decoration, ViewPlugin } from '@codemirror/view';
 import { getLanguageExtension } from './codemirror-languages';
 import { highlightLimitPlugin } from './codemirror-highlight-limit';
 import { getCachedSettings } from './storage';
+import { extractFrontmatter } from './frontmatter';
 
 // Fallback: empty LanguageSupport (plain text) when a language fails to load
 const plainText = new LanguageSupport(StreamLanguage.define({ token() {} } as any));
@@ -81,6 +83,25 @@ const noHighlightStyle = HighlightStyle.define([
   },
 ]);
 
+/** Mark complete document-leading frontmatter with a quiet, neutral surface. */
+const frontmatterRegionMarker = ViewPlugin.fromClass(class {
+  decorations = this.build('');
+  constructor(view: EditorView) { this.decorations = this.build(view.state.doc.toString()); }
+  update(update: { docChanged: boolean; state: { doc: { toString(): string } } }) { if (update.docChanged) this.decorations = this.build(update.state.doc.toString()); }
+  private build(source: string) {
+    const block = extractFrontmatter(source);
+    if (!block) return Decoration.none;
+    const lines = [];
+    for (let from = block.from; from < block.to;) {
+      lines.push(Decoration.line({ class: 'cm-frontmatter-line' }).range(from));
+      const newline = source.indexOf('\n', from);
+      if (newline === -1 || newline + 1 >= block.to) break;
+      from = newline + 1;
+    }
+    return Decoration.set(lines, true);
+  }
+}, { decorations: value => value.decorations });
+
 // ── Module-level state ────────────────────────────────────────────────
 
 let currentView: EditorView | null = null;
@@ -102,6 +123,10 @@ export function createSourceEditor(
   readOnly: boolean = false,
 ): EditorView {
   destroySourceEditor();
+  // Vite HMR can replace this module and reset `currentView` while leaving the
+  // previous CodeMirror DOM mounted. Remove orphaned instances so the visible
+  // editor and the state used by save/status always refer to the same view.
+  container.querySelectorAll(':scope > .cm-editor').forEach(node => node.remove());
 
   const extList: any[] = [
     basicSetup,
@@ -129,6 +154,7 @@ export function createSourceEditor(
         }
       }),
       highlightLimitPlugin,
+      frontmatterRegionMarker,
       readOnlyCompartment.of(EditorView.editable.of(!readOnly)),
     ];
 

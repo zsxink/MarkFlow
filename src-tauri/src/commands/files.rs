@@ -150,7 +150,10 @@ fn stats_from_metadata(metadata: &fs::Metadata) -> FileStats {
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
-    FileStats { mtime, size: metadata.len() }
+    FileStats {
+        mtime,
+        size: metadata.len(),
+    }
 }
 
 /// Write through a same-directory temp file and, for a verified existing
@@ -327,7 +330,10 @@ pub fn write_file_if_unchanged(
     atomic_write_checked(
         &path,
         &content,
-        Some(ExpectedFileStats { mtime: expected_mtime, size: expected_size }),
+        Some(ExpectedFileStats {
+            mtime: expected_mtime,
+            size: expected_size,
+        }),
     )
 }
 
@@ -812,8 +818,15 @@ mod tests {
         fs::write(&path, "old").unwrap();
         let stats = stats_from_metadata(&fs::metadata(&path).unwrap());
 
-        atomic_write_checked(&path, "new", Some(ExpectedFileStats { mtime: stats.mtime, size: stats.size }))
-            .unwrap();
+        atomic_write_checked(
+            &path,
+            "new",
+            Some(ExpectedFileStats {
+                mtime: stats.mtime,
+                size: stats.size,
+            }),
+        )
+        .unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), "new");
         let _ = fs::remove_dir_all(&dir);
     }
@@ -828,8 +841,12 @@ mod tests {
         let error = atomic_write_checked(
             &path,
             "editor candidate",
-            Some(ExpectedFileStats { mtime: stats.mtime, size: stats.size - 1 }),
-        ).unwrap_err();
+            Some(ExpectedFileStats {
+                mtime: stats.mtime,
+                size: stats.size - 1,
+            }),
+        )
+        .unwrap_err();
         assert_eq!(error, FILE_CHANGED_DURING_SAVE);
         assert_eq!(fs::read_to_string(&path).unwrap(), "external change");
         let _ = fs::remove_dir_all(&dir);
@@ -845,8 +862,12 @@ mod tests {
         let error = atomic_write_checked(
             &path,
             "new!",
-            Some(ExpectedFileStats { mtime: stats.mtime.saturating_add(1), size: stats.size }),
-        ).unwrap_err();
+            Some(ExpectedFileStats {
+                mtime: stats.mtime.saturating_add(1),
+                size: stats.size,
+            }),
+        )
+        .unwrap_err();
         assert_eq!(error, FILE_CHANGED_DURING_SAVE);
         assert_eq!(fs::read_to_string(&path).unwrap(), "same");
         let _ = fs::remove_dir_all(&dir);

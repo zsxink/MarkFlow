@@ -12,6 +12,7 @@ import { getActiveFilePath, setActiveFilePath } from './activeDocument';
 import { handleActiveDocumentExternalModification } from './sidebar.conflict';
 import { determineTier, formatFileSize } from '../lib/fileSizeTier';
 import { showDegradationBar, hideDegradationBar } from './degradationBar';
+import { refreshFrontmatterPanel } from './frontmatterPanel';
 import { store } from '../lib/store';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -174,6 +175,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     }
   }
 
+  let confirmedExternalOverwrite = false;
   // ── External modification check (mtime + size) ──────────────────
   if (hasExternalModification()) {
     if (!interactive) return 'skipped';
@@ -182,31 +184,29 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       showToast('已取消保存');
       return 'skipped';
     }
+    confirmedExternalOverwrite = true;
   }
 
   // ── Pre-save mtime + size validation ────────────────────────────
-  const lastMtime = getLastReadMtime();
-  const lastSize = getLastReadSize();
+  let lastMtime = getLastReadMtime();
+  let lastSize = getLastReadSize();
   const verifiedSave = shouldUseReconcileBoundary(getPipelineMode());
   if (hasLastReadStats()) {
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
       if (stats.mtime !== lastMtime || stats.size !== lastSize) {
-        if (verifiedSave) {
-          // A verified session's reconcile baseline names the old file. Do
-          // not turn an interactive "overwrite" click into a stale verified
-          // write; invalidate it and let the established conflict path decide.
-          markExternalModification();
-        }
         if (!interactive) {
           logDebug('sidebar.save', 'Auto-save skipped — file modified externally', { path: filePath });
           return 'skipped';
         }
-        const confirmed = window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
+        const confirmed = confirmedExternalOverwrite || window.confirm('文件已被外部修改。是否覆盖磁盘中的最新内容？');
         if (!confirmed) {
           showToast('已取消保存');
           return 'skipped';
         }
+        confirmedExternalOverwrite = true;
+        lastMtime = stats.mtime;
+        lastSize = stats.size;
       }
     } catch (e) {
       // Legacy saves keep their established best-effort policy. A verified
@@ -223,7 +223,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   }
 
   // ── Reconcile boundary (opaque/reconcile mode, task 8.5) ──────────
-  const plan = getSavePlan();
+  const plan = getSavePlan({ allowConfirmedExternalOverwrite: confirmedExternalOverwrite });
   if (plan.kind !== 'legacy') {
     if (plan.kind === 'unchanged') {
       // Exact source baseline is already on disk; never rewrite it.
@@ -441,4 +441,7 @@ function setReadOnly(readOnly: boolean): void {
   }
   // CodeMirror (source mode) read-only
   setSourceReadOnly(readOnly);
+  // The metadata panel is an independent surface, so reflect runtime lock
+  // changes immediately without modifying the document or its revisions.
+  refreshFrontmatterPanel();
 }

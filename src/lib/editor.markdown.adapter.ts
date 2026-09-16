@@ -125,13 +125,19 @@ export function serializeTipTapMarkdown(editor: Editor): MarkdownSerializeResult
 export function parseTipTapMarkdown(editor: Editor, source: string): MarkdownParseResult {
   try {
     // The v3 Markdown content type prevents Markdown being interpreted as HTML.
-    // The `setContent` load is a programmatic (non-user) transaction: it must
+// The `setContent` load is a programmatic (non-user) transaction: it must
     // never enter the undo/redo stack. Otherwise the first Cmd+Z after opening
     // a document reverts the whole load to an empty doc, which the reconcile
     // boundary then reports as a semantic-mismatch conflict ("文件已被修改" /
     // "未保存的更改"). Stamp every doc-changing transaction during the parse
     // with `addToHistory:false` so admission/load stays non-undoable while the
     // user's own real edits remain fully undoable.
+    //
+    // Loading/admission is also not a user edit from TipTap v3's perspective:
+    // `setContent` emits `onUpdate` by default, which can schedule a delayed
+    // dirty-check after the programmatic guard has ended and make a freshly
+    // opened file look edited. Pass `emitUpdate:false` so the load neither
+    // pollutes undo history nor flags the document as dirty.
     const view = (editor as unknown as { view?: { dispatch(tr: unknown): void } }).view;
     if (view) {
       const originalDispatch = view.dispatch.bind(view);
@@ -140,13 +146,14 @@ export function parseTipTapMarkdown(editor: Editor, source: string): MarkdownPar
         originalDispatch(tr);
       };
       try {
-        editor.commands.setContent(source, { contentType: 'markdown' } as never);
+        editor.commands.setContent(source, { contentType: 'markdown', emitUpdate: false } as never);
       } finally {
         view.dispatch = originalDispatch;
       }
     } else {
-      // Mock/harness editors without a real view skip the history guard.
-      editor.commands.setContent(source, { contentType: 'markdown' } as never);
+      // Mock/harness editors without a real view skip the history guard but
+      // still suppress onUpdate.
+      editor.commands.setContent(source, { contentType: 'markdown', emitUpdate: false } as never);
     }
     return { ok: true, doc: editor.getJSON() as JSONContent, markdown: source };
   } catch (cause) {

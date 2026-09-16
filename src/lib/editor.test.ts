@@ -59,7 +59,7 @@ describe('stage-one Markdown bridge integration', () => {
 
     setMarkdown('# loaded\n\n');
 
-    expect(editor.commands.setContent).toHaveBeenCalledWith('# loaded', { contentType: 'markdown' });
+    expect(editor.commands.setContent).toHaveBeenCalledWith('# loaded', { contentType: 'markdown', emitUpdate: false });
     expect(store.getState().dirty).toBe(false);
     expect(getRevision()).toBe(0);
     expect(getDocumentState().trailingNewlines).toBe(2);
@@ -108,7 +108,7 @@ describe('stage-one Markdown bridge integration', () => {
 
     switchToWysiwyg();
 
-    expect(editor.commands.setContent).toHaveBeenCalledWith('# source', { contentType: 'markdown' });
+    expect(editor.commands.setContent).toHaveBeenCalledWith('# source', { contentType: 'markdown', emitUpdate: false });
     expect(mocks.destroySourceEditor).toHaveBeenCalledOnce();
     expect(getMode()).toBe('wysiwyg');
   });

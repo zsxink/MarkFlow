@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { switchToSource, switchToWysiwyg, getMode, getEditor, ensureContinuationParagraph, showContextMenuStatic, exportRenderedDocument, showModal, handleNetworkImage, getImageSettings, imagePathToSrc, getActiveDocPath, assetToOriginalMap } = vi.hoisted(() => ({ switchToSource: vi.fn(), switchToWysiwyg: vi.fn(), getMode: vi.fn(), getEditor: vi.fn(), ensureContinuationParagraph: vi.fn(), showContextMenuStatic: vi.fn(), exportRenderedDocument: vi.fn(), showModal: vi.fn(), handleNetworkImage: vi.fn(), getImageSettings: vi.fn(), imagePathToSrc: vi.fn((path: string) => path), getActiveDocPath: vi.fn(), assetToOriginalMap: new Map<string, string>() }));
-vi.mock('../lib/editor', () => ({ switchToSource, switchToWysiwyg, getMode, getEditor, ensureContinuationParagraph }));
+const { switchToSource, switchToWysiwyg, getMode, getEditor, getMarkdown, applyFrontmatterMarkdown, ensureContinuationParagraph, showContextMenuStatic, exportRenderedDocument, showModal, handleNetworkImage, getImageSettings, imagePathToSrc, getActiveDocPath, assetToOriginalMap } = vi.hoisted(() => ({ switchToSource: vi.fn(), switchToWysiwyg: vi.fn(), getMode: vi.fn(), getEditor: vi.fn(), getMarkdown: vi.fn(() => '# body'), applyFrontmatterMarkdown: vi.fn(), ensureContinuationParagraph: vi.fn(), showContextMenuStatic: vi.fn(), exportRenderedDocument: vi.fn(), showModal: vi.fn(), handleNetworkImage: vi.fn(), getImageSettings: vi.fn(), imagePathToSrc: vi.fn((path: string) => path), getActiveDocPath: vi.fn(), assetToOriginalMap: new Map<string, string>() }));
+vi.mock('../lib/editor', () => ({ switchToSource, switchToWysiwyg, getMode, getEditor, getMarkdown, applyFrontmatterMarkdown, ensureContinuationParagraph }));
 vi.mock('./fileTree', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), getWorkspacePath: vi.fn() }));
 vi.mock('./newFileDialog', () => ({ showNewFileDialog: vi.fn() })); vi.mock('./linkDialog', () => ({ showLinkDialog: vi.fn() })); vi.mock('./toast', () => ({ showToast: vi.fn() })); vi.mock('./ui/modal', () => ({ showModal: vi.fn() }));
 vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage, getImageSettings, imagePathToSrc })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath, assetToOriginalMap })); vi.mock('../lib/editor.source', () => ({ getSourceView: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
 vi.mock('../lib/documentExport', () => ({ exportRenderedDocument })); vi.mock('./ui/contextMenu', () => ({ showContextMenuStatic })); vi.mock('./ui/modal', () => ({ showModal })); vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
+vi.mock('../lib/store', () => ({ store: { getState: vi.fn(() => ({ readOnly: false })) } }));
+vi.mock('./frontmatterPanel', () => ({ openNewFrontmatterField: vi.fn() }));
 import { initToolbar } from './toolbar';
 
 function buildToolbarHTML() {
@@ -18,6 +20,7 @@ function buildToolbarHTML() {
     <button class="toolbar-btn" id="btn-strike" data-tooltip="删除线"></button>
     <button class="toolbar-btn" id="btn-code" data-tooltip="行内代码"></button>
     <button class="toolbar-btn" id="btn-image" data-tooltip="图片"></button>
+    <button class="toolbar-btn" id="btn-frontmatter" data-tooltip="新增 Frontmatter"></button>
     <span class="toolbar-separator"></span>
     <button class="toolbar-btn active" id="btn-wysiwyg" aria-label="所见即所得"></button>
     <button class="toolbar-btn" id="btn-source" aria-label="源码模式"></button>
@@ -97,5 +100,10 @@ describe('toolbar', () => {
     await Promise.resolve(); await Promise.resolve();
     expect(setImage).toHaveBeenCalledWith({ src: 'asset://same-runtime-image', authoredSrc: './images/second.png' });
     expect(assetToOriginalMap.get('asset://same-runtime-image')).toBe('./images/second.png');
+  });
+  it('adds complete frontmatter from the WYSIWYG toolbar', () => {
+    initToolbar();
+    document.getElementById('btn-frontmatter')!.click();
+    expect(applyFrontmatterMarkdown).toHaveBeenCalledWith('---\n---\n\n# body');
   });
 });

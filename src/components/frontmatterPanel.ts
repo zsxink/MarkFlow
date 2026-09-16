@@ -66,14 +66,16 @@ function update(markdown = getMarkdown()): void {
 
 function apply(next: string | null): void { if (next !== null) { applyFrontmatterMarkdown(next); update(next); } }
 
-export function mountFrontmatterPanel(container: HTMLElement): void {
-  root = document.createElement('div'); root.id = 'frontmatter-region'; root.dataset.testid = 'frontmatter-region'; root.hidden = true;
-  container.prepend(root);
-  root.addEventListener('change', event => {
-    if (!editable()) return;
-    const target = event.target as HTMLInputElement | HTMLTextAreaElement;
-    const source = getMarkdown(); const analysis = analyzeFrontmatter(source); if (!analysis.block) return;
-    if (target.tagName === 'TEXTAREA') { apply(source.slice(0, analysis.block.yamlFrom) + target.value + source.slice(analysis.block.yamlTo)); return; }
+/**
+ * Field editing always round-trips through the serializer. An invalid typed
+ * value (e.g. a non-numeric kind switch to number) makes serialization throw;
+ * keep the field editable so the user can fix the input instead of the panel
+ * going dead on a single bad keystroke.
+ */
+function handleChange(event: Event): void {
+  const target = event.target as HTMLInputElement | HTMLTextAreaElement;
+  const source = getMarkdown(); const analysis = analyzeFrontmatter(source); if (!analysis.block) return;
+  if (target.tagName === 'TEXTAREA') { apply(source.slice(0, analysis.block.yamlFrom) + target.value + source.slice(analysis.block.yamlTo)); return; }
     if (target.dataset.fmKeyValue) {
       const next = renameFrontmatterField(source, target.dataset.fmKeyValue, target.value);
       if (next === null) {
@@ -106,6 +108,14 @@ export function mountFrontmatterPanel(container: HTMLElement): void {
     if (field.kind === 'number') value = Number(value);
     if (field.kind === 'array') value = arrayValue(field, String(value).split(',').map(x => x.trim()).filter(Boolean));
     apply(patchFrontmatterField(source, field.key, value, field.kind));
+}
+
+export function mountFrontmatterPanel(container: HTMLElement): void {
+  root = document.createElement('div'); root.id = 'frontmatter-region'; root.dataset.testid = 'frontmatter-region'; root.hidden = true;
+  container.prepend(root);
+  root.addEventListener('change', event => {
+    if (!editable()) return;
+    try { handleChange(event as Event); } catch { /* invalid typed value stays editable; user retries */ }
   });
   root.addEventListener('click', event => {
     if (!editable()) return;

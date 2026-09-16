@@ -98,15 +98,33 @@ function classifyScalar(raw: string): { kind: Exclude<FrontmatterKind, 'array'>;
   return { kind: 'text', value: text };
 }
 
+/**
+ * A bare "key: value" round-trip must re-resolve to exactly `value`. Values
+ * that YAML 1.2 Core resolves to a non-string scalar ("00" → 0, "+5" → 5,
+ * "0x1F" → 31) or loses bytes from (trailing whitespace/newline, leading
+ * space) must be double-quoted so the UI value round-trips losslessly.
+ */
+function needsQuoting(value: string): boolean {
+  if (!value) return true;
+  // Mirrors classifyScalar's rejection set: even though YAML itself tolerates
+  // e.g. a plain "a, b" mapping value, this editor's safe subset does not, so
+  // such values must be quoted to stay re-parseable by this very classifier.
+  if (/[&*!]|[\[\]{},#]|\s:\s/.test(value)) return true;
+  const doc = parseDocument(`k: ${value}`, { schema: 'core' });
+  if (doc.errors.length || doc.contents == null) return true;
+  const parsed = (doc.toJS() as { k?: unknown }).k;
+  return typeof parsed !== 'string' || parsed !== value;
+}
+
 function quoteText(value: string): string {
-  if (!value || /^(?:true|false|null|~)$/.test(value) || NUMBER.test(value) || isDate(value) || /[\n:#\[\]{},]|^[-?]|\s$/.test(value)) return JSON.stringify(value);
+  if (needsQuoting(value)) return JSON.stringify(value);
   return value;
 }
 
 export function serializeValue(value: FrontmatterValue, kind: FrontmatterKind, style?: 'flow' | 'block', eol = '\n', arrayElementKind?: Exclude<FrontmatterKind, 'array' | 'null'>): string {
   if (kind === 'array') {
     const values = value as Array<string | number | boolean>;
-    const encoded = values.map(item => arrayElementKind === 'date' ? String(item) : typeof item === 'string' ? quoteText(item) : String(item));
+    const encoded = values.map(item => arrayElementKind === 'date' ? String(item) : quoteText(String(item)));
     return style === 'block' ? encoded.map(item => `- ${item}`).join(eol) : `[${encoded.join(', ')}]`;
   }
   if (kind === 'text' || kind === 'date') return kind === 'date' ? String(value) : quoteText(String(value));
@@ -129,6 +147,37 @@ function parseKey(raw: string): string | null {
   return null;
 }
 
+/**
+ * Absolute source offset of the first value character on `line`. The separator
+ * colon sits directly after the captured key (match[1] starts at the first
+ * char), so the lead offset is independent of any colon inside a quoted key
+ * ("a:b": v) or of a value substring shared with the key (a c: c).
+ */
+function valueStartOffset(line: Line, match: RegExpExecArray): number {
+  const lead = match[1].length + 1;
+  const rest = match[2];
+  const first = rest.search(/\S/);
+  return line.from + lead + (first < 0 ? rest.length : first);
+}
+
+/**
+ * Flow `[..]` values are parsed by the real YAML parser so that a quoted comma
+ * inside an element ("a,b") is not split apart. Returns the homogeneous typed
+ * elements, or null when the array contains unsupported nested/shared types.
+ */
+function parseFlowArray(raw: string): { value: FrontmatterValue; elementKind: Exclude<FrontmatterKind, 'array' | 'null'> | undefined } | null {
+  const doc = parseDocument(`v: ${raw}`, { schema: 'core' });
+  if (doc.errors.length) return null;
+  const arr = (doc.toJS() as { v?: unknown }).v;
+  if (!Array.isArray(arr)) return null;
+  if (!arr.every(x => (typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean') && !(typeof x === 'string' && x === ''))) return null;
+  const kinds: (Exclude<FrontmatterKind, 'array' | 'null'>)[] = arr.map(x => typeof x === 'boolean' ? 'boolean' : typeof x === 'number' ? 'number' : 'text');
+  if (new Set(kinds).size > 1) return null;
+  // Elements are provably homogeneous above, so the mixed tuple is a safe
+  // FrontmatterValue (string[] | number[] | boolean[]).
+  return { value: arr as FrontmatterValue, elementKind: kinds[0] };
+}
+
 /** Conservative YAML 1.2 Core safe-subset classifier. */
 export function analyzeFrontmatter(source: string): FrontmatterAnalysis {
   const block = extractFrontmatter(source);
@@ -143,20 +192,21 @@ export function analyzeFrontmatter(source: string): FrontmatterAnalysis {
     const line = localLines[i];
     if (!line.text.trim() || /^\s*#/.test(line.text)) continue;
     if (/^\s/.test(line.text)) return { supported: false, block, reason: '不支持嵌套 YAML 结构' };
-    const match = /^([^:]+):(.*)$/.exec(line.text);
+    // Quoted keys may contain the colon separator themselves ("a:b": v), so
+    // the key portion must accept a quoted form before falling back to plain.
+    const match = /^("[^"]*"|'[^']*'|[^:]+):(.*)$/.exec(line.text);
     if (!match) return { supported: false, block, reason: '仅支持顶层键值映射' };
     const key = parseKey(match[1]);
     if (!key) return { supported: false, block, reason: '键必须是非空字符串且不能使用合并键' };
     if (keys.has(key)) return { supported: false, block, reason: 'YAML 键不能重复' };
     keys.add(key);
     const raw = match[2].trim();
-    const valueStart = line.from + line.text.indexOf(match[2]) + match[2].search(/\S|$/);
+    const valueStart = valueStartOffset(line, match);
     if (raw.startsWith('[') && raw.endsWith(']')) {
       if (raw.includes('#')) return { supported: false, block, reason: '数组中不支持注释' };
-      const content = raw.slice(1, -1).trim();
-      const items = content ? content.split(',').map(x => classifyScalar(x)) : [];
-      if (items.some(x => !x || x.kind === 'null') || new Set(items.map(x => x!.kind)).size > 1) return { supported: false, block, reason: '数组必须是无注释的同类型非空标量' };
-      fields.push({ key, value: items.map(x => x!.value) as FrontmatterValue, kind: 'array', from: line.from, to: line.to, valueFrom: valueStart, valueTo: line.from + line.text.length, arrayStyle: 'flow', arrayElementKind: items[0]?.kind as Exclude<FrontmatterKind, 'array' | 'null'> | undefined });
+      const flow = parseFlowArray(raw);
+      if (!flow) return { supported: false, block, reason: '数组必须是无注释的同类型非空标量' };
+      fields.push({ key, value: flow.value, kind: 'array', from: line.from, to: line.to, valueFrom: valueStart, valueTo: line.from + line.text.length, arrayStyle: 'flow', arrayElementKind: flow.elementKind });
       continue;
     }
     if (!raw) {
@@ -184,9 +234,18 @@ function supported(source: string): Extract<FrontmatterAnalysis, { supported: tr
 export function patchFrontmatterField(source: string, key: string, value: FrontmatterValue, kind: FrontmatterKind): string | null {
   const result = supported(source); const field = result?.fields.find(x => x.key === key);
   if (!result || !field) return null;
-  const serialized = serializeValue(value, kind, field.arrayStyle, result.block.eol, field.arrayElementKind);
-  const indent = field.arrayStyle === 'block' ? `${key}:${result.block.eol}` : `${source.slice(field.from, field.valueFrom)}`;
-  return replace(source, field.from, field.to, field.arrayStyle === 'block' ? `${indent}${serialized}${result.block.eol}` : `${indent}${serialized}${source.slice(field.valueTo, field.to)}`);
+  if (kind === 'array') {
+    // Array target keeps the field's historical presentation (block vs flow).
+    const serialized = serializeValue(value, 'array', field.arrayStyle, result.block.eol, field.arrayElementKind);
+    if (field.arrayStyle === 'block') return replace(source, field.from, field.to, `${key}:${result.block.eol}${serialized}${result.block.eol}`);
+    return replace(source, field.from, field.to, `${key}: ${serialized}${source.slice(field.valueTo, field.to)}`);
+  }
+  // Scalar target: emit a single "key: value" line regardless of historical
+  // array style. The old block form spans multiple lines; replacing the whole
+  // field range collapses it to one scalar line while keeping the trailing
+  // newline so the following mapping entry is preserved.
+  const serialized = serializeValue(value, kind, undefined, result.block.eol);
+  return replace(source, field.from, field.to, `${key}: ${serialized}${result.block.eol}`);
 }
 
 export function renameFrontmatterField(source: string, key: string, nextKey: string): string | null {

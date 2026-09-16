@@ -18,7 +18,7 @@
 
 ### Requirement: Restore trailing newlines on save
 
-系统 SHALL 在 `getMarkdown()` 输出时，根据 `trailingNewlines` 元数据将对应数量的换行符追加到序列化结果末尾。
+系统 SHALL 在未编辑的文档保存时保留打开时的尾部换行符；用户在 WYSIWYG 模式编辑后保存时，系统 SHALL 不复活无法在该模式中直接编辑的历史 EOF 空行。源码模式 SHALL 始终按用户输入输出精确文本。
 
 #### Scenario: Save preserves trailing newlines
 - **WHEN** 用户打开 `hello\n\n` 后不做任何编辑，直接保存
@@ -27,6 +27,10 @@
 #### Scenario: Save file without trailing newlines
 - **WHEN** 用户打开内容为 `hello` 的文件（无尾部换行）后保存
 - **THEN** 写入磁盘的文件内容 SHALL 为 `hello`（不追加多余换行符）
+
+#### Scenario: WYSIWYG edit removes historical trailing blank lines
+- **WHEN** 用户打开 `hello\n\n`，在 WYSIWYG 中编辑内容并保存
+- **THEN** 写入内容不得复活打开时记录的尾部空行
 
 ### Requirement: Dirty state is trailing-newline-agnostic
 

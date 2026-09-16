@@ -109,10 +109,10 @@
     },
     {
       "file": ".claude/memory/MEMORY.md",
-      "bytes": 2029,
-      "digest": "a2502d5cc532",
-      "sourceStructs": 34,
-      "serializedStructs": 34,
+      "bytes": 2192,
+      "digest": "525d29958172",
+      "sourceStructs": 36,
+      "serializedStructs": 36,
       "status": "pass"
     },
     {
@@ -237,18 +237,18 @@
     },
     {
       "file": "openspec/specs/trailing-newlines-preservation/spec.md",
-      "bytes": 2004,
-      "digest": "da4dcb8eea64",
-      "sourceStructs": 24,
-      "serializedStructs": 24,
+      "bytes": 2337,
+      "digest": "a53ce5a5f252",
+      "sourceStructs": 27,
+      "serializedStructs": 27,
       "status": "pass"
     },
     {
       "file": "openspec/specs/lazy-mermaid/spec.md",
-      "bytes": 1897,
-      "digest": "309e717bbe28",
-      "sourceStructs": 22,
-      "serializedStructs": 22,
+      "bytes": 2429,
+      "digest": "698baba288e1",
+      "sourceStructs": 27,
+      "serializedStructs": 27,
       "status": "pass"
     },
     {

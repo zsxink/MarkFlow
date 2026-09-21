@@ -165,15 +165,45 @@ fn ensure_safe_directory(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Validate an existing storage directory without creating it.
+///
+/// If the path does not exist, this returns `Ok(())` — directory creation is
+/// deferred to the first image write (the write commands call
+/// [`ensure_safe_directory`]). If it does exist, it must be a real directory,
+/// not a symlink and not a plain file.
+fn reject_unsafe_existing_dir(path: &Path) -> Result<(), String> {
+    if path.exists() {
+        let metadata =
+            fs::symlink_metadata(path).map_err(|error| format!("无法检查图片目录: {}", error))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err("不允许的路径：图片目录必须是普通目录，且不能是符号链接".into());
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn authorize_image_storage(document_path: String, app: AppHandle) -> Result<String, String> {
-    let root = configured_storage_root(Some(&document_path))?;
+    let settings = load_settings_inner();
+    authorize_image_storage_with_settings(&document_path, &settings, |root| {
+        allow_asset_directory(&app, root)
+    })
+}
+
+/// Validate and authorize a storage root without creating it. The asset-allow
+/// step is injected so tests can exercise the full flow without an `AppHandle`.
+fn authorize_image_storage_with_settings(
+    document_path: &str,
+    settings: &Settings,
+    allow_asset: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<String, String> {
+    let root = storage_root_for_settings(settings, Some(document_path))?;
     if !root.is_absolute() {
         return Err("图片存储路径必须是绝对路径".into());
     }
-    ensure_safe_directory(&root)?;
+    reject_unsafe_existing_dir(&root)?;
     reject_symlink_hops(&root, &root)?;
-    allow_asset_directory(&app, &root)?;
+    allow_asset(&root)?;
     Ok(normalize_path(&root))
 }
 
@@ -1027,6 +1057,90 @@ mod tests {
             storage_root_for_settings(&settings, Some(&document_string)).unwrap(),
             root.join("images")
         );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn reject_unsafe_existing_dir_succeeds_when_path_is_absent() {
+        let root = temp_dir();
+        let missing = root.join("will-not-exist");
+        reject_unsafe_existing_dir(&missing).unwrap();
+        assert!(!missing.exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn authorize_image_storage_does_not_create_nonexistent_root() {
+        let root = temp_dir();
+        let document = root.join("untitled.md");
+        let document_string = document.to_string_lossy();
+        let settings = Settings {
+            image_storage_mode: "document-named-dir".into(),
+            ..Settings::default()
+        };
+        let expected_root = root.join("untitled-images");
+        assert!(!expected_root.exists());
+        let result = authorize_image_storage_with_settings(&document_string, &settings, |_| Ok(()));
+        assert_eq!(result.unwrap(), normalize_path(&expected_root));
+        assert!(!expected_root.exists(), "打开文档不应创建图片存储目录");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn authorize_image_storage_accepts_existing_safe_directory() {
+        let root = temp_dir();
+        let document = root.join("note.md");
+        let storage = root.join("images");
+        fs::create_dir_all(&storage).unwrap();
+        let document_string = document.to_string_lossy();
+        let settings = Settings {
+            image_storage_mode: "custom".into(),
+            image_custom_path: Some("./images".into()),
+            ..Settings::default()
+        };
+        let result = authorize_image_storage_with_settings(&document_string, &settings, |_| Ok(()));
+        assert_eq!(result.unwrap(), normalize_path(&storage));
+        assert!(storage.is_dir());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn authorize_image_storage_rejects_existing_symlink_root() {
+        use std::os::unix::fs::symlink;
+        let root = temp_dir();
+        let outside = temp_dir();
+        let document = root.join("note.md");
+        let storage = root.join("images");
+        symlink(&outside, &storage).unwrap();
+        let document_string = document.to_string_lossy();
+        let settings = Settings {
+            image_storage_mode: "custom".into(),
+            image_custom_path: Some("./images".into()),
+            ..Settings::default()
+        };
+        let error = authorize_image_storage_with_settings(&document_string, &settings, |_| Ok(()))
+            .unwrap_err();
+        assert!(error.contains("符号链接"));
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(outside);
+    }
+
+    #[test]
+    fn authorize_image_storage_rejects_existing_plain_file_root() {
+        let root = temp_dir();
+        let document = root.join("note.md");
+        let storage = root.join("images");
+        fs::write(&storage, b"not a directory").unwrap();
+        let document_string = document.to_string_lossy();
+        let settings = Settings {
+            image_storage_mode: "custom".into(),
+            image_custom_path: Some("./images".into()),
+            ..Settings::default()
+        };
+        let error = authorize_image_storage_with_settings(&document_string, &settings, |_| Ok(()))
+            .unwrap_err();
+        assert!(error.contains("普通目录"));
         let _ = fs::remove_dir_all(root);
     }
 

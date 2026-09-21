@@ -16,6 +16,9 @@ src-tauri/gen/
 # OMC state
 .omc/
 
+# WorkBuddy local tool memory
+.workbuddy/
+
 # CodeGraph (local machine index data)
 .codegraph/
 .claude/*

@@ -28,6 +28,9 @@ src-tauri/gen/
 .DS_Store
 Thumbs.db
 
+# Local scratch / scratchpad
+.tmp/
+
 # IDE
 .vscode/
 .idea/

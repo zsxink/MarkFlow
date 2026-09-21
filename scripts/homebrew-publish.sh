@@ -78,14 +78,12 @@ cask "markflow" do
 $(if [ -n "$SHA_ARM" ]; then
   echo "  on_arm do"
   echo "    url \"https://github.com/${SOURCE_REPO}/releases/download/v#{version}/MarkFlow_#{version}_aarch64.dmg\","
-  echo "        verified: \"github.com/${SOURCE_REPO}/\""
   echo "    sha256 \"${SHA_ARM}\""
   echo "  end"
 fi)
 $(if [ -n "$SHA_INTEL" ]; then
   echo "  on_intel do"
   echo "    url \"https://github.com/${SOURCE_REPO}/releases/download/v#{version}/MarkFlow_#{version}_x86_64.dmg\","
-  echo "        verified: \"github.com/${SOURCE_REPO}/\""
   echo "    sha256 \"${SHA_INTEL}\""
   echo "  end"
 fi)

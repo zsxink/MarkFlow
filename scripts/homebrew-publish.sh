@@ -41,11 +41,11 @@ download_sha() {
   local arch="$1"   # aarch64 or x86_64
   local dmg_name="MarkFlow_${VERSION}_${arch}.dmg"
   local url="https://github.com/${SOURCE_REPO}/releases/download/${TAG}/${dmg_name}"
-  echo "Downloading ${dmg_name}..."
+  echo "Downloading ${dmg_name}..." >&2
   local status
   status=$(curl -L -o "${WORKDIR}/${dmg_name}" -w "%{http_code}" -sS "$url")
   if [ "$status" != "200" ]; then
-    echo "Warning: ${dmg_name} not found (HTTP ${status}) — skipping ${arch} build"
+    echo "Warning: ${dmg_name} not found (HTTP ${status}) — skipping ${arch} build" >&2
     rm -f "${WORKDIR}/${dmg_name}"
     return 1
   fi
@@ -56,14 +56,14 @@ download_sha() {
   return 0
 }
 
-echo "Downloading ARM DMG..."
+echo "Downloading ARM DMG..." >&2
 SHA_ARM=$(download_sha "aarch64" || true)
 
-echo "Downloading Intel DMG..."
+echo "Downloading Intel DMG..." >&2
 SHA_INTEL=$(download_sha "x86_64" || true)
 
 if [ -z "$SHA_ARM" ] && [ -z "$SHA_INTEL" ]; then
-  echo "Error: No macOS DMGs found for ${TAG}"
+  echo "Error: No macOS DMGs found for ${TAG}" >&2
   exit 1
 fi
 
@@ -77,14 +77,14 @@ cask "markflow" do
 
 $(if [ -n "$SHA_ARM" ]; then
   echo "  on_arm do"
-  echo "    url \"https://github.com/${SOURCE_REPO}/releases/download/v\#{version}/MarkFlow_\#{version}_aarch64.dmg\","
+  echo "    url \"https://github.com/${SOURCE_REPO}/releases/download/v#{version}/MarkFlow_#{version}_aarch64.dmg\","
   echo "        verified: \"github.com/${SOURCE_REPO}/\""
   echo "    sha256 \"${SHA_ARM}\""
   echo "  end"
 fi)
 $(if [ -n "$SHA_INTEL" ]; then
   echo "  on_intel do"
-  echo "    url \"https://github.com/${SOURCE_REPO}/releases/download/v\#{version}/MarkFlow_\#{version}_x86_64.dmg\","
+  echo "    url \"https://github.com/${SOURCE_REPO}/releases/download/v#{version}/MarkFlow_#{version}_x86_64.dmg\","
   echo "        verified: \"github.com/${SOURCE_REPO}/\""
   echo "    sha256 \"${SHA_INTEL}\""
   echo "  end"

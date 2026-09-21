@@ -76,6 +76,33 @@ jobs:
           releaseDraft: true
           prerelease: false
 
+      # DMG 外观收尾。Tauri 的 AppleScript 段对 iconSize / arrangeBy 不可靠——实测两项都没落地，
+      # 而 DmgConfig 里根本没有对应字段，配置层面改不了。所以构建后补一次字节级归一化，
+      # 再对**产物本身**断言（而不是看打包日志）。断言失败让 job 失败，配合 releaseDraft: true
+      # 保证有问题的草稿不会被发布。
+      - name: Normalize DMG appearance
+        if: matrix.platform == 'macos-latest'
+        run: |
+          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+            node scripts/style-dmg.mjs "$dmg"
+          done
+
+      - name: Verify DMG appearance
+        if: matrix.platform == 'macos-latest'
+        run: |
+          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+            node scripts/verify-dmg-appearance.mjs "$dmg"
+          done
+
+      - name: Re-upload normalized DMG
+        if: matrix.platform == 'macos-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+            gh release upload "${{ github.ref_name }}" "$dmg" --clobber
+          done
+
   # Publish updated formula to zsxink/homebrew-tap on each release
   homebrew:
     needs: build

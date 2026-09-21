@@ -197,10 +197,10 @@
     },
     {
       "file": "openspec/specs/codemirror-source-editor/spec.md",
-      "bytes": 10463,
-      "digest": "7cef4352f6cc",
-      "sourceStructs": 137,
-      "serializedStructs": 137,
+      "bytes": 11416,
+      "digest": "ab2189f90da3",
+      "sourceStructs": 146,
+      "serializedStructs": 146,
       "status": "pass"
     },
     {
@@ -213,10 +213,10 @@
     },
     {
       "file": "openspec/specs/wysiwyg-markdown-round-trip/spec.md",
-      "bytes": 7214,
-      "digest": "b15cdd8217d8",
-      "sourceStructs": 74,
-      "serializedStructs": 74,
+      "bytes": 8751,
+      "digest": "24f02659bd97",
+      "sourceStructs": 87,
+      "serializedStructs": 87,
       "status": "pass"
     },
     {

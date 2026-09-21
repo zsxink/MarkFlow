@@ -8,7 +8,7 @@ const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings,
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(), isBlankPlantUmlSource: vi.fn(() => false), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
 vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
-import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension, renderFencedCodeBlock } from './editor.extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, escapeParagraphMarkdown, mermaidCodeBlockExtension, renderFencedCodeBlock } from './editor.extensions';
 import { createMarkdownExtension, markflowMarked } from './editor.init';
 
 /**
@@ -22,6 +22,7 @@ function createV3MarkdownEditor() {
   return new Editor({
     extensions: [
       StarterKit.configure({
+        paragraph: false,
         codeBlock: false,
         link: false,
         bulletList: false,
@@ -29,6 +30,7 @@ function createV3MarkdownEditor() {
         listItem: false,
         listKeymap: false,
       }),
+      SafeParagraph,
       BulletList,
       OrderedList,
       ListItem,
@@ -125,7 +127,7 @@ describe('editor extensions', () => {
   it('registers every customized v3 capability exactly once', () => {
     const editor = createV3MarkdownEditor();
     const names = editor.extensionManager.extensions.map(extension => extension.name);
-    for (const name of ['link', 'bulletList', 'orderedList', 'listItem', 'listKeymap', 'taskList', 'taskItem', 'codeBlock']) {
+    for (const name of ['paragraph', 'link', 'bulletList', 'orderedList', 'listItem', 'listKeymap', 'taskList', 'taskItem', 'codeBlock']) {
       expect(names.filter(extensionName => extensionName === name)).toHaveLength(1);
     }
     editor.destroy();
@@ -235,5 +237,40 @@ describe('editor extensions', () => {
     expect(previewView.contentDOM).toBeUndefined();
     expect(previewView.update(blank)).toBe(false);
     previewView.destroy();
+  });
+
+  describe('escapeParagraphMarkdown (issue #286)', () => {
+    it('escapes line-leading block prefixes only on the first line', () => {
+      expect(escapeParagraphMarkdown('6. 正文')).toBe('6\\. 正文');
+      expect(escapeParagraphMarkdown('1. 另一段')).toBe('1\\. 另一段');
+      expect(escapeParagraphMarkdown('10. 第三段')).toBe('10\\. 第三段');
+      expect(escapeParagraphMarkdown('999999999. x')).toBe('999999999\\. x');
+      expect(escapeParagraphMarkdown('5) 正文')).toBe('5\\) 正文');
+      expect(escapeParagraphMarkdown('- foo')).toBe('\\- foo');
+      expect(escapeParagraphMarkdown('+ foo')).toBe('\\+ foo');
+      expect(escapeParagraphMarkdown('# foo')).toBe('\\# foo');
+      expect(escapeParagraphMarkdown('### foo')).toBe('\\### foo');
+      expect(escapeParagraphMarkdown('---')).toBe('\\---');
+      expect(escapeParagraphMarkdown('***')).toBe('\\***');
+      expect(escapeParagraphMarkdown('___')).toBe('\\___');
+      // HR-only lines allow trailing whitespace; the leading marker is escaped
+      // (trailing whitespace is trimmed with the match).
+      expect(escapeParagraphMarkdown('---  ')).toBe('\\---');
+      expect(escapeParagraphMarkdown('___ \t')).toBe('\\___');
+    });
+
+    it('escapes only the first line — later lines are left untouched', () => {
+      expect(escapeParagraphMarkdown('6. first\n- second\n# third')).toBe('6\\. first\n- second\n# third');
+    });
+
+    it('keeps ordinary leading text and non-ambiguous prefixes untouched', () => {
+      expect(escapeParagraphMarkdown('6.x')).toBe('6.x');
+      expect(escapeParagraphMarkdown('-foo')).toBe('-foo');
+      expect(escapeParagraphMarkdown('a 6. x')).toBe('a 6. x');
+      expect(escapeParagraphMarkdown('6. 正文 6\\. later')).toBe('6\\. 正文 6\\. later');
+      expect(escapeParagraphMarkdown('hello **world**')).toBe('hello **world**');
+      expect(escapeParagraphMarkdown('')).toBe('');
+      expect(escapeParagraphMarkdown('plain text')).toBe('plain text');
+    });
   });
 });

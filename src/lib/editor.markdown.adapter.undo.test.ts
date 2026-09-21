@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension } from './editor.extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from './editor.extensions';
 import { createMarkdownExtension } from './editor.init';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
 import { tablePlugin } from './editor.table';
@@ -20,7 +20,8 @@ function appEditor(): Editor {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      SafeParagraph,
       Placeholder.configure({ placeholder: '开始写作 — 输入即所得' }),
       BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),

@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import { SafeParagraph } from './editor.extensions';
 import {
   OpaqueNode,
   OPAQUE_NODE_NAME,
@@ -33,7 +34,8 @@ describe('opaque registry lifecycle (7.6)', () => {
     return new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit.configure({ codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        SafeParagraph,
         OpaqueNode,
         createMarkdownExtension(),
       ],

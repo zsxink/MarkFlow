@@ -11,7 +11,7 @@ import CodeBlock from '@tiptap/extension-code-block';
 import HardBreak from '@tiptap/extension-hard-break';
 import { BulletList, ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
 import { WYSIWYG_ROUNDTRIP_FIXTURES } from './wysiwyg-roundtrip.fixtures';
-import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension } from './editor.extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from './editor.extensions';
 
 /** Machine-readable corpus evidence, useful to CI/reporting consumers. */
 export const TIPTAP_V3_CORPUS_RESULTS: Array<{
@@ -27,7 +27,8 @@ function createEditor(marked?: Marked) {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ codeBlock: false, hardBreak: false, link: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false }),
+      SafeParagraph,
       HardBreak,
       CodeBlock,
       TaskList,
@@ -47,7 +48,8 @@ function createAppLikeEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      SafeParagraph,
       BulletList,
       OrderedList,
       ListItem,

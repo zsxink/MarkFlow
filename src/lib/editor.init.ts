@@ -23,6 +23,7 @@ import {
   CustomLink,
   BlockImage,
   MarkdownSafeTable,
+  SafeParagraph,
   mermaidCodeBlockExtension,
 } from './editor.extensions';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
@@ -87,6 +88,7 @@ export async function initEditor() {
     element: editorEl,
     extensions: [
       StarterKit.configure({
+        paragraph: false,
         codeBlock: false,
         link: false,
         bulletList: false,
@@ -94,6 +96,7 @@ export async function initEditor() {
         listItem: false,
         listKeymap: false,
       }),
+      SafeParagraph,
       Placeholder.configure({
         placeholder: '开始写作 — 输入即所得',
       }),

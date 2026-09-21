@@ -3,8 +3,9 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension } from './editor.extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from './editor.extensions';
 import { createMarkdownExtension } from './editor.init';
+import { parseTipTapMarkdown, serializeTipTapMarkdown } from './editor.markdown.adapter';
 import { decideAdmission, verifyAdmission } from './editor.markdown.admission';
 import { classifyEligibility } from './editor.markdown.eligibility';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
@@ -32,7 +33,8 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      SafeParagraph,
       BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }),
@@ -157,5 +159,61 @@ describe('admission verification (6.4)', () => {
   it('reflects the differential corpus: supported constructs are lossless', () => {
     const src = SUPPORTED[2][1]; // table
     expect(verifyAdmission(editor, src).ok).toBe(true);
+  });
+
+  // issue #286: a paragraph that begins with a LITERAL (escaped-in-source)
+  // block prefix must round-trip as a paragraph. The v3 serializer used to
+  // drop the leading backslash (`6\.` → `6.`), so the re-parse lexed it as a
+  // list/heading/HR and `verifyAdmission` rejected the doc as source-only.
+  it('admits paragraphs whose first line starts with an escaped block prefix', () => {
+    const cases = [
+      '6\\. 这是一段以转义数字开头的正文\n',
+      '1\\. 另一段\n',
+      '10\\. 第三段\n',
+      '999999999\\. x\n',
+      '5\\) 正文\n',
+      '\\- foo\n',
+      '\\+ foo\n',
+      '\\### foo\n',
+      '\\---\n',
+    ];
+    for (const src of cases) {
+      expect(verifyAdmission(editor, src), `${JSON.stringify(src)} should pass verification`).toEqual({ ok: true });
+    }
+  });
+
+  // Negative / non-regression: real block structures still serialize exactly
+  // as before (the paragraph renderer must not rewrite typed list/heading/HR
+  // nodes), and plain paragraph text is not over-escaped.
+  it('keeps real block structures and non-ambiguous paragraphs round-tripping identically', () => {
+    // Each tuple asserts: (1) verification passes, (2) the serialized output is
+    // byte-for-byte the pre-fix baseline (captured before SafeParagraph existed).
+    const cases: Array<[string, string]> = [
+      ['1. a\n2. b\n', '1. a\n2. b\n\n'], // real ordered list
+      ['- a\n- b\n', '- a\n- b\n\n'], // real bullet list
+      ['- [ ] a\n- [x] b\n', '- [ ] a\n- [x] b\n\n'], // task list
+      ['> quote\n', '> quote\n\n'], // blockquote
+      ['# hi\n', '# hi\n\n'], // H1
+      ['---\n', '---\n\n'], // HR
+      ['- a\n  - b\n', '- a\n  - b\n\n'], // nested list
+      ['***bold***\n', '***bold***'], // emphasis (only inline ***)
+      ['foo\n---\n', '## foo\n\n'], // setext heading (parses to an H2 node)
+      ['-foo\n', '-foo'], // no space after '-' — plain text
+      ['6.x\n', '6.x'], // no space after '6.' — plain text
+      ['a 6. x\n', 'a 6. x'], // digits not at line start
+      ['hello **world**\n', 'hello **world**'], // plain prose
+    ];
+    for (const [src, expectedOutput] of cases) {
+      // Verification itself must pass.
+      expect(verifyAdmission(editor, src), `${JSON.stringify(src)} should pass verification`).toEqual({ ok: true });
+      // Serialized output is byte-for-byte unchanged from the pre-fix baseline.
+      const parsed = parseTipTapMarkdown(editor, src);
+      expect(parsed.ok, `${JSON.stringify(src)} should parse`).toBe(true);
+      if (parsed.ok) {
+        const serialized = serializeTipTapMarkdown(editor);
+        expect(serialized.ok, `${JSON.stringify(src)} should serialize`).toBe(true);
+        if (serialized.ok) expect(serialized.markdown, `${JSON.stringify(src)} output`).toBe(expectedOutput);
+      }
+    }
   });
 });

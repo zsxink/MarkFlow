@@ -5,7 +5,7 @@ import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } fro
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { CellSelection, TableMap } from '@tiptap/pm/tables';
 import { createMarkdownExtension } from './editor.init';
-import { BlockImage, CustomLink, MarkdownSafeTable, mermaidCodeBlockExtension } from './editor.extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from './editor.extensions';
 import { classifyEligibility } from './editor.markdown.eligibility';
 import { decideAdmission } from './editor.markdown.admission';
 import { runSaveBoundary } from './editor.save.reconcile';
@@ -42,7 +42,8 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      SafeParagraph,
       BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }),

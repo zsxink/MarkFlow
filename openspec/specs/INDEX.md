@@ -15,7 +15,7 @@
 | 图片设置、存储规则、粘贴命名或首次保存 | [image-storage-engine](image-storage-engine/spec.md)、[image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[settings-code-highlight](settings-code-highlight/spec.md) | `src/lib/imageUtils.ts`、`pathUtils.ts`、`storage.ts`、`src-tauri/src/commands/files_image.rs` | `npm test`、`cargo test` |
 | 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[image-storage-engine](image-storage-engine/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/lib/editor.image.*.ts`、`imageUtils.ts`、`mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
 | 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/lib/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
-| 体积、字体、CI、回归测试、e2e 测试或 archive 门禁 | [e2e-test-coverage](e2e-test-coverage/spec.md)、[bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`.github/`、`scripts/check-archive-synced.sh`、`e2e/` | `npm test`、`npm run test:e2e`（smoke 套件）、`npm run build` |
+| 体积、字体、CI、回归测试、e2e 测试、DMG 打包外观或 archive 门禁 | [e2e-test-coverage](e2e-test-coverage/spec.md)、[bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md)、[dmg-installer-appearance](dmg-installer-appearance/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`scripts/`、`.github/`、`scripts/check-archive-synced.sh`、`e2e/` | `npm test`、`npm run test:e2e`（smoke 套件）、`npm run build` |
 
 所有改动完成后运行 `npx openspec validate --specs`。路由没有覆盖的任务，先从 `src/main.ts` 和最接近的模块测试反查实际入口，再为受影响行为补充或更新模块规范。
 
@@ -79,6 +79,7 @@
 - [crash-logging](crash-logging/spec.md) — 崩溃日志与敏感信息脱敏。
 - [archive-sync-gate](archive-sync-gate/spec.md) — 归档变更的 spec 同步完整性校验与 CI 验证门禁。
 - [dep-audit-ci](dep-audit-ci/spec.md) — 依赖审计与 CI 质量要求。
+- [dmg-installer-appearance](dmg-installer-appearance/spec.md) — DMG 安装窗口背景、图标布局与产物断言。
 - [error-handling](error-handling/spec.md) — 锁恢复、错误分类与前端异常。
 - [regression-coverage](regression-coverage/spec.md) — 核心与高风险路径的回归覆盖。
 - [safe-http-fetch](safe-http-fetch/spec.md) — HTTP、DNS、重定向与图片安全限制。

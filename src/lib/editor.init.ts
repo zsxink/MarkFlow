@@ -26,6 +26,7 @@ import {
   SafeParagraph,
   mermaidCodeBlockExtension,
 } from './editor.extensions';
+import { RawMarkdown } from './editor.markdown.fallback';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
 import { mountFrontmatterPanel } from '../components/frontmatterPanel';
 
@@ -130,6 +131,7 @@ export async function initEditor() {
       mermaidCodeBlockExtension(),
       katexPlugin(),
       OpaqueNode,
+      RawMarkdown,
       createMarkdownExtension(),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),

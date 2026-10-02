@@ -23,7 +23,8 @@ import { semanticFingerprint, isSemanticallyEquivalent } from './editor.markdown
 import { renderOpaque, restoreOpaque } from './editor.markdown.opaque.bridge';
 import { setActiveOpaqueRegistry } from './editor.markdown.opaque.extension';
 import { installOpaqueSession } from './editor.markdown.opaque.session';
-import type { OpaqueRegistry } from './editor.markdown.opaque';
+import { OpaqueRegistry, scanCodeRegions, scanOpaqueSpans } from './editor.markdown.opaque';
+import { containsRawMarkdown, parseLocalizedMarkdown, serializeLocalizedMarkdown } from './editor.markdown.fallback';
 import { createMarkdownSession, reconcile } from './editor.markdown.reconcile';
 import type { MarkdownSession } from './editor.markdown.types';
 import type { ReconcileOutcome } from './editor.markdown.reconcile';
@@ -100,6 +101,40 @@ export function admitOpaque(editor: Editor, source: string, revisions: Admission
   return { ok: true, session, renderedSource: rendered.markdown, mode: 'opaque' };
 }
 
+/** Admit a document while retaining unrepresentable blocks as literal atoms. */
+export function admitLocalized(editor: Editor, source: string, revisions: AdmissionRevisions): OpaqueAdmission {
+  if (!editor.schema?.nodes.markflowRawMarkdown) return { ok: false, code: 'parse-failed' };
+  const rendered = renderOpaque(source);
+  const registry = rendered.ok ? rendered.registry : new OpaqueRegistry(source);
+  setActiveOpaqueRegistry(registry);
+  try {
+    const parseSource = rendered.ok ? rendered.markdown : source;
+    const scan = rendered.ok ? null : scanOpaqueSpans(source, { codeRegions: scanCodeRegions(source).regions });
+    const preserved = scan?.ok ? scan.spans.map((span) => source.slice(span.from, span.to)) : [];
+    const doc = parseLocalizedMarkdown(editor, parseSource, preserved);
+    editor.chain().setMeta('addToHistory', false).setContent(doc, { emitUpdate: false }).run();
+    const editorFp = fingerprintOf(editor);
+    const serialized = serializeTipTapMarkdown(editor);
+    if (!serialized.ok) return { ok: false, code: 'verify-failed' };
+    const { markdown: candidate, verificationDoc: reparsed } = serializeLocalizedMarkdown(editor);
+    if (semanticFingerprint(reparsed) !== editorFp) return { ok: false, code: 'verify-failed' };
+    const restored = restoreOpaque(candidate, registry);
+    if (!restored.ok) return { ok: false, code: 'verify-failed' };
+    const session = createMarkdownSession({
+      source,
+      verifiedRenderBaseline: restored.markdown,
+      fingerprint: editorFp,
+      ...revisions,
+      registry,
+    });
+    session.localizedFallback = true;
+    installOpaqueSession(session, registry);
+    return { ok: true, session, renderedSource: source, mode: 'opaque' };
+  } catch {
+    return { ok: false, code: 'parse-failed' };
+  }
+}
+
 export interface ReconcileSaveInput {
   /** The live session (its registry is authoritative for restore). */
   session: MarkdownSession;
@@ -123,20 +158,30 @@ export interface ReconcileSaveResult {
  * and compares it against the current editor semantics, then classifies.
  */
 export function reconcileSave(editor: Editor, input: ReconcileSaveInput): ReconcileSaveResult {
+  // A raw fragment may be pasted into a previously fully supported document.
+  // Upgrade its save proof as soon as the live document contains such a node.
+  if (containsRawMarkdown(editor.getJSON())) input.session.localizedFallback = true;
   const editorFp = fingerprintOf(editor);
   const registry = input.registry;
 
   const serialized = serializeTipTapMarkdown(editor);
   let candidate: string | null = null;
+  let localizedFingerprint: string | null = null;
   let opaqueIntact = true;
 
   if (serialized.ok && registry) {
-    const restored = restoreOpaque(serialized.markdown, registry);
-    if (restored.ok) {
-      candidate = restored.markdown;
-    } else {
-      opaqueIntact = false;
-    }
+    try {
+      let serializedCandidate = serialized.markdown;
+      if (input.session.localizedFallback) {
+        setActiveOpaqueRegistry(registry);
+        const localized = serializeLocalizedMarkdown(editor);
+        serializedCandidate = localized.markdown;
+        localizedFingerprint = semanticFingerprint(localized.verificationDoc);
+      }
+      const restored = restoreOpaque(serializedCandidate, registry);
+      if (restored.ok) candidate = restored.markdown;
+      else opaqueIntact = false;
+    } catch { /* A failed serializer never yields a write candidate. */ }
   }
 
   // Does the candidate reparse to the current editor semantics? The restored
@@ -146,15 +191,16 @@ export function reconcileSave(editor: Editor, input: ReconcileSaveInput): Reconc
   let candidateReparsesToEditor = true;
   let canonicalOnly = false;
   if (candidate !== null) {
-    const reRendered = renderOpaque(candidate);
     let candidateFp: string | null = null;
-    if (reRendered.ok) {
-      // The re-rendered sentinels use fresh slots; resolve them against this
-      // registry so the re-render reproduces opaque nodes (NON-mutating — the
-      // save boundary must not clobber the live editor doc).
-      setActiveOpaqueRegistry(reRendered.registry);
-      candidateFp = fingerprintOfMarkdown(editor, reRendered.markdown);
-      setActiveOpaqueRegistry(input.registry);
+    if (input.session.localizedFallback) {
+      candidateFp = localizedFingerprint;
+    } else {
+      const reRendered = renderOpaque(candidate);
+      if (reRendered.ok) {
+        setActiveOpaqueRegistry(reRendered.registry);
+        candidateFp = fingerprintOfMarkdown(editor, reRendered.markdown);
+        setActiveOpaqueRegistry(input.registry);
+      }
     }
     candidateReparsesToEditor = candidateFp !== null && candidateFp === editorFp;
     // No user edit path: candidate differs from the verified baseline only by

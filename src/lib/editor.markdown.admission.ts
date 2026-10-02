@@ -5,15 +5,15 @@
 // safe on the ACTUAL editor: it parses the source, serializes the parsed
 // document back to Markdown, re-parses that, and compares semantic fingerprints
 // (runtime-only attributes stripped + registered canonicalizations allowed).
-// Any structural / attribute / ordering loss makes the re-parsed fingerprint
-// differ and the document is rejected to `source-only`. This is what prevents a
-// lossy initial parse from silently becoming a WYSIWYG baseline.
+// A mismatch triggers block-local literal fallback rather than converting a
+// lossy parse into an editable baseline. The fallback is independently proven
+// with raw blocks isolated from normal Markdown syntax before saving.
 
 import type { Editor, JSONContent } from '@tiptap/core';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from './editor.markdown.adapter';
 import { semanticFingerprint } from './editor.markdown.fingerprint';
 import { classifyEligibility } from './editor.markdown.eligibility';
-import { admitOpaque } from './editor.markdown.opaque.integration';
+import { admitLocalized, admitOpaque } from './editor.markdown.opaque.integration';
 import type { Eligibility, EligibilityReason, MarkdownSession } from './editor.markdown.types';
 
 export type AdmissionVerification =
@@ -27,7 +27,9 @@ export type AdmissionVerification =
  *   eligible-with-opaque → advance to `opaque` (section 7): render the spans to
  *                          sentinels, load the editor, verify the round-trip and
  *                          build the session — the opaque holder is now safe.
- *   source-only          → stay Source with the stable reason
+ *   unsupported/lossy    → retain only affected blocks as editable raw text
+ *                          and capture a verified `reconcile` session
+ *   too-large            → stay Source with the stable reason
  *
  * Returns the pipeline mode + the human-facing reason so the caller can decide
  * WYSIWYG vs Source without re-deriving the contract.
@@ -44,13 +46,21 @@ export function decideAdmission(
   renderedSource?: string;
 } {
   const c = classifyEligibility(source);
+  const fallback = () => {
+    const admitted = admitLocalized(editor, source, revisions);
+    return admitted.ok
+      ? { mode: 'reconcile' as const, verdict: 'eligible-with-opaque' as const, reason: 'opaque-covered' as const, session: admitted.session, renderedSource: admitted.renderedSource }
+      : { mode: 'source-only' as const, verdict: 'source-only' as const, reason: c.verdict === 'source-only' ? c.reason : 'parse-verification-failed' as const };
+  };
   if (c.verdict === 'source-only') {
-    return { mode: 'source-only', verdict: c.verdict, reason: c.reason };
+    return c.reason === 'too-large'
+      ? { mode: 'source-only', verdict: c.verdict, reason: c.reason }
+      : fallback();
   }
   if (c.verdict === 'eligible-with-opaque') {
     // Section 7: the non-editable opaque holder exists, so an opaque doc can be
     // admitted safely. Verification runs on the actual editor (8.1); failure
-    // falls back to source-only rather than risking a lossy baseline.
+    // falls back to local literal blocks if the round-trip fails.
     const admitted = admitOpaque(editor, source, {
       sourceRevision: revisions.sourceRevision,
       userRevisionAtAdmission: revisions.userRevisionAtAdmission,
@@ -64,14 +74,14 @@ export function decideAdmission(
         renderedSource: admitted.renderedSource,
       };
     }
-    return { mode: 'source-only', verdict: 'source-only', reason: 'parse-verification-failed' };
+    return fallback();
   }
   // Fully supported documents use the same verified-session boundary as opaque
   // ones. `renderOpaque` simply creates an empty registry here; this avoids a
   // second, legacy save path that could normalize an untouched source.
   const admitted = admitOpaque(editor, source, revisions);
   if (!admitted.ok) {
-    return { mode: 'source-only', verdict: 'source-only', reason: 'parse-verification-failed' };
+    return fallback();
   }
   return {
     mode: 'reconcile',
@@ -90,7 +100,7 @@ export interface AdmissionRevisionsSpec {
 
 const REASON_LABELS: Record<EligibilityReason, string> = {
   supported: '文档语法完全受支持',
-  'opaque-covered': '包含暂未支持的保留片段，暂留在源码模式',
+  'opaque-covered': '包含保留的原文片段，其他内容可正常编辑',
   'parse-verification-failed': '往返校验未通过，已保留源码',
   'ambiguous-boundary': '检测到未闭合/歧义语法边界',
   'construct-crosses-boundary': '存在跨越受支持与保留区域的语法',

@@ -28,6 +28,7 @@ import { getMarkdownResult, getSavePlan, setMarkdown, switchToSource, switchToWy
 function editorDouble(overrides: Record<string, unknown> = {}) {
   return {
     commands: { setContent: vi.fn(), focus: vi.fn() },
+    setEditable: vi.fn(),
     getJSON: vi.fn(() => ({ type: 'doc', content: [] })),
     getMarkdown: vi.fn(() => '# markdown'),
     ...overrides,
@@ -59,7 +60,7 @@ describe('stage-one Markdown bridge integration', () => {
 
     setMarkdown('# loaded\n\n');
 
-    expect(editor.commands.setContent).toHaveBeenCalledWith('# loaded', { contentType: 'markdown', emitUpdate: false });
+    expect(editor.commands.setContent).toHaveBeenCalledWith('# loaded\n\n', { contentType: 'markdown', emitUpdate: false });
     expect(store.getState().dirty).toBe(false);
     expect(getRevision()).toBe(0);
     expect(getDocumentState().trailingNewlines).toBe(2);
@@ -108,7 +109,7 @@ describe('stage-one Markdown bridge integration', () => {
 
     switchToWysiwyg();
 
-    expect(editor.commands.setContent).toHaveBeenCalledWith('# source', { contentType: 'markdown', emitUpdate: false });
+    expect(editor.commands.setContent).toHaveBeenCalledWith('# source\n\n', { contentType: 'markdown', emitUpdate: false });
     expect(mocks.destroySourceEditor).toHaveBeenCalledOnce();
     expect(getMode()).toBe('wysiwyg');
   });
@@ -128,7 +129,7 @@ describe('stage-one Markdown bridge integration', () => {
     expect(mocks.destroySourceEditor).not.toHaveBeenCalled();
     expect(getMode()).toBe('source');
     expect(wrapper.hidden).toBe(false);
-    expect(mocks.showToast).toHaveBeenCalledWith('Markdown 无法安全转换，请继续在源码模式编辑');
+    expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('已保留源码模式'));
   });
 
   it('uses the last persisted Source baseline when WYSIWYG serialization fails', () => {

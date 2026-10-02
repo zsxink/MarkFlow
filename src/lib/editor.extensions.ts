@@ -16,7 +16,7 @@ import { store } from './store';
 import { logDebug, logException, logWarn } from './logger';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showPlantumlContextMenu } from '../components/plantumlContextMenu';
-import { getMermaidExportBaseName, getPlantUmlExportBaseName } from './editor.state';
+import { assetToOriginalMap, getMermaidExportBaseName, getPlantUmlExportBaseName } from './editor.state';
 
 // ── Custom Link extension ──────────────────────────────────────────────
 
@@ -374,7 +374,8 @@ export const BlockImage = Image.extend({
     };
   },
   renderMarkdown(node: JSONContent) {
-    const src = String(node.attrs?.authoredSrc ?? node.attrs?.src ?? '').replace(/[()]/g, '\\$&');
+    const resolvedSrc = String(node.attrs?.src ?? '');
+    const src = String(node.attrs?.authoredSrc ?? assetToOriginalMap.get(resolvedSrc) ?? resolvedSrc).replace(/[()]/g, '\\$&');
     const alt = String(node.attrs?.alt ?? '').replace(/[\[\]]/g, '\\$&');
     const title = node.attrs?.title ? ` \"${String(node.attrs.title).replace(/\"/g, '\\\"')}\"` : '';
     return `![${alt}](${src}${title})`;

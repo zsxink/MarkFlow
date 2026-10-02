@@ -8,6 +8,7 @@ import { createMarkdownExtension } from './editor.init';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from './editor.markdown.adapter';
 import { decideAdmission, verifyAdmission } from './editor.markdown.admission';
 import { classifyEligibility } from './editor.markdown.eligibility';
+import { RawMarkdown } from './editor.markdown.fallback';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
 import { endOpaqueSession } from './editor.markdown.opaque.session';
 
@@ -43,6 +44,7 @@ function createAppEditor() {
       BlockImage.configure({ allowBase64: true }),
       mermaidCodeBlockExtension(),
       OpaqueNode,
+      RawMarkdown,
       createMarkdownExtension(),
     ],
   });
@@ -77,18 +79,10 @@ describe('admission verification (6.4)', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('rejects inline code with a trailing space (documented limitation, issue decision)', () => {
-    // A code span that ends with a space (`` `# ` ``) does not round-trip: the
-    // v3 serializer moves the trailing space out of the code span (`` `# ` `` →
-    // `` `#` `` + leading space on the following text), so the re-parsed
-    // fingerprint differs from the source. This is a known-but-NOT-registered
-    // canonicalization (see editor.markdown.fingerprint.ts) — such docs are
-    // intentionally kept source-only until a lossless serializer fix or an
-    // explicit, reviewed canonicalization exists. Pinned here so the behavior
-    // (and any future re-decision) is visible.
+  it('preserves inline code with trailing spaces through round-trip verification', () => {
     const src = '- H1 添加 `# `前缀\n';
-    expect(classifyEligibility(src).verdict).not.toBe('source-only'); // classifier admits it
-    expect(verifyAdmission(editor, src).ok).toBe(false); // but verification keeps it out of WYSIWYG
+    expect(classifyEligibility(src).verdict).not.toBe('source-only');
+    expect(verifyAdmission(editor, src).ok).toBe(true);
   });
 
   it('rejects an unclosed code fence (ambiguous boundary)', () => {
@@ -149,7 +143,7 @@ describe('admission verification (6.4)', () => {
   it('rejects a table that would lose an extra authored cell on first parse', () => {
     const src = '| A | B |\n| --- | --- |\n| one | two | must-not-disappear |\n';
     expect(decideAdmission(editor, src)).toMatchObject({
-      mode: 'source-only', verdict: 'source-only', reason: 'malformed-table',
+      mode: 'reconcile', verdict: 'eligible-with-opaque', reason: 'opaque-covered',
     });
   });
 

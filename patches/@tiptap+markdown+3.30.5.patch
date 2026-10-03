@@ -1,0 +1,123 @@
+diff --git a/node_modules/@tiptap/markdown/src/MarkdownManager.ts b/node_modules/@tiptap/markdown/src/MarkdownManager.ts
+--- a/node_modules/@tiptap/markdown/src/MarkdownManager.ts
++++ b/node_modules/@tiptap/markdown/src/MarkdownManager.ts
+@@ -1267,6 +1267,30 @@
+     separator = '',
+     level = 0,
+   ): string {
++    // Serialize code content before generic mark handling: code needs a fence
++    // longer than its embedded backticks and must keep spaces inside the span.
++    // Removing only the code mark lets bold/link/etc. still wrap the code span.
++    const renderedCode = new Map<JSONContent, string>()
++    const prepared: JSONContent[] = []
++    for (let i = 0; i < nodes.length; i += 1) {
++      const node = nodes[i]
++      if (node.type !== 'text' || !node.marks?.some(mark => this.codeTypes.has(mark.type))) {
++        prepared.push(node)
++        continue
++      }
++      let text = node.text || ''
++      while (i + 1 < nodes.length && nodes[i + 1].type === 'text' &&
++        JSON.stringify(node.marks) === JSON.stringify(nodes[i + 1].marks)) {
++        text += nodes[++i].text || ''
++      }
++      const longestRun = (text.match(/`+/g) || []).reduce((longest, run) => Math.max(longest, run.length), 0)
++      const fence = '`'.repeat(longestRun + 1)
++      const padding = /^`|`$/.test(text) || (/^ .* $/s.test(text) && /[^ ]/.test(text)) ? ' ' : ''
++      const preparedNode = { ...node, marks: node.marks.filter(mark => !this.codeTypes.has(mark.type)) }
++      renderedCode.set(preparedNode, fence + padding + text + padding + fence)
++      prepared.push(preparedNode)
++    }
++    nodes = prepared
+     const result: string[] = []
+     const activeMarks: Map<string, any> = new Map()
+     const reopenWithHtmlOnNextOpen = new Set<string>()
+@@ -1280,7 +1304,7 @@
+       }
+ 
+       if (node.type === 'text') {
+-        let textContent = this.encodeTextForMarkdown(node.text || '', node, parentNode)
++        let textContent = renderedCode.get(node) ?? this.encodeTextForMarkdown(node.text || '', node, parentNode)
+         const currentMarks = new Map((node.marks || []).map(mark => [mark.type, mark]))
+ 
+         // Find marks that need to be closed and opened
+diff --git a/node_modules/@tiptap/markdown/dist/index.js b/node_modules/@tiptap/markdown/dist/index.js
+--- a/node_modules/@tiptap/markdown/dist/index.js
++++ b/node_modules/@tiptap/markdown/dist/index.js
+@@ -1087,6 +1087,27 @@
+ 	* This handles cases where marks span across multiple text nodes.
+ 	*/
+ 	renderNodesWithMarkBoundaries(nodes, parentNode, separator = "", level = 0) {
++		// Render content-dependent code fences before wrapping the remaining marks.
++		const renderedCode = new Map();
++		const prepared = [];
++		for (let i = 0; i < nodes.length; i += 1) {
++			const node = nodes[i];
++			if (node.type !== "text" || !node.marks?.some(mark => this.codeTypes.has(mark.type))) {
++				prepared.push(node);
++				continue;
++			}
++			let text = node.text || "";
++			while (i + 1 < nodes.length && nodes[i + 1].type === "text" && JSON.stringify(node.marks) === JSON.stringify(nodes[i + 1].marks)) {
++				text += nodes[++i].text || "";
++			}
++			const longestRun = (text.match(/`+/g) || []).reduce((longest, run) => Math.max(longest, run.length), 0);
++			const fence = "`".repeat(longestRun + 1);
++			const padding = /^`|`$/.test(text) || (/^ .* $/s.test(text) && /[^ ]/.test(text)) ? " " : "";
++			const preparedNode = { ...node, marks: node.marks.filter(mark => !this.codeTypes.has(mark.type)) };
++			renderedCode.set(preparedNode, fence + padding + text + padding + fence);
++			prepared.push(preparedNode);
++		}
++		nodes = prepared;
+ 		const result = [];
+ 		const activeMarks = /* @__PURE__ */ new Map();
+ 		const reopenWithHtmlOnNextOpen = /* @__PURE__ */ new Set();
+@@ -1095,7 +1116,7 @@
+ 			const nextNode = i < nodes.length - 1 ? nodes[i + 1] : null;
+ 			if (!node.type) return;
+ 			if (node.type === "text") {
+-				let textContent = this.encodeTextForMarkdown(node.text || "", node, parentNode);
++				let textContent = renderedCode.get(node) ?? this.encodeTextForMarkdown(node.text || "", node, parentNode);
+ 				const currentMarks = new Map((node.marks || []).map((mark) => [mark.type, mark]));
+ 				const marksToOpen = this.getMarksToOpenForSerialization(activeMarks, currentMarks, nextNode);
+ 				const marksToClose = findMarksToClose(currentMarks, nextNode);
+diff --git a/node_modules/@tiptap/markdown/dist/index.cjs b/node_modules/@tiptap/markdown/dist/index.cjs
+--- a/node_modules/@tiptap/markdown/dist/index.cjs
++++ b/node_modules/@tiptap/markdown/dist/index.cjs
+@@ -1088,6 +1088,27 @@
+ 	* This handles cases where marks span across multiple text nodes.
+ 	*/
+ 	renderNodesWithMarkBoundaries(nodes, parentNode, separator = "", level = 0) {
++		// Render content-dependent code fences before wrapping the remaining marks.
++		const renderedCode = new Map();
++		const prepared = [];
++		for (let i = 0; i < nodes.length; i += 1) {
++			const node = nodes[i];
++			if (node.type !== "text" || !node.marks?.some(mark => this.codeTypes.has(mark.type))) {
++				prepared.push(node);
++				continue;
++			}
++			let text = node.text || "";
++			while (i + 1 < nodes.length && nodes[i + 1].type === "text" && JSON.stringify(node.marks) === JSON.stringify(nodes[i + 1].marks)) {
++				text += nodes[++i].text || "";
++			}
++			const longestRun = (text.match(/`+/g) || []).reduce((longest, run) => Math.max(longest, run.length), 0);
++			const fence = "`".repeat(longestRun + 1);
++			const padding = /^`|`$/.test(text) || (/^ .* $/s.test(text) && /[^ ]/.test(text)) ? " " : "";
++			const preparedNode = { ...node, marks: node.marks.filter(mark => !this.codeTypes.has(mark.type)) };
++			renderedCode.set(preparedNode, fence + padding + text + padding + fence);
++			prepared.push(preparedNode);
++		}
++		nodes = prepared;
+ 		const result = [];
+ 		const activeMarks = /* @__PURE__ */ new Map();
+ 		const reopenWithHtmlOnNextOpen = /* @__PURE__ */ new Set();
+@@ -1096,7 +1117,7 @@
+ 			const nextNode = i < nodes.length - 1 ? nodes[i + 1] : null;
+ 			if (!node.type) return;
+ 			if (node.type === "text") {
+-				let textContent = this.encodeTextForMarkdown(node.text || "", node, parentNode);
++				let textContent = renderedCode.get(node) ?? this.encodeTextForMarkdown(node.text || "", node, parentNode);
+ 				const currentMarks = new Map((node.marks || []).map((mark) => [mark.type, mark]));
+ 				const marksToOpen = this.getMarksToOpenForSerialization(activeMarks, currentMarks, nextNode);
+ 				const marksToClose = findMarksToClose(currentMarks, nextNode);

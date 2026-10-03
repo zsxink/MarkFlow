@@ -127,19 +127,10 @@ export const CANONICALIZATIONS = [
   'soft-break-normalization',
 ] as const;
 
-// ── Known-but-NOT-registered canonicalization ──────────────────────────
-//
-// `inline-code-trailing-space` is deliberately absent from the allowlist. A
-// code span with a trailing space (e.g. `` `# ` ``, `` `- ` ``, `` `1. ` ``)
-// does NOT round-trip through the v3 markdown serializer: the trailing space
-// is moved out of the code span and re-attached to the following text
-// (`` `# ` `` → `` `#` `` + `" 前缀"`), so the re-parsed fingerprint differs
-// from the source. Because the code *content* changes, treating it as neutral
-// would weaken the no-loss guarantee, so `verifyAdmission` rejects such docs
-// to `source-only` (reason `parse-verification-failed`). Documenting per
-// issue decision: keep them in Source until a lossless serializer fix (or an
-// explicit, reviewed canonicalization) exists. Do NOT add this to
-// `CANONICALIZATIONS` without revisiting that decision.
+// Inline-code characters (including spaces and backticks) must remain exact.
+// The @tiptap/markdown patch serializes code spans with content-dependent
+// delimiters and CommonMark padding, so no lossy code normalization belongs
+// in this canonicalization allowlist.
 
 export type Canonicalization = (typeof CANONICALIZATIONS)[number];
 

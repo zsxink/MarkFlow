@@ -77,7 +77,7 @@ export function runSaveBoundary(editor: Editor, input: SaveBoundaryInput): SaveB
       return {
         kind: 'safe-edit',
         write: true,
-        markdown: normalizeImageMarkdown(replaceAssetUrlsWithOriginal(outcome.markdown)),
+        markdown: input.session.localizedFallback ? outcome.markdown : normalizeImageMarkdown(replaceAssetUrlsWithOriginal(outcome.markdown)),
       };
     case 'conflict':
       return { kind: 'conflict', write: false, code: outcome.code };

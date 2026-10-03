@@ -96,6 +96,8 @@ export interface OpaqueEntry {
 
 /** Per-WYSIWYG-session baselines recorded at admission (design Decision 6). */
 export interface MarkdownSession {
+  /** The source contains local literal blocks, verified by the fallback parser. */
+  localizedFallback?: boolean;
   sourceBaseline: string;
   verifiedRenderBaseline: string;
   baselineFingerprint: string;

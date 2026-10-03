@@ -5,10 +5,11 @@ import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } fro
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from './editor.extensions';
 import { createMarkdownExtension } from './editor.init';
+import { RawMarkdown } from './editor.markdown.fallback';
 import { OpaqueNode } from './editor.markdown.opaque.extension';
 import { store } from './store';
-import { bumpRevision, getEditor, getMode, setEditor, getMarkdownPipelineMode, getRevision, getDocumentState } from './editor.state';
-import { getSavePlan, setMarkdown, switchToSource, switchToWysiwyg, degradeToSourceOnly } from './editor';
+import { bumpRevision, getEditor, getMode, setEditor, getMarkdownPipelineMode, getRevision, getDocumentState, assetToOriginalMap } from './editor.state';
+import { getMarkdownResult, getSavePlan, markDocumentPersisted, setMarkdown, switchToSource, switchToWysiwyg, degradeToSourceOnly } from './editor';
 
 const mocks = vi.hoisted(() => ({
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(),
@@ -59,6 +60,7 @@ function createAppEditor() {
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       BlockImage.configure({ allowBase64: true }),
       OpaqueNode,
+      RawMarkdown,
       mermaidCodeBlockExtension(),
       createMarkdownExtension(),
     ],
@@ -77,6 +79,7 @@ beforeEach(() => {
   st.lastPersistedMarkdown = '';
   st.revision = 0;
   st.trailingNewlines = 0;
+  assetToOriginalMap.clear();
   setEditor(createAppEditor());
 });
 
@@ -89,36 +92,240 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
     expect(mocks.showToast).not.toHaveBeenCalled();
   });
 
-  it('keeps a source-only document in Source with a stable reason and does not rewrite', () => {
-    const src = '[ref]: /some/url\n\n# Body\n';
+  it('opens unsupported blocks literally while headings remain editable and saves keep their source', () => {
+    const raw = '[ref]: /some/url';
+    const src = raw + '\n\n# Body\n';
     setMarkdown(src);
-    expect(getMarkdownPipelineMode()).toBe('source-only');
-    // A reason toast is shown (stable, content-free).
-    expect(mocks.showToast).toHaveBeenCalledWith(expect.stringContaining('源码模式'));
-    // CM6 editor is created (Source surface shown, WYSIWYG hidden).
-    expect(mocks.createSourceEditor).toHaveBeenCalled();
-    const sourceWrapper = document.getElementById('source-editor-wrapper') as HTMLElement;
-    expect(sourceWrapper.hidden).toBe(false);
-    const wysiwygEditor = document.getElementById('wysiwyg-editor') as HTMLElement;
-    expect(wysiwygEditor.hidden).toBe(true);
-    // Not marked dirty, no revision bump from the programmatic gating.
-    expect(getRevision()).toBe(0);
-    expect(store.getState().dirty).toBe(false);
+    expect(getMarkdownPipelineMode()).toBe('reconcile');
+    expect(getMode()).toBe('wysiwyg');
+    expect(getEditor()!.isEditable).toBe(true);
+    expect(getEditor()!.view.dom.querySelector('[data-markflow-raw]')?.textContent).toContain(raw);
+    expect(getEditor()!.view.dom.querySelector('h1')?.textContent).toBe('Body');
+    expect(getSavePlan()).toEqual({ kind: 'unchanged', write: false });
+    getEditor()!.commands.insertContentAt(3, 'edited');
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') {
+      expect(plan.markdown).toContain(raw);
+      expect(plan.markdown).toContain('# Beditedody');
+    }
+    expect(mocks.createSourceEditor).not.toHaveBeenCalled();
   });
 
-  it('rejects a Source→WYSIWYG switch for a source-only doc without destroying CM6', () => {
-    const src = '- [ ] task\n\nthis is [text][ref] style\n';
-    // First load into Source (source-only).
-    setMarkdown(src);
-    expect(getMarkdownPipelineMode()).toBe('source-only');
-    // Attempt to switch to WYSIWYG — must be rejected and CM6 preserved.
+  it('admits shortcut-table code spans into editable WYSIWYG and provides a save candidate', () => {
+    const source = '| Shortcut | Action |\n| --- | --- |\n| `` Ctrl+` `` | Inline code |\n';
+    setMarkdown(source);
+    expect(getMarkdownPipelineMode()).toBe('reconcile');
+    expect(getMode()).toBe('wysiwyg');
+    expect(getEditor()!.isEditable).toBe(true);
+    expect(getMarkdownResult()).toEqual({ ok: true, markdown: source });
+    getEditor()!.commands.insertContentAt(4, 'edited ');
+    bumpRevision();
+    store.setState({ dirty: true });
+    expect(getSavePlan()).toMatchObject({ kind: 'safe-edit', write: true });
+  });
+
+  it('switches Source to editable WYSIWYG with local raw blocks and keeps source edits savable', () => {
+    const disk = '# Heading\n';
+    const src = '# Changed\n\nthis is [text][ref] style\n';
+    setMarkdown(disk);
+    switchToSource();
     mocks.getSourceContent.mockReturnValue(src);
+    store.setState({ dirty: true });
     switchToWysiwyg();
-    expect(getMarkdownPipelineMode()).toBe('source-only');
-    expect(getMode()).toBe('source');
-    // CM6 not destroyed.
-    expect(mocks.destroySourceEditor).not.toHaveBeenCalled();
-    expect(document.getElementById('source-editor-wrapper')?.hidden).toBe(false);
+    expect(getMarkdownPipelineMode()).toBe('reconcile');
+    expect(getMode()).toBe('wysiwyg');
+    expect(getEditor()!.isEditable).toBe(true);
+    expect(mocks.destroySourceEditor).toHaveBeenCalled();
+    expect(getSavePlan()).toEqual({ kind: 'safe-edit', write: true, markdown: src });
+    switchToSource();
+    expect(mocks.createSourceEditor).toHaveBeenLastCalledWith(expect.anything(), src, expect.any(Function), false);
+  });
+
+  it.each([
+    '| A | B |\n| --- | --- |\n| one | two | extra-cell |\n',
+    '```ts\nconst incomplete = true;\n\n\n',
+    '```ts\r\nconst incomplete = true;\r\n\r\n',
+    'unclosed <span> text\n',
+  ])('preserves literal raw characters through surrounding edits and the actual save plan: %s', (raw) => {
+    const source = '# Title\n\n' + raw;
+    setMarkdown(source);
+    expect(getMode()).toBe('wysiwyg');
+    expect(getSavePlan()).toEqual({ kind: 'unchanged', write: false });
+    getEditor()!.commands.insertContentAt(3, 'edited');
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') expect(plan.markdown).toContain(raw);
+    const serialized = getMarkdownResult();
+    expect(serialized.ok).toBe(true);
+    if (serialized.ok) expect(serialized.markdown).toContain(raw);
+  });
+
+  it('edits a literal raw block locally and saves the changed characters', () => {
+    setMarkdown('# Title\n\n[ref]: /url\n');
+    const pre = getEditor()!.view.dom.querySelector('[data-markflow-raw]')!;
+    pre.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const input = getEditor()!.view.dom.querySelector('textarea')!;
+    input.value = '[ref]: /changed\n';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') expect(plan.markdown).toContain('[ref]: /changed\n');
+  });
+
+  it('can save after all characters in a local raw editor are deleted', () => {
+    setMarkdown('# Title\n\n[ref]: /url\n');
+    getEditor()!.view.dom.querySelector('[data-markflow-raw]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const input = getEditor()!.view.dom.querySelector('textarea')!;
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    bumpRevision();
+    store.setState({ dirty: true });
+    expect(getSavePlan()).toMatchObject({ kind: 'safe-edit', write: true });
+    expect(getEditor()!.getJSON().content?.some(node => node.type === 'markflowRawMarkdown')).toBe(false);
+  });
+
+  it('clears dirty after saving literal CRLF content without normalizing the disk baseline', () => {
+    const raw = '```ts\r\nconst incomplete = true;\r\n\r\n';
+    setMarkdown('# Title\n\n' + raw);
+    getEditor()!.commands.insertContentAt(3, 'edited');
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan.kind).toBe('safe-edit');
+    if (plan.kind !== 'safe-edit') return;
+    markDocumentPersisted(plan.markdown, getRevision());
+    expect(getDocumentState().lastPersistedMarkdown).toBe(plan.markdown);
+    expect(store.getState().dirty).toBe(false);
+    expect(getMarkdownResult()).toEqual({ ok: true, markdown: plan.markdown });
+  });
+
+  it('saves original image paths without changing identical URL characters in raw text', () => {
+    const runtime = 'asset://localhost/tmp/original.png';
+    const raw = '[ref]: ' + runtime + '\n';
+    setMarkdown('# Title\n\n' + raw + '\n![picture](./original.png)');
+    const ed = getEditor()!;
+    assetToOriginalMap.set(runtime, './original.png');
+    ed.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image') ed.view.dispatch(ed.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: runtime, authoredSrc: null }));
+    });
+    ed.commands.insertContentAt(3, 'edited');
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') {
+      expect(plan.markdown).toContain('![picture](./original.png)');
+      expect(plan.markdown).toContain(raw);
+    }
+  });
+
+  it('saves an edited malformed raw block beside supported frontmatter', () => {
+    setMarkdown('---\ntitle: Document\n---\n\n# Title\n\n[ref]: /url');
+    getEditor()!.view.dom.querySelector('[data-markflow-raw]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const input = getEditor()!.view.dom.querySelector('textarea')!;
+    input.value = '```js\nconst value = 1;';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') {
+      expect(plan.markdown).toContain('---\ntitle: Document\n---');
+      expect(plan.markdown).toContain(input.value);
+    }
+  });
+
+  it('saves an unclosed literal fence before a normal code block without consuming that block', () => {
+    setMarkdown('# Title\n\n[ref]: /url\n\n```js\nok();\n```');
+    getEditor()!.view.dom.querySelector('[data-markflow-raw]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const input = getEditor()!.view.dom.querySelector('textarea')!;
+    input.value = '```js\nbroken();\n\n';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') {
+      expect(plan.markdown).toContain(input.value);
+      expect(plan.markdown).toContain('```js\nok();\n```');
+      expect(plan.markdown).not.toContain('MARKFLOWRAW');
+    }
+    expect(getEditor()!.getJSON().content?.filter(node => node.type === 'codeBlock')).toHaveLength(1);
+  });
+
+  it('can paste a local raw block into a supported document and save it', () => {
+    setMarkdown('# Target');
+    getEditor()!.commands.insertContent('<pre data-markflow-raw>[ref]: /url</pre>');
+    bumpRevision();
+    store.setState({ dirty: true });
+    const plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') {
+      expect(plan.markdown).toContain('[ref]: /url');
+      markDocumentPersisted(plan.markdown, getRevision());
+      expect(store.getState().dirty).toBe(false);
+    }
+  });
+
+  it('keeps raw atoms intact through HTML clipboard round-trips', () => {
+    const source = '# Title\n\n[ref]: /url\n';
+    setMarkdown(source);
+    expect(getEditor()!.getText()).toContain('[ref]: /url');
+    const html = getEditor()!.getHTML();
+    getEditor()!.commands.setContent(html);
+    bumpRevision();
+    store.setState({ dirty: true });
+    expect(getEditor()!.getJSON().content?.some((node) => node.type === 'markflowRawMarkdown')).toBe(true);
+    expect(getSavePlan()).toMatchObject({ kind: 'safe-edit', write: true, markdown: expect.stringContaining('[ref]: /url') });
+  });
+
+  it('saves raw-block deletion and reordering without opaque integrity conflicts', () => {
+    setMarkdown('# Title\n\n[one]: /one\n\n# Second\n\n[two]: /two\n');
+    const ed = getEditor()!;
+    const doc = ed.getJSON();
+    const raw = doc.content!.filter((node) => node.type === 'markflowRawMarkdown');
+    const supported = doc.content!.filter((node) => node.type !== 'markflowRawMarkdown');
+    ed.commands.setContent({ type: 'doc', content: [raw[1], ...supported, raw[0]] });
+    bumpRevision();
+    store.setState({ dirty: true });
+    let plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') expect(plan.markdown.indexOf('[two]')).toBeLessThan(plan.markdown.indexOf('[one]'));
+    ed.commands.setContent({ type: 'doc', content: supported });
+    bumpRevision();
+    plan = getSavePlan();
+    expect(plan).toMatchObject({ kind: 'safe-edit', write: true });
+    if (plan.kind === 'safe-edit') expect(plan.markdown).not.toContain('[one]');
+  });
+
+  it.each(['[ref]: /url\n', '[ref]: /url\n\n\n'])('keeps normal fenced-code literals separate from a repeated raw reference definition: %s', (raw) => {
+    setMarkdown('# Title\n\n```text\n' + raw + '\n```\n\n' + raw);
+    getEditor()!.commands.insertContentAt(3, 'edited');
+    bumpRevision();
+    store.setState({ dirty: true });
+    expect(getSavePlan()).toMatchObject({ kind: 'safe-edit', write: true });
+    expect(getEditor()!.getJSON().content?.filter((node) => node.type === 'codeBlock')).toHaveLength(1);
+  });
+
+  it('keeps supported frontmatter, diagrams and math alongside a malformed local table', () => {
+    const raw = '| A | B |\n| --- | --- |\n| one | two | extra |\n';
+    const source = '---\ntitle: Document\n---\n\n# Title\n\n```mermaid\ngraph TD; A-->B\n```\n\n$x^2$\n\n' + raw;
+    setMarkdown(source);
+    expect(getMode()).toBe('wysiwyg');
+    expect(getEditor()!.getJSON().content?.some((node) => node.type === 'markflowOpaque')).toBe(true);
+    expect(getEditor()!.getJSON().content?.some((node) => node.type === 'codeBlock' && node.attrs?.language === 'mermaid')).toBe(true);
+    expect(getEditor()!.getText()).toContain('$x^2$');
+    getEditor()!.commands.insertContentAt(3, 'edited');
+    bumpRevision();
+    store.setState({ dirty: true });
+    expect(getSavePlan()).toMatchObject({ kind: 'safe-edit', write: true, markdown: expect.stringContaining(raw) });
   });
 
   it('does not dirty or bump revision when admitting a supported doc', () => {
@@ -201,7 +408,8 @@ describe('stage-two gated kill-switch (6.6)', () => {
   });
 
   it('is safe to call at source-only (idempotent kill-switch)', () => {
-    setMarkdown('[ref]: /url\n\n# x\n'); // source-only from the start
+    setMarkdown('# x\n');
+    degradeToSourceOnly();
     expect(getMarkdownPipelineMode()).toBe('source-only');
     mocks.createSourceEditor.mockClear();
     degradeToSourceOnly(); // no-op-ish: stays source-only

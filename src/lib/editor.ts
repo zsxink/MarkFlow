@@ -3,7 +3,7 @@ import { refreshFrontmatterPanel } from '../components/frontmatterPanel';
 import {
   normalizeImageMarkdown,
 } from './editor.serializer';
-import { parseMarkdown, serializeMarkdown, type MarkdownSerializeResult } from './editor.markdown.bridge';
+import { serializeMarkdown, type MarkdownSerializeResult } from './editor.markdown.bridge';
 import { decideAdmission, admissionReasonLabel } from './editor.markdown.admission';
 import { endOpaqueSession, getOpaqueRegistry, getOpaqueSession } from './editor.markdown.opaque.session';
 import { runSaveBoundary, shouldUseReconcileBoundary } from './editor.save.reconcile';
@@ -65,14 +65,6 @@ export { initEditor } from './editor.init';
 
 // ── Trailing newline helpers ──────────────────────────────────────────
 
-/**
- * Strip trailing \n characters. ProseMirror serializer discards them,
- * so comparisons against serialized output must be agnostic to them.
- */
-function stripTrailingNewlines(s: string): string {
-  return s.replace(/\n+$/, '');
-}
-
 function appendTrailingNewlines(markdown: string): string {
   if (/\n$/.test(markdown)) return markdown;
   const trailingNewlines = getDocumentState().trailingNewlines;
@@ -109,7 +101,7 @@ export function getMarkdownResult(): MarkdownSerializeResult {
         pipelineMode: getMarkdownPipelineMode(),
       });
       if (decision.kind === 'safe-edit') {
-        return { ok: true, markdown: restoreWysiwygTrailingNewlines(decision.markdown) };
+        return { ok: true, markdown: session.localizedFallback ? decision.markdown : restoreWysiwygTrailingNewlines(decision.markdown) };
       }
       if (decision.kind === 'unchanged') {
         return { ok: true, markdown: appendTrailingNewlines(session.sourceBaseline) };
@@ -186,7 +178,7 @@ export function getSavePlan(options: { allowConfirmedExternalOverwrite?: boolean
   }
 
   if (decision.kind === 'safe-edit') {
-    return { ...decision, markdown: restoreWysiwygTrailingNewlines(decision.markdown) };
+    return { ...decision, markdown: session.localizedFallback ? decision.markdown : restoreWysiwygTrailingNewlines(decision.markdown) };
   }
 
   if (decision.kind === 'conflict') {
@@ -212,7 +204,8 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
   // The disk baseline is exact authored text, including EOF newline count.
   // Source owns that count; stripping it here would make a subsequent
   // Source→WYSIWYG save restore stale metadata.
-  getDocumentState().lastPersistedMarkdown = normalizeImageMarkdown(markdown);
+  const preserveLiteralSource = Boolean(getOpaqueSession()?.localizedFallback);
+  getDocumentState().lastPersistedMarkdown = preserveLiteralSource ? markdown : normalizeImageMarkdown(markdown);
 
   // If a revision was captured at save-start, only clear dirty when no newer
   // edits arrived during the write.  Without a revision (legacy callers) we
@@ -232,7 +225,7 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
     store.setState({ dirty: true });
     return;
   }
-  const currentMd = normalizeImageMarkdown(current.markdown);
+  const currentMd = preserveLiteralSource ? current.markdown : normalizeImageMarkdown(current.markdown);
   // A successful save clears the persistent autosave-failure banner, regardless
   // of whether the save came from autosave or an interactive (Ctrl+S) save.
   store.setState({
@@ -245,6 +238,7 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
 export function setMarkdown(content: string) {
   const ed = getEditor();
   if (ed) {
+    ed.setEditable(!store.getState().readOnly, false);
     // Cancel any pending dirty-check from a previous document's onUpdate.
     // Without this, a stale task captures old content and, when it fires
     // 400 ms later, compares it against the new baseline — incorrectly
@@ -262,27 +256,12 @@ export function setMarkdown(content: string) {
     // Keep the persisted/admission source byte-faithful. Image normalization
     // belongs to an actual write candidate, not an open-time baseline: it
     // would otherwise erase CRLF spelling before an untouched save decision.
-    const stripped = stripTrailingNewlines(content);
     // When Source is active it is the authoritative surface.  In particular,
     // do not place opaque sentinels in CM6 and do not retain an opaque session
     // that would make a later Source save read stale WYSIWYG content.
     if (getMode() === 'source') {
       setMarkdownPipelineMode('source-only');
       setSourceContent(content);
-      getDocumentState().lastPersistedMarkdown = content;
-      getDocumentState().externallyModified = false;
-      store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
-      refreshFrontmatterPanel(content);
-      return;
-    }
-    const parsed = withProgrammaticUpdate(() => parseMarkdown(ed, stripped));
-    if (!parsed.ok) {
-      setMarkdownPipelineMode('source-only');
-      showToast('Markdown 无法安全转换，已保留源码模式');
-      enterSourceMode(content);
-      // The freshly loaded source-only document is the persisted baseline:
-      // reset dirty/externallyModified so a prior dirty document does not
-      // leak into this one.
       getDocumentState().lastPersistedMarkdown = content;
       getDocumentState().externallyModified = false;
       store.setState({ dirty: false, autosaveErrorCount: 0, reconcileError: null });
@@ -352,6 +331,7 @@ export function switchToSource() {
   const serialized = getMarkdownResult();
   if (!serialized.ok) {
     setMarkdownPipelineMode('source-only');
+    ed.setEditable(!store.getState().readOnly, false);
     // Never turn a lossy fallback into a source/save candidate. The last
     // persisted baseline is the only safe recovery text in reduced-risk mode.
     showToast('Markdown 序列化失败，已恢复到上次安全源码');
@@ -359,6 +339,7 @@ export function switchToSource() {
     enterSourceMode(getDocumentState().lastPersistedMarkdown);
     return;
   }
+  ed.setEditable(!store.getState().readOnly, false);
   // Task 8.7: once committed to Source, the opaque session is invalid — a
   // subsequent source edit (or external reload) must re-admit from scratch.
   endOpaqueSession();
@@ -404,13 +385,6 @@ export function switchToWysiwyg() {
   // parsing so the first WYSIWYG save cannot restore a stale open-time count.
   const trailing = source.match(/\n+$/);
   getDocumentState().trailingNewlines = trailing ? trailing[0].length : 0;
-  const stripped = stripTrailingNewlines(source);
-  const parsed = withProgrammaticUpdate(() => parseMarkdown(editor, stripped));
-  if (!parsed.ok) {
-    setMarkdownPipelineMode('source-only');
-    showToast('Markdown 无法安全转换，请继续在源码模式编辑');
-    return;
-  }
   // Stage-two admission (6.5 + 8.1): reject source-only docs without destroying
   // the CM6 editor (no disk rewrite, no WYSIWYG surface); admit opaque docs to
   // `opaque` with a verified session.

@@ -33,6 +33,7 @@ vi.mock('./store', () => ({ store: mocks.store }));
 vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: mocks.showMermaidContextMenu }));
 vi.mock('../components/plantumlContextMenu', () => ({ showPlantumlContextMenu: mocks.showPlantumlContextMenu }));
 vi.mock('./editor.state', () => ({
+  assetToOriginalMap: new Map(),
   getMermaidExportBaseName: mocks.getMermaidExportBaseName,
   getPlantUmlExportBaseName: mocks.getPlantUmlExportBaseName,
 }));

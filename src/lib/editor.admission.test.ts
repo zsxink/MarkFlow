@@ -140,11 +140,18 @@ describe('admission verification (6.4)', () => {
     });
   });
 
-  it('rejects a table that would lose an extra authored cell on first parse', () => {
+  it('keeps a table that would lose an extra authored cell as a literal block', () => {
     const src = '| A | B |\n| --- | --- |\n| one | two | must-not-disappear |\n';
     expect(decideAdmission(editor, src)).toMatchObject({
       mode: 'reconcile', verdict: 'eligible-with-opaque', reason: 'opaque-covered',
     });
+    // The lossy table is retained verbatim instead of forcing the whole
+    // document to source-only (issue #291).
+    const raw: string[] = [];
+    editor.state.doc.descendants(node => {
+      if (node.type.name === 'markflowRawMarkdown') raw.push(String(node.attrs.source));
+    });
+    expect(raw.join('\n')).toContain('must-not-disappear');
   });
 
   // Guard against a regression where verification silently passes a lossy doc

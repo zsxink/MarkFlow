@@ -21,7 +21,7 @@
 
 ## 4. 保存边界接入本地化证明
 
-- [x] 4.1 在 `reconcileSave` 中使用本地化序列化证明：`containsRawMarkdown` 时升级会话标志，`localizedFallback` 会话用 `verificationDoc` 指纹替代 opaque 重渲染指纹；验证 `editor.admission-ui.test.ts` 保存用例得到 `safe-edit`
+- [x] 4.1 在 `reconcileSave` 中使用本地化序列化证明：`containsRawMarkdown` 时升级会话标志，`localizedFallback` 会话改为对最终候选字节做字面量拼接校验（见 7.1）；验证 `editor.admission-ui.test.ts` 保存用例得到 `safe-edit`
 - [x] 4.2 在 `editor.save.reconcile.ts` 对 `localizedFallback` 会话跳过图片 URL 归一化；验证字面量块内图片语法在保存后逐字节不变
 - [x] 4.3 保持 `reconcile()` 冲突判定不变（候选 null、源版本过期、opaque 不一致、意外变更、语义不匹配仍为 `conflict`）；验证对应用例仍返回 `conflict`
 
@@ -36,3 +36,10 @@
 - [x] 6.2 `npx tsc --noEmit` 与 `npm run build` 通过
 - [x] 6.3 用真实 `README.en.md` 执行准入并做一次编辑保存，确认进入 WYSIWYG 且保存结果保留含反引号的行内代码内容
 - [x] 6.4 `npm run validate:openspec` 通过
+
+## 7. 字面量块分隔换行的保存证明（回归修复）
+
+- [x] 7.1 `serializeLocalizedMarkdown` 回填字面量块时整体丢弃渲染器生成的分隔换行（原文自身以换行结尾时），仅在原文无尾换行时保留一个分隔换行；验证 `raw` 尾随 `\n` 的块保存后重新打开不新增换行
+- [x] 7.2 新增 `verifyRawMarkdownSplice`，在 `reconcileSave` 的 `localizedFallback` 分支改用最终候选字节做证明：字面量块必须按文档顺序在行首匹配，且原文以换行结尾时其后不得再有换行；验证候选被污染时返回 `conflict` 而非静默写入
+- [x] 7.3 新增 `src/lib/editor.localized-fallback.test.ts`：准入 → 编辑 → 保存 → 用新编辑器重新打开保存字节，断言语义指纹一致且字面量块逐字节不变；验证把 7.1 回退为旧算法后该用例失败（变异被杀）
+- [x] 7.4 `npm test` 全绿（742）、`npx tsc --noEmit` 与 `npm run build` 通过

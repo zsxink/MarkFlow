@@ -24,7 +24,7 @@ import { renderOpaque, restoreOpaque } from './editor.markdown.opaque.bridge';
 import { setActiveOpaqueRegistry } from './editor.markdown.opaque.extension';
 import { installOpaqueSession } from './editor.markdown.opaque.session';
 import { OpaqueRegistry, scanCodeRegions, scanOpaqueSpans } from './editor.markdown.opaque';
-import { containsRawMarkdown, parseLocalizedMarkdown, serializeLocalizedMarkdown } from './editor.markdown.fallback';
+import { containsRawMarkdown, parseLocalizedMarkdown, rawMarkdownSources, serializeLocalizedMarkdown, verifyRawMarkdownSplice } from './editor.markdown.fallback';
 import { createMarkdownSession, reconcile } from './editor.markdown.reconcile';
 import type { MarkdownSession } from './editor.markdown.types';
 import type { ReconcileOutcome } from './editor.markdown.reconcile';
@@ -166,7 +166,7 @@ export function reconcileSave(editor: Editor, input: ReconcileSaveInput): Reconc
 
   const serialized = serializeTipTapMarkdown(editor);
   let candidate: string | null = null;
-  let localizedFingerprint: string | null = null;
+  let localizedSources: string[] = [];
   let opaqueIntact = true;
 
   if (serialized.ok && registry) {
@@ -176,7 +176,7 @@ export function reconcileSave(editor: Editor, input: ReconcileSaveInput): Reconc
         setActiveOpaqueRegistry(registry);
         const localized = serializeLocalizedMarkdown(editor);
         serializedCandidate = localized.markdown;
-        localizedFingerprint = semanticFingerprint(localized.verificationDoc);
+        localizedSources = rawMarkdownSources(localized.verificationDoc);
       }
       const restored = restoreOpaque(serializedCandidate, registry);
       if (restored.ok) candidate = restored.markdown;
@@ -193,7 +193,10 @@ export function reconcileSave(editor: Editor, input: ReconcileSaveInput): Reconc
   if (candidate !== null) {
     let candidateFp: string | null = null;
     if (input.session.localizedFallback) {
-      candidateFp = localizedFingerprint;
+      // Admission proved the document survives a serialize/parse round trip in
+      // marker form; that proof never looks at the bytes the splice writes.
+      // Measure the candidate itself, over the payloads the document holds.
+      candidateFp = verifyRawMarkdownSplice(candidate, localizedSources) ? editorFp : null;
     } else {
       const reRendered = renderOpaque(candidate);
       if (reRendered.ok) {

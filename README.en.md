@@ -66,11 +66,11 @@ npm run tauri build
 
 Build artifacts are placed in `src-tauri/target/release/bundle/`:
 
-| Platform | Output |
-| --- | --- |
-| Windows | `.exe` (NSIS installer), `.msi` |
-| macOS | `.dmg` (Apple Silicon) |
-| Linux | `.AppImage`, `.deb` |
+| Platform | Output                          |
+| -------- | ------------------------------- |
+| Windows  | `.exe` (NSIS installer), `.msi` |
+| macOS    | `.dmg` (Apple Silicon)          |
+| Linux    | `.AppImage`, `.deb`             |
 
 ---
 
@@ -100,22 +100,22 @@ Image storage location is configurable in settings: workspace `assets/`, doc-lev
 
 #### Formatting
 
-| Shortcut | Action |
-| --- | --- |
-| `Ctrl+B` | Bold |
-| `Ctrl+I` | Italic |
+| Shortcut       | Action        |
+| -------------- | ------------- |
+| `Ctrl+B`       | Bold          |
+| `Ctrl+I`       | Italic        |
 | `Ctrl+Shift+S` | Strikethrough |
-| `` Ctrl+` `` | Inline code |
-| `Ctrl+K` | Insert link |
-| `Ctrl+S` | Save file |
+| `` Ctrl+` ``   | Inline code   |
+| `Ctrl+K`       | Insert link   |
+| `Ctrl+S`       | Save file     |
 
 #### View & Navigation
 
-| Shortcut | Action |
-| --- | --- |
-| `Ctrl+\` | Toggle sidebar |
-| `Ctrl+/` | Toggle source / WYSIWYG mode |
-| `Ctrl+Shift+F` | Toggle focus mode |
+| Shortcut       | Action                       |
+| -------------- | ---------------------------- |
+| `Ctrl+\`       | Toggle sidebar               |
+| `Ctrl+/`       | Toggle source / WYSIWYG mode |
+| `Ctrl+Shift+F` | Toggle focus mode            |
 
 > On macOS, `Ctrl` maps to `Cmd`.
 
@@ -123,10 +123,10 @@ Image storage location is configurable in settings: workspace `assets/`, doc-lev
 
 Three built-in themes, switchable via the toolbar theme button or settings:
 
-| Theme | Description |
-| --- | --- |
-| **Light** | Warm white background. Default. |
-| **Dark** | Dark background for night use. |
+| Theme     | Description                             |
+| --------- | --------------------------------------- |
+| **Light** | Warm white background. Default.         |
+| **Dark**  | Dark background for night use.          |
 | **Sepia** | Parchment tones for reduced eye strain. |
 
 ### Settings
@@ -151,13 +151,13 @@ Settings file location:
 
 ## Project Documentation
 
-| Document | Description | Location |
-| --- | --- | --- |
-| Product Spec | Product positioning, feature list, acceptance criteria | `openspec/specs/product-spec.md` |
-| Architecture | Tech stack, project structure, architecture overview | `openspec/specs/architecture.md` |
+| Document         | Description                                                 | Location                             |
+| ---------------- | ----------------------------------------------------------- | ------------------------------------ |
+| Product Spec     | Product positioning, feature list, acceptance criteria      | `openspec/specs/product-spec.md`     |
+| Architecture     | Tech stack, project structure, architecture overview        | `openspec/specs/architecture.md`     |
 | Technical Design | Architecture details, component design, key implementations | `openspec/specs/technical-design.md` |
-| UI Design Spec | Pixel-level UI specification | `openspec/ui-design/SPEC.md` |
-| UI Fixes Record | CSS layout experience and fix checklist | `openspec/specs/ui-fixes-spec.md` |
+| UI Design Spec   | Pixel-level UI specification                                | `openspec/ui-design/SPEC.md`         |
+| UI Fixes Record  | CSS layout experience and fix checklist                     | `openspec/specs/ui-fixes-spec.md`    |
 
 > `openspec/specs/` is the canonical spec source.
 

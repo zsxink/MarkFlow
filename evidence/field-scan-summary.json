@@ -205,18 +205,18 @@
     },
     {
       "file": "openspec/specs/wysiwyg-markdown-reconciliation/spec.md",
-      "bytes": 7052,
-      "digest": "31d0210e795c",
-      "sourceStructs": 84,
-      "serializedStructs": 84,
+      "bytes": 10670,
+      "digest": "8c0e44d0ed3e",
+      "sourceStructs": 119,
+      "serializedStructs": 119,
       "status": "pass"
     },
     {
       "file": "openspec/specs/wysiwyg-markdown-round-trip/spec.md",
-      "bytes": 8751,
-      "digest": "24f02659bd97",
-      "sourceStructs": 87,
-      "serializedStructs": 87,
+      "bytes": 10875,
+      "digest": "889dadadf4ac",
+      "sourceStructs": 107,
+      "serializedStructs": 107,
       "status": "pass"
     },
     {

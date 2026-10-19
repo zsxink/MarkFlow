@@ -161,7 +161,7 @@ try {
     try {
       execFileSync(
         'osascript',
-        ['-e', 'tell application "Finder" to close every window whose name is "MarkFlow"'],
+        ['-e', `tell application "Finder" to close every window whose name is ${JSON.stringify(volumeName)}`],
         { stdio: 'ignore' },
       )
     } catch {

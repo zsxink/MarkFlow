@@ -13,8 +13,8 @@
     },
     {
       "file": "README.en.md",
-      "bytes": 5494,
-      "digest": "206f8af3a002",
+      "bytes": 6136,
+      "digest": "bd989bf19bba",
       "sourceStructs": 95,
       "serializedStructs": 95,
       "status": "pass"
@@ -109,10 +109,10 @@
     },
     {
       "file": ".claude/memory/MEMORY.md",
-      "bytes": 2192,
-      "digest": "525d29958172",
-      "sourceStructs": 36,
-      "serializedStructs": 36,
+      "bytes": 2343,
+      "digest": "11663dedf78b",
+      "sourceStructs": 39,
+      "serializedStructs": 39,
       "status": "pass"
     },
     {

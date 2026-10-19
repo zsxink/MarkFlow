@@ -1,0 +1,38 @@
+{
+  "dmgPath": "/Users/xian/Project/book/MarkFlow/src-tauri/target/release/bundle/dmg/MarkFlow_0.1.0_aarch64.dmg",
+  "collectedAt": "2026-10-19T12:41:11.254Z",
+  "facts": {
+    "hasDsStore": true,
+    "backgroundFilePresent": true,
+    "backgroundType": 2,
+    "backgroundAliasSize": 770,
+    "arrangeBy": "none",
+    "iconSize": 128,
+    "textSize": 13,
+    "windowBounds": "{{10, 522}, {660, 400}}",
+    "ilocs": {
+      "Applications": {
+        "x": 480,
+        "y": 170
+      },
+      "MarkFlow.app": {
+        "x": 180,
+        "y": 170
+      }
+    },
+    "ilocsRaw": [
+      {
+        "name": "Applications",
+        "x": 480,
+        "y": 170
+      },
+      {
+        "name": "MarkFlow.app",
+        "x": 180,
+        "y": 170
+      }
+    ],
+    "backgroundBytesSize": 37539
+  },
+  "problems": []
+}

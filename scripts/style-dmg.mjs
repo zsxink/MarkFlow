@@ -44,7 +44,12 @@ import {
   plistDictLookup,
   readIloc,
 } from './lib/ds-store.mjs'
-import { detachDmg, loadAppearanceConfig, mountDmg } from './lib/dmg-appearance.mjs'
+import {
+  detachDmg,
+  isolateDmgMounts,
+  loadAppearanceConfig,
+  mountDmg,
+} from './lib/dmg-appearance.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -186,6 +191,10 @@ const rwDmg = join(workDir, 'rw.dmg')
 let mountPoint = null
 
 try {
+  // 隔离清场（Issue #293）：目标卷已有挂载时 attach 会报「资源忙」；
+  // 残留的临时挂载点也会让后续 verify 读到错窗状态。
+  for (const notice of isolateDmgMounts(dmgPath)) console.log(notice)
+
   // 只读镜像改不了，先转成可写
   hdiutil(['convert', dmgPath, '-format', 'UDRW', '-o', rwDmg])
   mountPoint = mountDmg(rwDmg, { writable: true, nobrowse: false, automatic: true })

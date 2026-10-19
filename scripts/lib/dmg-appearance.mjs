@@ -127,6 +127,62 @@ export function withDmgMounted(dmgPath, options, fn) {
   }
 }
 
+/**
+ * 列出本机当前已挂载的磁盘镜像（image-path + 挂载点）。
+ * 用 hdiutil info -plist 输出，经系统自带 plutil 转 JSON 解析——不引入任何 npm 解析依赖。
+ */
+export function listAttachedImages() {
+  const info = execFileSync('hdiutil', ['info', '-plist'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  const json = execFileSync('plutil', ['-convert', 'json', '-o', '-', '-'], {
+    input: info,
+    encoding: 'utf8',
+  })
+  const { images = [] } = JSON.parse(json)
+  const entries = []
+  for (const image of images) {
+    const imagePath = String(image['image-path'] ?? '')
+    for (const entity of image['system-entities'] ?? []) {
+      if (typeof entity['mount-point'] === 'string') {
+        entries.push({ imagePath, mountPoint: entity['mount-point'] })
+      }
+    }
+  }
+  return entries
+}
+
+/**
+ * 采集前的隔离清场（Issue #293）：
+ *   - 目标 DMG 若已有挂载（此前中断的运行可能残留）→ 卸载，避免 attach 报「资源忙」；
+ *   - 本仓库脚本的临时挂载点（mountPoint 含 markflow-dmg-）→ 静默卸载；
+ *   - 其他卷（含其他项目的 DMG）→ 只打印清单，不做破坏性操作。
+ * macOS 会把上一个 DMG 窗口的视图设置套用到下一个 DMG 窗口，先清场再挂目标卷，
+ * 才能保证采集读到的是产物自身的 .DS_Store，而不是别的窗口状态。
+ * 返回人类可读的处理清单。
+ */
+export function isolateDmgMounts(targetDmgPath) {
+  const notices = []
+  const target = resolve(targetDmgPath)
+  for (const { imagePath, mountPoint } of listAttachedImages()) {
+    const isTarget = resolve(imagePath) === target
+    const isScriptMount = mountPoint.includes('markflow-dmg-')
+    if (!isTarget && !isScriptMount) {
+      notices.push(`注意：本机还挂载着非目标卷 ${mountPoint}（${imagePath}）——只读采集目标卷，不受其影响`)
+      continue
+    }
+    try {
+      detachDmg(mountPoint)
+      notices.push(`已卸载 ${mountPoint}${isTarget ? '（目标卷的既有挂载，清场后重新挂载）' : '（脚本残留挂载）'}`)
+    } catch (error) {
+      notices.push(`警告：${mountPoint} 卸载失败：${String(error.message).split('\n')[0]}`)
+    }
+  }
+  return notices
+}
+
 /** 只读采集产物当前的外观事实。不做任何判定，只报告「实际是什么」。 */
 export function collectAppearance(mountPoint, config) {
   const facts = {

@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import {
   checkAppearance,
   collectAppearance,
+  isolateDmgMounts,
   loadAppearanceConfig,
   withDmgMounted,
 } from './lib/dmg-appearance.mjs'
@@ -45,6 +46,10 @@ if (!existsSync(config.backgroundSource)) {
   process.exit(1)
 }
 const backgroundSourceBytes = readFileSync(config.backgroundSource)
+
+// 隔离清场（Issue #293）：Finder 会把上一个 DMG 窗口的视图设置套用到下一个，
+// 或目标卷已挂载时 attach 报「资源忙」。先清场再采集，读数才只反映产物自身。
+for (const notice of isolateDmgMounts(dmgPath)) console.log(notice)
 
 const facts = withDmgMounted(dmgPath, { writable: false }, (mountPoint) =>
   collectAppearance(mountPoint, config),

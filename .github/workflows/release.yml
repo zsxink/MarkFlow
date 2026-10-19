@@ -91,7 +91,9 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
-            node scripts/verify-dmg-appearance.mjs "$dmg"
+            # 隔离采集入口（Issue #293）：先清场再挂载目标卷，断言读取的
+            # 是产物自身的 .DS_Store，不受 Finder 跨 DMG 窗口状态影响。
+            node scripts/collect-dmg-appearance.mjs "$dmg"
           done
 
       - name: Re-upload normalized DMG

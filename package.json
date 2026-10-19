@@ -20,6 +20,7 @@
     "build:dmg": "node scripts/build-dmg.mjs",
     "style:dmg": "node scripts/style-dmg.mjs",
     "verify:dmg": "node scripts/verify-dmg-appearance.mjs",
+    "regression:dmg": "node scripts/regression-dmg-appearance.mjs",
     "postinstall": "patch-package"
   },
   "dependencies": {

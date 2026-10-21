@@ -6,14 +6,14 @@
 ## Agent Context
 - **源码入口：** `vitest.config.ts`、`package.json`。
 - **关联规范：** `regression-coverage`。
-- **不变量：** 覆盖率阈值必须在所有 PR 中检查；低于阈值必须阻断 PR 合入。
-- **验证：** `npm test`（含覆盖率检查）。
+- **不变量：** Vitest 配置声明覆盖率阈值；当前 `npm test` 和 CI 未启用覆盖率采集，因此阈值尚未在 PR 中强制执行。
+- **验证：** `npm test`；如需测量覆盖率，显式运行 Vitest coverage。
 
 ## Requirements
 
 ### Requirement: vitest 覆盖率阈值配置
 
-vitest.config.ts SHALL 配置覆盖率阈值：statements 50%、branches 40%、functions 50%、lines 50%。测试执行时 SHALL 自动检查覆盖率是否达标。
+vitest.config.ts SHALL 配置覆盖率阈值：statements 50%、branches 40%、functions 50%、lines 50%。当以覆盖率模式执行时 SHALL 检查覆盖率是否达标；常规 `npm test` 与 CI 当前不启用覆盖率模式。
 
 #### Scenario: 覆盖率达标
 - **WHEN** 前端测试执行完成
@@ -21,4 +21,4 @@ vitest.config.ts SHALL 配置覆盖率阈值：statements 50%、branches 40%、f
 
 #### Scenario: 覆盖率未达标阻断
 - **WHEN** 任何覆盖率指标低于阈值
-- **THEN** 测试执行失败，CI 步骤失败
+- **THEN** 覆盖率模式下的测试执行失败；常规 CI 不声称执行该检查。

@@ -45,8 +45,8 @@ CI 流程 SHALL 包含 `npm audit --omit=dev --audit-level=high` 步骤。该步
 - **THEN** 所有测试通过，无新增失败
 
 ### Requirement: 生产依赖无已知 high/critical 漏洞
-`npm audit --omit=dev` SHALL 不再报告 linkify-it、markdown-it、dompurify 相关的 high 或 critical 级别漏洞。
+生产依赖审计 SHALL 不报告 high 或 critical 级别漏洞；依赖清单可随正常升级变化，不固定要求特定包名。
 
 #### Scenario: 审计干净
 - **WHEN** 执行 `npm audit --omit=dev`
-- **THEN** 无 linkify-it、markdown-it、dompurify 相关的 high/critical 漏洞报告
+- **THEN** 审计命令以成功状态退出，且无 high/critical 级别漏洞报告

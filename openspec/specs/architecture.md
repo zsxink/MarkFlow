@@ -101,7 +101,7 @@ markflow/
 │   └── capabilities/             # Tauri v2 权限声明
 ├── openspec/                     # OpenSpec 规范与变更追踪
 │   ├── specs/                    #   - 产品规格、架构、技术设计等
-│   ├── ui-design/                #   - UI 设计稿
+│   ├── ui-design/                #   - 历史视觉参考（非当前行为规范）
 │   └── changes/                  #   - 变更追踪
 ├── package.json
 ├── tsconfig.json
@@ -120,7 +120,7 @@ markflow/
 ### 编辑器架构
 
 - **Tiptap** 基于 ProseMirror，以节点树表示文档结构
-- **tiptap-markdown** 扩展负责 Markdown 的双向序列化
+- `@tiptap/markdown` v3 提供 Markdown parse/stringify 扩展；生产序列化经统一 bridge 管理。
 - **自定义 ProseMirror 插件**：
   - `imageSrcResolverPlugin` — 将相对路径转换为 Tauri asset protocol URL
 - `imageUtils.ts` — 统一图片存储、路径解析、命名和草稿生命周期
@@ -163,7 +163,7 @@ CSS 变量架构：`variables.css` 定义三组主题变量（`[data-theme="ligh
 | 依赖 | 用途 |
 |------|------|
 | @tiptap/core + 扩展 | WYSIWYG 编辑器 |
-| tiptap-markdown | Markdown 双向序列化 |
+| @tiptap/markdown v3 | Markdown parse/stringify 扩展，转换由统一 bridge 管理 |
 | codemirror | 源码模式编辑器 |
 | lowlight + highlight.js | 代码高亮 |
 | mermaid | 图表渲染 |

@@ -1,5 +1,7 @@
 # MarkFlow — 所见即所得 Markdown 编辑器 · 功能规格
 
+> **历史视觉参考**：此目录保留历史原型与视觉规格，适合作为视觉/交互参考；当前产品行为以 `openspec/specs/` 的模块规范和实现为准。
+>
 > **原型定位说明**：本设计稿作为视觉/交互参考，原型中的 `markdownToHtml()` 仅用于展示布局效果，不代表实际 Markdown 渲染能力。GFM 语法、表格、任务列表、代码高亮、Mermaid 等功能的技术实现和测试样例见 `openspec/specs/technical-design.md`。
 
 > 版本：1.0.0

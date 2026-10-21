@@ -10,8 +10,8 @@
 - **测试编排：** `e2e/run.mjs`
 - **Page Object：** `e2e/page-objects/app.mjs`
 - **测试文件：** `e2e/specs/smoke/*.e2e.mjs`、`e2e/specs/regression/*.e2e.mjs`
-- **不变量：** smoke 测试必须全部通过才能合入 PR；regression 测试按需运行
-- **验证：** `npm run test:e2e`（smoke 套件）
+- **不变量：** smoke 套件可通过本地命令运行；当前 CI workflow 未配置 e2e job，regression 套件按需运行。
+- **验证：** 本地 `npm run test:e2e`（smoke 套件）；当前不作为 CI 合入门禁。
 
 ## Requirements
 

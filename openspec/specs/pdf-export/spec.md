@@ -67,7 +67,7 @@
 - **AND** 不得显示成功提示
 
 ### Requirement: PDF 导出日志
-系统 SHALL 在 PDF 导出生命周期中输出结构化日志事件：`export.pdf.start`、`export.pdf.ready`、`export.pdf.generating`、`export.pdf.written`、`export.pdf.validated`、`export.pdf.error`、`export.pdf.timeout`。
+PDF 直接生成与浏览器打印共用结构化日志事件集合：`export.pdf.start`、`export.pdf.ready`、`export.pdf.generating`、`export.pdf.written`、`export.pdf.validated`、`export.pdf.print_invoked`、`export.pdf.afterprint`、`export.pdf.error`、`export.pdf.timeout`。直接生成使用 `generating`、`written`、`validated`；打印流程使用 `print_invoked`、`afterprint`。打印流程定义见 [`rendered-document-export`](../rendered-document-export/spec.md)。
 
 #### Scenario: PDF 导出成功日志
 - **WHEN** PDF 导出成功完成

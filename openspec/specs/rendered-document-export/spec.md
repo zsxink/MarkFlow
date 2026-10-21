@@ -23,7 +23,7 @@
 - **THEN** SHALL 移除 `contenteditable`、`draggable`、NodeView 控件和编辑器专用 CSS 类名
 
 ### Requirement: PDF 导出日志
-系统 SHALL 在 PDF 导出生命周期中输出结构化日志事件：`export.pdf.start`、`export.pdf.ready`、`export.pdf.print_invoked`、`export.pdf.afterprint`、`export.pdf.timeout`、`export.pdf.error`。
+系统 SHALL 在 PDF 导出/打印生命周期中输出结构化日志。事件名称与直接生成、打印流程的完整事件集合由 [`pdf-export`](../pdf-export/spec.md) 的“PDF 导出日志”要求定义；本规范限定打印流程事件须符合该集合。
 
 #### Scenario: PDF 导出日志
 - **WHEN** PDF 导出启动

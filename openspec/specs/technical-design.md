@@ -112,7 +112,7 @@ markflow/
 │   └── capabilities/             # Tauri v2 权限配置
 ├── openspec/                     # 规范文档（canonical）
 │   ├── specs/                    #   - 产品规格、架构、技术设计、UI 修复
-│   ├── ui-design/                #   - UI 设计稿
+│   ├── ui-design/                #   - 历史视觉参考（非当前行为规范）
 │   └── changes/                  #   - 变更追踪
 ├── .codegraph/                   # CodeGraph 代码知识图谱（gitignored）
 ├── package.json
@@ -201,7 +201,7 @@ interface AppState {
 - TaskList + TaskItem（支持嵌套）
 - Table + TableRow + TableCell + TableHeader（支持可调整列宽）
 - CodeBlockLowlight（highlight.js + lowlight）
-- Markdown 扩展（tiptap-markdown 负责双向序列化）
+- Markdown 扩展（`@tiptap/markdown` v3；经统一 bridge 处理双向转换）
 
 **Markdown 双向同步：**
 

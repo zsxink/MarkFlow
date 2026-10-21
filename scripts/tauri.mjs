@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
-import { existsSync, readdirSync } from 'node:fs'
-import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
-const root = resolve(new URL('..', import.meta.url).pathname)
+import { ROOT, runTauri } from './lib/tauri-cli.mjs'
+
 const args = process.argv.slice(2)
 
-const build = spawnSync('npx', ['tauri', ...args], { cwd: root, stdio: 'inherit' })
-if (build.status !== 0) process.exit(build.status ?? 1)
+const status = runTauri(args)
+if (status !== 0) process.exit(status)
 
 // Tauri 的原始 build 不会应用 DMG 的 Finder 外观；把后处理挂到同一个入口，
 // 这样 `npm run tauri build` 和 CI 使用的 DMG 都走同一套归一化与校验。
@@ -20,7 +21,7 @@ if (bundlesArgIndex !== -1) {
   if (!bundles.split(',').includes('dmg')) process.exit(0)
 }
 
-const dmgDir = join(root, 'src-tauri', 'target', 'release', 'bundle', 'dmg')
+const dmgDir = join(ROOT, 'src-tauri', 'target', 'release', 'bundle', 'dmg')
 if (!existsSync(dmgDir)) process.exit(0)
 
 const dmgs = readdirSync(dmgDir)
@@ -29,8 +30,8 @@ const dmgs = readdirSync(dmgDir)
 
 for (const dmg of dmgs) {
   for (const script of ['style-dmg.mjs', 'collect-dmg-appearance.mjs']) {
-    const result = spawnSync(process.execPath, [join(root, 'scripts', script), dmg], {
-      cwd: root,
+    const result = spawnSync(process.execPath, [join(ROOT, 'scripts', script), dmg], {
+      cwd: ROOT,
       stdio: 'inherit',
     })
     if (result.status !== 0) process.exit(result.status ?? 1)

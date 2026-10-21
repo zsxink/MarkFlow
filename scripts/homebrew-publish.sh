@@ -4,8 +4,9 @@
 # homebrew-publish.sh — Update Homebrew tap (zsxink/homebrew-tap) on each release.
 #
 # Prerequisites:
-#   - GITHUB_TOKEN with push access to zsxink/homebrew-tap
-#   - Release tag and artifacts already published on GitHub Releases
+#   - GITHUB_TOKEN with push access to zsxink/homebrew-tap and read on the source release
+#   - `gh` on PATH (release assets are fetched through it so draft releases work)
+#   - Release tag and artifacts already uploaded on GitHub Releases
 #
 # Usage:
 #   export GITHUB_TOKEN=ghp_xxx
@@ -37,15 +38,24 @@ git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${TAP_REPO}.git" "$
 SHA_ARM=""
 SHA_INTEL=""
 
+# 资产要带鉴权取，不能用 releases/download/<tag>/<file> 这条公开 URL。
+# 发布流水线以 releaseDraft: true 建 release，草稿状态下公开 URL 一律 404，
+# 于是 homebrew job 会误判「没有 macOS DMG」（Issue #320）。
+# `gh release download` 认 GITHUB_TOKEN，草稿资产也能拉，且不用自己解析 JSON。
 download_sha() {
   local arch="$1"   # aarch64 or x86_64
   local dmg_name="MarkFlow_${VERSION}_${arch}.dmg"
-  local url="https://github.com/${SOURCE_REPO}/releases/download/${TAG}/${dmg_name}"
   echo "Downloading ${dmg_name}..." >&2
-  local status
-  status=$(curl -L -o "${WORKDIR}/${dmg_name}" -w "%{http_code}" -sS "$url")
-  if [ "$status" != "200" ]; then
-    echo "Warning: ${dmg_name} not found (HTTP ${status}) — skipping ${arch} build" >&2
+  if ! gh release download "$TAG" \
+      --repo "$SOURCE_REPO" \
+      --pattern "$dmg_name" \
+      --dir "$WORKDIR" \
+      --clobber 2>/dev/null; then
+    echo "Warning: ${dmg_name} not found in release ${TAG} — skipping ${arch} build" >&2
+    return 1
+  fi
+  if [ ! -s "${WORKDIR}/${dmg_name}" ]; then
+    echo "Warning: ${dmg_name} downloaded empty — skipping ${arch} build" >&2
     rm -f "${WORKDIR}/${dmg_name}"
     return 1
   fi

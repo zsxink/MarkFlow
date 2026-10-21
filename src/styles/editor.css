@@ -19,6 +19,28 @@
   height: 300px;
 }
 
+/* Source mode owns the editor viewport so CodeMirror's horizontal scrollbar
+   stays at the bottom of the application viewport instead of after the full
+   document height. WYSIWYG keeps its normal page scrolling behavior. */
+.editor-area.source-mode {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-area.source-mode .editor-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+.editor-area.source-mode .editor-container::after {
+  display: none;
+}
+
 /* Tiptap editor styles */
 .ProseMirror {
   outline: none;
@@ -728,6 +750,8 @@
 .source-editor-wrapper {
   width: 100%;
   position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 .source-editor-wrapper[hidden] {
@@ -778,6 +802,7 @@
 
 /* 内容区域 — 对齐 WYSIWYG 的字体节奏和编辑内边距 */
 .source-editor-wrapper .cm-scroller {
+  padding: 56px 48px 120px;
   font-family: var(--font-code);
   font-size: 18px;
   line-height: 1.7;

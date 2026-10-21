@@ -21,9 +21,9 @@ const readOnlyCompartment = new Compartment();
 const highlightCompartment = new Compartment();
 const softWrapCompartment = new Compartment();
 
-// Remembered so a toggle made while no source view exists still applies to the
-// next session, and so creation never races the settings cache.
-let softWrapEnabled = true;
+// Before the first explicit toggle, use the loaded preference. Remember toggles
+// made while no source view exists so they apply to the next session too.
+let softWrapEnabled: boolean | undefined;
 
 /** Toggle readOnly on the current source editor without destroying/recreating */
 export function setSourceReadOnly(readOnly: boolean): void {
@@ -53,8 +53,8 @@ export function setSourceSoftWrap(enabled: boolean): void {
 export function setSourceHighlight(enabled: boolean): void {
   if (!currentView) return;
   const style = enabled
-    ? syntaxHighlighting(markdownHighlightStyle, { fallback: true })
-    : syntaxHighlighting(noHighlightStyle, { fallback: true });
+    ? syntaxHighlighting(markdownHighlightStyle)
+    : syntaxHighlighting(noHighlightStyle);
   currentView.dispatch({
     effects: highlightCompartment.reconfigure(style),
   });
@@ -146,11 +146,13 @@ export function createSourceEditor(
   // editor and the state used by save/status always refer to the same view.
   container.querySelectorAll(':scope > .cm-editor').forEach(node => node.remove());
 
+  const settings = getCachedSettings();
+  const wrap = softWrapEnabled ?? (settings.softWrap !== false);
   const extList: any[] = [
     basicSetup,
-    softWrapCompartment.of(softWrapEnabled ? EditorView.lineWrapping : []),
+    softWrapCompartment.of(wrap ? EditorView.lineWrapping : []),
     highlightCompartment.of(syntaxHighlighting(
-      getCachedSettings().codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
+      settings.codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
     )),
     markdown({ codeLanguages: [
         LanguageDescription.of({ name: 'javascript', extensions: ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx'], load: () => loadLang('javascript') }),
@@ -184,7 +186,7 @@ export function createSourceEditor(
   view.contentDOM.dataset.testid = 'editor-source-content';
 
   currentView = view;
-  currentView.dom.classList.toggle('no-code-highlight', getCachedSettings().codeHighlight === false);
+  currentView.dom.classList.toggle('no-code-highlight', settings.codeHighlight === false);
   return view;
 }
 

@@ -198,6 +198,8 @@ export function getPipelineMode() {
 
 export function resetEditorScroll() {
   document.getElementById('editor-area')?.scrollTo({ top: 0, behavior: 'auto' });
+  document.querySelector<HTMLElement>('#source-editor-wrapper .cm-scroller')
+    ?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 }
 
 export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
@@ -350,6 +352,7 @@ function enterSourceMode(content: string) {
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement | null;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   if (!wysiwygEditor || !wrapper) return;
+  document.getElementById('editor-area')?.classList.add('source-mode');
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   setMode('source');
@@ -403,6 +406,7 @@ export function switchToWysiwyg() {
   // save appear unchanged and lose the edit.
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
+  document.getElementById('editor-area')?.classList.remove('source-mode');
   destroySourceEditor();
   setMode('wysiwyg');
   refreshFrontmatterPanel(source);

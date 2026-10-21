@@ -1,7 +1,7 @@
 # code-block-serialization Specification
 
 ## Purpose
-TBD - created by archiving change fix-code-block-trailing-newline. Update Purpose after archive.
+确保代码块内容及末尾换行在 WYSIWYG、源码模式与文件保存之间保持一致。
 ## Requirements
 ### Requirement: 围栏代码块尾随换行序列化保真
 

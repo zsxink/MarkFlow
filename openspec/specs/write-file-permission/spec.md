@@ -3,6 +3,8 @@
 ## Purpose
 定义文档写入的原子性保证和文件树操作的工作区边界检查规则。
 
+原子写入的主题规范为 [`atomic-save`](../atomic-save/spec.md)；下文中与归档 delta 同名的保存要求作为 archive-sync 必需的历史兼容镜像保留，细节以主题规范为准。工作区边界要求仍由本规范维护。
+
 ## Requirements
 
 ### Requirement: 文档保存使用原子写入

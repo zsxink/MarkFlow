@@ -8,6 +8,8 @@
 - **关联规范：** `codemirror-source-editor`、`active-document-state`、`atomic-save`。
 - **不变量：** Enter 前后的文本与嵌套结构必须可往返序列化；模式切换不得丢失内容；完整性检查失败不得静默覆盖用户内容。
 - **验证：** `npm test -- src/lib/editor.test.ts src/lib/markdown.test.ts`；`npx openspec validate enter-content-integrity --strict`。
+续写段落行为的主题规范为 [`block-continuation-paragraph`](../block-continuation-paragraph/spec.md)；下文中与归档 delta 同名的要求作为 archive-sync 必需的历史兼容镜像保留，新的续写语义以主题规范为准。
+
 ## Requirements
 ### Requirement: WYSIWYG Enter 产生有效的 Markdown
 
@@ -115,17 +117,8 @@ WYSIWYG 编辑器中作为续写入口的末尾空段落 SHALL NOT 通过 `&nbsp
 
 ### Requirement: 代码块尾随换行往返保真
 
-系统 MUST 确保围栏代码块在 WYSIWYG ↔ Source 模式切换时，节点内容末尾的换行符数量不变。
+围栏代码块尾随换行、围栏边界与正文往返规则由 [`code-block-serialization`](../code-block-serialization/spec.md) 定义，本规范 SHALL 遵守其规范，本段仅提供交叉引用。
 
-#### Scenario: 代码块尾随换行在往返中保留
-- **WHEN** 用户在 WYSIWYG 模式中在代码块末尾按 Enter 新增一个空行
-- **THEN** 切换到源码模式后，结束围栏前保留该空行
-- **THEN** 切换回 WYSIWYG 模式后，代码块末尾仍有一个空行
-
-#### Scenario: 多个尾随换行在往返中保留
-- **WHEN** 代码块末尾有多个空行（如 2 个）
-- **THEN** 经过 WYSIWYG → Source → WYSIWYG 往返后，空行数量不变
-
-#### Scenario: 无尾随换行的代码块不受影响
-- **WHEN** 代码块末尾没有空行
-- **THEN** 经过 WYSIWYG → Source → WYSIWYG 往返后，代码块末尾仍没有空行
+#### Scenario: 代码块序列化遵循权威规则
+- **WHEN** 用户在 WYSIWYG 与源码模式之间切换代码块
+- **THEN** 代码块内容 SHALL 遵循 `code-block-serialization` 定义的保真规则

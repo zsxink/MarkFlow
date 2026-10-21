@@ -6,7 +6,7 @@
 
 ## Agent Context
 - **源码入口：** 待实现。
-- **关联规范：** `context-menu`、`file-tree-architecture`、`statusbar`。
+- **关联规范：** `context-menu`、`file-tree-architecture`、`statusbar`、`toolbar-layout`。布局要求以 `toolbar-layout` 为准。
 - **不变量：** 待实现。
 - **验证：** 待实现。
 
@@ -30,10 +30,6 @@
 - **WHEN** 用户再次点击加粗按钮取消加粗
 - **THEN** 加粗按钮的 `aria-pressed` SHALL 更新为 `"false"`
 
-#### Scenario: ARIA 分组不影响工具栏布局
-- **WHEN** `initAriaAttributes()` 执行完毕，按钮被移入 `[role="group"]` 容器
-- **THEN** 工具栏内所有可视化元素 SHALL 仍保持原有水平单行 flex 布局
-- **THEN** 按钮的视觉排列 SHALL 与分组前一致（不换行、不溢出、不错位）
 
 ### Requirement: Toast 无障碍属性
 

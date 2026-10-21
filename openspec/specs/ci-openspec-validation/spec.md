@@ -1,7 +1,7 @@
 # ci-openspec-validation Specification
 
 ## Purpose
-TBD - created by archiving change fix-openspec-validate-deps. Update Purpose after archive.
+定义 CI 对 OpenSpec 变更与规范执行完整性进行验证的要求。
 ## Requirements
 ### Requirement: CI 使用 npm script 执行 OpenSpec 校验
 

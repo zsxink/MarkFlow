@@ -90,8 +90,6 @@ tell application "Finder"
     set opts to the icon view options of container window
     set background picture of opts to file ${backgroundFileLiteral}
     close
-    open
-    delay 3
   end tell
 end tell
 `
@@ -208,7 +206,7 @@ try {
     existsSync(backgroundTarget) && readFileSync(backgroundTarget).equals(sourceBytes)
   if (!backgroundSynced) copyFileSync(config.backgroundSource, backgroundTarget)
 
-  const dsPath = join(mountPoint, '.DS_Store')
+  let dsPath = join(mountPoint, '.DS_Store')
   if (!existsSync(dsPath)) {
     throw new Error(
       '产物内没有 .DS_Store：图标视图设置无从改写。这通常意味着构建阶段的 AppleScript 未执行，' +
@@ -223,6 +221,13 @@ try {
   if (!hasBackgroundAlias(buf)) {
     setFinderBackground(mountPoint, backgroundTarget)
     changes.push('backgroundImageAlias → Finder 图片背景（AppleScript 兜底）')
+
+    // Finder may flush cached .DS_Store settings during detach. Persist its alias first,
+    // then remount without browsing before applying the byte-level appearance values.
+    detachDmg(mountPoint)
+    mountPoint = null
+    mountPoint = mountDmg(rwDmg, { writable: true, nobrowse: true, automatic: true })
+    dsPath = join(mountPoint, '.DS_Store')
     buf = readFileSync(dsPath)
   }
 

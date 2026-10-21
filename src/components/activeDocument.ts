@@ -34,7 +34,7 @@ export function clearActiveDocument() {
   setMarkdown('');
   setActiveFilePath(null);
   refreshOutline();
-  store.setState({ readOnly: false });
+  store.setState({ readOnly: false, dirty: false });
   const editor = getEditor();
   if (editor) editor.setEditable(true);
   hideDegradationBar();

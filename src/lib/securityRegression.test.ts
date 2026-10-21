@@ -93,9 +93,18 @@ describe('Security regression: dompurify XSS (GHSA-x4vx-rjvf-j5p4 etc.)', () => 
     expect(clean).toContain('click');
   });
 
-  it('sanitize function is callable and returns string', () => {
-    const result = purify.sanitize('<p>hello</p>');
-    expect(typeof result).toBe('string');
-    expect(result).toContain('hello');
+  it('removes executable elements while retaining safe text', () => {
+    const clean = purify.sanitize('<script>alert(1)</script><p>safe text</p>');
+    expect(clean).not.toContain('<script');
+    expect(clean).toContain('<p>safe text</p>');
+  });
+});
+
+describe('Security regression: Markdown HTML escaping', () => {
+  it('escapes raw HTML instead of emitting executable markup', () => {
+    const html = new MarkdownIt().render('<img src=x onerror=alert(1)>');
+    expect(html).toContain('&lt;img');
+    expect(html).toContain('&gt;');
+    expect(html).not.toContain('<img');
   });
 });

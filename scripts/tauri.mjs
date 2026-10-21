@@ -28,7 +28,7 @@ const dmgs = readdirSync(dmgDir)
   .map((name) => join(dmgDir, name))
 
 for (const dmg of dmgs) {
-  for (const script of ['style-dmg.mjs', 'verify-dmg-appearance.mjs']) {
+  for (const script of ['style-dmg.mjs', 'collect-dmg-appearance.mjs']) {
     const result = spawnSync(process.execPath, [join(root, 'scripts', script), dmg], {
       cwd: root,
       stdio: 'inherit',

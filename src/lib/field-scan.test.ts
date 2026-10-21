@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { Editor } from '@tiptap/core';
@@ -19,7 +19,7 @@ import { createMarkdownExtension } from './editor.init';
 //   - v3 serialization is non-empty whenever the source has content
 //   - re-parsing the v3 serialized output preserves a structural signature
 //     (token count + text-span coverage) → no unclassified content/structure loss
-// Only digests + counts are recorded into evidence/field-scan-summary.json.
+// Only digests + counts are retained in-memory; tests never write evidence.
 
 const mocks = vi.hoisted(() => ({
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(),
@@ -57,11 +57,8 @@ function createAppEditor() {
   });
 }
 
-// Representative real repository documents, chosen for construct coverage:
-// headings, tables, lists (nested/task), links, images, fenced code, diagrams.
-// The openspec spec.md files are the project's own structured real documents
-// and are densely composed of tables/lists/links/code — exactly the constructs
-// gate 5.6 requires. >30 docs total.
+// Stable repository documents plus every OpenSpec spec document. Enumerating
+// specs makes additions/removals part of the scan corpus rather than silent drift.
 const REPO_ROOT = join(__dirname, '..', '..');
 const DOCS = [
   'README.md', 'README.en.md', 'CLAUDE.md', 'AGENTS.md',
@@ -78,21 +75,11 @@ const DOCS = [
   '.claude/memory/source-mode-line-wrapping.md',
   '.claude/rules/branch-first.md', '.claude/rules/git-commit.md',
   '.claude/rules/css-layout.md', '.claude/rules/line-numbers.md',
-  // The project's own structured real documents (specs).
-  'openspec/specs/autosave-dirty-guard/spec.md',
-  'openspec/specs/code-block-serialization/spec.md',
-  'openspec/specs/codemirror-source-editor/spec.md',
-  'openspec/specs/wysiwyg-markdown-reconciliation/spec.md',
-  'openspec/specs/wysiwyg-markdown-round-trip/spec.md',
-  'openspec/specs/block-continuation-paragraph/spec.md',
-  'openspec/specs/document-size-tier/spec.md',
-  'openspec/specs/trailing-newlines-preservation/spec.md',
-  'openspec/specs/lazy-mermaid/spec.md',
-  'openspec/specs/file-tree-incremental-update/spec.md',
-  'openspec/specs/image-streaming/spec.md',
-  'openspec/specs/atomic-save/spec.md',
-  'openspec/specs/enter-content-integrity/spec.md',
-].filter((p) => existsSync(join(REPO_ROOT, p)));
+  ...readdirSync(join(REPO_ROOT, 'openspec/specs'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `openspec/specs/${entry.name}/spec.md`)
+    .sort(),
+];
 
 function v2TokenCount(markdown: string): number {
   // Conservative structural reference: count markdown block/inline delimiters
@@ -115,6 +102,7 @@ function digest(s: string): string {
 describe('stage-one field-scan gate (5.6) — real read-only documents, zero unclassified loss', () => {
   it(`scans ${DOCS.length} real docs through the v3 engine without unclassified loss`, () => {
     expect(DOCS.length).toBeGreaterThanOrEqual(30);
+    for (const rel of DOCS) expect(readFileSync(join(REPO_ROOT, rel), 'utf8').length, `missing/empty corpus input: ${rel}`).toBeGreaterThan(0);
 
     const editor = createAppEditor();
     const rows: Array<Record<string, string | number>> = [];
@@ -156,22 +144,9 @@ describe('stage-one field-scan gate (5.6) — real read-only documents, zero unc
     }
     editor.destroy();
 
-    // Persist only digests/summaries — never any document body.
-    mkdirSync(join(REPO_ROOT, 'evidence'), { recursive: true });
-    const summary = {
-      gate: failures.length === 0 ? 'PASS' : 'FAIL',
-      scanned: rows.length,
-      failures,
-      rows,
-    };
-    writeFileSync(
-      join(REPO_ROOT, 'evidence/field-scan-summary.json'),
-      JSON.stringify(summary, null, 2) + '\n',
-      'utf8',
-    );
-
+    const gate = failures.length === 0 ? 'PASS' : 'FAIL';
     // eslint-disable-next-line no-console
-    console.log(`5.6 field scan: scanned=${rows.length} failures=${failures.length} gate=${summary.gate}`);
+    console.log(`5.6 field scan: scanned=${rows.length} failures=${failures.length} gate=${gate}`);
     expect(rows.length).toBeGreaterThanOrEqual(30);
     expect(failures).toEqual([]);
   });

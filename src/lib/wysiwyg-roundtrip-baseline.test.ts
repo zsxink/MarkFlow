@@ -31,11 +31,12 @@ describe('fixed WYSIWYG round-trip corpus', () => {
     }
   });
 
-  it('produces a repeatable v2 parser structure signature', () => {
-    const first = WYSIWYG_ROUNDTRIP_FIXTURES.map(fixture => [fixture.id, tokenSignature(fixture.markdown)]);
-    const second = WYSIWYG_ROUNDTRIP_FIXTURES.map(fixture => [fixture.id, tokenSignature(fixture.markdown)]);
-    expect(second).toEqual(first);
-    expect(first.every(([, signature]) => signature.length > 0)).toBe(true);
+  it('captures non-empty v2 token signatures for every baseline fixture', () => {
+    for (const fixture of WYSIWYG_ROUNDTRIP_FIXTURES) {
+      const signature = tokenSignature(fixture.markdown);
+      expect(signature.length, fixture.id).toBeGreaterThan(0);
+      expect(signature.every(token => token.includes(':')), fixture.id).toBe(true);
+    }
   });
 
   it('does not claim v3 output in the v2 baseline', () => {

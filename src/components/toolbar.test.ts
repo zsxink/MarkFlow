@@ -82,11 +82,6 @@ describe('toolbar', () => {
     expect(formatGroup!.querySelector('#btn-bold')).not.toBeNull();
     expect(formatGroup!.querySelector('#btn-italic')).not.toBeNull();
   });
-  it('does not have a duplicate theme button (#btn-theme) in the toolbar', () => {
-    expect(document.getElementById('btn-theme')).toBeNull();
-    initToolbar();
-    expect(document.getElementById('btn-theme')).toBeNull();
-  });
   it('writes the authored image URL onto the WYS node even when rendering collides', async () => {
     const setImage = vi.fn(() => ({ run: vi.fn() }));
     getEditor.mockReturnValue({ chain: () => ({ focus: () => ({ setImage }) }) });

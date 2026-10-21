@@ -2,6 +2,7 @@
 node_modules/
 
 # Build output
+docs/bundle-report.html
 dist/
 output/
 e2e/artifacts/

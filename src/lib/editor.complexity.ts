@@ -69,9 +69,3 @@ export function complexityLimitExtension(): Extension {
     },
   });
 }
-
-/** Check if the document exceeds complexity limits */
-export function isDocumentOverComplexityLimit(): boolean {
-  // This is checked via the document state directly when needed
-  return false;
-}

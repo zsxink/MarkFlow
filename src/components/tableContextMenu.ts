@@ -161,10 +161,6 @@ function dispatchAlign(align: TableAlign) {
   if (editor) setColumnAlign(editor, align);
 }
 
-export function hideTableContextMenu() {
-  // `showContextMenuStatic` 负责关闭；无额外清理。
-}
-
 export interface TableContextMenuState {
   /** 命中 `td/th` 的 DOM 元素。 */
   cell: HTMLElement;

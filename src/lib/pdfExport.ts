@@ -3,17 +3,6 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { logInfo, logException } from './logger';
 import { showToast } from '../components/toast';
 
-export type PdfExportEvent =
-  | 'export.pdf.start'
-  | 'export.pdf.ready'
-  | 'export.pdf.generating'
-  | 'export.pdf.written'
-  | 'export.pdf.validated'
-  | 'export.pdf.print_invoked'
-  | 'export.pdf.afterprint'
-  | 'export.pdf.timeout'
-  | 'export.pdf.error';
-
 // ── Concurrent export protection (task 4.7) ───────────────────────────────
 
 let pdfExportInProgress = false;

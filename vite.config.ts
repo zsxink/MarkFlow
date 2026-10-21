@@ -34,7 +34,6 @@ export default defineConfig(({ mode }) => ({
             '@tiptap/extension-image',
             '@tiptap/extension-code-block-lowlight',
             '@tiptap/markdown',
-            'prosemirror-model',
             'prosemirror-state',
             'prosemirror-view',
             'prosemirror-schema-list',

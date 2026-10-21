@@ -19,12 +19,3 @@ export interface CursorPos {
   line: number;
   col: number;
 }
-
-// ── Document State ────────────────────────────────────────────────────
-
-export interface DocumentState {
-  path: string | null;
-  dirty: boolean;
-  wordCount: number;
-  lineCount: number;
-}

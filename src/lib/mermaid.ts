@@ -59,7 +59,3 @@ export async function renderMermaid(code: string): Promise<string> {
   const svg = result.svg;
   return sanitizeMermaidSvg(svg);
 }
-
-export function isMermaidTheme(theme: string): string {
-  return theme === 'dark' ? 'dark' : 'default';
-}

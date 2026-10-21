@@ -16,7 +16,7 @@
 // This is intentionally not a merge engine: it only decides whether the bridge
 // is allowed to hand a candidate to the save path.
 
-import type { MarkdownSession, ReconcileVerdict } from './editor.markdown.types';
+import type { MarkdownSession } from './editor.markdown.types';
 import type { OpaqueRegistry } from './editor.markdown.opaque';
 
 export type ReconcileConflictCode =
@@ -93,25 +93,6 @@ export function reconcile(input: ReconcileInput): ReconcileOutcome {
     return { verdict: 'safe-edit', markdown: input.candidate };
   }
   return { verdict: 'conflict', code: 'semantic-mismatch' };
-}
-
-/** Bounded, content-free reason strings for the UI/diagnostics. */
-export const RECONCILE_CONFLICT_LABELS: Record<ReconcileConflictCode, string> = {
-  'conversion-failed': '内容转换失败，未保存',
-  'stale-source': '文档已发生外部变化，请重新加载',
-  'opaque-mismatch': '保留片段完整性被破坏，未保存',
-  'semantic-mismatch': '编辑结果无法安全重现，未保存',
-  'unexpected-change': '检测到未登记的内容变化，未保存',
-};
-
-/** Human-facing verdict label (unchanged / safe-edit / conflict). */
-export function reconcileVerdictLabel(verdict: ReconcileVerdict): string {
-  switch (verdict) {
-    case 'unchanged': return '内容未变化，保留原文';
-    case 'safe-edit': return '编辑已安全保存';
-    case 'conflict': return '发生冲突，未覆盖磁盘';
-    default: return '未知状态';
-  }
 }
 
 // ── Session factory (task 8.1 / design Decision 6) ────────────────────────

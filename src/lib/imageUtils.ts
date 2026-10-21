@@ -166,15 +166,6 @@ export function generateSourceImageName(
   return pickAvailableName(`${base}.${extension}`, existingNames);
 }
 
-/** @deprecated Compatibility alias for callers using the former strategy API. */
-export async function generateImageName(
-  originalName: string,
-  _strategy: string,
-  existingNames: string[] = [],
-): Promise<string> {
-  return generateSourceImageName(originalName, existingNames);
-}
-
 export async function copyImageToStorage(
   base64Data: string,
   originalName: string,

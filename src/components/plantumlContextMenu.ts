@@ -32,9 +32,6 @@ export function showPlantumlContextMenu(x: number, y: number, state: PlantumlCon
   showContextMenuStatic(menuItems, { x, y }, { className: 'plantuml-context-menu' });
 }
 
-export function hidePlantumlContextMenu() {
-}
-
 function parseSvgDimension(value: string | null) {
   if (!value) return 0;
   const parsed = Number.parseFloat(value);

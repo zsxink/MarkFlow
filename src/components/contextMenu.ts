@@ -54,10 +54,6 @@ function handleContextAction(action: string, path: string | null, type: TargetTy
   });
 }
 
-export function hideContextMenu() {
-}
-
-
 function getTargetDir(path: string | null, type: TargetType): string {
   if (!path) {
     return getWorkspacePath() || '';

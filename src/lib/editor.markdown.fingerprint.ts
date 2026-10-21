@@ -132,8 +132,6 @@ export const CANONICALIZATIONS = [
 // delimiters and CommonMark padding, so no lossy code normalization belongs
 // in this canonicalization allowlist.
 
-export type Canonicalization = (typeof CANONICALIZATIONS)[number];
-
 /**
  * Apply the pure-text canonicalizations (currently just EOF trailing-newline
  * normalization) so two sources that differ only by approved neutral formatting

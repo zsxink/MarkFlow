@@ -27,11 +27,6 @@ export function getOpaqueSession(): MarkdownSession | null {
   return currentSession;
 }
 
-/** Record the committed session baselines (created at admission, 8.1). */
-export function setOpaqueSession(session: MarkdownSession | null): void {
-  currentSession = session;
-}
-
 /**
  * Render `source` into sentinel form and install the resulting session
  * registry as the active one. Returns the same result as `renderOpaque`, with

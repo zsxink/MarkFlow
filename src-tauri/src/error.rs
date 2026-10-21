@@ -40,16 +40,6 @@ impl AppError {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn lock_poisoned(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::LockPoisoned, message)
-    }
-
-    #[allow(dead_code)]
-    pub fn watcher_start_failed(message: impl Into<String>) -> Self {
-        Self::new(AppErrorCode::WatcherStartFailed, message)
-    }
-
     pub fn io(message: impl Into<String>) -> Self {
         Self::new(AppErrorCode::Io, message)
     }
@@ -62,7 +52,6 @@ impl AppError {
         Self::new(AppErrorCode::WorkspaceInvalid, message)
     }
 
-    #[allow(dead_code)]
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(AppErrorCode::Internal, message)
     }
@@ -115,7 +104,7 @@ mod tests {
 
     #[test]
     fn error_code_serializes_with_message() {
-        let e = AppError::watcher_start_failed("boom");
+        let e = AppError::new(AppErrorCode::WatcherStartFailed, "boom");
         let json = serde_json::to_string(&e).unwrap();
         assert!(json.contains("watcher-start-failed"));
         assert!(json.contains("boom"));

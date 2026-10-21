@@ -32,9 +32,6 @@ export function showMermaidContextMenu(x: number, y: number, state: MermaidConte
   showContextMenuStatic(menuItems, { x, y }, { className: 'mermaid-context-menu' });
 }
 
-export function hideMermaidContextMenu() {
-}
-
 function parseSvgDimension(value: string | null) {
   if (!value) return 0;
   const parsed = Number.parseFloat(value);

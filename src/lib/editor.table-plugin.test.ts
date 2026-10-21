@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('../components/tableContextMenu', () => ({
   showTableContextMenu: mocks.showTableContextMenu,
-  hideTableContextMenu: vi.fn(),
   buildTableMenuItems: vi.fn(() => [{ label: 'x' }]),
 }));
 vi.mock('../components/ui/contextMenu', () => ({ showContextMenuStatic: mocks.showContextMenuStatic }));

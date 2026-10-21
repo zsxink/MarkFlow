@@ -4,7 +4,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 vi.mock('../lib/storage', () => ({
   loadSettings: vi.fn(),
   clearRecentHistory: vi.fn(),
-  addRecentFile: vi.fn(),
 }));
 
 // Mock sidebar for confirmDocumentTransition etc.
@@ -24,7 +23,6 @@ vi.mock('./toast', () => ({
 }));
 
 const { loadSettings } = await import('../lib/storage');
-const { addRecentFile } = await import('../lib/storage');
 const { confirmDocumentTransition, openFileInEditor, clearActiveDocument } = await import('./sidebar');
 const { setWorkspacePath, refreshFileTree } = await import('./fileTree');
 const { showToast } = await import('./toast');
@@ -168,7 +166,6 @@ describe('menu event delegation', () => {
 
     // Allow microtask queue to flush (handlers are async)
     await vi.waitFor(() => {
-      expect(addRecentFile).toHaveBeenCalledWith('/path/to/file.md');
       expect(openFileInEditor).toHaveBeenCalledWith('/path/to/file.md');
     });
   });
@@ -200,7 +197,6 @@ describe('menu event delegation', () => {
 
     // Allow microtasks to settle, then assert no calls were made
     await vi.waitFor(() => {
-      expect(addRecentFile).not.toHaveBeenCalled();
       expect(setWorkspacePath).not.toHaveBeenCalled();
     });
   });
@@ -222,7 +218,7 @@ describe('menu event delegation', () => {
     btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await vi.waitFor(() => {
-      expect(addRecentFile).not.toHaveBeenCalled();
+      expect(openFileInEditor).not.toHaveBeenCalled();
     });
   });
 
@@ -236,7 +232,6 @@ describe('menu event delegation', () => {
     fileBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await vi.waitFor(() => {
-      expect(addRecentFile).not.toHaveBeenCalled();
       expect(openFileInEditor).not.toHaveBeenCalled();
     });
   });

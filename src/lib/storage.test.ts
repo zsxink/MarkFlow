@@ -56,4 +56,18 @@ describe('storage IPC facade', () => {
     expect(invoke).toHaveBeenCalledWith('add_recent_file', { path: '/a.md' });
     expect(invoke).toHaveBeenCalledWith('clear_recent_history');
   });
+
+  it('keeps recent history mutations in the loaded settings cache', async () => {
+    invoke.mockResolvedValueOnce({ recentFiles: ['/old.md'], recentFolders: ['/old-folder'] });
+    await storage.loadSettings();
+
+    await storage.addRecentFile('/new.md');
+    await storage.addRecentFolder('/new-folder');
+    expect(storage.getCachedSettings().recentFiles).toEqual(['/new.md', '/old.md']);
+    expect(storage.getCachedSettings().recentFolders).toEqual(['/new-folder', '/old-folder']);
+
+    await storage.clearRecentHistory();
+    expect(storage.getCachedSettings().recentFiles).toEqual([]);
+    expect(storage.getCachedSettings().recentFolders).toEqual([]);
+  });
 });

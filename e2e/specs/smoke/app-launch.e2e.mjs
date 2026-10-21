@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { app, showFiles, waitForAppReady } from '../../page-objects/app.mjs';
 
 export function registerLaunchTests() {

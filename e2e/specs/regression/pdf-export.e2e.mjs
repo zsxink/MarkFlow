@@ -30,24 +30,62 @@ function buildLongPdfHtml() {
 </html>`;
 }
 
-function inspectPdfWithAvailableTools(pdfPath) {
+export function inspectPdfWithAvailableTools(pdfPath, {
+  execFile = execFileSync,
+  warn = console.warn,
+} = {}) {
   try {
-    const info = execFileSync('pdfinfo', [pdfPath], { encoding: 'utf8' });
+    const info = execFile('pdfinfo', [pdfPath], { encoding: 'utf8' });
     const pages = Number(info.match(/^Pages:\s+(\d+)/m)?.[1] ?? 0);
     expect(pages).toBeGreaterThan(1);
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
+    warn('SKIPPED: pdfinfo is unavailable; PDF page-count assertion was not run.');
   }
 
   try {
-    const text = execFileSync('pdftotext', [pdfPath, '-'], { encoding: 'utf8' });
+    const text = execFile('pdftotext', [pdfPath, '-'], { encoding: 'utf8' });
     expect(text).toContain(END_MARKER);
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
+    warn('SKIPPED: pdftotext is unavailable; PDF text completeness assertion was not run.');
   }
 }
 
 describe('macOS native PDF export regression', () => {
+  it('warns for each unavailable Poppler tool without skipping the other check', () => {
+    const warnings = [];
+    const calls = [];
+    const execFile = (command) => {
+      calls.push(command);
+      if (command === 'pdfinfo') {
+        const error = new Error('missing');
+        error.code = 'ENOENT';
+        throw error;
+      }
+      return `${END_MARKER}`;
+    };
+    inspectPdfWithAvailableTools('/unused.pdf', { execFile, warn: (message) => warnings.push(message) });
+    expect(calls).toEqual(['pdfinfo', 'pdftotext']);
+    expect(warnings).toEqual([
+      'SKIPPED: pdfinfo is unavailable; PDF page-count assertion was not run.',
+    ]);
+
+    warnings.length = 0;
+    inspectPdfWithAvailableTools('/unused.pdf', {
+      execFile: (command) => {
+        if (command === 'pdfinfo') return 'Pages: 2';
+        const error = new Error('missing');
+        error.code = 'ENOENT';
+        throw error;
+      },
+      warn: (message) => warnings.push(message),
+    });
+    expect(warnings).toEqual([
+      'SKIPPED: pdftotext is unavailable; PDF text completeness assertion was not run.',
+    ]);
+  });
+
   it('exports two valid, complete PDFs through the real Tauri backend', async function () {
     if (process.platform !== 'darwin') this.skip();
     await waitForAppReady();

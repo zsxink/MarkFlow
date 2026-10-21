@@ -103,7 +103,9 @@ describe('named canonicalization behavior (9.3)', () => {
     // two paragraphs.
     const json = editor.commands.setContent(source, { contentType: 'markdown' } as never) && editor.getJSON();
     expect(JSON.stringify(json)).toContain('line one\\nline two');
-    expect(fpOf(editor, source)).toBe(fpOf(editor, source)); // stable & idempotent
+    const firstFingerprint = fpOf(editor, source);
+    const serialized = editor.getMarkdown();
+    expect(fpOf(editor, serialized)).toBe(firstFingerprint);
     editor.destroy();
   });
 

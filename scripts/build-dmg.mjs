@@ -3,7 +3,7 @@
  * 构建 macOS DMG，并立即把 Finder 外观写回产物。
  *
  * Tauri 能把背景文件复制进 DMG，但不会稳定落地 icon view 的图片背景配置；
- * 因此本地构建也必须复用发布流水线的 style + verify 步骤。
+ * 因此本地构建也必须复用发布流水线的 style + isolated collection 步骤.
  */
 
 import { readdirSync, existsSync } from 'node:fs'
@@ -40,7 +40,7 @@ if (dmgs.length === 0) {
 }
 
 for (const dmg of dmgs) {
-  for (const script of ['style-dmg.mjs', 'verify-dmg-appearance.mjs']) {
+  for (const script of ['style-dmg.mjs', 'collect-dmg-appearance.mjs']) {
     const result = spawnSync(process.execPath, [join(ROOT, 'scripts', script), dmg], {
       cwd: ROOT,
       stdio: 'inherit',

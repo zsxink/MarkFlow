@@ -6,10 +6,10 @@
 
 ## Agent Context
 
-- **源码入口：** `scripts/build-dmg.mjs`、`scripts/build-dmg-background.mjs`、`scripts/style-dmg.mjs`、`scripts/verify-dmg-appearance.mjs`、`scripts/lib/`（`.DS_Store` 解析/改写与断言逻辑）、`assets/dmg-background.svg`、`src-tauri/dmg-appearance.json`、`src-tauri/tauri.conf.json` 的 `bundle.macOS.dmg`。
+- **源码入口：** `scripts/build-dmg.mjs`、`scripts/build-dmg-background.mjs`、`scripts/style-dmg.mjs`、`scripts/collect-dmg-appearance.mjs`、`scripts/regression-dmg-appearance.mjs`、`scripts/lib/`（`.DS_Store` 解析/改写与断言逻辑）、`assets/dmg-background.svg`、`src-tauri/dmg-appearance.json`、`src-tauri/tauri.conf.json` 的 `bundle.macOS.dmg`.
 - **关联规范：** `bundle-budget`（构建产物体积）、`ci-openspec-validation`。
 - **不变量：** 期望值（坐标、尺寸）只来源于 `tauri.conf.json` 的 `bundle.macOS.dmg`，断言脚本不得另行硬编码；外观最终确定通过直接改写产物内 `.DS_Store` 完成，不依赖 Finder 自动化；打包使用仓库内提交的背景图文件，打包与验证路径运行时不得依赖图像处理库；验证脚本只读，不得修改被检查的产物。
-- **验证：** `scripts/build-dmg.mjs` 与 `scripts/style-dmg.mjs`（归一化）、`scripts/verify-dmg-appearance.mjs`（断言）；`npm run tauri build`。
+- **验证：** `scripts/build-dmg.mjs` 依次运行 `scripts/style-dmg.mjs`（归一化）与 `scripts/collect-dmg-appearance.mjs`（隔离采集和契约断言）；`npm run tauri build`.
 
 ## Requirements
 
@@ -64,7 +64,7 @@ DMG 窗口 SHALL 采用配置的窗口尺寸，使背景图构图与可视区域
 
 ### Requirement: 外观契约在产物层面可自动验证
 
-仓库 SHALL 提供一个只读的验证脚本，对 DMG 产物断言上述外观契约。脚本 SHALL 在全部断言通过时以 0 退出；任一断言失败时 SHALL 以非零退出并打印可定位的失败原因；脚本 MUST NOT 修改被检查的产物。
+仓库 SHALL 提供隔离采集脚本，对 DMG 产物断言上述外观契约。脚本 SHALL 在全部断言通过时以 0 退出；任一断言失败时 SHALL 以非零退出并打印可定位的失败原因；采集脚本 MUST NOT 修改被检查的产物.
 
 #### Scenario: 合格产物通过断言
 - **WHEN** 对归一化后的产物运行验证脚本
@@ -124,15 +124,20 @@ DMG 外观断言所依赖的外观事实（`icvp` 视图设置、bwsp 窗口边�
 
 ### Requirement: 一轮化 DMG 外观回归验证入口
 
-仓库 SHALL 提供一个一轮化的回归脚本：对给定 DMG 产物一次完成「归一化（style）→ 契约断言（verify）→ 存档证据（外观事实 JSON + 打开挂载卷的 Finder 截图）」，并在证据落盘后对证据做最小一致性断言。该脚本用于在发布前一轮确认产物外观，防止「修复晚于发布」类偏差。
+仓库 SHALL 提供一个一轮化的回归脚本：对给定 DMG 产物一次完成「归一化（style）→ 隔离采集并断言契约 → 存档证据（外观事实 JSON + 打开挂载卷的 Finder 截图）」，并在证据落盘后对证据做最小一致性断言。该脚本用于在发布前一轮确认产物外观，防止「修复晚于发布」类偏差。隔离采集的断言 SHALL 失败即以非零状态终止；截图无法采集时可输出明确警告，但 MUST NOT 弱化外观契约断言。
 
 #### Scenario: 一轮验证完成并产出证据
 - **WHEN** 对合格产物运行回归脚本
-- **THEN** 契约断言通过，`evidence/` 目录新增该产物的外观事实 JSON 与 Finder 截图，脚本以 0 退出
+- **THEN** 隔离采集的契约断言通过，`evidence/` 目录新增该产物的外观事实 JSON 与 Finder 截图，脚本以 0 退出
 
 #### Scenario: 不合格产物被拦截且不产证据
 - **WHEN** 对外观契约未满足的产物运行回归脚本
-- **THEN** 脚本以非零退出并指明失败断言，MUST NOT 输出错把不合格产物标记为合格的证据
+- **THEN** 隔离采集以非零退出并指明失败断言，MUST NOT 输出错把不合格产物标记为合格的证据
+
+#### Scenario: 截图不可用时仍执行外观门禁
+- **WHEN** Finder 截图无法采集但隔离外观事实可采集
+- **THEN** 回归脚本明确报告截图警告并继续检查外观契约
+- **THEN** 外观契约失败仍 SHALL 使回归脚本非零退出
 
 ### Requirement: 发布前的产物外观断言使用隔离采集
 

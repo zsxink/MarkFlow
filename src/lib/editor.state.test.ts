@@ -121,48 +121,26 @@ describe('hasExternalModification / markExternalModification', () => {
   });
 });
 
-describe('getPlantUmlExportBaseName', () => {
-  it('returns "plantuml-diagram" when no active document path', () => {
-    expect(getPlantUmlExportBaseName()).toBe('plantuml-diagram');
+describe.each([
+  ['PlantUML', getPlantUmlExportBaseName, 'plantuml'],
+  ['Mermaid', getMermaidExportBaseName, 'mermaid'],
+] as const)('%s export base name', (_diagram, getBaseName, suffix) => {
+  it('uses a diagram-specific fallback when no document is active', () => {
+    expect(getBaseName()).toBe(`${suffix}-diagram`);
   });
 
-  it('derives base name from document file name with extension', () => {
-    setActiveDocumentPath('/path/to/report.md');
-    expect(getPlantUmlExportBaseName()).toBe('report-plantuml');
-  });
-
-  it('handles document path without extension', () => {
-    setActiveDocumentPath('/path/to/README');
-    expect(getPlantUmlExportBaseName()).toBe('README-plantuml');
-  });
-
-  it('handles document with multiple dots in the name', () => {
-    setActiveDocumentPath('/path/to/my.file.name.md');
-    expect(getPlantUmlExportBaseName()).toBe('my.file.name-plantuml');
+  it.each([
+    ['/path/to/report.md', `report-${suffix}`],
+    ['/path/to/README', `README-${suffix}`],
+    ['/path/to/my.file.name.md', `my.file.name-${suffix}`],
+  ])('derives the base name from %s', (path, expected) => {
+    setActiveDocumentPath(path);
+    expect(getBaseName()).toBe(expected);
   });
 });
 
-describe('getMermaidExportBaseName', () => {
-  it('returns "mermaid-diagram" when no active document path', () => {
-    expect(getMermaidExportBaseName()).toBe('mermaid-diagram');
-  });
-
-  it('derives base name from document file name with extension', () => {
-    setActiveDocumentPath('/path/to/report.md');
-    expect(getMermaidExportBaseName()).toBe('report-mermaid');
-  });
-
-  it('handles document path without extension', () => {
-    setActiveDocumentPath('/path/to/README');
-    expect(getMermaidExportBaseName()).toBe('README-mermaid');
-  });
-
-  it('handles document with multiple dots in the name', () => {
-    setActiveDocumentPath('/path/to/my.file.name.md');
-    expect(getMermaidExportBaseName()).toBe('my.file.name-mermaid');
-  });
-
-  it('uses full file name when the only dot is at position 0 (hidden file)', () => {
+describe('getMermaidExportBaseName hidden-file behavior', () => {
+  it('uses full file name when the only dot is at position 0', () => {
     setActiveDocumentPath('/path/to/.gitignore');
     expect(getMermaidExportBaseName()).toBe('.gitignore-mermaid');
   });

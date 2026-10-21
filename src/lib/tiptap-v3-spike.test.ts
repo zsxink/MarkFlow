@@ -137,7 +137,6 @@ describe('TipTap v3 Markdown migration spike', () => {
 
   it('runs the complete app-like editor corpus and records normalized output', () => {
     TIPTAP_V3_CORPUS_RESULTS.length = 0;
-    const knownV3Failures = new Set<string>();
     for (const fixture of WYSIWYG_ROUNDTRIP_FIXTURES) {
       const editor = createAppLikeEditor();
       let output: string | undefined;
@@ -154,13 +153,18 @@ describe('TipTap v3 Markdown migration spike', () => {
         TIPTAP_V3_CORPUS_RESULTS.push({ id: fixture.id, category: fixture.category, status: 'supported', roundTrip: 'pass', output });
       } catch (error) {
         TIPTAP_V3_CORPUS_RESULTS.push({ id: fixture.id, category: fixture.category, status: fixture.category === 'invalid' ? 'invalid' : 'supported', roundTrip: fixture.category === 'invalid' ? 'classified' : 'fail', output, errorCode: error instanceof Error ? error.name : typeof error });
-        if (fixture.category !== 'invalid' && !knownV3Failures.has(fixture.id)) throw error;
+        if (fixture.category !== 'invalid') throw error;
       } finally {
         editor.destroy();
       }
     }
     expect(TIPTAP_V3_CORPUS_RESULTS).toHaveLength(WYSIWYG_ROUNDTRIP_FIXTURES.length);
-    expect(TIPTAP_V3_CORPUS_RESULTS.filter(result => result.roundTrip === 'fail').map(result => result.id)).toEqual([...knownV3Failures]);
-    expect(TIPTAP_V3_CORPUS_RESULTS.filter(result => result.status === 'invalid')).toHaveLength(2);
+    const supported = TIPTAP_V3_CORPUS_RESULTS.filter((result) => result.status === 'supported');
+    const invalidFixtures = WYSIWYG_ROUNDTRIP_FIXTURES.filter((fixture) => fixture.category === 'invalid');
+    const invalid = TIPTAP_V3_CORPUS_RESULTS.filter((result) => result.status === 'invalid');
+    expect(supported).toHaveLength(WYSIWYG_ROUNDTRIP_FIXTURES.length - invalidFixtures.length);
+    expect(supported.every((result) => result.roundTrip === 'pass')).toBe(true);
+    expect(invalid.map((result) => result.id).sort()).toEqual(invalidFixtures.map((fixture) => fixture.id).sort());
+    expect(invalid.every((result) => result.roundTrip === 'classified')).toBe(true);
   });
 });

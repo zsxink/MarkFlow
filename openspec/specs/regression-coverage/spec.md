@@ -17,8 +17,7 @@ The project SHALL maintain automated Rust tests for workspace/path and symlink v
 
 #### Scenario: 安全和持久性回归套件运行
 - **WHEN** `cargo test` 执行
-- **THEN** 测试工具应执行路径包含、符号链接拒绝、原子写入失败保留和 HTTP 限制/限制行为的测试
-- **THEN** 该命令应报告至少一项已执行的 Rust 测试
+- **THEN** 测试工具应执行路径包含、符号链接拒绝、原子写入失败保留和 HTTP 限制行为的测试
 
 #### Scenario: 覆盖高风险故障路径
 - **WHEN** 测试夹具注入写入、重命名、网络、观察者或冲突失败

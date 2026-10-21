@@ -1,3 +1,4 @@
+use crate::error::lock_mutex_infallible;
 use crate::fs::ignore::IgnoreMatcher;
 use crate::paths::normalize_path;
 use notify::event::{ModifyKind, RenameMode};
@@ -6,7 +7,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{debug, info, warn};
@@ -168,6 +169,33 @@ fn merge_recovery_scope(root: &Path, current: Option<PathBuf>, path: &Path) -> P
     }
 }
 
+/// Acquire the shared recovery scope lock without panicking on a poisoned
+/// mutex. A poisoned scope is discarded (value cleared, poison flag reset) and
+/// `None` is returned so callers fall back to a root-level rescan.
+///
+/// `lock_mutex_infallible` recovers poisoned state via `into_inner()`, so the
+/// acquisition itself cannot fail — the only way to get `None` here is a
+/// detected poison.
+fn acquire_recovery_scope(
+    scope: &Mutex<Option<PathBuf>>,
+) -> Option<MutexGuard<'_, Option<PathBuf>>> {
+    let mut guard = lock_mutex_infallible(scope);
+    // Sample poison state AFTER acquiring the guard: a mutex poisoned before
+    // acquisition still reports `is_poisoned()` here (the flag stays set until
+    // `clear_poison()`), while a poison after acquisition cannot be observed —
+    // nor does it need to be, since this guard was already granted.
+    if scope.is_poisoned() {
+        warn!(
+            target: "backend.lock",
+            "Recovery scope lock was poisoned; discarding scope and falling back to root rescan"
+        );
+        *guard = None;
+        scope.clear_poison();
+        return None;
+    }
+    Some(guard)
+}
+
 pub struct FileWatcher {
     /// `None` once stopped. The watcher handle owns the event sender, so
     /// dropping it closes the channel and lets the worker thread exit.
@@ -206,14 +234,15 @@ impl FileWatcher {
                     &producer_overflow_count,
                 ) {
                     if let Ok(event) = dropped {
-                        let mut scope = producer_recovery_scope.lock().unwrap();
-                        for path in event
-                            .paths
-                            .into_iter()
-                            .filter(|path| !producer_matcher.is_ignored(&producer_root, path))
-                        {
-                            *scope =
-                                Some(merge_recovery_scope(&producer_root, scope.take(), &path));
+                        if let Some(mut scope) = acquire_recovery_scope(&producer_recovery_scope) {
+                            for path in event
+                                .paths
+                                .into_iter()
+                                .filter(|path| !producer_matcher.is_ignored(&producer_root, path))
+                            {
+                                *scope =
+                                    Some(merge_recovery_scope(&producer_root, scope.take(), &path));
+                            }
                         }
                     }
                     producer_overflow.store(true, Ordering::Release);
@@ -259,10 +288,8 @@ impl FileWatcher {
                     }
                 }
                 if overflowed.swap(false, Ordering::AcqRel) {
-                    let recovery_path = recovery_scope
-                        .lock()
-                        .unwrap()
-                        .take()
+                    let recovery_path = acquire_recovery_scope(&recovery_scope)
+                        .and_then(|mut scope| scope.take())
                         .unwrap_or_else(|| watch_path.clone());
                     normalized.push(FileChangeEvent {
                         path: normalize_path(&recovery_path),
@@ -451,6 +478,44 @@ mod tests {
         let merged = coalesce(changes);
         assert_eq!(merged.len(), 1);
         assert!(merged[0].path.ends_with("src/a.md"));
+    }
+
+    #[test]
+    fn acquire_recovery_scope_returns_takeable_guard_when_healthy() {
+        let scope = Mutex::new(Some(PathBuf::from("/workspace/src")));
+        let mut guard = acquire_recovery_scope(&scope).expect("healthy lock should yield a guard");
+        assert_eq!(guard.take(), Some(PathBuf::from("/workspace/src")));
+        drop(guard);
+        assert_eq!(*scope.lock().unwrap(), None);
+    }
+
+    #[test]
+    fn poisoned_recovery_scope_is_discarded_and_poison_cleared() {
+        let scope = Mutex::new(Some(PathBuf::from("/workspace/src")));
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = scope.lock().unwrap();
+            panic!("simulated panic while holding recovery scope lock");
+        }));
+        assert!(poisoned.is_err(), "expected simulated panic");
+        assert!(scope.is_poisoned(), "expected poisoned recovery scope lock");
+
+        assert!(acquire_recovery_scope(&scope).is_none());
+        assert!(!scope.is_poisoned(), "poison mark should be cleared");
+        assert_eq!(
+            *scope.lock().unwrap(),
+            None,
+            "scope value should be cleared"
+        );
+
+        // A later overflow can accumulate a fresh scope from a clean state.
+        let mut guard =
+            acquire_recovery_scope(&scope).expect("recovered lock should yield a guard");
+        *guard = Some(PathBuf::from("/workspace/docs"));
+        drop(guard);
+        assert_eq!(
+            *scope.lock().unwrap(),
+            Some(PathBuf::from("/workspace/docs"))
+        );
     }
 
     #[test]

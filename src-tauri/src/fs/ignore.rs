@@ -1,7 +1,10 @@
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
+use tracing::warn;
+
 use crate::config::settings::default_file_tree_ignore_patterns;
+use crate::error::lock_mutex_infallible;
 
 #[derive(Clone, Debug)]
 pub struct IgnoreMatcher {
@@ -39,7 +42,27 @@ impl IgnoreMatcher {
 pub fn matcher_snapshot(patterns: &[String]) -> IgnoreMatcher {
     static SNAPSHOT: OnceLock<Mutex<IgnoreMatcher>> = OnceLock::new();
     let snapshot = SNAPSHOT.get_or_init(|| Mutex::new(IgnoreMatcher::defaults()));
-    let mut current = snapshot.lock().unwrap();
+    update_snapshot(snapshot, patterns)
+}
+
+/// Update the shared ignore matcher snapshot, recovering from a poisoned lock
+/// instead of panicking. `lock_mutex_infallible` recovers poisoned state via
+/// `into_inner()`, so acquisition cannot fail: poisoning only adds a recovery
+/// log, and the update then follows the normal pattern rules — a valid pattern
+/// set replaces the snapshot, an invalid one keeps the previous matcher.
+fn update_snapshot(snapshot: &Mutex<IgnoreMatcher>, patterns: &[String]) -> IgnoreMatcher {
+    let mut current = lock_mutex_infallible(snapshot);
+    // Sample poison state AFTER acquiring the guard: a mutex poisoned before
+    // acquisition still reports `is_poisoned()` here (the flag stays set until
+    // `clear_poison()`), while a poison after acquisition cannot be observed —
+    // nor does it need to be, since this guard was already granted.
+    if snapshot.is_poisoned() {
+        warn!(
+            target: "backend.lock",
+            "Ignore matcher snapshot lock was poisoned; recovering snapshot and resuming update"
+        );
+        snapshot.clear_poison();
+    }
     match IgnoreMatcher::new(patterns) {
         Ok(next) => {
             *current = next.clone();
@@ -117,5 +140,37 @@ mod tests {
         assert!(valid.is_ignored(&root, &root.join("cache/a")));
         let retained = matcher_snapshot(&["".into()]);
         assert!(retained.is_ignored(&root, &root.join("cache/a")));
+    }
+
+    fn poison_snapshot(snapshot: &Mutex<IgnoreMatcher>) {
+        let poisoned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = snapshot.lock().unwrap();
+            panic!("simulated panic while holding ignore snapshot lock");
+        }));
+        assert!(poisoned.is_err(), "expected simulated panic");
+        assert!(snapshot.is_poisoned(), "expected poisoned snapshot lock");
+    }
+
+    #[test]
+    fn poisoned_snapshot_keeps_last_valid_matcher_without_panicking() {
+        let root = PathBuf::from("/workspace");
+        let snapshot = Mutex::new(IgnoreMatcher::new(&["cache".into()]).unwrap());
+        poison_snapshot(&snapshot);
+
+        let retained = update_snapshot(&snapshot, &["".into()]);
+        assert!(retained.is_ignored(&root, &root.join("cache/a")));
+        assert!(!snapshot.is_poisoned(), "poison mark should be cleared");
+    }
+
+    #[test]
+    fn poisoned_snapshot_accepts_valid_update_after_recovery() {
+        let root = PathBuf::from("/workspace");
+        let snapshot = Mutex::new(IgnoreMatcher::new(&["cache".into()]).unwrap());
+        poison_snapshot(&snapshot);
+
+        let updated = update_snapshot(&snapshot, &["build".into()]);
+        assert!(updated.is_ignored(&root, &root.join("build/a")));
+        assert!(!updated.is_ignored(&root, &root.join("cache/a")));
+        assert!(!snapshot.is_poisoned(), "poison mark should be cleared");
     }
 }

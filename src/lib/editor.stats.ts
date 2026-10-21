@@ -1,7 +1,7 @@
 import type { CursorPos } from '../types/editor';
 import { getEditor, getMode } from './editor.state';
 import { countTextWords } from './editor.helpers';
-import { getSourceView } from './editor.source';
+import { getSourceView } from './editor.source.facade';
 
 export function getWordCount(): number {
   if (getMode() === 'source') {

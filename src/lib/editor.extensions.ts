@@ -10,7 +10,7 @@ import { Table } from '@tiptap/extension-table';
 import { common, createLowlight } from 'lowlight';
 import { renderMermaid } from './mermaid';
 import { renderPlantUml } from './plantuml';
-import { isBlankPlantUmlSource } from './plantuml-lazy';
+import { isBlankPlantUmlSource } from './plantuml.utils';
 import { getCachedSettings } from './storage';
 import { store } from './store';
 import { logDebug, logException, logWarn } from './logger';

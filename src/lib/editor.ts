@@ -1,4 +1,5 @@
 import { showToast } from '../components/toast';
+import { logException } from './logger';
 import { refreshFrontmatterPanel } from '../components/frontmatterPanel';
 import {
   normalizeImageMarkdown,
@@ -39,7 +40,7 @@ import {
   destroySourceEditor,
   getSourceContent,
   setSourceContent,
-} from './editor.source';
+} from './editor.source.facade';
 
 // ── Barrel re-exports for API compatibility ───────────────────────────
 
@@ -363,17 +364,20 @@ function enterSourceMode(content: string) {
 
   // Create CM6 inside wrapper (respecting read-only state)
   const isReadOnly = store.getState().readOnly;
-  const view = createSourceEditor(wrapper, content, (doc) => {
+  void createSourceEditor(wrapper, content, (doc) => {
     bumpRevision();
     bumpSourceRevision();
     store.setState({ dirty: normalizeImageMarkdown(doc) !== getDocumentState().lastPersistedMarkdown });
     scheduler.schedule('source-update', 50, () => {
       store.emit({ type: 'editor:update' });
     });
-  }, isReadOnly);
-
-  // Focus CM6 editor so user can type immediately
-  view.focus();
+  }, isReadOnly).then((view) => {
+    // Focus only after CodeMirror has been loaded and mounted.
+    view?.focus();
+  }).catch((error) => {
+    showToast('源码编辑器加载失败');
+    logException('editor.source', 'Failed to load source editor', error);
+  });
 }
 
 export function switchToWysiwyg() {

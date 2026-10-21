@@ -5,7 +5,7 @@ import { store } from '../lib/store';
 import { showModal } from './ui/modal';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
-import { setSourceHighlight, setSourceSoftWrap } from '../lib/editor.source';
+import { setSourceHighlight, setSourceSoftWrap } from '../lib/editor.source.facade';
 import { open } from '@tauri-apps/plugin-dialog';
 
 type Theme = 'light' | 'dark' | 'sepia';

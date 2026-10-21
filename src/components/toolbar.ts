@@ -14,7 +14,7 @@ import { assetToOriginalMap, getActiveDocPath } from '../lib/editor.state';
 import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
 import { showContextMenuStatic } from './ui/contextMenu';
-import { getSourceView } from '../lib/editor.source';
+import { getSourceView } from '../lib/editor.source.facade';
 
 export function initToolbar() {
   initAriaAttributes();

@@ -1,7 +1,7 @@
 import { readFile, writeFile, writeFileIfUnchanged, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
 import { getMarkdownResult, getSavePlan, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getSourceRevision, getLastReadMtime, getLastReadSize, hasLastReadStats, clearLastReadStats, setLastReadStats, getEditor, getPipelineMode } from '../lib/editor';
 import { shouldUseReconcileBoundary } from '../lib/editor.save.reconcile';
-import { setSourceReadOnly } from '../lib/editor.source';
+import { setSourceReadOnly } from '../lib/editor.source.facade';
 import { showToast } from './toast';
 import { suppressNextWatcherRefresh, cancelSuppressedWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';

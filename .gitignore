@@ -22,6 +22,7 @@ src-tauri/gen/
 
 # CodeGraph (local machine index data)
 .codegraph/
+.impeccable/
 .claude/*
 !.claude/rules/
 !.claude/memory/

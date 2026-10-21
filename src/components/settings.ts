@@ -5,7 +5,7 @@ import { store } from '../lib/store';
 import { showModal } from './ui/modal';
 import type { Settings } from '../types/settings';
 import { DEFAULT_SETTINGS } from '../types/settings';
-import { setSourceHighlight } from '../lib/editor.source';
+import { setSourceHighlight, setSourceSoftWrap } from '../lib/editor.source';
 import { open } from '@tauri-apps/plugin-dialog';
 
 type Theme = 'light' | 'dark' | 'sepia';
@@ -157,7 +157,10 @@ function createSettingsContent(): string {
                 <button class="toggle active" id="setting-spellcheck"></button>
               </div>
               <div class="settings-row">
-                <div class="settings-label">自动换行</div>
+                <div>
+                  <div class="settings-label">自动换行</div>
+                  <div class="settings-desc">长行在所见即所得与源码模式中自动折行；关闭后横向滚动</div>
+                </div>
                 <button class="toggle active" id="setting-softwrap"></button>
               </div>
             </div>
@@ -453,6 +456,8 @@ function applyRuntimeSettings(settings: Settings) {
 
   // Apply code highlight to source editor (CodeMirror)
   setSourceHighlight(settings.codeHighlight !== false);
+  // Soft wrap is instant-applied to the source editor through the same path.
+  setSourceSoftWrap(settings.softWrap !== false);
 }
 
 async function persistSettingsFromUI() {

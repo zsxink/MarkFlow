@@ -16,15 +16,33 @@ async function loadLang(name: string): Promise<LanguageSupport> {
   return (await getLanguageExtension(name)) ?? plainText;
 }
 
-/** Module-level compartments so readOnly and highlight can be toggled at runtime */
+/** Module-level compartments so readOnly, highlight and soft wrap can be toggled at runtime */
 const readOnlyCompartment = new Compartment();
 const highlightCompartment = new Compartment();
+const softWrapCompartment = new Compartment();
+
+// Remembered so a toggle made while no source view exists still applies to the
+// next session, and so creation never races the settings cache.
+let softWrapEnabled = true;
 
 /** Toggle readOnly on the current source editor without destroying/recreating */
 export function setSourceReadOnly(readOnly: boolean): void {
   if (!currentView) return;
   currentView.dispatch({
     effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
+  });
+}
+
+/**
+ * Toggle soft line wrapping on the current source editor.
+ * Wrapping is a plain content attribute class (`cm-lineWrapping`), so it can be
+ * reconfigured in place without recreating the view or losing the cursor.
+ */
+export function setSourceSoftWrap(enabled: boolean): void {
+  softWrapEnabled = enabled;
+  if (!currentView) return;
+  currentView.dispatch({
+    effects: softWrapCompartment.reconfigure(enabled ? EditorView.lineWrapping : []),
   });
 }
 
@@ -130,7 +148,7 @@ export function createSourceEditor(
 
   const extList: any[] = [
     basicSetup,
-    EditorView.lineWrapping,
+    softWrapCompartment.of(softWrapEnabled ? EditorView.lineWrapping : []),
     highlightCompartment.of(syntaxHighlighting(
       getCachedSettings().codeHighlight === false ? noHighlightStyle : markdownHighlightStyle,
     )),

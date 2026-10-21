@@ -670,8 +670,13 @@
 
 .ProseMirror th, .ProseMirror td {
   border: 1px solid var(--border);
-  padding: 4px 12px;
+  padding: 3px 12px;
   text-align: left;
+}
+
+.ProseMirror th > p,
+.ProseMirror td > p {
+  margin: 0;
 }
 
 .ProseMirror th {

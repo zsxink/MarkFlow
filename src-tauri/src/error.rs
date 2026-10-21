@@ -67,17 +67,26 @@ impl std::error::Error for AppError {}
 
 /// Acquire a `Mutex` lock, converting a poisoned lock into a structured error
 /// rather than panicking. Callers can decide whether the state is recoverable.
+///
+/// The acquisition is infallible in practice: a poisoned lock is recovered via
+/// [`lock_mutex_infallible`], so this never returns `Err`.
 pub fn lock_mutex<T>(
     mutex: &std::sync::Mutex<T>,
 ) -> Result<std::sync::MutexGuard<'_, T>, AppError> {
+    Ok(lock_mutex_infallible(mutex))
+}
+
+/// Infallible variant of [`lock_mutex`]: a poisoned lock is recovered via
+/// `into_inner()` and logged, so acquisition never fails.
+pub fn lock_mutex_infallible<T>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     match mutex.lock() {
-        Ok(guard) => Ok(guard),
+        Ok(guard) => guard,
         Err(poisoned) => {
             tracing::warn!(
                 target: "backend.lock",
                 "Recovering from poisoned mutex by taking inner value"
             );
-            Ok(poisoned.into_inner())
+            poisoned.into_inner()
         }
     }
 }
@@ -100,6 +109,20 @@ mod tests {
         // lock_mutex must recover the inner value instead of panicking.
         let guard = lock_mutex(&m).expect("poisoned lock should be recoverable");
         assert_eq!(*guard, 7);
+    }
+
+    #[test]
+    fn lock_mutex_infallible_recovers_poisoned_state_without_panicking() {
+        let m: Mutex<u32> = Mutex::new(11);
+        let poison_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _g = m.lock().unwrap();
+            panic!("simulated panic while holding lock");
+        }));
+        assert!(poison_result.is_err(), "expected simulated panic");
+
+        // The infallible helper must hand back the inner value instead of panicking.
+        let guard = lock_mutex_infallible(&m);
+        assert_eq!(*guard, 11);
     }
 
     #[test]

@@ -198,6 +198,8 @@ export function getPipelineMode() {
 
 export function resetEditorScroll() {
   document.getElementById('editor-area')?.scrollTo({ top: 0, behavior: 'auto' });
+  document.querySelector<HTMLElement>('#source-editor-wrapper .cm-scroller')
+    ?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 }
 
 export function markDocumentPersisted(markdown: string, persistedRevision?: number) {

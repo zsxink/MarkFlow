@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   showMermaidContextMenu: vi.fn(), showPlantumlContextMenu: vi.fn(),
   logDebug: vi.fn(), logWarn: vi.fn(), logException: vi.fn(),
   getMermaidExportBaseName: vi.fn(), getPlantUmlExportBaseName: vi.fn(),
-  createSourceEditor: vi.fn((_wrapper: unknown, _content: string, _cb: unknown, _ro: unknown) => ({ focus: vi.fn() })),
+  createSourceEditor: vi.fn((_wrapper: unknown, _content: string, _cb: unknown, _ro: unknown) => Promise.resolve({ focus: vi.fn() })),
   destroySourceEditor: vi.fn(),
   getSourceContent: vi.fn(),
   setSourceContent: vi.fn(),
@@ -38,7 +38,7 @@ vi.mock('./store', () => ({ store: mocks.testStore }));
 vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: mocks.showMermaidContextMenu }));
 vi.mock('../components/plantumlContextMenu', () => ({ showPlantumlContextMenu: mocks.showPlantumlContextMenu }));
 vi.mock('./logger', () => ({ logDebug: mocks.logDebug, logWarn: mocks.logWarn, logException: mocks.logException }));
-vi.mock('./editor.source', () => ({
+vi.mock('./editor.source.facade', () => ({
   createSourceEditor: mocks.createSourceEditor,
   destroySourceEditor: mocks.destroySourceEditor,
   getSourceContent: mocks.getSourceContent,

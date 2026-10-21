@@ -21,6 +21,10 @@ function loadSourceModule(): Promise<SourceModule> {
     sourceModulePromise = import('./editor.source').then((mod) => {
       sourceModule = mod;
       return mod;
+    }).catch((error: unknown) => {
+      // A transient chunk-load failure must not poison later attempts.
+      sourceModulePromise = null;
+      throw error;
     });
   }
   return sourceModulePromise;
@@ -35,14 +39,24 @@ export async function createSourceEditor(
   const version = ++lifecycleVersion;
   creatingSourceView = true;
   currentContent = content;
-  const mod = await loadSourceModule();
+  let mod: SourceModule;
+  try {
+    mod = await loadSourceModule();
+  } catch (error) {
+    if (version === lifecycleVersion) {
+      creatingSourceView = false;
+      pendingReadOnly = undefined;
+    }
+    throw error;
+  }
   // Mode can change while the source-mode chunk is loading. Ignore an obsolete
   // request so it cannot mount a hidden editor after returning to WYSIWYG.
   if (version !== lifecycleVersion) return null;
   const effectiveReadOnly = pendingReadOnly ?? readOnly;
   pendingReadOnly = undefined;
+  const latestContent = currentContent;
   try {
-    const view = mod.createSourceEditor(container, content, (doc) => {
+    const view = mod.createSourceEditor(container, latestContent, (doc) => {
       currentContent = doc;
       onUpdate?.(doc);
     }, effectiveReadOnly);

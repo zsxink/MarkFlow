@@ -91,7 +91,7 @@ fn mask_path_if_private(path: &str) -> Option<String> {
     }
     let p = Path::new(path);
     let parent = p.parent()?;
-    let file_name = p.file_name()?;
+    p.file_name()?;
     // Require at least 3 components (e.g. /a/b/file) so short generic paths
     // like /tmp/note.md stay intact — only deeper paths reveal a private prefix.
     let components: Vec<_> = p.components().collect();
@@ -99,7 +99,6 @@ fn mask_path_if_private(path: &str) -> Option<String> {
         return None;
     }
     let last_dir = parent.file_name()?.to_string_lossy().into_owned();
-    let _ = file_name;
     Some(format!(".../{}/<redacted-file>", last_dir))
 }
 

@@ -9,10 +9,6 @@ const THEME_ICONS: Record<Theme, string> = {
 
 let currentTheme: Theme = 'light';
 
-export function getTheme(): Theme {
-  return currentTheme;
-}
-
 export function setTheme(theme: Theme) {
   currentTheme = theme;
   document.documentElement.setAttribute('data-theme', theme);

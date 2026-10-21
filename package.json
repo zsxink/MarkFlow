@@ -39,7 +39,6 @@
     "@codemirror/view": "^6.43.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
-    "@tauri-apps/plugin-fs": "^2.0.0",
     "@tauri-apps/plugin-http": "2.5.9",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tiptap/core": "3.30.5",
@@ -54,7 +53,6 @@
     "codemirror": "^6.0.2",
     "docx": "^9.7.1",
     "dompurify": "^3.4.12",
-    "highlight.js": "^11.10.0",
     "katex": "^0.18.5",
     "lowlight": "^3.2.0",
     "markdown-it": "^14.3.0",
@@ -64,7 +62,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@fission-ai/openspec": "^1.6.0",
+    "@fission-ai/openspec": "^1.13.2",
     "@tauri-apps/cli": "^2.11.3",
     "@types/markdown-it": "14.2.0",
     "@types/pako": "^2.0.4",

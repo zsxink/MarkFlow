@@ -35,9 +35,6 @@ export function showImageContextMenu(x: number, y: number, state: ImageContextMe
   showContextMenuStatic(menuItems, { x, y }, { className: 'image-context-menu' });
 }
 
-export function hideImageContextMenu() {
-}
-
 function stripQueryAndHash(value: string) {
   return value.split('#')[0].split('?')[0];
 }

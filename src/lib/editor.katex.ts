@@ -318,7 +318,3 @@ export function katexPlugin() {
     },
   });
 }
-
-export function getKatexPluginKey() {
-  return katexPluginKey;
-}

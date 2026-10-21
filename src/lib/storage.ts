@@ -255,13 +255,23 @@ export async function openFileInNewWindow(path: string): Promise<void> {
 }
 
 export async function addRecentFile(path: string): Promise<void> {
-  return invoke('add_recent_file', { path });
+  await invoke('add_recent_file', { path });
+  if (settingsCache) {
+    settingsCache.recentFiles = [path, ...settingsCache.recentFiles.filter((item) => item !== path)].slice(0, 10);
+  }
 }
 
 export async function addRecentFolder(path: string): Promise<void> {
-  return invoke('add_recent_folder', { path });
+  await invoke('add_recent_folder', { path });
+  if (settingsCache) {
+    settingsCache.recentFolders = [path, ...settingsCache.recentFolders.filter((item) => item !== path)].slice(0, 5);
+  }
 }
 
 export async function clearRecentHistory(): Promise<void> {
-  return invoke('clear_recent_history');
+  await invoke('clear_recent_history');
+  if (settingsCache) {
+    settingsCache.recentFiles = [];
+    settingsCache.recentFolders = [];
+  }
 }

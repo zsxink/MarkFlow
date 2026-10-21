@@ -338,6 +338,7 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
 export async function openFileInEditor(path: string) {
   const activePath = getActiveFilePath();
   if (path === activePath) {
+    await recordRecentFile(path);
     if (hasExternalModification() && !isDocumentDirty()) {
       const reloaded = await reloadActiveDocumentFromDisk({ force: true });
       if (reloaded) showToast('已从磁盘重新加载');
@@ -380,6 +381,7 @@ export async function openFileInEditor(path: string) {
         resetEditorScroll();
         refreshOutline();
         showToast('已以只读模式打开文件');
+        await recordRecentFile(path);
         return;
       }
       // choice === 'force' — proceed to normal open with degradation bar
@@ -408,8 +410,17 @@ export async function openFileInEditor(path: string) {
     resetEditorScroll();
     refreshOutline();
     showToast('已打开文件');
+    await recordRecentFile(path);
   } catch (e) {
     showToast(`打开失败: ${e}`);
+  }
+}
+
+async function recordRecentFile(path: string) {
+  try {
+    await addRecentFile(path);
+  } catch (e) {
+    logDebug('fileops', 'Failed to record recent file (best-effort)', { path, error: String(e) });
   }
 }
 

@@ -8,7 +8,6 @@ import { showNewFileDialog } from './newFileDialog';
 import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
 import { showModal } from './ui/modal';
-import { addRecentFile } from '../lib/storage';
 import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, getImageSettings, imagePathToSrc } from '../lib/imageUtils';
 import { assetToOriginalMap, getActiveDocPath } from '../lib/editor.state';
@@ -56,7 +55,6 @@ function bindToolbarEvents() {
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (selected) {
-      await addRecentFile(selected);
       await openFileInEditor(selected);
     }
   });

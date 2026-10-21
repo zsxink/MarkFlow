@@ -4,7 +4,6 @@ import { saveActiveDocument, openFileInEditor, confirmDocumentTransition } from 
 import { showNewFileDialog } from '../components/newFileDialog';
 import { getWorkspacePath } from '../components/fileTree';
 import { open } from '@tauri-apps/plugin-dialog';
-import { addRecentFile } from '../lib/storage';
 
 function sanitizeLinkHref(input: string): string | null {
   const trimmed = input.trim();
@@ -51,7 +50,7 @@ export function initKeyboard() {
             multiple: false,
             filters: [{ name: 'Markdown', extensions: ['md'] }],
           });
-          if (selected) { await addRecentFile(selected); await openFileInEditor(selected); }
+          if (selected) await openFileInEditor(selected);
         }
         break;
       case 'k': {

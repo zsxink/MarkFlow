@@ -1,4 +1,4 @@
-import { loadSettings, clearRecentHistory, addRecentFile } from '../lib/storage';
+import { loadSettings, clearRecentHistory } from '../lib/storage';
 import { showToast } from './toast';
 import { confirmDocumentTransition, openFileInEditor, clearActiveDocument } from './sidebar';
 import { setWorkspacePath, refreshFileTree } from './fileTree';
@@ -41,7 +41,6 @@ export function initMenu() {
     if (!path) return;
     menu.hidden = true;
     if (!(await confirmDocumentTransition())) return;
-    await addRecentFile(path);
     await openFileInEditor(path);
   });
 

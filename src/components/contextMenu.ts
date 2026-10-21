@@ -1,4 +1,4 @@
-import { deletePath, copyFile, readSingleDir, addRecentFile } from '../lib/storage';
+import { deletePath, copyFile, readSingleDir } from '../lib/storage';
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './fileTree';
 import { showToast } from './toast';
 import { reportUserActionError } from '../lib/error';
@@ -161,7 +161,6 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         });
         if (file) {
-          await addRecentFile(file);
           await openFileInEditor(file);
         }
         break;

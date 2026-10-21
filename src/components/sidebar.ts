@@ -4,7 +4,7 @@ import { initMouseDrag } from './fileTree.dragdrop';
 import { initOutline } from './outline';
 import { showContextMenu } from './contextMenu';
 import { open } from '@tauri-apps/plugin-dialog';
-import { addRecentFolder, saveSettings } from '../lib/storage';
+import { saveSettings } from '../lib/storage';
 import { logException } from '../lib/logger';
 
 // Re-export functions from split modules for backward compatibility
@@ -37,7 +37,6 @@ export function initSidebar() {
       await setWorkspacePath(selected);
       clearActiveDocument();
       await refreshFileTree();
-      await addRecentFolder(selected);
       showToast('文件夹已打开');
     }
   });

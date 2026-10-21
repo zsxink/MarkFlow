@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => ({
     target: ['es2021', 'chrome100', 'safari13'],
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_DEBUG,
+    // Largest required vendor chunks (Mermaid core ~704 kB and ProseMirror
+    // ~524 kB) are intentional; keep a warning for chunks above that range.
+    chunkSizeWarningLimit: 720,
     rollupOptions: {
       output: {
         manualChunks: {

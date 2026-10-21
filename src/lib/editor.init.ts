@@ -42,7 +42,7 @@ import {
 } from './editor.state';
 import { store } from './store';
 import { scheduler } from './taskScheduler';
-import { getSourceContent } from './editor.source';
+import { getSourceContent } from './editor.source.facade';
 import { normalizeImageMarkdown } from './editor.serializer';
 import { serializeMarkdown } from './editor.markdown.bridge';
 import { ensureContinuationParagraph } from './editor.continuation';

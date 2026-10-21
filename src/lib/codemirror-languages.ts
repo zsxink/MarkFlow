@@ -3,11 +3,17 @@
  * Languages are only loaded on first use, keeping the main bundle small.
  */
 import type { LanguageSupport } from '@codemirror/language';
+import { css } from '@codemirror/lang-css';
+import { html } from '@codemirror/lang-html';
+import { javascript } from '@codemirror/lang-javascript';
 
 const LOADERS: Record<string, () => Promise<LanguageSupport>> = {
-  javascript: () => import('@codemirror/lang-javascript').then(m => m.javascript()),
-  css:        () => import('@codemirror/lang-css').then(m => m.css()),
-  html:       () => import('@codemirror/lang-html').then(m => m.html()),
+  // Markdown mixed-language support statically imports HTML, CSS, and
+  // JavaScript parsers. Keep their loaders asynchronous for a common API, but
+  // don't request separate chunks Rollup cannot create.
+  javascript: () => Promise.resolve(javascript()),
+  css:        () => Promise.resolve(css()),
+  html:       () => Promise.resolve(html()),
   python:     () => import('@codemirror/lang-python').then(m => m.python()),
   java:       () => import('@codemirror/lang-java').then(m => m.java()),
   rust:       () => import('@codemirror/lang-rust').then(m => m.rust()),

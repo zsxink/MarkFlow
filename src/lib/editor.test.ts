@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  createSourceEditor: vi.fn(() => ({ focus: vi.fn() })),
+  createSourceEditor: vi.fn(() => Promise.resolve({ focus: vi.fn() })),
   destroySourceEditor: vi.fn(),
   getSourceContent: vi.fn(),
   setSourceContent: vi.fn(),
@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   schedule: vi.fn(),
 }));
 
-vi.mock('./editor.source', () => ({
+vi.mock('./editor.source.facade', () => ({
   createSourceEditor: mocks.createSourceEditor,
   destroySourceEditor: mocks.destroySourceEditor,
   getSourceContent: mocks.getSourceContent,

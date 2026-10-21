@@ -1,6 +1,7 @@
 import { deflateRaw } from 'pako';
 import { fetch } from '@tauri-apps/plugin-http';
 import { logDebug, logError, logInfo } from './logger';
+export { isBlankPlantUmlSource } from './plantuml.utils';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_SOURCE_BYTES = 512 * 1024;
@@ -53,15 +54,6 @@ export function buildPlantUmlSvgUrl(serverUrl: string, source: string): string {
   const url = new URL(`svg/${encodePlantUml(source)}`, base).toString();
   logDebug('plantuml.build-url', 'Built PlantUML SVG URL', { serverUrl, urlLen: url.length });
   return url;
-}
-
-/** Returns true if the source is effectively empty (whitespace or bare @startuml/@enduml). */
-export function isBlankPlantUmlSource(source: string): boolean {
-  const stripped = source
-    .replace(/@start\w*/gi, '')
-    .replace(/@end\w*/gi, '')
-    .trim();
-  return stripped.length === 0;
 }
 
 async function readTextWithLimit(response: Response, limit: number): Promise<string> {

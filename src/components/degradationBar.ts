@@ -1,5 +1,7 @@
 // ── Degradation Bar ──────────────────────────────────────────────────
 
+import { getMode, switchToSource } from '../lib/editor';
+
 const BAR_ID = 'degradation-bar';
 
 export interface DegradationInfo {
@@ -39,11 +41,7 @@ export function showDegradationBar(info: DegradationInfo): void {
     switchBtn.className = 'btn-secondary degradation-btn';
     switchBtn.textContent = '切换到源码模式';
     switchBtn.addEventListener('click', () => {
-      import('../lib/editor').then(mod => {
-        if (mod.getMode() !== 'source') {
-          mod.switchToSource();
-        }
-      });
+      if (getMode() !== 'source') switchToSource();
     });
     actions.appendChild(switchBtn);
   }

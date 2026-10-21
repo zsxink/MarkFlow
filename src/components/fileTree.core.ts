@@ -1,5 +1,5 @@
 import type { FileEntry, DragState } from '../types/fileTree';
-import { readDirPage, readPathEntry, setWorkspace as setWorkspaceIPC, openFileInNewWindow } from '../lib/storage';
+import { readDirPage, readPathEntry, setWorkspace as setWorkspaceIPC, openFileInNewWindow, addRecentFolder } from '../lib/storage';
 import { openFileInEditor } from './sidebar';
 import { getActiveFilePath, rewriteActiveDocumentPath } from './activeDocument';
 import { showContextMenu } from './contextMenu';
@@ -193,15 +193,22 @@ export function getWorkspacePath() {
 
 export async function setWorkspacePath(path: string | null) {
   const normalized = path ? path.replace(/\\/g, '/') : null;
-  store.setState({ workspacePath: normalized });
   if (path) {
     try {
       await setWorkspaceIPC(path);
+      store.setState({ workspacePath: normalized });
+      try {
+        await addRecentFolder(path);
+      } catch (e) {
+        logException('file-tree.workspace', 'Failed to record recent folder', e, { path });
+      }
       logInfo('file-tree.workspace', 'Workspace selected', { path: normalized });
     } catch (e) {
       logException('file-tree.workspace', 'Failed to set workspace', e, { path });
     }
+    return;
   }
+  store.setState({ workspacePath: null });
 }
 
 // --- Suppression helpers ---

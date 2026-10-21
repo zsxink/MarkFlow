@@ -611,12 +611,6 @@ async fn cleanup_pdf_after_delays(path: &Path, delays: &[Duration]) {
     }
 }
 
-/// Write binary data to a file (for DOCX export).
-#[tauri::command]
-pub async fn write_file_binary(path: String, data: Vec<u8>) -> Result<(), String> {
-    std::fs::write(&path, &data).map_err(|e| format!("Failed to write binary file: {}", e))
-}
-
 /// Save a binary export file via dialog.
 #[tauri::command]
 pub async fn save_binary_export(

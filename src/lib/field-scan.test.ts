@@ -66,7 +66,7 @@ const DOCS = [
   'docs/wysiwyg-reconciliation/tiptap-v3-upgrade-assessment.md',
   'docs/wysiwyg-reconciliation/tiptap-v3-spike.md',
   'docs/wysiwyg-reconciliation/v2-baseline.md',
-  'docs/cleanup-plan/code-standards.md',
+  'docs/archive/cleanup-plan/code-standards.md',
   'example/example-en.md', 'example/example-zh.md',
   '.claude/memory/MEMORY.md',
   '.claude/memory/architecture-frontend.md',

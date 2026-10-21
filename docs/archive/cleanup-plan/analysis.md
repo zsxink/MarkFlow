@@ -1,4 +1,13 @@
-# MarkFlow 全量盘点：清理 + 重构清单
+# MarkFlow 全量盘点：清理 + 重构清单（已收口 / 归档）
+
+> ## 状态：方案已收口（归档）
+>
+> - **归档日期**：2026-10-21
+> - **归档位置**：本目录已迁移至 **`docs/archive/cleanup-plan/`**（原路径 `docs/cleanup-plan/` 不再存在）
+> - 本文保留 2026-08-31 的原始盘点证据（file:line 等），**仅作历史记录**，不是待办清单；逐条落地状态见 [`priority.md`](./priority.md) 的「状态」列，未完成项统一由跟踪 issue **#337** 承接。
+> - **关于路径引用**：`openspec/changes/archive/**` 与 `evidence/field-scan-summary.json` 中出现的 `docs/cleanup-plan/` 路径属**历史记录**（归档的 OpenSpec change 是不可改写的历史文档；`evidence/field-scan-summary.json` 是一次性扫描产物），它们指向的是**归档后的位置** `docs/archive/cleanup-plan/`。看到这些旧路径**不是断链**，不需要修复。
+
+---
 
 > 分析日期：2026-08-31，基于当前 `main`（HEAD `6bfba45`）。
 > 所有 file:line 均为实测。分四块：**A 文档**、**B 前端代码**、**C 后端代码**、**D 产物/依赖**。
@@ -9,7 +18,7 @@
 
 ### A1. `docs/markflow-core-stages/` —— 已放弃的大重构方案（**最高优先清理**）
 
-- 目录含 `M0`–`M8`、`product-plan.md`、`technical-plan.md`、`feature-migration-matrix.md`、`README.md` 共 15 个文件。
+- 目录含 `M0`–`M8`、`product-plan.md`、`technical-plan.md`、`feature-migration-matrix.md`、`README.md` 共 13 个文件。
 - `docs/next-phase-roadmap.md`（2026-08-30 定稿）明确写：
   > "markflow-core 分层（M1–M8）大重构方案，**已全部关闭并放弃**……下阶段不再以任何重构线为主线条目。"
 - 但这些文档自身仍写着"状态：方案已校准，待 M0 技术基线冻结 / 待实施"（`README.md`、`product-plan.md` 头部），会被当作**正在进行的事**——误导。
@@ -17,7 +26,7 @@
 
 ### A2. `docs/bundle-report.html` + `docs/bundle-baseline.md` —— 过期性能基线
 
-- 记录于 2026-07-19/20，`dist/` 基线 8.7 MB / 72 文件；实测当前 `dist/` 已 **9.2 MB**。
+- 记录于 2026-07-19/20，`dist/` 基线 8.7 MB / 72 文件；实测 2026-08-31 时 `dist/` 已 **9.2 MB**。
 - `bundle-report.html` 是 `rollup-plugin-visualizer` 生成的快照（963 KB，已入库 git），并非稳定的规范文件，属**一次性产物**。
 - **建议**：`bundle-report.html` 移出 git（它可再生，不入版本库）；`bundle-baseline.md` 更新为当前值，或改为"由 CI/命令在需要时重新生成"的说明文档。
 
@@ -171,7 +180,7 @@
 
 | 项 | 现状 | 建议 |
 |----|------|------|
-| `dist/` | 未跟踪（gitignore），9.2 MB | 正常构建产物，无需入库；注意 stale |
+| `dist/` | 未跟踪（gitignore），2026-08-31 实测 9.2 MB | 正常构建产物，无需入库；注意 stale |
 | `src-tauri/target/` | gitignore，**14 GB** 本地 | 本地磁盘占用，非 git 问题；可提示清理 |
 | `docs/bundle-report.html` | 已入库 git（963 KB 一次性产物） | 移出 git |
 | `/patches/`（patch-package） | 存在 | 保留（`postinstall` 引用），但需确认 patch 仍有效 |

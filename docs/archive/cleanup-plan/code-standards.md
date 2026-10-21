@@ -1,5 +1,7 @@
 # MarkFlow 代码规范（新增）
 
+> **归档说明（2026-10-21）**：本文件随清理方案一并归档到 `docs/archive/cleanup-plan/`（原 `docs/cleanup-plan/`）。方案本身已收口，未完成事项见跟踪 issue **#337**；但本文提出的代码规范**仍然适用**，新代码应继续遵守，且本文仍被 `src/lib/field-scan.test.ts` 纳入扫描语料以防规范悄悄失效。
+
 > 建议落地日期：2026-08-31
 > 适用：`src/`（TS/TSX）、`src-tauri/src/`（Rust）、`docs/`、`scripts/`
 > 目的：本仓库目前只有 git 流程规范（`AGENTS.md`/`CLAUDE.md`），**缺少代码级规范**。本文补上文件行数、分层、命名、错误处理、安全、去重、提交等硬性约定。

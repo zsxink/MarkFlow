@@ -32,15 +32,20 @@
 - **WHEN** 用户打开 `hello\n\n`，在 WYSIWYG 中编辑内容并保存
 - **THEN** 写入内容不得复活打开时记录的尾部空行
 
-### Requirement: Dirty state is trailing-newline-agnostic
+### Requirement: Dirty state follows the active editing mode
 
-脏检测 SHALL 在比较当前内容与已持久化内容时，两侧统一剥离尾部换行符，使尾部换行符数量不影响 dirty 判断。
+脏检测 SHALL 将当前序列化内容与精确的已持久化内容比较，不得笼统忽略尾部换行符差异。未编辑的 WYSIWYG 文档 SHALL 保持 clean，并在保存时通过已捕获的尾部换行元数据保留原文件；WYSIWYG 用户编辑后的保存 SHALL 不复活不可直接编辑的历史 EOF 空行。源码模式 SHALL 按经图片/换行符归一化后的源码与持久化内容比较和保存；尾部换行符增删属于内容变更，除明确的归一化外不得用 WYSIWYG 的尾部元数据覆盖源码。
 
-#### Scenario: Open file does not mark dirty
-- **WHEN** 用户打开 `hello\n\n` 文件
+#### Scenario: Opening a file remains clean in WYSIWYG
+- **WHEN** 用户打开 `hello\n\n` 文件且不做任何编辑
 - **THEN** dirty 状态 SHALL 为 `false`
-- **AND** 不做任何编辑时，dirty 状态 SHALL 保持 `false`
+- **AND** 直接保存 SHALL 保留 `hello\n\n`
 
-#### Scenario: Content edit overcomes trailing newline diff
-- **WHEN** 用户打开 `hello\n\n` 文件，将内容改为 `world`
-- **THEN** dirty 状态 SHALL 为 `true`（内容确实有改动）
+#### Scenario: WYSIWYG edit omits historical EOF blank lines
+- **WHEN** 用户打开 `hello\n\n` 文件，在 WYSIWYG 中编辑内容并保存
+- **THEN** 写入内容 SHALL 不复活打开时记录的尾部换行符
+
+#### Scenario: Source mode tracks exact EOF text
+- **WHEN** 用户在源码模式打开 `hello\n\n` 并增删尾部换行符
+- **THEN** dirty 状态 SHALL 按当前源码经归一化后的内容与已持久化文本比较，尾部换行符差异计入 dirty
+- **AND** 保存 SHALL 写入源码模式的内容（图片行及 CRLF 归一化除外）

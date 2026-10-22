@@ -134,18 +134,20 @@ export function initDocumentTabs() {
   };
 
   const unsubscribe = onDocumentTabsChanged(render);
-  newButton.addEventListener('click', () => newDocumentTab());
+  const onNewTab = () => { newDocumentTab(); };
+  newButton.addEventListener('click', onNewTab);
 
   // Keep an editing surface focused during a mouse tab switch. Otherwise the
   // button takes focus before the session coordinator can transfer the caret.
   // Keyboard navigation still owns its tab-button focus.
-  root.addEventListener('mousedown', event => {
+  const onMouseDown = (event: MouseEvent) => {
     if (event.button !== 0 || !(event.target instanceof Element)) return;
     if (!event.target.closest('[role="tab"][data-tab-id]')) return;
     if (document.activeElement?.closest('#wysiwyg-editor, #source-editor-wrapper')) event.preventDefault();
-  });
+  };
+  root.addEventListener('mousedown', onMouseDown);
 
-  root.addEventListener('click', event => {
+  const onClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const closeButton = target.closest<HTMLButtonElement>('[data-close-tab]');
@@ -177,9 +179,10 @@ export function initDocumentTabs() {
       closeList();
       activateDocumentTab(tab.dataset.tabId);
     }
-  });
+  };
+  root.addEventListener('click', onClick);
 
-  scroll.addEventListener('wheel', event => {
+  const onWheel = (event: WheelEvent) => {
     // Only take the gesture over when the strip can actually move sideways.
     // Swallowing wheel input while every tab fits would break page scrolling.
     const overflow = scroll.scrollWidth - scroll.clientWidth;
@@ -191,7 +194,8 @@ export function initDocumentTabs() {
     if (next === scroll.scrollLeft) return;
     scroll.scrollLeft = next;
     event.preventDefault();
-  }, { passive: false });
+  };
+  scroll.addEventListener('wheel', onWheel, { passive: false });
 
   const dismissList = (event: MouseEvent) => {
     if (!list || list.hidden || !(event.target instanceof Node) || root.contains(event.target)) return;
@@ -199,17 +203,7 @@ export function initDocumentTabs() {
   };
   document.addEventListener('click', dismissList);
 
-  root.addEventListener('auxclick', event => {
-    if (event.button !== 1) return;
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const tabItem = target.closest<HTMLElement>('[data-tab-item]');
-    if (!tabItem?.dataset.tabItem) return;
-    event.preventDefault();
-    closeDocumentTab(tabItem.dataset.tabItem);
-  });
-
-  root.addEventListener('keydown', event => {
+  const onKeyDown = (event: KeyboardEvent) => {
     // Menu semantics: the trigger opens with Down/Enter/Space, Escape closes and
     // hands focus back, and Up/Down/Home/End move between the radio items.
     const target = event.target;
@@ -256,11 +250,31 @@ export function initDocumentTabs() {
     activateDocumentTab(nextId);
     Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"][data-tab-id]'))
       .find(tab => tab.dataset.tabId === nextId)?.focus();
-  });
+  };
+  root.addEventListener('keydown', onKeyDown);
+
+  const onAuxClick = (event: MouseEvent) => {
+    if (event.button !== 1) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const tabItem = target.closest<HTMLElement>('[data-tab-item]');
+    if (!tabItem?.dataset.tabItem) return;
+    event.preventDefault();
+    closeDocumentTab(tabItem.dataset.tabItem);
+  };
+  root.addEventListener('auxclick', onAuxClick);
 
   render();
+  // Every listener this module adds is removed here, so re-initialising the
+  // tab bar never leaves a stale handler attached to the shared nodes.
   return () => {
     unsubscribe();
     document.removeEventListener('click', dismissList);
+    newButton.removeEventListener('click', onNewTab);
+    root.removeEventListener('mousedown', onMouseDown);
+    root.removeEventListener('click', onClick);
+    root.removeEventListener('keydown', onKeyDown);
+    root.removeEventListener('auxclick', onAuxClick);
+    scroll.removeEventListener('wheel', onWheel);
   };
 }

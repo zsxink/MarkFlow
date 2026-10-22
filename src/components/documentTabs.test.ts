@@ -180,20 +180,29 @@ describe('initDocumentTabs', () => {
     initDocumentTabs();
     const toggle = document.querySelector<HTMLButtonElement>('[data-tabs-list]')!;
     const menu = document.querySelector<HTMLElement>('[data-tabs-menu]')!;
+    const key = (target: Element, name: string) => {
+      const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    };
 
-    toggle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(key(toggle, 'ArrowDown').defaultPrevented).toBe(true);
     expect(menu.hidden).toBe(false);
     // Opening focuses the checked item, so arrows move relative to it.
     expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
 
-    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(key(document.activeElement!, 'ArrowDown').defaultPrevented).toBe(true);
     expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('b');
-    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
-    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('c');
-    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(key(document.activeElement!, 'ArrowUp').defaultPrevented).toBe(true);
     expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
+    expect(key(document.activeElement!, 'End').defaultPrevented).toBe(true);
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('c');
+    expect(key(document.activeElement!, 'Home').defaultPrevented).toBe(true);
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
+    expect(key(document.activeElement!, 'ArrowUp').defaultPrevented).toBe(true);
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('c');
 
-    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(key(document.activeElement!, 'Escape').defaultPrevented).toBe(true);
     expect(menu.hidden).toBe(true);
     expect(document.activeElement).toBe(toggle);
 
@@ -202,5 +211,34 @@ describe('initDocumentTabs', () => {
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(menu.hidden).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it.each(['Enter', ' '])('opens the document list from the trigger with %s', name => {
+    initDocumentTabs();
+    const toggle = document.querySelector<HTMLButtonElement>('[data-tabs-list]')!;
+    const menu = document.querySelector<HTMLElement>('[data-tabs-menu]')!;
+    const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+    toggle.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(menu.hidden).toBe(false);
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
+  });
+
+  it('removes every listener it registered when disposed', () => {
+    const dispose = initDocumentTabs();
+    dispose();
+    // A stale handler would still fire after disposal; these must all be inert.
+    document.querySelector<HTMLButtonElement>('[data-tabs-new]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-close-tab="b"]')!.click();
+    document.querySelector<HTMLElement>('[data-tab-id="a"]')!
+      .dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }));
+    document.querySelector<HTMLElement>('[data-tab-id="a"]')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-tabs-list]')!.click();
+
+    expect(sessions.newDocumentTab).not.toHaveBeenCalled();
+    expect(sessions.closeDocumentTab).not.toHaveBeenCalled();
+    expect(sessions.activateDocumentTab).not.toHaveBeenCalled();
+    expect(document.querySelector<HTMLElement>('[data-tabs-menu]')!.hidden).toBe(true);
   });
 });

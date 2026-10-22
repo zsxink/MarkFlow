@@ -122,6 +122,7 @@ try {
   await writeFile(path.join(workspace, 'welcome.md'), '# MarkFlow E2E Testing\n\n这是 E2E 测试的初始文档，包含段落内容。\n\n- 列表项一\n- 列表项二\n- 列表项三\n');
   await writeFile(path.join(workspace, 'tabs-345-alpha.md'), '# Alpha document\n\nAlpha original content.\n');
   await writeFile(path.join(workspace, 'tabs-345-beta.md'), '# Beta document\n\nBeta original content.\n');
+  await writeFile(path.join(workspace, 'tabs-348-caret.md'), '# Alpha document\n\nCaret regression fixture.\n');
   // Disk-safety (5.5) fixture: multi-construct Markdown staged verbatim before
   // launch; a NO-EDIT open → switch → save → reload must leave these exact
   // bytes untouched on disk. Constructs are limited to the stage-one byte-stable

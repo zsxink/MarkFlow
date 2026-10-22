@@ -10,7 +10,7 @@
 .editor-container {
   max-width: 1080px;
   width: 100%;
-  padding: 56px 48px 120px;
+  padding: 16px 48px 120px;
 }
 
 .editor-container::after {
@@ -45,38 +45,48 @@
 .ProseMirror {
   outline: none;
   font-family: var(--font-body);
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 16px;
+  line-height: 1.6;
   color: var(--fg);
 }
 
 .ProseMirror p {
-  margin-bottom: 0.75em;
+  margin-bottom: 0.6em;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  font-weight: 600;
+  line-height: 1.35;
+  margin-top: 1.25em;
+  margin-bottom: 0.45em;
 }
 
 .ProseMirror h1 {
-  font-size: 2.2em;
-  font-weight: 700;
-  margin-bottom: 0.5em;
+  font-size: 1.875em;
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--border);
 }
 
 .ProseMirror h2 {
-  font-size: 1.7em;
-  font-weight: 600;
-  margin-bottom: 0.5em;
+  font-size: 1.45em;
 }
 
 .ProseMirror h3 {
-  font-size: 1.35em;
-  font-weight: 600;
-  margin-bottom: 0.5em;
+  font-size: 1.2em;
 }
 
-.ProseMirror h4, .ProseMirror h5, .ProseMirror h6 {
-  font-weight: 600;
-  margin-bottom: 0.5em;
+.ProseMirror h4 { font-size: 1.1em; }
+.ProseMirror h5 { font-size: 1em; }
+.ProseMirror h6 { font-size: 0.95em; }
+
+/* Keep the opening block aligned with the editor's top inset. */
+.ProseMirror > :first-child {
+  margin-top: 0;
 }
 
 .ProseMirror strong {
@@ -388,25 +398,48 @@
 }
 
 .ProseMirror blockquote {
-  border-left: 3px solid var(--accent);
+  border-left: 1px solid var(--border);
   padding-left: 16px;
   margin-left: 0;
   margin-bottom: 1em;
-  color: var(--muted);
-  font-style: italic;
+  font-family: var(--font-serif);
+  color: var(--fg);
+  font-style: normal;
 }
 
 .ProseMirror ul, .ProseMirror ol {
-  margin-bottom: 1em;
+  margin-bottom: 0.75em;
   padding-left: 24px;
+}
+
+/* Give top-level lists and quotes a small inset without deepening nested levels. */
+.ProseMirror > ul,
+.ProseMirror > ol,
+.ProseMirror > blockquote {
+  margin-left: 4px;
 }
 
 .ProseMirror li {
   margin-bottom: 0.25em;
 }
 
+/* Paragraph margins should not double the spacing between list items. */
+.ProseMirror li p {
+  margin-bottom: 0.25em;
+}
+
+.ProseMirror li > :last-child,
+.ProseMirror li > div > :last-child {
+  margin-bottom: 0;
+}
+
+.ProseMirror li > ul,
+.ProseMirror li > ol {
+  margin-top: 0.25em;
+}
+
 .ProseMirror ul li::marker {
-  color: var(--accent);
+  color: var(--fg);
 }
 
 .ProseMirror hr {
@@ -802,10 +835,10 @@
 
 /* 内容区域 — 对齐 WYSIWYG 的字体节奏和编辑内边距 */
 .source-editor-wrapper .cm-scroller {
-  padding: 56px 48px 120px;
+  padding: 16px 48px 120px;
   font-family: var(--font-code);
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .source-editor-wrapper .cm-content {
@@ -840,11 +873,11 @@
 
 /* 活动行高亮 — 极淡背景 */
 .source-editor-wrapper .cm-editor .cm-activeLine {
-  background: var(--accent-soft);
+  background: var(--code-bg);
 }
 
 .source-editor-wrapper .cm-editor .cm-activeLineGutter {
-  background: var(--accent-soft);
+  background: var(--code-bg);
 }
 
 /* ── Gutter（行号区） ────────────────────────────────── */
@@ -852,24 +885,24 @@
 .source-editor-wrapper .cm-gutters {
   background: transparent;
   border: none;
-  color: var(--muted);
+  color: var(--source-marker);
   /* 行号在 gutter 内靠右对齐 */
   padding-right: 4px;
 }
 
 .source-editor-wrapper .cm-gutterElement {
-  color: var(--muted);
+  color: var(--source-marker);
 }
 
-.source-editor-wrapper .cm-activeLineGutter .cm-gutterElement {
-  color: var(--accent);
-  font-weight: 600;
+.source-editor-wrapper .cm-gutterElement.cm-activeLineGutter {
+  color: var(--fg);
+  font-weight: 500;
 }
 
 /* 括号匹配 */
 .source-editor-wrapper .cm-editor .cm-matchingBracket {
-  background: var(--accent-soft);
-  outline: 1px solid var(--accent);
+  background: var(--code-bg);
+  outline: 1px solid var(--border);
   color: var(--fg) !important;
 }
 
@@ -881,7 +914,7 @@
 
 /* 折叠标记 */
 .source-editor-wrapper .cm-foldGutter .cm-gutterElement {
-  color: var(--muted);
+  color: var(--source-marker);
   cursor: pointer;
 }
 
@@ -899,12 +932,12 @@
 
 /* 光标色 */
 .source-editor-wrapper .cm-editor .cm-cursor {
-  border-left-color: var(--accent);
+  border-left-color: var(--fg);
 }
 
 /* 高亮选中词（双点击词） */
 .source-editor-wrapper .cm-editor .cm-selectionMatch {
-  background: var(--accent-soft);
+  background: var(--code-bg);
 }
 
 /* KaTeX math formulas */

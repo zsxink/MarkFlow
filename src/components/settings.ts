@@ -132,8 +132,8 @@ function createSettingsContent(): string {
                 <div class="settings-label">正文字号</div>
                 <select class="settings-select" id="setting-fontsize">
                   <option value="14">14px</option>
-                  <option value="16">16px</option>
-                  <option value="18" selected>18px</option>
+                  <option value="16" selected>16px</option>
+                  <option value="18">18px</option>
                   <option value="20">20px</option>
                   <option value="22">22px</option>
                 </select>
@@ -142,7 +142,8 @@ function createSettingsContent(): string {
                 <div class="settings-label">行高</div>
                 <select class="settings-select" id="setting-lineheight">
                   <option value="1.5">1.5（紧凑）</option>
-                  <option value="1.7" selected>1.7（标准）</option>
+                  <option value="1.6" selected>1.6（标准）</option>
+                  <option value="1.7">1.7（舒展）</option>
                   <option value="1.8">1.8（宽松）</option>
                   <option value="2.0">2.0（双倍）</option>
                 </select>
@@ -397,8 +398,8 @@ function applySettingsToUI(settings: Settings) {
   setToggleState('setting-tooltips', settings.showTooltips !== false);
   setToggleState('setting-follow-system', settings.followSystemTheme === true);
 
-  setSelectValue('setting-fontsize', String(settings.fontSize ?? 18));
-  setSelectValue('setting-lineheight', String(settings.lineHeight ?? 1.7));
+  setSelectValue('setting-fontsize', String(settings.fontSize ?? DEFAULT_SETTINGS.fontSize));
+  setSelectValue('setting-lineheight', String(settings.lineHeight ?? DEFAULT_SETTINGS.lineHeight));
   setSelectValue('setting-image-storage', String(settings.imageStorageMode ?? 'custom'));
   setInputValue('setting-image-custom-path', String(settings.imageCustomPath ?? './images'));
   setToggleState('setting-image-apply-local', settings.imageApplyToLocal !== false);
@@ -438,8 +439,8 @@ function applyRuntimeSettings(settings: Settings) {
   const sourceEditor = document.getElementById('source-editor') as HTMLTextAreaElement | null;
   if (sourceEditor) {
     sourceEditor.spellcheck = settings.spellcheck !== false;
-    sourceEditor.style.fontSize = `${Number(settings.fontSize ?? 18)}px`;
-    sourceEditor.style.lineHeight = String(settings.lineHeight ?? 1.7);
+    sourceEditor.style.fontSize = `${Number(settings.fontSize ?? DEFAULT_SETTINGS.fontSize)}px`;
+    sourceEditor.style.lineHeight = String(settings.lineHeight ?? DEFAULT_SETTINGS.lineHeight);
     sourceEditor.style.whiteSpace = settings.softWrap === false ? 'pre' : 'pre-wrap';
   }
 
@@ -448,8 +449,8 @@ function applyRuntimeSettings(settings: Settings) {
     const root = wysiwygEditor.querySelector('.ProseMirror') as HTMLElement | null;
     if (root) {
       root.spellcheck = settings.spellcheck !== false;
-      root.style.fontSize = `${Number(settings.fontSize ?? 18)}px`;
-      root.style.lineHeight = String(settings.lineHeight ?? 1.7);
+      root.style.fontSize = `${Number(settings.fontSize ?? DEFAULT_SETTINGS.fontSize)}px`;
+      root.style.lineHeight = String(settings.lineHeight ?? DEFAULT_SETTINGS.lineHeight);
       root.style.whiteSpace = settings.softWrap === false ? 'pre' : 'normal';
     }
   }
@@ -485,8 +486,8 @@ function buildSettingsFromUI(): Settings {
     ...currentSettings,
     version: 3,
     theme: getSelectedTheme(),
-    fontSize: Number(getSelectValue('setting-fontsize') || 18),
-    lineHeight: Number(getSelectValue('setting-lineheight') || 1.7),
+    fontSize: Number(getSelectValue('setting-fontsize') || DEFAULT_SETTINGS.fontSize),
+    lineHeight: Number(getSelectValue('setting-lineheight') || DEFAULT_SETTINGS.lineHeight),
     autosave: getToggleState('setting-autosave'),
     autosaveInterval: Number(getSelectValue('setting-autosave-interval') || 10000),
     spellcheck: getToggleState('setting-spellcheck'),

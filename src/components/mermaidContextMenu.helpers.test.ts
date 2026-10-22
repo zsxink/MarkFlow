@@ -4,7 +4,7 @@ import {
   MAX_PNG_CANVAS_DIMENSION,
   clampMenuPosition,
   validatePngCanvasSize,
-} from './mermaidContextMenu.helpers';
+} from './diagramContextMenu.helpers';
 
 describe('clampMenuPosition', () => {
   it('keeps the menu inside the viewport near bottom-right edges', () => {

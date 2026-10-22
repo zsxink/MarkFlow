@@ -5,7 +5,7 @@
  * 自动处理：菜单位置限界（clampMenuPosition）、外部点击关闭。
  */
 
-import { clampMenuPosition } from '../mermaidContextMenu.helpers';
+import { clampMenuPosition } from '../diagramContextMenu.helpers';
 
 export interface ContextMenuItem {
   label?: string;

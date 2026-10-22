@@ -4,9 +4,9 @@ const { switchToSource, switchToWysiwyg, getMode, getEditor, getMarkdown, applyF
 vi.mock('../lib/editor', () => ({ switchToSource, switchToWysiwyg, getMode, getEditor, getMarkdown, applyFrontmatterMarkdown, ensureContinuationParagraph }));
 vi.mock('./fileTree', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), getWorkspacePath: vi.fn() }));
 vi.mock('./newFileDialog', () => ({ showNewFileDialog: vi.fn() })); vi.mock('./linkDialog', () => ({ showLinkDialog: vi.fn() })); vi.mock('./toast', () => ({ showToast: vi.fn() })); vi.mock('./ui/modal', () => ({ showModal: vi.fn() }));
-vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage, getImageSettings, imagePathToSrc })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath, assetToOriginalMap })); vi.mock('../lib/editor.source', () => ({ getSourceView: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
+vi.mock('../lib/storage', () => ({ addRecentFile: vi.fn() })); vi.mock('./sidebar', () => ({ clearActiveDocument: vi.fn(), confirmDocumentTransition: vi.fn(), openFileInEditor: vi.fn(), saveActiveDocument: vi.fn() })); vi.mock('../lib/imageUtils', () => ({ copyLocalFileToStorage: vi.fn(), handleNetworkImage, getImageSettings, imagePathToSrc })); vi.mock('../lib/editor.state', () => ({ getActiveDocPath, assetToOriginalMap, getEditorDocumentVersion: () => 1 })); vi.mock('../lib/editor.source', () => ({ getSourceView: vi.fn() })); vi.mock('../lib/logger', () => ({ logException: vi.fn() }));
 vi.mock('../lib/documentExport', () => ({ exportRenderedDocument })); vi.mock('./ui/contextMenu', () => ({ showContextMenuStatic })); vi.mock('./ui/modal', () => ({ showModal })); vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
-vi.mock('../lib/store', () => ({ store: { getState: vi.fn(() => ({ readOnly: false })) } }));
+vi.mock('../lib/store', () => ({ store: { on: vi.fn(), getState: vi.fn(() => ({ readOnly: false })) } }));
 vi.mock('./frontmatterPanel', () => ({ openNewFrontmatterField: vi.fn() }));
 import { initToolbar } from './toolbar';
 
@@ -92,7 +92,7 @@ describe('toolbar', () => {
     document.querySelector<HTMLElement>('[data-tab="url"]')!.click();
     (document.getElementById('image-url-input') as HTMLInputElement).value = 'https://example.test/two.png';
     document.getElementById('image-confirm')!.click();
-    await Promise.resolve(); await Promise.resolve();
+    await vi.waitFor(() => expect(setImage).toHaveBeenCalled());
     expect(setImage).toHaveBeenCalledWith({ src: 'asset://same-runtime-image', authoredSrc: './images/second.png' });
     expect(assetToOriginalMap.get('asset://same-runtime-image')).toBe('./images/second.png');
   });

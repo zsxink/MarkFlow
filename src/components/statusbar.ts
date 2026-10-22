@@ -50,6 +50,12 @@ function updateStats() {
   const lineCount = document.getElementById('line-count');
   const cursorPos = document.getElementById('cursor-pos');
 
+  if (document.getElementById('editor-area')?.classList.contains('document-empty')) {
+    if (wordCount) wordCount.textContent = '0 字';
+    if (lineCount) lineCount.textContent = '0 行';
+    if (cursorPos) cursorPos.textContent = '行 0, 列 0';
+    return;
+  }
   if (wordCount) wordCount.textContent = `${getWordCount()} 字`;
   if (lineCount) lineCount.textContent = `${getLineCount()} 行`;
   if (cursorPos) {

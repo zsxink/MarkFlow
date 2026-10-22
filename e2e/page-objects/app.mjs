@@ -9,7 +9,7 @@ export const app = {
   sourceMode: () => $('#btn-source'),
   wysiwygMode: () => $('#btn-wysiwyg'),
   settingsBtn: () => $('#btn-settings'),
-  toast: () => $('[role="status"]'),
+  toast: () => $('#toast'),
   file: (name) => $(`[data-testid="file-tree-item"]`).$(`span=${name}`),
 
   // ── Settings modal ──────────────────────────────────────────────
@@ -25,7 +25,17 @@ export const app = {
 
 export async function waitForAppReady() {
   await (await app.ready()).waitForDisplayed({ timeout: 30_000 });
-  await (await app.wysiwyg()).waitForDisplayed({ timeout: 10_000 });
+  await browser.waitUntil(async () => {
+    const [wysiwyg, source] = await Promise.all([app.wysiwyg(), app.sourceContent()]);
+    const [wysiwygDisplayed, sourceDisplayed] = await Promise.all([
+      wysiwyg.isDisplayed(),
+      source.isDisplayed(),
+    ]);
+    return wysiwygDisplayed || sourceDisplayed;
+  }, {
+    timeout: 10_000,
+    timeoutMsg: 'Expected the active WYSIWYG or source editor to be displayed',
+  });
 }
 
 export async function showFiles() {
@@ -36,7 +46,19 @@ export async function openFileInTree(name) {
   await showFiles();
   const item = app.fileTreeItem(name);
   await item.waitForDisplayed({ timeout: 10_000 });
+  const expectedPath = await item.getAttribute('data-path');
   await item.click();
+  await browser.waitUntil(async () => {
+    const tabs = await $$('#document-tabs .document-tab[role="tab"]');
+    for (const tab of tabs) {
+      if (await tab.getAttribute('title') === expectedPath
+        && await tab.getAttribute('aria-selected') === 'true') return true;
+    }
+    return false;
+  }, {
+    timeout: 10_000,
+    timeoutMsg: `Expected the document tab for ${name} to become active`,
+  });
 }
 
 export async function openSettings() {

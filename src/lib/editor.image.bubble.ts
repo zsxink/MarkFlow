@@ -1,11 +1,12 @@
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Extension } from '@tiptap/core';
-import { assetToOriginalMap, getActiveDocPath } from './editor.state';
+import { assetToOriginalMap, getActiveDocPath, getEditorDocumentVersion } from './editor.state';
 import { handleNetworkImage, imagePathToSrc } from './imageUtils';
 import { getImageSettings } from './imageUtils';
 import { resolveImagePath } from './pathUtils';
 import { showImageContextMenu } from '../components/imageContextMenu';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { runDocumentOperation } from './documentOperations';
 
 // ── Image edit bubble plugin ───────────────────────────────────────────
 
@@ -144,6 +145,9 @@ export function imageBubblePlugin(): Extension {
     chooseButton.className = 'image-edit-action';
     chooseButton.textContent = '选择';
     chooseButton.addEventListener('click', async () => {
+      const owner = getEditorDocumentVersion();
+      await runDocumentOperation(async () => {
+      if (owner !== getEditorDocumentVersion()) return;
       const selected = await openDialog({
         multiple: false,
         filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }],
@@ -151,6 +155,7 @@ export function imageBubblePlugin(): Extension {
       if (typeof selected === 'string') {
         pathInput.value = selected;
       }
+      });
     });
 
     const confirmButton = document.createElement('button');
@@ -158,7 +163,11 @@ export function imageBubblePlugin(): Extension {
     confirmButton.className = 'image-edit-action image-edit-confirm';
     confirmButton.textContent = '确认';
     confirmButton.addEventListener('click', async () => {
-      await applyImageChanges(view, pos, node, captionInput.value, pathInput.value);
+      const owner = getEditorDocumentVersion();
+      await runDocumentOperation(() => {
+        if (owner !== getEditorDocumentVersion() || !view.editable) return;
+        return applyImageChanges(view, pos, node, captionInput.value, pathInput.value);
+      });
     });
 
     const cancelButton = document.createElement('button');
@@ -201,10 +210,12 @@ export function imageBubblePlugin(): Extension {
             };
             document.addEventListener('mousedown', handleMouseDown);
             document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('markflow:detach-document', removeBubble);
             return {
               destroy() {
                 document.removeEventListener('mousedown', handleMouseDown);
                 document.removeEventListener('keydown', handleKeyDown);
+                document.removeEventListener('markflow:detach-document', removeBubble);
                 removeBubble();
               },
             };

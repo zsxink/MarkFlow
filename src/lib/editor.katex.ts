@@ -16,6 +16,7 @@
  */
 
 import {Extension} from '@tiptap/core';
+import { getEditorDocumentVersion } from './editor.state';
 import {Plugin, PluginKey} from 'prosemirror-state';
 import {Decoration, DecorationSet, type EditorView} from 'prosemirror-view';
 import {scanFormulas, type FormulaMatch} from './katex-scan';
@@ -95,6 +96,7 @@ function buildFormulaWidget(
       }
     });
     textarea.addEventListener('blur', commit);
+    textarea.addEventListener('markflow:commit-draft', commit);
     const actions = document.createElement('div');
     actions.className = 'katex-actions';
     const confirmBtn = document.createElement('button');
@@ -169,10 +171,10 @@ function commitFormula(
   } else {
     content = content.replace(/^\$/g, '').replace(/\$$/g, '');
   }
+  cache.editingKeys.delete(key);
   if (from !== -1) {
     view.dispatch(view.state.tr.replaceWith(from, to, view.state.schema.text(`${delimiters}${content}${delimiters}`)));
   }
-  cache.editingKeys.delete(key);
   // Invalidate the rendered result for the OLD content (we just changed it).
   const oldContentKey = formulaCacheKey(formula);
   cache.htmlByKey.delete(oldContentKey);
@@ -217,6 +219,7 @@ export function katexPlugin() {
     pendingKeys: new Set(),
   };
   let viewRef: EditorView | undefined;
+  let documentVersion = getEditorDocumentVersion();
 
   return Extension.create({
     name: 'katex',
@@ -269,7 +272,13 @@ export function katexPlugin() {
 
           props: {
             decorations(state) {
-              const getView = () => viewRef;
+              const owner = getEditorDocumentVersion();
+              if (owner !== documentVersion) {
+                documentVersion = owner;
+                cache.editingKeys.clear();
+                cache.pendingKeys.clear();
+              }
+              const getView = () => owner === getEditorDocumentVersion() && !viewRef?.isDestroyed ? viewRef : undefined;
               const decorations: Decoration[] = [];
               state.doc.descendants((node, pos) => {
                 if (!node.isText || !node.text) return;
@@ -303,7 +312,7 @@ export function katexPlugin() {
                   // Insert the rendered/source widget at the formula start.
                   decorations.push(
                     Decoration.widget(from, () => {
-                      const {dom} = buildFormulaWidget(formula, positionKey, cache, getView);
+                      const {dom} = buildFormulaWidget({ ...formula, from, to }, positionKey, cache, getView);
                       return dom;
                     }),
                   );

@@ -7,7 +7,7 @@ import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings, store } = vi.hoisted(() => ({
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(), isBlankPlantUmlSource: vi.fn(() => false), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
-vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn() }));
+vi.mock('./mermaid', () => ({ renderMermaid })); vi.mock('./plantuml', () => ({ renderPlantUml })); vi.mock('./plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('./storage', () => ({ getCachedSettings })); vi.mock('./store', () => ({ store })); vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('./editor.state', () => ({ getMermaidExportBaseName: vi.fn(), getActiveDocPath: vi.fn(() => null), assetToOriginalMap: new Map() }));
 import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, escapeParagraphMarkdown, mermaidCodeBlockExtension, renderFencedCodeBlock } from './editor.extensions';
 import { createMarkdownExtension, markflowMarked } from './editor.init';
 

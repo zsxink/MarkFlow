@@ -8,9 +8,12 @@ import { onPipelineModeChanged } from './editor.markdown.opaque.session';
 // ── Module-level state (editor-internal, not in global Store) ────────
 
 let editor: Editor | null = null;
+let documentVersion = 0;
+export function getEditorDocumentVersion(): number { return documentVersion; }
+export function advanceEditorDocumentVersion(): void { documentVersion += 1; }
 export const assetToOriginalMap = new Map<string, string>();
 
-const documentState = {
+const initialDocumentState = {
   externallyModified: false,
   programmaticUpdate: false,
   programmaticUpdateDepth: 0,
@@ -34,7 +37,16 @@ const documentState = {
   // Trailing newlines at end of the original file (ProseMirror serializer drops them).
   // Captured on setMarkdown, appended back in getMarkdown / dirty comparisons.
   trailingNewlines: 0,
+  // Each representation has its own scroll position, even while not mounted.
+  wysiwygScrollTop: 0,
+  wysiwygScrollLeft: 0,
+  sourceScrollTop: 0,
+  sourceScrollLeft: 0,
 };
+
+export type DocumentState = typeof initialDocumentState;
+const documentState: DocumentState = { ...initialDocumentState };
+export function resetDocumentState(): void { Object.assign(documentState, initialDocumentState); }
 
 // ── Setters (module-local) ──────────────────────────────────────────
 
@@ -110,8 +122,7 @@ export function setActiveDocumentPath(path: string | null) {
 }
 
 export function getActiveDocPath(): string | null {
-  const el = document.querySelector('.tree-file.active') as HTMLElement | null;
-  return el?.dataset?.path || store.getState().activeFilePath;
+  return store.getState().activeFilePath;
 }
 
 // ── Shared utilities ────────────────────────────────────────────────

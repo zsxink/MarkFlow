@@ -16,7 +16,6 @@ use error::AppError;
 use paths::normalize_path;
 use state::AppState;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use tauri::EventTarget;
 use tauri::RunEvent;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -150,20 +149,55 @@ fn take_pending_file(window_label: String, state: tauri::State<AppState>) -> Opt
 
 #[tauri::command]
 fn take_cli_file(state: tauri::State<AppState>) -> Option<String> {
-    let mut cli_file = match error::lock_mutex(&state.cli_file) {
+    let mut cli_files = match error::lock_mutex(&state.cli_files) {
         Ok(g) => g,
         Err(e) => {
             tracing::warn!(target: "backend.commands", error = %e, "Skipping take_cli_file due to poisoned lock");
             return None;
         }
     };
-    cli_file.take()
+    cli_files.pop_front()
 }
 
 #[tauri::command]
-fn mark_initial_file_handled(state: tauri::State<AppState>) -> Result<(), String> {
-    state.initial_file_handled.store(true, Ordering::SeqCst);
+fn take_cli_files(state: tauri::State<AppState>) -> Vec<String> {
+    match error::lock_mutex(&state.cli_files) {
+        Ok(mut cli_files) => cli_files.drain(..).collect(),
+        Err(e) => {
+            tracing::warn!(target: "backend.commands", error = %e, "Skipping take_cli_files due to poisoned lock");
+            Vec::new()
+        }
+    }
+}
+
+#[tauri::command]
+fn mark_initial_file_handled(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
+    app.state::<AppState>().mark_window_ready(window.label())?;
+    request_open_paths(&app, []);
     Ok(())
+}
+
+fn request_open_paths(app: &tauri::AppHandle, paths: impl IntoIterator<Item = String>) {
+    let state = app.state::<AppState>();
+    let live_labels = app.webview_windows().into_keys();
+    if let Err(error) = state.dispatch_open_paths(paths, live_labels, |label, path| {
+        // Recheck existence because a window can close after collecting live labels.
+        app.get_webview_window(label)
+            .ok_or_else(|| "Target window no longer exists".to_string())?;
+        app.emit_to(
+            EventTarget::WebviewWindow {
+                label: label.to_string(),
+            },
+            "file-open-requested",
+            path,
+        )
+        .map_err(|error| error.to_string())
+    }) {
+        tracing::warn!(target: "backend.app", error = %error, "Cannot queue opened files: lock poisoned");
+    }
 }
 
 #[tauri::command]
@@ -194,6 +228,7 @@ fn intercept_close_request(
                     .map(|mut perms| perms.remove(&label))
                     .unwrap_or(false);
                 if has_permission {
+                    w.app_handle().state::<AppState>().remove_window(&label);
                     tracing::debug!(target: "backend.close", label = %label, "Close permission consumed, allowing close");
                     return;
                 }
@@ -210,7 +245,8 @@ fn intercept_close_request(
                 if let Ok(mut perms) = error::lock_mutex(&close_permissions) {
                     perms.remove(&label);
                 }
-                tracing::debug!(target: "backend.close", label = %label, "Cleaned up close permission on window destroy");
+                w.app_handle().state::<AppState>().remove_window(&label);
+                tracing::debug!(target: "backend.close", label = %label, "Cleaned up window readiness and close permission on window destroy");
             }
             _ => {}
         }
@@ -321,13 +357,16 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(single_instance_init(|app, args, _cwd| {
-            if let Some(file) = args.get(1) {
-                let path = std::path::Path::new(file);
-                if path.is_file() {
-                    let path_str = path.to_string_lossy().to_string();
-                    tracing::info!(target: "backend.app", path = %path_str, "File opened via single-instance plugin");
-                    let _ = open_file_in_new_window(path_str, app.clone());
-                }
+            let paths = args
+                .iter()
+                .skip(1)
+                .map(std::path::PathBuf::from)
+                .filter(|path| path.is_file())
+                .map(|path| path.to_string_lossy().to_string())
+                .collect::<Vec<_>>();
+            if !paths.is_empty() {
+                tracing::info!(target: "backend.app", files = paths.len(), "Files opened via single-instance plugin");
+                request_open_paths(app, paths);
             }
         }));
 
@@ -384,6 +423,7 @@ pub fn run() {
             open_file_in_new_window,
             take_pending_file,
             take_cli_file,
+            take_cli_files,
             mark_initial_file_handled,
             save_last_window_state,
             add_recent_file,
@@ -399,13 +439,17 @@ pub fn run() {
             files::cleanup_stale_temp_files(&paths::app_config_dir());
             files_image::cleanup_expired_pending_images_on_startup();
 
-            let cli_file: Option<PathBuf> = std::env::args().nth(1).map(PathBuf::from).filter(|p| p.is_file());
+            let cli_files: Vec<PathBuf> = std::env::args()
+                .skip(1)
+                .map(PathBuf::from)
+                .filter(|path| path.is_file())
+                .collect();
 
-            if let Some(file_path) = cli_file {
-                tracing::info!(target: "backend.app", path = %file_path.display(), "Opened via file association (single-file mode)");
+            if !cli_files.is_empty() {
+                tracing::info!(target: "backend.app", files = cli_files.len(), "Opened via file association");
                 let state = app.state::<AppState>();
-                let mut cli_file_lock = error::lock_mutex(&state.cli_file)?;
-                *cli_file_lock = Some(file_path.to_string_lossy().to_string());
+                let mut cli_files_lock = error::lock_mutex(&state.cli_files)?;
+                cli_files_lock.extend(cli_files.into_iter().map(|path| path.to_string_lossy().to_string()));
             } else if let Some(last_ws) = settings.last_workspace {
                 let path = PathBuf::from(&last_ws);
                 if path.is_dir() {
@@ -448,22 +492,8 @@ pub fn run() {
                     }
                 };
 
-                let state = _app_handle.state::<AppState>();
-
-                if !state.initial_file_handled.load(Ordering::SeqCst) {
-                    tracing::info!(target: "backend.app", path = %path_str, "First RunEvent::Opened — storing to cli_file");
-                    let mut cli_file_lock = match error::lock_mutex(&state.cli_file) {
-                        Ok(g) => g,
-                        Err(e) => {
-                            tracing::warn!(target: "backend.app", error = %e, "Skipping RunEvent::Opened cli_file lock");
-                            continue;
-                        }
-                    };
-                    *cli_file_lock = Some(path_str);
-                } else {
-                    tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened (new window)");
-                    let _ = open_file_in_new_window(path_str, _app_handle.clone());
-                }
+                tracing::info!(target: "backend.app", path = %path_str, "File opened via RunEvent::Opened");
+                request_open_paths(_app_handle, std::iter::once(path_str));
             }
         }
 

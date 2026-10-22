@@ -12,8 +12,6 @@ export { saveActiveDocument, reloadActiveDocumentFromDisk, openFileInEditor, con
 export { handleExternalDeletion, handleActiveDocumentExternalModification } from './sidebar.conflict';
 export { getActiveFilePath, setActiveFilePath, rewriteActiveDocumentPath, clearActiveDocument, clearActiveDocumentIfMatches } from './activeDocument';
 
-import { clearActiveDocument } from './activeDocument';
-import { confirmDocumentTransition } from './sidebar.fileops';
 
 export function initSidebar() {
   const sidebar = document.getElementById('sidebar');
@@ -31,11 +29,9 @@ export function initSidebar() {
 
   // Sidebar footer buttons
   document.getElementById('sidebar-open-btn')?.addEventListener('click', async () => {
-    if (!(await confirmDocumentTransition())) return;
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
       await setWorkspacePath(selected);
-      clearActiveDocument();
       await refreshFileTree();
       showToast('文件夹已打开');
     }

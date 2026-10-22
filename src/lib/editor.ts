@@ -97,7 +97,10 @@ export function getMarkdownResult(): MarkdownSerializeResult {
       const decision = runSaveBoundary(editor, {
         session,
         registry,
-        currentSourceRevision: getSourceRevision(),
+        // An external disk event invalidates writing the original path, but
+        // the local representation still belongs to its admitted source.
+        // getSavePlan retains the strict current-source check for disk writes.
+        currentSourceRevision: hasExternalModification() ? session.sourceRevision : getSourceRevision(),
         currentUserRevision: getRevision(),
         pipelineMode: getMarkdownPipelineMode(),
       });
@@ -198,12 +201,13 @@ export function getPipelineMode() {
 // ── Scroll reset ──────────────────────────────────────────────────────
 
 export function resetEditorScroll() {
+  Object.assign(getDocumentState(), { wysiwygScrollTop: 0, wysiwygScrollLeft: 0, sourceScrollTop: 0, sourceScrollLeft: 0 });
   document.getElementById('editor-area')?.scrollTo({ top: 0, behavior: 'auto' });
   document.querySelector<HTMLElement>('#source-editor-wrapper .cm-scroller')
     ?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
 }
 
-export function markDocumentPersisted(markdown: string, persistedRevision?: number) {
+export function markDocumentPersisted(markdown: string, persistedRevision?: number, persistedSourceRevision?: number) {
   // The disk baseline is exact authored text, including EOF newline count.
   // Source owns that count; stripping it here would make a subsequent
   // Source→WYSIWYG save restore stale metadata.
@@ -213,8 +217,11 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
   // If a revision was captured at save-start, only clear dirty when no newer
   // edits arrived during the write.  Without a revision (legacy callers) we
   // always clear dirty for backward compatibility.
-  if (persistedRevision !== undefined && persistedRevision !== getRevision()) {
-    // Newer edits landed — keep dirty so the next save picks them up.
+  if ((persistedRevision !== undefined && persistedRevision !== getRevision())
+    || (persistedSourceRevision !== undefined && persistedSourceRevision !== getSourceRevision())) {
+    // A user/source edit or a newer disk event arrived during the write. The
+    // disk baseline records this write, but the live identity remains unsafe.
+    store.setState({ dirty: true });
     return;
   }
 
@@ -231,9 +238,19 @@ export function markDocumentPersisted(markdown: string, persistedRevision?: numb
   const currentMd = preserveLiteralSource ? current.markdown : normalizeImageMarkdown(current.markdown);
   // A successful save clears the persistent autosave-failure banner, regardless
   // of whether the save came from autosave or an interactive (Ctrl+S) save.
+  const currentWasPersisted = currentMd === getDocumentState().lastPersistedMarkdown;
+  const session = getOpaqueSession();
+  if (currentWasPersisted && persistedRevision === getRevision()
+    && getDocumentState().externallyModified && session) {
+    // A confirmed overwrite / Save As resolved the external source identity.
+    // Keep the admission fingerprint, RAW slots and PM history intact: only
+    // the identity token changes to the source that was successfully saved.
+    session.sourceRevision = getSourceRevision();
+  }
   store.setState({
-    dirty: currentMd !== getDocumentState().lastPersistedMarkdown,
+    dirty: !currentWasPersisted,
     autosaveErrorCount: 0,
+    ...(currentWasPersisted ? { reconcileError: null } : {}),
   });
   getDocumentState().externallyModified = false;
 }
@@ -353,7 +370,13 @@ function enterSourceMode(content: string) {
   const wrapper = document.getElementById('source-editor-wrapper') as HTMLElement | null;
   const wysiwygEditor = document.getElementById('wysiwyg-editor');
   if (!wysiwygEditor || !wrapper) return;
-  document.getElementById('editor-area')?.classList.add('source-mode');
+  const area = document.getElementById('editor-area');
+  if (getMode() === 'wysiwyg' && area) {
+    getDocumentState().wysiwygScrollTop = area.scrollTop;
+    getDocumentState().wysiwygScrollLeft = area.scrollLeft;
+  }
+  area?.classList.add('source-mode');
+  setMarkdownPipelineMode('source-only');
   wysiwygEditor.hidden = true;
   wrapper.hidden = false;
   setMode('source');
@@ -374,6 +397,10 @@ function enterSourceMode(content: string) {
   }, isReadOnly).then((view) => {
     // Focus only after CodeMirror has been loaded and mounted.
     view?.focus();
+    if (view?.scrollDOM) {
+      view.scrollDOM.scrollTop = getDocumentState().sourceScrollTop;
+      view.scrollDOM.scrollLeft = getDocumentState().sourceScrollLeft;
+    }
   }).catch((error) => {
     showToast('源码编辑器加载失败');
     logException('editor.source', 'Failed to load source editor', error);
@@ -411,8 +438,18 @@ export function switchToWysiwyg() {
   wysiwygEditor.hidden = false;
   wrapper.hidden = true;
   document.getElementById('editor-area')?.classList.remove('source-mode');
+  const sourceScroller = document.querySelector<HTMLElement>('#source-editor-wrapper .cm-scroller');
+  if (sourceScroller) {
+    getDocumentState().sourceScrollTop = sourceScroller.scrollTop;
+    getDocumentState().sourceScrollLeft = sourceScroller.scrollLeft;
+  }
   destroySourceEditor();
   setMode('wysiwyg');
+  const area = document.getElementById('editor-area');
+  if (area) {
+    area.scrollTop = getDocumentState().wysiwygScrollTop;
+    area.scrollLeft = getDocumentState().wysiwygScrollLeft;
+  }
   refreshFrontmatterPanel(source);
   editor.commands.focus();
   // Immediate refresh so outline/statusbar show WYSIWYG data right away

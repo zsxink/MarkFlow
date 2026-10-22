@@ -1,3 +1,4 @@
+vi.mock('../lib/documentSessions', () => ({ closeDocumentTabsMatchingPath: vi.fn(async () => true) }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { showContextMenuStatic, getWorkspacePath } = vi.hoisted(() => ({ showContextMenuStatic: vi.fn(), getWorkspacePath: vi.fn() }));

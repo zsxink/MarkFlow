@@ -12,6 +12,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./lib/logger', () => ({ logDebug: vi.fn(), logInfo: vi.fn(), logException: vi.fn() }));
 vi.mock('./lib/store', () => ({ store: mocks.store }));
 vi.mock('./lib/editor.save.reconcile', () => ({ shouldSuppressAutosave: mocks.shouldSuppressAutosave }));
+vi.mock('./lib/documentSessions', () => ({
+  initDocumentSessions: vi.fn(),
+  confirmAllDocumentTabsClose: vi.fn(),
+  routeDocumentExternalChanges: vi.fn(),
+  getActiveTabId: vi.fn(() => null),
+}));
+vi.mock('./lib/documentOperations', () => ({ isDocumentOperationPending: vi.fn(() => false) }));
+vi.mock('./components/documentTabs', () => ({ initDocumentTabs: vi.fn() }));
 vi.mock('./components/toast', () => ({ showToast: vi.fn() }));
 vi.mock('./components/sidebar', () => ({
   initSidebar: vi.fn(),

@@ -1,5 +1,5 @@
 import { initTheme } from './lib/theme';
-import { initEditor, isDocumentDirty, markExternalModification } from './lib/editor';
+import { initEditor, isDocumentDirty } from './lib/editor';
 import { initToolbar } from './components/toolbar';
 import { initSidebar } from './components/sidebar';
 import { initMenu } from './components/menu';
@@ -8,12 +8,15 @@ import { initKeyboard } from './utils/keyboard';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
-import { getActiveFilePath, handleActiveDocumentExternalModification, handleExternalDeletion, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
+import { getActiveFilePath, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
 import { shouldSuppressAutosave } from './lib/editor.save.reconcile';
 import { showToast } from './components/toast';
 import { setToastReporter } from './lib/error';
 import { store } from './lib/store';
-import { showUnsavedDialog } from './components/unsavedDialog';
+import { initDocumentSessions, confirmAllDocumentTabsClose, routeDocumentExternalChanges, getActiveTabId, onDocumentTabsChanged } from './lib/documentSessions';
+import { isDocumentOperationPending } from './lib/documentOperations';
+import { initDocumentTabs } from './components/documentTabs';
+import './styles/document-tabs.css';
 import { logDebug, logException, logInfo } from './lib/logger';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -52,8 +55,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   initStatusBar();
   void import('./components/settings').then(m => m.initSettings());
   await initEditor();
+  await initDocumentSessions();
+  initDocumentTabs();
+  onDocumentTabsChanged(() => {
+    void getCurrentWebviewWindow().setTitle(document.title).catch(error => logDebug('document.tabs', 'Failed to update window title', { error: String(error) }));
+  });
   initToolbar();
   initKeyboard();
+
+  await listen<string>('file-open-requested', async (event) => { await openFileInEditor(event.payload); });
 
   // Pull model: fetch CLI file path from backend (replaces event-based model)
   // macOS sends file via RunEvent::Opened which may arrive after DOMContentLoaded
@@ -67,24 +77,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   store.emit({ type: 'settings:changed', settings: loadedSettings });
 
   // Poll for CLI file with retries (macOS RunEvent may arrive late)
-  let cliFilePath: string | null = null;
-  for (let i = 0; i < 5; i++) {
-    cliFilePath = await invoke<string | null>('take_cli_file');
-    if (cliFilePath) break;
+  let cliFiles: string[] = [];
+  for (let i = 0; i < 5 && getCurrentWebviewWindow().label === 'main'; i++) {
+    cliFiles = await invoke<string[]>('take_cli_files');
+    if (cliFiles?.length) break;
     await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms
   }
 
-  if (!cliFilePath) {
+  if (!cliFiles?.length) {
     await restoreWorkspace();
   } else {
-    logInfo('app.lifecycle', 'Opening CLI file in current window', { path: cliFilePath });
-    await addRecentFile(cliFilePath);
-    await openFileInEditor(cliFilePath);
+    for (const path of cliFiles) await openFileInEditor(path);
   }
 
-  // Mark that initial file handling is done — subsequent RunEvent::Opened opens new windows
+  // Register this listener-ready window so native opens can route around a closed main window.
   invoke('mark_initial_file_handled').catch((e) =>
-    logDebug('app.lifecycle', 'Failed to mark initial file handled (best-effort)', { error: String(e) }),
+    logDebug('app.lifecycle', 'Failed to mark window ready for file opens (best-effort)', { error: String(e) }),
   );
 
   // Restore sidebar tab preference
@@ -108,24 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   listen<FileChangeEvent[]>('file-tree-events', async (event) => {
     const changes = event.payload.filter(change => !isSuppressedPath(change.path));
-    for (const { path, kind } of changes) {
-      const activePath = getActiveFilePath();
-      if (activePath && path === activePath && kind === 'modify') {
-        const result = await handleActiveDocumentExternalModification();
-        if (result === 'reloaded') showToast('文件已从磁盘重新加载');
-        else if (result === 'kept') showToast('已保留当前内容，自动保存已暂停');
-        else if (result === 'failed') {
-          markExternalModification();
-          showToast('文件已被外部修改，自动保存已暂停');
-        }
-      }
-      if (kind === 'delete') {
-        const result = await handleExternalDeletion(path);
-        if (result === 'discarded') showToast('当前文件已删除并已放弃当前内容');
-        else if (result === 'cleared') showToast('当前文件已被外部删除');
-        else if (result === 'failed') showToast('重新保存失败，当前内容已保留');
-      }
-    }
+    await routeDocumentExternalChanges(changes);
     await applyFileTreeEvents(changes);
   });
 
@@ -168,13 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (event.payload.windowLabel !== getCurrentWebviewWindow().label) {
       return;
     }
-    if (!isDocumentDirty()) {
-      await invoke('confirm_window_close');
-      return;
-    }
-    showUnsavedDialog(async () => {
-      await invoke('confirm_window_close');
-    });
+    if (await confirmAllDocumentTabsClose()) await invoke('confirm_window_close');
   });
 
   startAutoSave();
@@ -196,12 +181,14 @@ async function restoreWorkspace() {
 
 /** Single autosave tick — extracted for testability. */
 export async function runAutoSaveTick() {
-  if (isSavingInProgress()) return; // skip — previous save still running
+  if (isDocumentOperationPending() || isSavingInProgress()) return; // skip — previous save still running
   if (!isDocumentDirty()) return;   // skip — no changes to persist
   if (shouldSuppressAutosave(store.getState().reconcileError)) return;
   const filePath = getActiveFilePath();
+  const owner = getActiveTabId();
   if (filePath) {
     const result = await saveActiveDocument({ interactive: false });
+    if (owner !== getActiveTabId()) return;
     // Persistent visibility: only count actual write failures as errors;
     // skips (clean doc, in-progress, external mod) are not failures.
     if (result === 'failed') {

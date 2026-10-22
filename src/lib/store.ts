@@ -47,6 +47,9 @@ class Store {
     return { ...this.state };
   }
 
+  /** Stage identity for editor/NodeView restoration, without publishing partial UI. */
+  stageState(partial: Partial<StoreState>): void { this.state = { ...this.state, ...partial }; }
+
   setState(partial: Partial<StoreState>): void {
     const keys = Object.keys(partial) as (keyof StoreState)[];
     if (keys.length === 0) return;

@@ -1,6 +1,6 @@
 import { loadSettings, clearRecentHistory } from '../lib/storage';
 import { showToast } from './toast';
-import { confirmDocumentTransition, openFileInEditor, clearActiveDocument } from './sidebar';
+import { openFileInEditor } from './sidebar';
 import { setWorkspacePath, refreshFileTree } from './fileTree';
 
 export function initMenu() {
@@ -40,7 +40,6 @@ export function initMenu() {
     const path = btn.dataset.path;
     if (!path) return;
     menu.hidden = true;
-    if (!(await confirmDocumentTransition())) return;
     await openFileInEditor(path);
   });
 
@@ -52,9 +51,7 @@ export function initMenu() {
     const path = btn.dataset.path;
     if (!path) return;
     menu.hidden = true;
-    if (!(await confirmDocumentTransition())) return;
     await setWorkspacePath(path);
-    clearActiveDocument();
     await refreshFileTree();
     showToast('文件夹已打开');
   });

@@ -51,7 +51,27 @@ export function registerDiskSafetyTests() {
       // Save without editing.
       await (await app.save()).click();
 
-      // Reload the file (re-open it).
+      // Close the clean session so the next tree open reads the saved file from disk.
+      const openTabs = await $$('#document-tabs [role="tab"]');
+      let fixtureTab;
+      for (const tab of openTabs) {
+        if (await tab.getAttribute('title') === fixturePath) {
+          fixtureTab = tab;
+          break;
+        }
+      }
+      expect(fixtureTab).toBeDefined();
+      await browser.waitUntil(async () => (await fixtureTab.getAttribute('data-dirty')) === 'false', {
+        timeout: 10_000,
+        timeoutMsg: 'Expected the saved disk-safety fixture tab to be clean before closing',
+      });
+      const fixtureTabId = await fixtureTab.getAttribute('data-tab-id');
+      await $(`[data-close-tab="${fixtureTabId}"]`).click();
+      await browser.waitUntil(async () =>
+        (await $(`#document-tabs [role="tab"][data-tab-id="${fixtureTabId}"]`).isDisplayed()) === false,
+      { timeout: 10_000, timeoutMsg: 'Expected the clean disk-safety fixture tab to close' });
+
+      // Reopening a closed tab forces the app to read the saved file from disk.
       await openFileInTree('disk-safety-fixture.md');
       await browser.waitUntil(async () => {
         const text = await (await app.wysiwyg()).getText();

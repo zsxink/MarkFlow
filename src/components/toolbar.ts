@@ -1,3 +1,4 @@
+import { runDocumentOperation } from '../lib/documentOperations';
 import { applyFrontmatterMarkdown, getEditor, getMarkdown, getMode, switchToSource, switchToWysiwyg, ensureContinuationParagraph } from '../lib/editor';
 import { createEmptyFrontmatter, extractFrontmatter } from '../lib/frontmatter';
 import { store } from '../lib/store';
@@ -8,9 +9,9 @@ import { showNewFileDialog } from './newFileDialog';
 import { showLinkDialog } from './linkDialog';
 import { showToast } from './toast';
 import { showModal } from './ui/modal';
-import { clearActiveDocument, confirmDocumentTransition, openFileInEditor, saveActiveDocument } from './sidebar';
+import { openFileInEditor, saveActiveDocument } from './sidebar';
 import { copyLocalFileToStorage, handleNetworkImage, getImageSettings, imagePathToSrc } from '../lib/imageUtils';
-import { assetToOriginalMap, getActiveDocPath } from '../lib/editor.state';
+import { assetToOriginalMap, getActiveDocPath, getEditorDocumentVersion } from '../lib/editor.state';
 import { logException } from '../lib/logger';
 import { exportRenderedDocument, type ExportFormat } from '../lib/documentExport';
 import { showContextMenuStatic } from './ui/contextMenu';
@@ -19,6 +20,11 @@ import { getSourceView } from '../lib/editor.source.facade';
 export function initToolbar() {
   initAriaAttributes();
   bindToolbarEvents();
+  store.on('editor:mode', event => {
+    setActive('btn-wysiwyg', event.mode === 'wysiwyg');
+    setActive('btn-source', event.mode === 'source');
+    updateModeIndicator(event.mode);
+  });
 }
 
 function bindToolbarEvents() {
@@ -38,18 +44,15 @@ function bindToolbarEvents() {
   });
 
   bind('sidebar-open-folder', async () => {
-    if (!(await confirmDocumentTransition())) return;
     const selected = await open({ directory: true, multiple: false });
     if (selected) {
       await setWorkspacePath(selected);
-      clearActiveDocument();
       await refreshFileTree();
       showToast('文件夹已打开');
     }
   });
 
   bind('toolbar-open-file', async () => {
-    if (!(await confirmDocumentTransition())) return;
     const selected = await open({
       multiple: false,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
@@ -309,6 +312,7 @@ function insertImageSrc(src: string) {
 }
 
 export function showImageInsertDialog(options?: { alt?: string; src?: string; onReplace?: (src: string, alt: string) => void }) {
+  const owner = getEditorDocumentVersion();
   const isEdit = !!options?.onReplace;
 
   const modal = showModal({
@@ -361,7 +365,8 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
   document.getElementById('image-cancel')!.addEventListener('click', close);
 
   // Local file picker
-  document.getElementById('image-pick-local')!.addEventListener('click', async () => {
+  document.getElementById('image-pick-local')!.addEventListener('click', () => { void runDocumentOperation(async () => {
+    if (owner !== getEditorDocumentVersion()) { close(); return; }
     const selected = await open({
       multiple: false,
       filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'] }],
@@ -377,10 +382,11 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
       logException('toolbar.image', 'Failed to insert local image', e, { source: 'local' });
       showToast('图片插入失败');
     }
-  });
+  }); });
 
   // URL confirm
-  document.getElementById('image-confirm')!.addEventListener('click', async () => {
+  document.getElementById('image-confirm')!.addEventListener('click', () => { void runDocumentOperation(async () => {
+    if (owner !== getEditorDocumentVersion()) { close(); return; }
     if (activeTab === 'url') {
       const url = (document.getElementById('image-url-input') as HTMLInputElement).value.trim();
       if (!url) return;
@@ -402,7 +408,7 @@ export function showImageInsertDialog(options?: { alt?: string; src?: string; on
     } else {
       close();
     }
-  });
+  }); });
 
   // Enter key on URL input
   document.getElementById('image-url-input')!.addEventListener('keydown', (e) => {

@@ -242,6 +242,12 @@ describe('initDocumentTabs', () => {
     editor.tabIndex = 0;
     document.body.append(editor);
     editor.focus();
+    // Open the list *before* disposing: a surviving document-click listener is
+    // only observable while the menu is open, since dismissList() bails out on
+    // an already hidden menu.
+    document.querySelector<HTMLButtonElement>('[data-tabs-list]')!.click();
+    const menu = document.querySelector<HTMLElement>('[data-tabs-menu]')!;
+    expect(menu.hidden).toBe(false);
 
     dispose();
     // A stale handler would still fire after disposal; every registration this
@@ -252,7 +258,6 @@ describe('initDocumentTabs', () => {
       .dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }));
     document.querySelector<HTMLElement>('[data-tab-id="a"]')!
       .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    document.querySelector<HTMLButtonElement>('[data-tabs-list]')!.click();
 
     // The wheel handler would hijack the gesture if it survived disposal.
     const wheel = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
@@ -267,8 +272,10 @@ describe('initDocumentTabs', () => {
     expect(scroll.scrollLeft).toBe(0);
     expect(wheel.defaultPrevented).toBe(false);
     expect(pointer.defaultPrevented).toBe(false);
-    expect(document.querySelector<HTMLElement>('[data-tabs-menu]')!.hidden).toBe(true);
-    // The session subscription must be released too.
+
+    // An outside click after disposal must no longer dismiss the open menu.
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.hidden).toBe(false);
     expect(sessions.listener).toBeNull();
   });
 });

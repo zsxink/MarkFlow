@@ -335,7 +335,7 @@ async function saveActiveDocumentContent(options: { interactive?: boolean }): Pr
 /** Rewriting staged image references must never replace newer user edits. */
 function applyPreparedMarkdownIfCurrent(markdown: string, original: string, revision: number, sourceRevision: number): number {
   if (markdown !== original && revision === getRevision() && sourceRevision === getSourceRevision()) {
-    setMarkdown(markdown);
+    setMarkdown(markdown, { caret: 'preserve' });
     return getSourceRevision();
   }
   return sourceRevision;

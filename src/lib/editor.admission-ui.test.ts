@@ -366,7 +366,10 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
   it.each([0, 1, 2, 3])('removes historical EOF newline(s) after a WYS safe edit', (eofNewlines) => {
     const source = '# Title' + '\n'.repeat(eofNewlines);
     setMarkdown(source);
-    getEditor()!.commands.insertContent(' edited');
+    // A load puts the caret on the document's first block, so append at the
+    // end explicitly instead of relying on the pre-load selection position.
+    const editor = getEditor()!;
+    editor.commands.insertContentAt(editor.state.doc.content.size, ' edited');
     // This fixture constructs the real TipTap/session path without initEditor;
     // emulate the synchronous production transaction revision update.
     bumpRevision();

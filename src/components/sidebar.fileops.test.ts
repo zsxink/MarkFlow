@@ -59,7 +59,9 @@ describe('active document file operations', () => {
     await expect(saveActiveDocument()).resolves.toBe('saved');
     expect(mocks.preparePendingImagesForSave).toHaveBeenCalledWith('# edited', '/work/guide.md');
     expect(mocks.writeFile).toHaveBeenCalledWith('/work/guide.md', '![](guide-images/img.png)');
-    expect(mocks.setMarkdown).toHaveBeenCalledWith('![](guide-images/img.png)');
+    // The post-save image-path rewrite re-renders the same document in place,
+    // so it keeps the caret where the user left it instead of jumping to the top.
+    expect(mocks.setMarkdown).toHaveBeenCalledWith('![](guide-images/img.png)', { caret: 'preserve' });
     expect(mocks.completePendingImagesSave).toHaveBeenCalledWith('draft-1');
     expect(mocks.writeFile.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.completePendingImagesSave.mock.invocationCallOrder[0]);

@@ -174,6 +174,14 @@ describe('initDocumentTabs', () => {
     expect(sessions.activateDocumentTab).toHaveBeenCalledWith('b');
     expect(menu.hidden).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    // Clicking a tab while the list is open must also dismiss it.
+    toggle.click();
+    expect(menu.hidden).toBe(false);
+    document.querySelector<HTMLElement>('[role="tab"][data-tab-id="c"]')!.click();
+    expect(menu.hidden).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(sessions.activateDocumentTab).toHaveBeenLastCalledWith('c');
   });
 
   it('supports keyboard menu navigation and Escape, and dismisses on outside clicks', () => {
@@ -226,8 +234,18 @@ describe('initDocumentTabs', () => {
 
   it('removes every listener it registered when disposed', () => {
     const dispose = initDocumentTabs();
+    const scroll = document.querySelector<HTMLElement>('[data-tabs-scroll]')!;
+    Object.defineProperty(scroll, 'scrollWidth', { value: 800, configurable: true });
+    Object.defineProperty(scroll, 'clientWidth', { value: 200, configurable: true });
+    const editor = document.createElement('div');
+    editor.id = 'wysiwyg-editor';
+    editor.tabIndex = 0;
+    document.body.append(editor);
+    editor.focus();
+
     dispose();
-    // A stale handler would still fire after disposal; these must all be inert.
+    // A stale handler would still fire after disposal; every registration this
+    // module makes is exercised here so a missing removeEventListener fails.
     document.querySelector<HTMLButtonElement>('[data-tabs-new]')!.click();
     document.querySelector<HTMLButtonElement>('[data-close-tab="b"]')!.click();
     document.querySelector<HTMLElement>('[data-tab-id="a"]')!
@@ -236,9 +254,21 @@ describe('initDocumentTabs', () => {
       .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     document.querySelector<HTMLButtonElement>('[data-tabs-list]')!.click();
 
+    // The wheel handler would hijack the gesture if it survived disposal.
+    const wheel = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    scroll.dispatchEvent(wheel);
+    // The mousedown guard would keep suppressing default if it survived.
+    const pointer = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+    document.querySelector<HTMLElement>('[data-tab-id="a"]')!.dispatchEvent(pointer);
+
     expect(sessions.newDocumentTab).not.toHaveBeenCalled();
     expect(sessions.closeDocumentTab).not.toHaveBeenCalled();
     expect(sessions.activateDocumentTab).not.toHaveBeenCalled();
+    expect(scroll.scrollLeft).toBe(0);
+    expect(wheel.defaultPrevented).toBe(false);
+    expect(pointer.defaultPrevented).toBe(false);
     expect(document.querySelector<HTMLElement>('[data-tabs-menu]')!.hidden).toBe(true);
+    // The session subscription must be released too.
+    expect(sessions.listener).toBeNull();
   });
 });

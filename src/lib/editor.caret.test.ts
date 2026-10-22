@@ -97,4 +97,54 @@ describe('caret after a whole-document load', () => {
     expect(editor.state.selection.$from.parent.type.name).toBe('paragraph');
     editor.destroy();
   });
+
+  it('marks the caret transaction as non-history and non-updating', () => {
+    const editor = createAppEditor();
+    editor.commands.setContent('<p></p>');
+    editor.commands.setTextSelection(1);
+    parseTipTapMarkdown(editor, README);
+
+    const seen: { history: unknown; preventUpdate: unknown; docChanged: boolean }[] = [];
+    const dispatch = editor.view.dispatch.bind(editor.view);
+    // Intercept the transaction so its metas are observable instead of inferred.
+    (editor.view as unknown as { dispatch: typeof dispatch }).dispatch = tr => {
+      seen.push({
+        history: tr.getMeta('addToHistory'),
+        preventUpdate: tr.getMeta('preventUpdate'),
+        docChanged: tr.docChanged,
+      });
+      return dispatch(tr);
+    };
+    placeCaretAfterContentLoad(editor, 'start', 1);
+    // One selection-only transaction: excluded from undo history, flagged as
+    // non-updating, and carrying no document step.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual({ history: false, preventUpdate: true, docChanged: false });
+    editor.destroy();
+  });
+
+  it('only writes the browser selection back when the view owns focus', () => {
+    const editor = createAppEditor();
+    document.body.append(editor.view.dom);
+    editor.commands.setContent('<p></p>');
+    editor.commands.setTextSelection(1);
+    parseTipTapMarkdown(editor, README);
+
+    // Unfocused: the caret must be re-anchored in the model without stealing
+    // focus away from whatever the user is actually doing.
+    const outside = document.createElement('input');
+    document.body.append(outside);
+    outside.focus();
+    placeCaretAfterContentLoad(editor, 'start', 1);
+    expect(editor.state.selection.from).toBe(1);
+    expect(document.activeElement).toBe(outside);
+
+    // Focused: the same call must additionally hand focus back to the editor so
+    // the painted caret matches the model.
+    editor.view.focus();
+    placeCaretAfterContentLoad(editor, 'start', 1);
+    expect(document.activeElement).toBe(editor.view.dom);
+    editor.destroy();
+    outside.remove();
+  });
 });

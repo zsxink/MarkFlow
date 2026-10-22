@@ -7,6 +7,7 @@
 - **源码入口：** `src/lib/editor.source.ts`、`src/lib/editor.ts`、`src/lib/editor.state.ts`、`src/lib/editor.stats.ts` 和 `src/styles/editor.css`。
 - **关联规范：** `type-system`、`enter-content-integrity`、`document-size-tier`、`autosave-reliability`。
 - **不变量：** 同一时刻只存在一个当前模式的编辑器视图；模式切换不得丢失 Markdown 或错误改变 dirty 状态；程序化写入必须避免被当作用户编辑，源码模式的只读状态必须与 store 一致。
+- **运行时 Compartment：** 源码编辑器有 readOnly / highlight / softWrap 三个运行时 Compartment（`readOnlyCompartment` / `highlightCompartment` / `softWrapCompartment`，见 `src/lib/editor.source.ts`），各自独立 `reconfigure`，切换任一项都不会销毁重建 CM6 view，因此光标位置、选区与滚动位置得以保留；`setSourceSoftWrap()` 在没有 view 时会暂存该取值，供下一次 `createSourceEditor()` 作为初值使用（`softWrapEnabled ?? (settings.softWrap !== false)`）。
 - **验证：** `npm test -- src/lib/editor.state.test.ts src/lib/editor.helpers.test.ts src/lib/editor.serializer.test.ts`；`npm run build`；`npx openspec validate codemirror-source-editor --strict`。
 ## Requirements
 ### Requirement: CM6 实例生命周期管理
@@ -219,3 +220,39 @@ The source editor SHALL apply YAML syntax highlighting to the complete document-
 - **WHEN** a user switches to source mode after editing frontmatter through the visual editor
 - **THEN** the source editor contains the complete updated Markdown document including the updated YAML frontmatter
 - **THEN** the mode switch does not create a false dirty state
+
+### Requirement: 源码模式自动换行跟随 softWrap 设置
+
+源码编辑器 SHALL 根据用户「自动换行」设置（`softWrap`）决定长行是折行显示还是横向滚动查看。该设置 MUST 同时作用于所见即所得视图和源码模式；源码模式在 `softWrap` 为 `false` 时 MUST NOT 继续折行，在 `softWrap` 不为 `false` 时 MUST 保持折行。
+
+换行状态 SHALL 能在已打开的源码编辑器上运行时切换，且 MUST NOT 通过销毁并重建源码编辑器实例来实现，以保留光标位置、选区和滚动位置。
+
+#### Scenario: 自动换行开启
+- **WHEN** 「自动换行」设置不为关闭状态，且用户处于源码模式
+- **THEN** 超出编辑区可视宽度的长行在编辑区内折行显示，不产生横向滚动
+- **THEN** 表现与本次变更前的默认源码模式一致，不出现排版回归
+
+#### Scenario: 自动换行关闭
+- **WHEN** 「自动换行」设置为关闭状态，且用户处于源码模式
+- **THEN** 长行不折行，内容宽度超出编辑区时可通过水平方向滚动查看
+- **THEN** 文本内容不被裁切，也不出现折行残留的行内断点
+
+#### Scenario: 打开源码编辑器时切换设置即时生效
+- **WHEN** 用户在设置面板切换「自动换行」，且源码模式处于打开状态
+- **THEN** 当前源码编辑器立即按新的设置值重新渲染
+- **THEN** 源码编辑器实例未被销毁重建，光标位置、选区和滚动位置保持不变
+- **THEN** 切换不需要重新加载文档或重新进入源码模式
+
+#### Scenario: 未打开源码编辑器时切换设置
+- **WHEN** 用户仅在所见即所得模式下切换「自动换行」，源码编辑器不存在
+- **THEN** 系统不报错，也不创建源码编辑器
+- **THEN** 之后首次进入源码模式时按最新的设置值渲染
+
+### Requirement: 源码模式运行时配置互不干扰
+
+源码模式的可写状态、语法高亮和自动换行 SHALL 可以各自独立地在运行时切换。切换其中任意一项 MUST NOT 改变另外两项的当前状态，也 MUST NOT 导致文档内容、脏数据标志或历史记录发生改变。
+
+#### Scenario: 连续切换多个运行时配置
+- **WHEN** 用户依次切换「自动换行」「代码高亮」以及文档只读状态
+- **THEN** 三个设置分别按各自最新值生效，互不覆盖
+- **THEN** 源码编辑器内容保持不变，且不产生虚假的用户编辑事件

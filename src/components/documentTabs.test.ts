@@ -14,6 +14,7 @@ const sessions = vi.hoisted(() => ({
 }));
 
 vi.mock('../lib/documentSessions', () => ({
+  MAX_DOCUMENT_TABS: 20,
   getDocumentTabs: () => sessions.tabs,
   getActiveTabId: () => sessions.activeId,
   activateDocumentTab: sessions.activateDocumentTab,
@@ -101,15 +102,15 @@ describe('initDocumentTabs', () => {
     expect(sessions.newDocumentTab).toHaveBeenCalledOnce();
   });
 
-  it('updates from session notifications and disables adding at the ten-tab limit', () => {
+  it('updates from session notifications and disables adding at the twenty-tab limit', () => {
     initDocumentTabs();
-    sessions.tabs = Array.from({ length: 10 }, (_, index) => ({
+    sessions.tabs = Array.from({ length: 20 }, (_, index) => ({
       id: String(index), path: `/docs/${index}.md`, dirty: false, title: `${index}.md`,
     }));
     sessions.activeId = '9';
     sessions.listener?.();
 
-    expect(document.querySelectorAll('[role="tab"]')).toHaveLength(10);
+    expect(document.querySelectorAll('[role="tab"]')).toHaveLength(20);
     expect(document.querySelector<HTMLButtonElement>('[data-tabs-new]')?.disabled).toBe(true);
   });
 });

@@ -36,7 +36,7 @@ import {
   activateDocumentTab, closeDocumentTab, getDocumentTabs, getActiveTabId, newDocumentTab,
   reopenClosedDocumentTab, destroyDocumentSessions, confirmAllDocumentTabsClose, closeAllDocumentTabs, routeDocumentExternalChanges,
   rewriteDocumentTabPaths, cycleDocumentTab,
-  initDocumentSessions, openDocumentTab,
+  initDocumentSessions, openDocumentTab, MAX_DOCUMENT_TABS,
 } from './documentSessions';
 import { isDocumentOperationPending, runDocumentOperation } from './documentOperations';
 import { attachImageDraft } from './imageUtils';
@@ -206,7 +206,7 @@ describe('document session lifecycle with the production editor and file operati
     expect(document.querySelectorAll('.cm-editor')).toHaveLength(0);
   });
 
-  it('deduplicates normalized paths, rolls back failed reads, and refuses an eleventh tab', async () => {
+  it('deduplicates normalized paths, rolls back failed reads, and refuses to exceed the tab cap', async () => {
     await openFileInEditor('/a.md');
     getEditor()!.commands.insertContentAt(2, 'X');
     await openFileInEditor('/b.md');
@@ -217,12 +217,14 @@ describe('document session lifecycle with the production editor and file operati
     await expect(openFileInEditor('/missing.md')).resolves.toBe(false);
     expect(getActiveTabId()).toBe(active);
     expect(getMarkdown()).toContain('X');
-    for (let index = 0; index < 8; index++) await newDocumentTab();
+    // The cap is read from the implementation so the ceiling can change
+    // without silently desynchronising this regression.
+    for (let index = 0; index < MAX_DOCUMENT_TABS - 2; index++) await newDocumentTab();
     const last = getActiveTabId();
     await expect(openFileInEditor('/c.md')).resolves.toBe(false);
-    expect(getDocumentTabs()).toHaveLength(10);
+    expect(getDocumentTabs()).toHaveLength(MAX_DOCUMENT_TABS);
     expect(getActiveTabId()).toBe(last);
-    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining('10'));
+    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining(String(MAX_DOCUMENT_TABS)));
     await activateDocumentTab(id('/a.md'));
     expect(getMarkdown()).toContain('X');
   });

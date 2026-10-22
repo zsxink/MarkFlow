@@ -40,6 +40,97 @@ describe('frontmatter domain', () => {
 });
 
 describe('frontmatter serialization safety (review fixes)', () => {
+  it('preserves quoted key tokens when editing scalar and array values', () => {
+    const source = '\uFEFF---\r\n# Keep this note\r\n"a:b": old\r\n"tag:key":\r\n- one\r\n- two\r\n---\r\n\r\n# Body\r\nuntouched  \r\n';
+    const scalar = patchFrontmatterField(source, 'a:b', 'new', 'text')!;
+    expect(scalar).toBe(source.replace('"a:b": old', '"a:b": new'));
+    const array = patchFrontmatterField(source, 'tag:key', ['three'], 'array')!;
+    expect(array).toBe(source.replace('- one\r\n- two', '- three'));
+    expect(analyzeFrontmatter(scalar).supported).toBe(true);
+    expect(analyzeFrontmatter(array).supported).toBe(true);
+  });
+
+  it('renames quoted keys safely and treats new names as literal text', () => {
+    const source = '---\n"a:b": value\nother: keep\n---\nBody';
+    expect(renameFrontmatterField(source, 'a:b', 'name')).toBe('---\nname: value\nother: keep\n---\nBody');
+    expect(renameFrontmatterField(source, 'a:b', 'other')).toBeNull();
+    const renamed = renameFrontmatterField(source, 'a:b', 'a"b:c')!;
+    const result = analyzeFrontmatter(renamed);
+    expect(result.supported && result.fields[0].key).toBe('a"b:c');
+    expect(renamed).toContain('other: keep\n---\nBody');
+    expect(addFrontmatterField(source, 'a:b', 'x', 'text')).toBeNull();
+    const added = analyzeFrontmatter(addFrontmatterField(source, 'new:key', 'x', 'text')!);
+    expect(added.supported && added.fields[added.fields.length - 1]?.key).toBe('new:key');
+  });
+
+  it('decodes quoted keys even when they contain no colon', () => {
+    const source = `---\n'a" onfocus="attack': value\n---\nBody`;
+    const result = analyzeFrontmatter(source);
+    expect(result.supported && result.fields[0].key).toBe('a" onfocus="attack');
+    expect(patchFrontmatterField(source, 'a" onfocus="attack', 'safe', 'text')).toBe(source.replace(': value', ': safe'));
+  });
+
+  it('keeps numeric and boolean arrays typed when editing', () => {
+    for (const [yaml, value, expected] of [
+      ['items: [1, 2]', [3, 4], 'items: [3, 4]'],
+      ['items:\n- true\n- false', [false, true], 'items:\n- false\n- true'],
+    ] as const) {
+      const source = `---\n${yaml}\n---\nBody`;
+      const changed = patchFrontmatterField(source, 'items', [...value] as number[] | boolean[], 'array')!;
+      expect(changed).toBe(`---\n${expected}\n---\nBody`);
+      const result = analyzeFrontmatter(changed);
+      expect(result.supported && result.fields[0].value).toEqual(value);
+    }
+  });
+
+  it('keeps an emptied block list editable as an empty flow array', () => {
+    const source = '---\ntags:\n- last\nauthor: Me\n---\nBody';
+    const changed = patchFrontmatterField(source, 'tags', [], 'array')!;
+    expect(changed).toBe('---\ntags: []\nauthor: Me\n---\nBody');
+    const result = analyzeFrontmatter(changed);
+    expect(result.supported && result.fields[0].value).toEqual([]);
+  });
+
+  it('round-trips YAML-sensitive tag text without treating quoted hashes as comments', () => {
+    for (const source of ['---\ntags: [old]\n---\nBody', '---\ntags:\n- old\n---\nBody']) {
+      const tags = ['C#', 'a,b', 'a"b', '&tools'];
+      const changed = patchFrontmatterField(source, 'tags', tags, 'array')!;
+      const result = analyzeFrontmatter(changed);
+      expect(result.supported && result.fields[0].value).toEqual(tags);
+      expect(changed.endsWith('---\nBody')).toBe(true);
+      expect(() => patchFrontmatterField(source, 'tags', [''], 'array')).toThrow();
+    }
+    for (const array of ['[&x one, *x]', '[!!str one]', '[one, # comment]']) {
+      expect(analyzeFrontmatter(`---\ntags: ${array}\n---\nBody`).supported).toBe(false);
+    }
+  });
+
+  it('rejects invalid dates, non-finite numbers and mismatched array item types', () => {
+    const source = '---\ndate: 2024-02-29\ncount: 1\nitems: [true, false]\n---\nBody';
+    expect(() => patchFrontmatterField(source, 'date', '2024-02-30', 'date')).toThrow();
+    expect(() => patchFrontmatterField(source, 'count', NaN, 'number')).toThrow();
+    expect(() => patchFrontmatterField(source, 'items', ['true'], 'array')).toThrow();
+    const decimal = patchFrontmatterField(source, 'count', 0.0000001, 'number')!;
+    const result = analyzeFrontmatter(decimal);
+    expect(result.supported && result.fields[1].kind).toBe('number');
+    expect(result.supported && result.fields[1].value).toBe(0.0000001);
+  });
+
+  it('falls back for non-finite YAML array literals instead of exposing number controls', () => {
+    for (const number of ['.inf', '-.inf', '.nan', '1e999']) {
+      expect(analyzeFrontmatter(`---\ncounts: [${number}, 2]\n---\nBody`).supported).toBe(false);
+    }
+  });
+
+  it('retains date-looking text as text and allows date-to-text conversion', () => {
+    const source = '---\npublished: 2026-10-23\n---\nBody';
+    const text = patchFrontmatterField(source, 'published', '2026-10-23', 'text')!;
+    expect(text).toBe('---\npublished: "2026-10-23"\n---\nBody');
+    const analysis = analyzeFrontmatter(text);
+    expect(analysis.supported && analysis.fields[0].kind).toBe('text');
+    expect(patchFrontmatterField(text, 'published', '2026-10-23', 'date')).toBe(source);
+  });
+
   it('quotes text values that YAML re-resolves to a different scalar', () => {
     // 00 \u2192 0, +5 \u2192 5, 0x1F \u2192 31 \u2026 would silently change the stored value.
     for (const star of ['00', '01', '+5', '.5', '5.', '1e3', '0o17', '0x1F']) {

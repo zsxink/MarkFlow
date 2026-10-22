@@ -109,12 +109,28 @@ export function initDocumentTabs() {
       list.replaceChildren(listFragment);
     }
     newButton.disabled = tabs.length >= MAX_DOCUMENT_TABS;
-    newButton.title = newButton.disabled ? '文件已达上限（20）' : '新建标签 (Ctrl+T)';
+    newButton.title = newButton.disabled ? `文件已达上限（${MAX_DOCUMENT_TABS}）` : '新建标签 (Ctrl+T)';
     const focusId = focusActiveTab ? activeId : focusedTabId;
     if (focusId) {
       Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"][data-tab-id]'))
         .find(tab => tab.dataset.tabId === focusId)?.focus();
     }
+  };
+
+  const menuItems = () => Array.from(list?.querySelectorAll<HTMLButtonElement>('[data-activate-tab]') ?? []);
+  const openList = () => {
+    if (!list) return;
+    list.hidden = false;
+    listButton?.setAttribute('aria-expanded', 'true');
+    // Move focus into the menu so arrow keys work immediately after opening.
+    const items = menuItems();
+    (items.find(item => item.getAttribute('aria-checked') === 'true') ?? items[0])?.focus();
+  };
+  const closeList = (restoreFocus = false) => {
+    if (!list || list.hidden) return;
+    list.hidden = true;
+    listButton?.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) listButton?.focus();
   };
 
   const unsubscribe = onDocumentTabsChanged(render);
@@ -140,18 +156,16 @@ export function initDocumentTabs() {
     }
 
     const listToggle = target.closest<HTMLButtonElement>('[data-tabs-list]');
-    if (listToggle && list) {
-      const isOpen = list.hidden;
-      list.hidden = !isOpen;
-      listToggle.setAttribute('aria-expanded', String(isOpen));
+    if (listToggle) {
+      if (list?.hidden) openList();
+      else closeList();
       return;
     }
 
     const menuItem = target.closest<HTMLButtonElement>('[data-activate-tab]');
     if (menuItem?.dataset.activateTab) {
       const id = menuItem.dataset.activateTab;
-      if (list) list.hidden = true;
-      listButton?.setAttribute('aria-expanded', 'false');
+      closeList();
       activateDocumentTab(id);
       Array.from(scroll.querySelectorAll<HTMLElement>('[data-tab-id]'))
         .find(tab => tab.dataset.tabId === id)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
@@ -159,20 +173,29 @@ export function initDocumentTabs() {
     }
 
     const tab = target.closest<HTMLElement>('[role="tab"][data-tab-id]');
-    if (tab?.dataset.tabId) activateDocumentTab(tab.dataset.tabId);
+    if (tab?.dataset.tabId) {
+      closeList();
+      activateDocumentTab(tab.dataset.tabId);
+    }
   });
 
   scroll.addEventListener('wheel', event => {
+    // Only take the gesture over when the strip can actually move sideways.
+    // Swallowing wheel input while every tab fits would break page scrolling.
+    const overflow = scroll.scrollWidth - scroll.clientWidth;
+    if (overflow <= 0) return;
     const delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
     if (delta === 0) return;
-    scroll.scrollLeft += delta;
+    const next = Math.max(0, Math.min(overflow, scroll.scrollLeft + delta));
+    // At either end the gesture belongs to the surrounding page again.
+    if (next === scroll.scrollLeft) return;
+    scroll.scrollLeft = next;
     event.preventDefault();
   }, { passive: false });
 
   const dismissList = (event: MouseEvent) => {
     if (!list || list.hidden || !(event.target instanceof Node) || root.contains(event.target)) return;
-    list.hidden = true;
-    listButton?.setAttribute('aria-expanded', 'false');
+    closeList();
   };
   document.addEventListener('click', dismissList);
 
@@ -187,8 +210,35 @@ export function initDocumentTabs() {
   });
 
   root.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    // Menu semantics: the trigger opens with Down/Enter/Space, Escape closes and
+    // hands focus back, and Up/Down/Home/End move between the radio items.
     const target = event.target;
+    const inMenu = target instanceof Node && Boolean(list?.contains(target));
+    if (event.key === 'Escape' && (inMenu || (list && !list.hidden && target === listButton))) {
+      event.preventDefault();
+      closeList(true);
+      return;
+    }
+    if (target === listButton && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      openList();
+      return;
+    }
+    if (inMenu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      const items = menuItems();
+      const index = items.indexOf(target as HTMLButtonElement);
+      if (index < 0 || items.length === 0) return;
+      let nextIndex = index;
+      if (event.key === 'ArrowDown') nextIndex = (index + 1) % items.length;
+      if (event.key === 'ArrowUp') nextIndex = (index - 1 + items.length) % items.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = items.length - 1;
+      event.preventDefault();
+      items[nextIndex].focus();
+      return;
+    }
+    if (event.key === 'Tab' && inMenu) closeList();
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     if (!(target instanceof HTMLElement) || !target.matches('[role="tab"]')) return;
     const tabNodes = Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"]'));
     const index = tabNodes.indexOf(target);

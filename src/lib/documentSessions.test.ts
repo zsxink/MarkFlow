@@ -217,14 +217,17 @@ describe('document session lifecycle with the production editor and file operati
     await expect(openFileInEditor('/missing.md')).resolves.toBe(false);
     expect(getActiveTabId()).toBe(active);
     expect(getMarkdown()).toContain('X');
-    // The cap is read from the implementation so the ceiling can change
-    // without silently desynchronising this regression.
-    for (let index = 0; index < MAX_DOCUMENT_TABS - 2; index++) await newDocumentTab();
+    // The requirement pins the ceiling at 20 open documents per window, so the
+    // regression asserts that literal rather than echoing the implementation
+    // constant back at itself.
+    expect(MAX_DOCUMENT_TABS).toBe(20);
+    for (let index = 0; index < 18; index++) await newDocumentTab();
     const last = getActiveTabId();
+    expect(getDocumentTabs()).toHaveLength(20);
     await expect(openFileInEditor('/c.md')).resolves.toBe(false);
-    expect(getDocumentTabs()).toHaveLength(MAX_DOCUMENT_TABS);
+    expect(getDocumentTabs()).toHaveLength(20);
     expect(getActiveTabId()).toBe(last);
-    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining(String(MAX_DOCUMENT_TABS)));
+    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining('20'));
     await activateDocumentTab(id('/a.md'));
     expect(getMarkdown()).toContain('X');
   });

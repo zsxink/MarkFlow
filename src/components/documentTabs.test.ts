@@ -30,7 +30,7 @@ import { initDocumentTabs } from './documentTabs';
 
 describe('initDocumentTabs', () => {
   beforeEach(() => {
-    document.body.innerHTML = '<div id="document-tabs" role="tablist"><div data-tabs-scroll></div><button data-tabs-new></button></div>';
+    document.body.innerHTML = '<div id="document-tabs" role="tablist"><div data-tabs-scroll></div><button data-tabs-new></button><div class="document-tabs-list-wrap"><button data-tabs-list aria-haspopup="menu" aria-controls="document-tabs-menu" aria-expanded="false"></button><div id="document-tabs-menu" data-tabs-menu role="menu" hidden></div></div></div>';
     sessions.tabs = [
       { id: 'a', path: '/notes/one/README.md', dirty: true, title: 'README.md' },
       { id: 'b', path: '/projects/two/README.md', dirty: false, title: 'README.md' },
@@ -104,13 +104,103 @@ describe('initDocumentTabs', () => {
 
   it('updates from session notifications and disables adding at the twenty-tab limit', () => {
     initDocumentTabs();
-    sessions.tabs = Array.from({ length: 20 }, (_, index) => ({
+    sessions.tabs = Array.from({ length: 19 }, (_, index) => ({
       id: String(index), path: `/docs/${index}.md`, dirty: false, title: `${index}.md`,
     }));
     sessions.activeId = '9';
     sessions.listener?.();
+    expect(document.querySelectorAll('[role="tab"]')).toHaveLength(19);
+    expect(document.querySelector<HTMLButtonElement>('[data-tabs-new]')?.disabled).toBe(false);
+
+    // The 20th tab is the last one the product allows; the requirement pins the
+    // number, so assert it directly instead of echoing the implementation.
+    sessions.tabs = Array.from({ length: 20 }, (_, index) => ({
+      id: String(index), path: `/docs/${index}.md`, dirty: false, title: `${index}.md`,
+    }));
+    sessions.listener?.();
 
     expect(document.querySelectorAll('[role="tab"]')).toHaveLength(20);
     expect(document.querySelector<HTMLButtonElement>('[data-tabs-new]')?.disabled).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>('[data-tabs-new]')?.title).toContain('20');
+  });
+
+  it('scrolls the strip sideways with the wheel and leaves page scrolling alone', () => {
+    initDocumentTabs();
+    const scroll = document.querySelector<HTMLElement>('[data-tabs-scroll]')!;
+    // jsdom has no layout, so drive the overflow geometry explicitly.
+    Object.defineProperty(scroll, 'scrollWidth', { value: 800, configurable: true });
+    Object.defineProperty(scroll, 'clientWidth', { value: 200, configurable: true });
+
+    const down = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    scroll.dispatchEvent(down);
+    expect(scroll.scrollLeft).toBe(60);
+    expect(down.defaultPrevented).toBe(true);
+
+    // At the far end there is nothing left to scroll, so the page keeps it.
+    scroll.scrollLeft = 600;
+    const atEnd = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    scroll.dispatchEvent(atEnd);
+    expect(scroll.scrollLeft).toBe(600);
+    expect(atEnd.defaultPrevented).toBe(false);
+  });
+
+  it('does not hijack the wheel when every tab already fits', () => {
+    initDocumentTabs();
+    const scroll = document.querySelector<HTMLElement>('[data-tabs-scroll]')!;
+    Object.defineProperty(scroll, 'scrollWidth', { value: 200, configurable: true });
+    Object.defineProperty(scroll, 'clientWidth', { value: 200, configurable: true });
+
+    const wheel = new WheelEvent('wheel', { deltaY: 60, bubbles: true, cancelable: true });
+    scroll.dispatchEvent(wheel);
+    expect(scroll.scrollLeft).toBe(0);
+    expect(wheel.defaultPrevented).toBe(false);
+  });
+
+  it('lists open documents and activates the chosen one', () => {
+    initDocumentTabs();
+    const toggle = document.querySelector<HTMLButtonElement>('[data-tabs-list]')!;
+    const menu = document.querySelector<HTMLElement>('[data-tabs-menu]')!;
+
+    toggle.click();
+    expect(menu.hidden).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const items = [...menu.querySelectorAll<HTMLButtonElement>('[data-activate-tab]')];
+    expect(items.map(item => item.dataset.activateTab)).toEqual(['a', 'b', 'c']);
+    expect(items[0].getAttribute('aria-checked')).toBe('true');
+    expect(items[1].getAttribute('aria-checked')).toBe('false');
+    expect(items[0].textContent).toContain('one · README.md');
+
+    items[1].click();
+    expect(sessions.activateDocumentTab).toHaveBeenCalledWith('b');
+    expect(menu.hidden).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('supports keyboard menu navigation and Escape, and dismisses on outside clicks', () => {
+    initDocumentTabs();
+    const toggle = document.querySelector<HTMLButtonElement>('[data-tabs-list]')!;
+    const menu = document.querySelector<HTMLElement>('[data-tabs-menu]')!;
+
+    toggle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(menu.hidden).toBe(false);
+    // Opening focuses the checked item, so arrows move relative to it.
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
+
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('b');
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('c');
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
+
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(menu.hidden).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+
+    toggle.click();
+    expect(menu.hidden).toBe(false);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.hidden).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });

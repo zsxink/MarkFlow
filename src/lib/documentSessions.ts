@@ -176,7 +176,7 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
     if (!commit) return false;
     await settleImageOperations();
     const previous = current();
-    suspendCurrent();
+    const focusEditor = suspendCurrent();
     const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', context: null, pendingExternal: null, degradation: null };
     sessions.push(tab);
     activeId = tab.id;
@@ -185,11 +185,15 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
       resetEditorDocument(false);
       store.setState({ mode: 'wysiwyg', activeFilePath: path, dirty: false, readOnly: false, reconcileError: null, autosaveErrorCount: 0 });
       commit();
+      if (focusEditor) {
+        if (store.getState().mode === 'source') getSourceView()?.focus();
+        else getEditor()?.view.focus();
+      }
     } catch (error) {
       sessions = sessions.filter(item => item !== tab);
       const failed = detachEditorDocument();
       await releaseEditorDocument(failed);
-      if (previous) restore(previous);
+      if (previous) restore(previous, focusEditor);
       else emptyInternal();
       throw error;
     } finally { publishing = false; }
@@ -212,7 +216,7 @@ export function newDocumentTab(): Promise<boolean> {
     } finally { publishing = false; }
     hideDegradationBar();
     project();
-    getEditor()?.commands.focus();
+    getEditor()?.view.focus();
     return true;
   });
 }
@@ -229,6 +233,10 @@ async function closeInternal(id: string, confirm = true) {
   const tab = sessions.find(item => item.id === id);
   if (!tab) return true;
   const originalId = activeId;
+  const activeElement = document.activeElement;
+  const focusEditor = Boolean(activeElement && (
+    getEditor()?.view.dom.contains(activeElement) || getSourceView()?.contentDOM.contains(activeElement)
+  ));
   const index = sessions.indexOf(tab);
   if (confirm) {
     await activateInternal(id, false);
@@ -255,10 +263,10 @@ async function closeInternal(id: string, confirm = true) {
   tab.degradation = null;
   if (originalId && originalId !== id && sessions.some(item => item.id === originalId)) {
     // Closing a background tab never changes the user's active tab.
-    if (activeId !== originalId) restore(sessions.find(item => item.id === originalId)!);
+    if (activeId !== originalId) restore(sessions.find(item => item.id === originalId)!, focusEditor);
   } else {
     const next = sessions[index] ?? sessions[index - 1];
-    if (next) restore(next);
+    if (next) restore(next, focusEditor);
     else emptyInternal();
   }
   notify();

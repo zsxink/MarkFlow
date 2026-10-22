@@ -41,6 +41,20 @@ export function commitEditorDocumentDrafts(): void {
   });
 }
 
+/** Safari can keep painting a caret after its document DOM has been replaced. */
+function clearOutgoingEditorSelection(): void {
+  const roots = [getEditor()?.view.dom, getSourceView()?.contentDOM].filter((root): root is HTMLElement => Boolean(root));
+  const owns = (node: Node | null) => Boolean(node && roots.some(root => root.contains(node)));
+  const selection = window.getSelection();
+  // Capture ownership before blur: WebKit may move the DOM selection on blur.
+  const ownedSelection = Boolean(selection && owns(selection.anchorNode) && owns(selection.focusNode));
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && owns(active)) active.blur();
+  // This must be synchronous. Tiptap's commands.blur() queues a rAF which could
+  // otherwise clear the next document's newly restored selection.
+  if (ownedSelection) selection?.removeAllRanges();
+}
+
 /** Caller first awaits the shared document-operation / image boundary. */
 export function detachEditorDocument(): EditorDocumentContext {
   commitEditorDocumentDrafts();
@@ -60,8 +74,12 @@ export function detachEditorDocument(): EditorDocumentContext {
     documentState.sourceScrollTop = sourceScroller.scrollTop;
     documentState.sourceScrollLeft = sourceScroller.scrollLeft;
   }
+  // Preserve the exact model (including history/selection) before blur emits
+  // any editor metadata, and clear the old caret before CM teardown/PM reset.
+  const prosemirror = getEditor()?.state ?? null;
+  clearOutgoingEditorSelection();
   const context: EditorDocumentContext = {
-    prosemirror: getEditor()?.state ?? null,
+    prosemirror,
     source: detachSourceDocument(),
     documentState: { ...getDocumentState() },
     projection: { mode: state.mode, dirty: state.dirty, readOnly: state.readOnly, autosaveErrorCount: state.autosaveErrorCount, reconcileError: state.reconcileError },

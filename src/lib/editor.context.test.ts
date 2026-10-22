@@ -20,6 +20,7 @@ beforeEach(async () => {
   await initEditor();
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   destroySourceEditor();
   getEditor()?.destroy();
   setEditor(null);
@@ -27,6 +28,102 @@ afterEach(() => {
 });
 
 describe('document editor contexts', () => {
+  it('synchronously clears only the outgoing editor caret after saving the exact PM state', () => {
+    setMarkdown('first');
+    const editor = getEditor()!;
+    editor.commands.insertContentAt(2, 'X');
+    editor.commands.setTextSelection(3);
+    editor.view.focus();
+    const saved = editor.state;
+    const selection = window.getSelection()!;
+    const text = editor.view.dom.querySelector('p')!.firstChild!;
+    selection.setBaseAndExtent(text, 2, text, 2);
+    const blur = vi.spyOn(editor.view.dom, 'blur');
+    const clear = vi.spyOn(selection, 'removeAllRanges');
+
+    const context = detachEditorDocument();
+
+    expect(blur).toHaveBeenCalledOnce();
+    expect(clear).toHaveBeenCalledOnce();
+    expect(document.activeElement).not.toBe(editor.view.dom);
+    expect(selection.rangeCount).toBe(0);
+    expect(context.prosemirror).toBe(saved);
+    expect(context.prosemirror!.selection.anchor).toBe(3);
+    resetEditorDocument();
+    attachEditorDocument(context, true, true);
+    // Tiptap emits a non-history focus metadata transaction on refocus.
+    expect(editor.state).toEqual(saved);
+    expect(editor.state.doc).toBe(saved.doc);
+    expect(editor.view.hasFocus()).toBe(true);
+    editor.commands.undo();
+    expect(editor.state.doc.textContent).toBe('first');
+  });
+
+  it('leaves external input focus and external DOM selection alone on detach', () => {
+    const input = document.createElement('input');
+    const outside = document.createElement('p');
+    outside.textContent = 'external';
+    document.body.append(input, outside);
+    input.focus();
+    input.value = 'other';
+    input.setSelectionRange(1, 3);
+    const selection = window.getSelection()!;
+    selection.setBaseAndExtent(outside.firstChild!, 1, outside.firstChild!, 4);
+    const clear = vi.spyOn(selection, 'removeAllRanges');
+
+    detachEditorDocument();
+
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(1);
+    expect(input.selectionEnd).toBe(3);
+    expect(clear).not.toHaveBeenCalled();
+    expect(selection.toString()).toBe('xte');
+  });
+
+  it('clears the old editor range even after a file-tree control takes focus', () => {
+    const editor = getEditor()!;
+    const treeControl = document.createElement('button');
+    document.body.append(treeControl);
+    treeControl.focus();
+    const paragraph = editor.view.dom.querySelector('p')!;
+    const selection = window.getSelection()!;
+    selection.setBaseAndExtent(paragraph, 0, paragraph, 0);
+
+    detachEditorDocument();
+
+    expect(document.activeElement).toBe(treeControl);
+    expect(selection.rangeCount).toBe(0);
+  });
+
+  it('clears a focused source caret before destroying the source view without changing its state', async () => {
+    const wrapper = document.getElementById('source-editor-wrapper')!;
+    const view = (await createSourceEditor(wrapper, 'source'))!;
+    store.setState({ mode: 'source' });
+    view.dispatch({ changes: { from: 1, insert: 'X' }, selection: { anchor: 2 } });
+    view.focus();
+    const state = view.state;
+    const blur = vi.spyOn(view.contentDOM, 'blur');
+    const selection = window.getSelection()!;
+    const text = view.contentDOM.querySelector('.cm-line')!.firstChild!;
+    selection.setBaseAndExtent(text, 2, text, 2);
+    const clear = vi.spyOn(selection, 'removeAllRanges');
+    const destroy = vi.spyOn(view, 'destroy').mockImplementation(() => {
+      expect(blur).toHaveBeenCalledOnce();
+      expect(clear).toHaveBeenCalledOnce();
+      expect(selection.rangeCount).toBe(0);
+    });
+
+    const context = detachEditorDocument();
+    expect(context.source.state).toBe(state);
+    destroy.mockRestore();
+    view.destroy();
+    attachEditorDocument(context, true, true);
+    expect(document.activeElement).toBe(getSourceView()!.contentDOM);
+    expect(getSourceView()!.state.selection.main.anchor).toBe(2);
+    undoSource(getSourceView()!);
+    expect(getSourceContent()).toBe('source');
+  });
+
   it('flushes pending edits and preserves the exact PM history, selection and document metadata', () => {
     setMarkdown('first');
     getEditor()!.commands.insertContentAt(2, 'X');

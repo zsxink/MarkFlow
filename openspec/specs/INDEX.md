@@ -47,6 +47,7 @@
 - [keyboard-shortcuts](keyboard-shortcuts/spec.md) — 全局快捷键与编辑器命令。
 - [lazy-code-languages](lazy-code-languages/spec.md) — 语言包按需加载与回退。
 - [settings-code-highlight](settings-code-highlight/spec.md) — 代码高亮开关与即时生效。
+- [task-list-wysiwyg](task-list-wysiwyg/spec.md) — 任务列表复选框尺寸、空项光标与行间距。
 - [url-decoration](url-decoration/spec.md) — 裸 URL 的非侵入式装饰、打开与复制。
 
 ### 工作区与文件

@@ -17,7 +17,7 @@
 | 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/lib/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
 | 体积、字体、CI、回归测试、e2e 测试、DMG 打包外观或 archive 门禁 | [e2e-test-coverage](e2e-test-coverage/spec.md)、[bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md)、[dmg-installer-appearance](dmg-installer-appearance/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`scripts/`、`.github/`、`scripts/check-archive-synced.sh`、`e2e/` | `npm test`、`npm run test:e2e`（smoke 套件）、`npm run build` |
 
-所有改动完成后运行 `npx openspec validate --specs`。路由没有覆盖的任务，先从 `src/main.ts` 和最接近的模块测试反查实际入口，再为受影响行为补充或更新模块规范。
+所有改动完成后运行 `npm run validate:openspec`（执行 `openspec validate --all`，与 CI 一致，覆盖规范及变更）。路由没有覆盖的任务，先从 `src/main.ts` 和最接近的模块测试反查实际入口，再为受影响行为补充或更新模块规范。
 
 ## 产品与架构参考（非模块规范）
 
@@ -131,5 +131,5 @@ for f in openspec/specs/*/spec.md; do grep -q "](${f#openspec/specs/})" openspec
 随后运行：
 
 ```bash
-npx openspec validate --specs
+npm run validate:openspec
 ```

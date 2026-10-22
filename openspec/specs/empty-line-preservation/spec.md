@@ -6,7 +6,7 @@
 ## Agent Context
 - **源码入口：** `src/lib/editor.serializer.ts`（`normalizeImageMarkdown`、`fixImageNewlines`）
 - **关联规范：** `enter-content-integrity`、`codemirror-source-editor`、`block-continuation-paragraph`
-- **不变量：** 用户输入的连续 2 个及以上的空行在保存后保持不变；图片前后至多保留一个空行。
+- **不变量：** 用户输入的连续 2 个及以上的空行在保存后保持不变；图片与相邻非空内容之间至少保留一个空行；用户已有的额外空行不会被压缩。
 - **验证：** `npm test -- src/lib/editor.serializer.test.ts`；`npx openspec validate empty-line-preservation --strict`。
 
 ## Requirements
@@ -31,8 +31,8 @@
 
 #### Scenario: 图片附近空行仍然保持正确分隔
 - **WHEN** Markdown 中包含独立图片行
-- **THEN** 图片前后各恰好有一个空行，确保图片作为块级元素正确渲染
-- **THEN** 非图片区域的空行不受此规则影响
+- **THEN** 图片与相邻非空内容之间至少有一个空行，确保图片作为块级元素正确渲染；文档开头或结尾不强制添加空行
+- **THEN** 图片附近已有的额外空行及非图片区域的空行均不被压缩
 
 #### Scenario: 代码围栏内空行不受影响
 - **WHEN** Markdown 中包含围栏代码块（\`\`\`）

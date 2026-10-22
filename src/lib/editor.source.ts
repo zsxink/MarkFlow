@@ -1,6 +1,6 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { Compartment } from '@codemirror/state';
+import { Compartment, type EditorState } from '@codemirror/state';
 import { HighlightStyle, syntaxHighlighting, LanguageDescription, LanguageSupport, StreamLanguage } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { Decoration, ViewPlugin } from '@codemirror/view';
@@ -222,4 +222,15 @@ export function setSourceContent(content: string): void {
   } finally {
     programmaticUpdate = false;
   }
+}
+
+/** Restore the exact CM state, including history and selection, without parsing. */
+export function restoreSourceEditor(container: HTMLElement, state: EditorState): EditorView {
+  destroySourceEditor();
+  currentView = new EditorView({ state, parent: container });
+  currentView.contentDOM.dataset.testid = 'editor-source-content';
+  const settings = getCachedSettings();
+  setSourceHighlight(settings.codeHighlight !== false);
+  setSourceSoftWrap(softWrapEnabled ?? (settings.softWrap !== false));
+  return currentView;
 }

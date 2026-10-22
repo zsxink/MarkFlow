@@ -4,7 +4,7 @@ use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
 use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ pub struct AppState {
     pub workspace_root: Mutex<Option<PathBuf>>,
     watcher: Mutex<Option<FileWatcher>>,
     pub pending_file: Mutex<HashMap<String, String>>,
-    pub cli_file: Mutex<Option<String>>,
+    pub cli_files: Mutex<VecDeque<String>>,
     pub initial_file_handled: AtomicBool,
     /// Per-window close permissions keyed by window label.
     /// A label is present only between `confirm_window_close` and the
@@ -45,13 +45,37 @@ impl AppState {
             workspace_root: Mutex::new(None),
             watcher: Mutex::new(None),
             pending_file: Mutex::new(HashMap::new()),
-            cli_file: Mutex::new(None),
+            cli_files: Mutex::new(VecDeque::new()),
             initial_file_handled: AtomicBool::new(false),
             close_permissions: Arc::new(Mutex::new(HashSet::new())),
             image_download_semaphore: Semaphore::new(4),
             http_client,
             http_semaphore: Semaphore::new(3),
         })
+    }
+
+    pub fn queue_open_paths(
+        &self,
+        paths: impl IntoIterator<Item = String>,
+    ) -> Result<Vec<String>, String> {
+        let mut pending = lock_mutex(&self.cli_files).map_err(|error| error.to_string())?;
+        let paths: Vec<String> = paths.into_iter().collect();
+        if self
+            .initial_file_handled
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            Ok(paths)
+        } else {
+            pending.extend(paths);
+            Ok(Vec::new())
+        }
+    }
+
+    pub fn mark_initial_file_handled(&self) -> Result<Vec<String>, String> {
+        let mut pending = lock_mutex(&self.cli_files).map_err(|error| error.to_string())?;
+        self.initial_file_handled
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        Ok(pending.drain(..).collect())
     }
 
     /// Grant close permission for a specific window (called by `confirm_window_close`).
@@ -180,6 +204,34 @@ mod tests {
         let state = AppState::new().unwrap();
         state.stop_all();
         state.stop_all();
+    }
+
+    #[test]
+    fn opened_paths_queue_before_initial_handling_and_drain_in_order() {
+        let state = AppState::new().unwrap();
+
+        assert!(state
+            .queue_open_paths(["a.md".to_string(), "b.md".to_string()])
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            state.mark_initial_file_handled().unwrap(),
+            vec!["a.md", "b.md"]
+        );
+    }
+
+    #[test]
+    fn opened_paths_after_initial_handling_are_ready_to_emit() {
+        let state = AppState::new().unwrap();
+        state.mark_initial_file_handled().unwrap();
+
+        assert_eq!(
+            state
+                .queue_open_paths(["a.md".to_string(), "b.md".to_string()])
+                .unwrap(),
+            vec!["a.md", "b.md"]
+        );
+        assert!(state.mark_initial_file_handled().unwrap().is_empty());
     }
 
     // --- Per-window close permission tests ---

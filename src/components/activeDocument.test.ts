@@ -15,6 +15,11 @@ vi.mock('../lib/editor', () => ({
 vi.mock('./outline', () => ({ refreshOutline: vi.fn() }));
 vi.mock('./degradationBar', () => ({ hideDegradationBar: vi.fn() }));
 vi.mock('../lib/imageUtils', () => ({ discardActiveImageDraft: mocks.discardActiveImageDraft }));
+vi.mock('../lib/documentSessions', () => ({
+  hasOpenDocumentTabs: vi.fn(() => false),
+  closeDocumentTabsMatchingPath: vi.fn(),
+  rewriteDocumentTabPaths: vi.fn(),
+}));
 
 import { store } from '../lib/store';
 import { clearActiveDocument } from './activeDocument';

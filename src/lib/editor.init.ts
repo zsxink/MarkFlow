@@ -36,6 +36,7 @@ import {
   getDocumentState,
   getMode,
   getActiveDocPath,
+  getEditorDocumentVersion,
   assetToOriginalMap,
   bumpRevision,
   isProgrammaticUpdate,
@@ -48,6 +49,7 @@ import { serializeMarkdown } from './editor.markdown.bridge';
 import { ensureContinuationParagraph } from './editor.continuation';
 import { endOpaqueSession } from './editor.markdown.opaque.session';
 import { katexPlugin } from './editor.katex';
+import { runDocumentOperation } from './documentOperations';
 
 /**
  * MarkFlow deliberately owns this parser instead of using Marked's module
@@ -267,9 +269,13 @@ export async function initEditor() {
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
     if (imageFiles.length === 0) return;
     event.preventDefault();
-    const settings = await getImageSettings();
-    const docPath = getActiveDocPath();
-    await processImageFiles(imageFiles, docPath, settings, 'paste');
+    const owner = getEditorDocumentVersion();
+    await runDocumentOperation(async () => {
+      if (owner !== getEditorDocumentVersion() || !getEditor()?.isEditable) return;
+      const docPath = getActiveDocPath();
+      const settings = await getImageSettings();
+      await processImageFiles(imageFiles, docPath, settings, 'paste');
+    });
   });
 
   // Image drop handler
@@ -283,8 +289,12 @@ export async function initEditor() {
     if (imageFiles.length === 0) return;
     event.preventDefault();
     event.stopPropagation();
-    const settings = await getImageSettings();
-    const docPath = getActiveDocPath();
-    await processImageFiles(imageFiles, docPath, settings, 'drop');
+    const owner = getEditorDocumentVersion();
+    await runDocumentOperation(async () => {
+      if (owner !== getEditorDocumentVersion() || !getEditor()?.isEditable) return;
+      const docPath = getActiveDocPath();
+      const settings = await getImageSettings();
+      await processImageFiles(imageFiles, docPath, settings, 'drop');
+    });
   });
 }

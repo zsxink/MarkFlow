@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockState, reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile, showDialog, clearActiveDocument } = vi.hoisted(() => ({
+const { mockState, reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile, showDialog, clearActiveDocument, discardCurrentDocumentTabInOperation } = vi.hoisted(() => ({
   mockState: {
     activePath: '/workspace/note.md' as string | null,
     dirty: false,
     external: false,
+    operationTail: Promise.resolve() as Promise<unknown>,
   },
   reloadActiveDocumentFromDisk: vi.fn(),
   saveActiveDocumentAsNewFile: vi.fn(),
   showDialog: vi.fn(),
   clearActiveDocument: vi.fn(),
+  discardCurrentDocumentTabInOperation: vi.fn(),
 }));
 
 const { getMarkdownResult, writeFile, showToast } = vi.hoisted(() => ({
@@ -34,7 +36,15 @@ vi.mock('./activeDocument', () => ({
   getActiveFilePath: vi.fn(() => mockState.activePath),
   clearActiveDocument,
 }));
-vi.mock('./sidebar.fileops', () => ({ reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile }));
+vi.mock('./sidebar.fileops', () => ({ reloadActiveDocumentFromDiskInOperation: reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFileInOperation: saveActiveDocumentAsNewFile }));
+vi.mock('../lib/documentSessions', () => ({ discardCurrentDocumentTabInOperation }));
+vi.mock('../lib/documentOperations', () => ({
+  runDocumentOperation: vi.fn((operation: () => unknown) => {
+    const result = mockState.operationTail.then(operation);
+    mockState.operationTail = result.catch(() => undefined);
+    return result;
+  }),
+}));
 
 import {
   handleActiveDocumentExternalModification,
@@ -45,10 +55,12 @@ beforeEach(() => {
   mockState.activePath = '/workspace/note.md';
   mockState.dirty = false;
   mockState.external = false;
+  mockState.operationTail = Promise.resolve();
   reloadActiveDocumentFromDisk.mockReset();
   saveActiveDocumentAsNewFile.mockReset();
   showDialog.mockReset();
   clearActiveDocument.mockReset();
+  discardCurrentDocumentTabInOperation.mockReset();
   getMarkdownResult.mockReturnValue({ ok: true, markdown: '# current' });
   writeFile.mockReset();
   showToast.mockReset();
@@ -68,9 +80,12 @@ describe('external modification conflict decisions', () => {
     expect(reloadActiveDocumentFromDisk).not.toHaveBeenCalled();
   });
 
-  it('clears a clean document when its file is deleted', async () => {
-    await expect(handleExternalDeletion('/workspace/note.md')).resolves.toBe('cleared');
-    expect(clearActiveDocument).toHaveBeenCalledOnce();
+  it('prompts before discarding a clean document when its file is deleted', async () => {
+    showDialog.mockResolvedValue('keep');
+    await expect(handleExternalDeletion('/workspace/note.md')).resolves.toBe('kept');
+    expect(showDialog).toHaveBeenCalledOnce();
+    expect(clearActiveDocument).not.toHaveBeenCalled();
+    expect(discardCurrentDocumentTabInOperation).not.toHaveBeenCalled();
   });
 
   it('ignores deletion events outside the active document', async () => {
@@ -87,5 +102,14 @@ describe('external modification conflict decisions', () => {
 
     expect(writeFile).not.toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith('Markdown 转换失败，未写入文件');
+  });
+
+  it('discards a deleted document only after the user explicitly chooses discard', async () => {
+    showDialog.mockResolvedValue('discard');
+
+    await expect(handleExternalDeletion('/workspace/note.md')).resolves.toBe('discarded');
+
+    expect(discardCurrentDocumentTabInOperation).toHaveBeenCalledOnce();
+    expect(clearActiveDocument).not.toHaveBeenCalled();
   });
 });

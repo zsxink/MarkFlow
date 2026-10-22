@@ -1,3 +1,4 @@
+import { closeDocumentTabsMatchingPath, rewriteDocumentTabPaths, hasOpenDocumentTabs } from '../lib/documentSessions';
 import { setMarkdown, getEditor } from '../lib/editor';
 import { store } from '../lib/store';
 import { refreshOutline } from './outline';
@@ -14,6 +15,7 @@ export function setActiveFilePath(path: string | null) {
 }
 
 export function rewriteActiveDocumentPath(from: string, to: string) {
+  if (hasOpenDocumentTabs()) { rewriteDocumentTabPaths(from, to); return; }
   const currentPath = getActiveFilePath();
   if (!currentPath) return;
   if (currentPath !== from && !currentPath.startsWith(`${from}/`)) return;
@@ -22,6 +24,7 @@ export function rewriteActiveDocumentPath(from: string, to: string) {
 }
 
 export function clearActiveDocumentIfMatches(path: string) {
+  if (hasOpenDocumentTabs()) return closeDocumentTabsMatchingPath(path);
   const currentPath = getActiveFilePath();
   if (!currentPath) return;
   if (currentPath === path || currentPath.startsWith(`${path}/`)) {

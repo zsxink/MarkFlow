@@ -1,11 +1,13 @@
 import { writeFile } from '../lib/storage';
-import { getMarkdownResult, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification } from '../lib/editor';
+import { getMarkdownResult, isDocumentDirty, markDocumentPersisted, markExternalModification } from '../lib/editor';
 import { showToast } from './toast';
 import { showDialog } from './ui/dialog';
 import { suppressNextWatcherRefresh, applyFileTreeEvents } from './fileTree';
 import { refreshOutline } from './outline';
-import { getActiveFilePath, clearActiveDocument } from './activeDocument';
-import { reloadActiveDocumentFromDisk, saveActiveDocumentAsNewFile } from './sidebar.fileops';
+import { getActiveFilePath } from './activeDocument';
+import { reloadActiveDocumentFromDiskInOperation, saveActiveDocumentAsNewFileInOperation } from './sidebar.fileops';
+import { runDocumentOperation } from '../lib/documentOperations';
+import { discardCurrentDocumentTabInOperation } from '../lib/documentSessions';
 
 function showExternalConflictDialog() {
   return showDialog({
@@ -23,13 +25,14 @@ function showExternalConflictDialog() {
 function showExternalDeletionDialog() {
   return showDialog({
     title: '当前文件已被删除',
-    body: '<p>当前打开的文件已在磁盘上被删除。</p><p>你在编辑器中的内容还在，是否要重新保存当前内容，还是直接删除掉？</p>',
+    body: '<p>当前打开的文件已在磁盘上被删除。</p><p>编辑器中的内容仍保留，可以另存为新文件或明确放弃。</p>',
     buttons: [
-      { label: '删除掉', value: 'discard' },
-      { label: '重新保存', value: 'resave', primary: true },
+      { label: '保留当前', value: 'keep' },
+      { label: '放弃内容', value: 'discard' },
+      { label: '另存为', value: 'save-as', primary: true },
     ],
     width: '520px',
-  }) as Promise<'resave' | 'discard' | null>;
+  }) as Promise<'resave' | 'discard' | 'save-as' | 'keep' | null>;
 }
 
 async function restoreDeletedActiveDocument() {
@@ -52,38 +55,41 @@ async function restoreDeletedActiveDocument() {
     showToast('已重新保存当前文件');
     return true;
   } catch {
-    return saveActiveDocumentAsNewFile();
+    return saveActiveDocumentAsNewFileInOperation();
   }
 }
 
-export async function handleExternalDeletion(path: string) {
+export function handleExternalDeletion(path: string) {
+  return runDocumentOperation(() => handleExternalDeletionInOperation(path));
+}
+export async function handleExternalDeletionInOperation(path: string) {
   const filePath = getActiveFilePath();
   if (!filePath) return 'ignored' as const;
   if (filePath !== path && !filePath.startsWith(`${path}/`)) return 'ignored' as const;
-
-  if (!isDocumentDirty() && !hasExternalModification()) {
-    clearActiveDocument();
-    return 'cleared' as const;
-  }
 
   markExternalModification();
   const choice = await showExternalDeletionDialog();
 
   if (choice === 'discard') {
-    clearActiveDocument();
+    await discardCurrentDocumentTabInOperation();
     return 'discarded' as const;
   }
 
+  if (choice === 'save-as') return await saveActiveDocumentAsNewFileInOperation() ? 'resaved' as const : 'failed' as const;
+  if (choice !== 'resave') return 'kept' as const;
   const restored = await restoreDeletedActiveDocument();
   return restored ? 'resaved' as const : 'failed' as const;
 }
 
-export async function handleActiveDocumentExternalModification() {
+export function handleActiveDocumentExternalModification() {
+  return runDocumentOperation(handleActiveDocumentExternalModificationInOperation);
+}
+export async function handleActiveDocumentExternalModificationInOperation() {
   const filePath = getActiveFilePath();
   if (!filePath) return 'ignored' as const;
 
   if (!isDocumentDirty()) {
-    const reloaded = await reloadActiveDocumentFromDisk({ force: true });
+    const reloaded = await reloadActiveDocumentFromDiskInOperation({ force: true });
     return reloaded ? 'reloaded' as const : 'failed' as const;
   }
 
@@ -91,12 +97,12 @@ export async function handleActiveDocumentExternalModification() {
   const choice = await showExternalConflictDialog();
 
   if (choice === 'disk') {
-    const reloaded = await reloadActiveDocumentFromDisk({ force: true });
+    const reloaded = await reloadActiveDocumentFromDiskInOperation({ force: true });
     return reloaded ? 'reloaded' as const : 'failed' as const;
   }
 
   if (choice === 'save-as') {
-    const saved = await saveActiveDocumentAsNewFile();
+    const saved = await saveActiveDocumentAsNewFileInOperation();
     return saved ? 'saved-as' as const : 'kept' as const;
   }
 

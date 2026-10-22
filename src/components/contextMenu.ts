@@ -1,8 +1,9 @@
+import { closeDocumentTabsMatchingPath } from '../lib/documentSessions';
 import { deletePath, copyFile, readSingleDir } from '../lib/storage';
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './fileTree';
 import { showToast } from './toast';
 import { reportUserActionError } from '../lib/error';
-import { clearActiveDocument, clearActiveDocumentIfMatches, confirmDocumentTransition, openFileInEditor } from './sidebar';
+import { openFileInEditor } from './sidebar';
 import { getFileName, getParentDir } from '../lib/pathUtils';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
@@ -106,8 +107,8 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
           kind: 'warning',
         });
         if (confirmed) {
+          if (!(await closeDocumentTabsMatchingPath(path))) return;
           await deletePath(path);
-          clearActiveDocumentIfMatches(path);
           removeEntryFromTree(path);
           showToast('已删除');
         }
@@ -144,19 +145,16 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         break;
       }
       case 'open-folder': {
-        if (!(await confirmDocumentTransition())) return;
-        const folder = await dialogOpen({ directory: true, multiple: false });
+            const folder = await dialogOpen({ directory: true, multiple: false });
         if (folder) {
           await setWorkspacePath(folder);
-          clearActiveDocument();
-          await refreshFileTree();
+              await refreshFileTree();
           showToast('文件夹已打开');
         }
         break;
       }
       case 'open-file': {
-        if (!(await confirmDocumentTransition())) return;
-        const file = await dialogOpen({
+            const file = await dialogOpen({
           multiple: false,
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         });

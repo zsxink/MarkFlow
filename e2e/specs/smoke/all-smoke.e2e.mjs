@@ -13,6 +13,7 @@ import { registerEditSaveTests } from './edit-save-reload.e2e.mjs';
 import { registerSettingsPanelTests } from './settings-panel.e2e.mjs';
 import { registerDiskSafetyTests } from './disk-safety.e2e.mjs';
 import { registerKatexTests } from './katex.e2e.mjs';
+import { registerDocumentTabsTests } from './document-tabs.e2e.mjs';
 
 registerLaunchTests();
 registerFileOpenTests();
@@ -21,3 +22,4 @@ registerEditSaveTests();
 registerSettingsPanelTests();
 registerDiskSafetyTests();
 registerKatexTests();
+registerDocumentTabsTests();

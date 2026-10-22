@@ -181,7 +181,7 @@ describe('menu event delegation', () => {
 
     await vi.waitFor(() => {
       expect(setWorkspacePath).toHaveBeenCalledWith('/path/to/folder');
-      expect(clearActiveDocument).toHaveBeenCalled();
+      expect(clearActiveDocument).not.toHaveBeenCalled();
       expect(refreshFileTree).toHaveBeenCalled();
       expect(showToast).toHaveBeenCalledWith('文件夹已打开');
     });
@@ -222,7 +222,7 @@ describe('menu event delegation', () => {
     });
   });
 
-  it('respects confirmDocumentTransition returning false', async () => {
+  it('opens another file without discarding or confirming the current session', async () => {
     vi.mocked(confirmDocumentTransition).mockResolvedValue(false);
     setupWithItems();
     const { initMenu } = await import('./menu');
@@ -232,7 +232,8 @@ describe('menu event delegation', () => {
     fileBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await vi.waitFor(() => {
-      expect(openFileInEditor).not.toHaveBeenCalled();
+      expect(openFileInEditor).toHaveBeenCalledWith('/path/to/file.md');
+      expect(confirmDocumentTransition).not.toHaveBeenCalled();
     });
   });
 });

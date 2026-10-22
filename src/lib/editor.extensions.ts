@@ -13,10 +13,11 @@ import { renderPlantUml } from './plantuml';
 import { isBlankPlantUmlSource } from './plantuml.utils';
 import { getCachedSettings } from './storage';
 import { store } from './store';
+import { imagePathToSrc } from './imageUtils';
 import { logDebug, logException, logWarn } from './logger';
 import { showMermaidContextMenu } from '../components/mermaidContextMenu';
 import { showPlantumlContextMenu } from '../components/plantumlContextMenu';
-import { assetToOriginalMap, getMermaidExportBaseName, getPlantUmlExportBaseName } from './editor.state';
+import { assetToOriginalMap, getActiveDocPath, getMermaidExportBaseName, getPlantUmlExportBaseName } from './editor.state';
 
 // ── Custom Link extension ──────────────────────────────────────────────
 
@@ -390,7 +391,15 @@ export const BlockImage = Image.extend({
       Object.entries(HTMLAttributes).forEach(([key, value]) => {
         if (value != null) img.setAttribute(key, value as string);
       });
-      if (node.attrs.src) img.src = node.attrs.src;
+      const syncImageSource = () => {
+        const authored = String(node.attrs.authoredSrc ?? assetToOriginalMap.get(node.attrs.src) ?? node.attrs.src ?? '');
+        const docPath = getActiveDocPath();
+        if (!authored) return;
+        const resourceUrl = /^(?:https?:|data:|asset:|blob:|file:)/i.test(authored);
+        img.src = docPath && !resourceUrl ? imagePathToSrc(authored, docPath) : String(resourceUrl ? authored : node.attrs.src ?? authored);
+      };
+      syncImageSource();
+      store.on('file:active', syncImageSource);
       if (node.attrs.alt) img.alt = node.attrs.alt;
 
       const wrapper = document.createElement('span');
@@ -435,6 +444,7 @@ export const BlockImage = Image.extend({
 
       return {
         dom: wrapper,
+        destroy() { store.off('file:active', syncImageSource); },
         ignoreMutation: () => true,
         stopEvent: (e: Event) => {
           if (errorEl && (e.type === 'mousedown' || e.type === 'pointerdown')) {
@@ -623,6 +633,7 @@ export function mermaidCodeBlockExtension() {
           textareaEl.className = 'source-editor mermaid-popup-editor';
           textareaEl.value = draftSource;
           textareaEl.spellcheck = false;
+          textareaEl.addEventListener('markflow:commit-draft', () => applyMermaidSource(textareaEl!.value));
           textareaEl.addEventListener('input', () => {
             if (textareaEl) draftSource = textareaEl.value;
           });

@@ -18,11 +18,12 @@ html, body {
 
 #app {
   display: grid;
-  grid-template-rows: var(--toolbar-h) 1fr var(--statusbar-h);
+  grid-template-rows: var(--toolbar-h) 36px minmax(0, 1fr) var(--statusbar-h);
   grid-template-columns: auto 1fr;
   height: 100vh;
   grid-template-areas:
     "toolbar toolbar"
+    "sidebar document-tabs"
     "sidebar editor"
     "statusbar statusbar";
 }

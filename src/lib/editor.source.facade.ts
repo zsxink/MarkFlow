@@ -4,6 +4,7 @@
  * implementation is loaded when source mode is first entered.
  */
 import type { EditorView } from 'codemirror';
+import type { EditorState } from '@codemirror/state';
 
 type SourceModule = typeof import('./editor.source');
 
@@ -14,6 +15,7 @@ let currentContent = '';
 let lifecycleVersion = 0;
 let creatingSourceView = false;
 let pendingReadOnly: boolean | undefined;
+let activeOnUpdate: ((doc: string) => void) | null = null;
 
 function loadSourceModule(): Promise<SourceModule> {
   if (sourceModule) return Promise.resolve(sourceModule);
@@ -36,6 +38,7 @@ export async function createSourceEditor(
   onUpdate: ((doc: string) => void) | null = null,
   readOnly = false,
 ): Promise<EditorView | null> {
+  activeOnUpdate = onUpdate;
   const version = ++lifecycleVersion;
   creatingSourceView = true;
   currentContent = content;
@@ -58,7 +61,7 @@ export async function createSourceEditor(
   try {
     const view = mod.createSourceEditor(container, latestContent, (doc) => {
       currentContent = doc;
-      onUpdate?.(doc);
+      activeOnUpdate?.(doc);
     }, effectiveReadOnly);
     currentView = view;
     return view;
@@ -68,6 +71,7 @@ export async function createSourceEditor(
 }
 
 export function destroySourceEditor(): void {
+  activeOnUpdate = null;
   lifecycleVersion += 1;
   creatingSourceView = false;
   pendingReadOnly = undefined;
@@ -100,4 +104,27 @@ export function setSourceSoftWrap(enabled: boolean): void {
 
 export function setSourceHighlight(enabled: boolean): void {
   sourceModule?.setSourceHighlight(enabled);
+}
+
+export interface SourceDocumentContext {
+  state: EditorState | null;
+  content: string;
+  onUpdate: ((doc: string) => void) | null;
+}
+export function detachSourceDocument(): SourceDocumentContext {
+  const context = { state: currentView?.state ?? null, content: getSourceContent(), onUpdate: activeOnUpdate };
+  destroySourceEditor();
+  activeOnUpdate = null;
+  return context;
+}
+export function attachSourceDocument(context: SourceDocumentContext, container: HTMLElement, readOnly: boolean): void {
+  currentContent = context.content;
+  activeOnUpdate = context.onUpdate;
+  if (context.state && sourceModule) {
+    lifecycleVersion += 1;
+    currentView = sourceModule.restoreSourceEditor(container, context.state);
+    sourceModule.setSourceReadOnly(readOnly);
+    return;
+  }
+  void createSourceEditor(container, context.content, context.onUpdate, readOnly).catch(() => {});
 }

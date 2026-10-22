@@ -38,18 +38,19 @@ const MIME_EXTENSIONS: Record<string, string> = {
   'image/bmp': 'bmp',
 };
 
-interface ActiveImageDraft {
+export interface ImageDraftContext {
   draftId: string | null;
   pendingReferences: Set<string>;
   immediateAbsoluteReferences: Set<string>;
 }
 
-let activeImageDraft: ActiveImageDraft = createEmptyDraft();
+let activeImageDraft: ImageDraftContext = createEmptyDraft();
 let pendingWriteQueue: Promise<void> = Promise.resolve();
+const activeImageOperations = new Set<Promise<unknown>>();
 let pendingSaveBarrier: Promise<void> | null = null;
 let releasePendingSaveBarrier: (() => void) | null = null;
 
-function createEmptyDraft(): ActiveImageDraft {
+function createEmptyDraft(): ImageDraftContext {
   return {
     draftId: null,
     pendingReferences: new Set(),
@@ -166,7 +167,7 @@ export function generateSourceImageName(
   return pickAvailableName(`${base}.${extension}`, existingNames);
 }
 
-export async function copyImageToStorage(
+async function copyImageToStorageInternal(
   base64Data: string,
   originalName: string,
   docPath: string | null,
@@ -199,7 +200,7 @@ export async function copyImageToStorage(
   return referenceStoredImage(destPath, docPath, settings.referenceStyle);
 }
 
-export async function copyLocalFileToStorage(
+async function copyLocalFileToStorageInternal(
   filePath: string,
   docPath: string | null,
   settings: ImageSettings,
@@ -218,7 +219,7 @@ export async function copyLocalFileToStorage(
   return referenceStoredImage(destPath, docPath, settings.referenceStyle);
 }
 
-export async function pasteImageFile(
+async function pasteImageFileInternal(
   file: File,
   docPath: string | null,
   settings: ImageSettings,
@@ -228,7 +229,7 @@ export async function pasteImageFile(
   return copyImageToStorage(raw, file.name || '', docPath, settings, file.type);
 }
 
-export async function handleNetworkImage(
+async function handleNetworkImageInternal(
   url: string,
   docPath: string | null,
   settings: ImageSettings,
@@ -524,4 +525,45 @@ function getUrlExtension(url: string): string | null {
 
 function replaceLiteral(value: string, search: string, replacement: string): string {
   return search ? value.split(search).join(replacement) : value;
+}
+
+/** Await this at the serialized document boundary before taking its draft. */
+export async function settleImageOperations(): Promise<void> {
+  while (activeImageOperations.size) await Promise.allSettled([...activeImageOperations]);
+  await pendingWriteQueue;
+}
+export function detachImageDraft(): ImageDraftContext {
+  const draft = activeImageDraft;
+  activeImageDraft = createEmptyDraft();
+  return draft;
+}
+export function attachImageDraft(draft: ImageDraftContext): void { activeImageDraft = draft; }
+export async function releaseImageDraft(draft: ImageDraftContext): Promise<void> {
+  if (draft.draftId) await cleanupPendingImages(draft.draftId);
+  draft.pendingReferences.clear();
+  draft.immediateAbsoluteReferences.clear();
+  draft.draftId = null;
+}
+
+function trackImageOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const pending = operation();
+  activeImageOperations.add(pending);
+  void pending.then(() => activeImageOperations.delete(pending), () => activeImageOperations.delete(pending));
+  return pending;
+}
+
+export function copyImageToStorage(...args: Parameters<typeof copyImageToStorageInternal>): Promise<string> {
+  return trackImageOperation(() => copyImageToStorageInternal(...args));
+}
+
+export function copyLocalFileToStorage(...args: Parameters<typeof copyLocalFileToStorageInternal>): Promise<string> {
+  return trackImageOperation(() => copyLocalFileToStorageInternal(...args));
+}
+
+export function pasteImageFile(...args: Parameters<typeof pasteImageFileInternal>): Promise<string> {
+  return trackImageOperation(() => pasteImageFileInternal(...args));
+}
+
+export function handleNetworkImage(...args: Parameters<typeof handleNetworkImageInternal>): Promise<string> {
+  return trackImageOperation(() => handleNetworkImageInternal(...args));
 }

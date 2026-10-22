@@ -84,3 +84,26 @@ export function onPipelineModeChanged(mode: string): void {
     endOpaqueSession();
   }
 }
+
+/** Suspended documents retain their registry nonce and authored RAW spans. */
+export interface OpaqueSessionContext {
+  registry: OpaqueRegistry | null;
+  session: MarkdownSession | null;
+}
+export function detachOpaqueSession(): OpaqueSessionContext {
+  const context = { registry: currentRegistry, session: currentSession };
+  currentRegistry = null;
+  currentSession = null;
+  setActiveOpaqueRegistry(null);
+  return context;
+}
+export function attachOpaqueSession(context: OpaqueSessionContext): void {
+  currentRegistry = context.registry;
+  currentSession = context.session;
+  setActiveOpaqueRegistry(currentRegistry);
+}
+export function releaseOpaqueSession(context: OpaqueSessionContext): void {
+  context.registry?.clear();
+  context.registry = null;
+  context.session = null;
+}

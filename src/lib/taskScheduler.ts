@@ -7,6 +7,7 @@ interface SchedulerTask {
 interface ScheduledItem {
   timer: ReturnType<typeof setTimeout>;
   abortController: AbortController;
+  task: SchedulerTask;
 }
 
 export class TaskScheduler {
@@ -24,7 +25,16 @@ export class TaskScheduler {
       }
     }, delayMs);
 
-    this.tasks.set(key, { timer, abortController });
+    this.tasks.set(key, { timer, abortController, task });
+  }
+
+  /** Execute a pending synchronous boundary task before changing documents. */
+  flush(key: string): void {
+    const pending = this.tasks.get(key);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.tasks.delete(key);
+    if (!pending.abortController.signal.aborted) void pending.task(pending.abortController.signal);
   }
 
   /** Cancel a pending task by key. */

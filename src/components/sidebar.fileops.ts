@@ -1,3 +1,4 @@
+import { normalizePathSegments } from '../lib/pathUtils';
 import { readFile, writeFile, writeFileIfUnchanged, addRecentFile, authorizeImageStorage, getFileMetadata } from '../lib/storage';
 import { getMarkdownResult, getSavePlan, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getSourceRevision, getLastReadMtime, getLastReadSize, hasLastReadStats, clearLastReadStats, setLastReadStats, getEditor, getPipelineMode } from '../lib/editor';
 import { shouldUseReconcileBoundary } from '../lib/editor.save.reconcile';
@@ -9,16 +10,18 @@ import { logException, logInfo, logDebug } from '../lib/logger';
 import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from './ui/dialog';
 import { getActiveFilePath, setActiveFilePath } from './activeDocument';
-import { handleActiveDocumentExternalModification } from './sidebar.conflict';
 import { determineTier, formatFileSize } from '../lib/fileSizeTier';
 import { showDegradationBar, hideDegradationBar } from './degradationBar';
 import { refreshFrontmatterPanel } from './frontmatterPanel';
 import { store } from '../lib/store';
 import { invoke } from '@tauri-apps/api/core';
+import { runDocumentOperation, isDocumentOperationPending } from '../lib/documentOperations';
+import { openDocumentTab, isPathOpenInOtherDocument } from '../lib/documentSessions';
+import { getEditorDocumentVersion } from '../lib/editor.state';
+import { commitEditorDocumentDrafts, flushEditorDirtyCheck } from '../lib/editor.context';
 import {
   abortPendingImagesSave,
   completePendingImagesSave,
-  discardActiveImageDraft,
   preparePendingImagesForSave,
 } from '../lib/imageUtils';
 
@@ -31,14 +34,20 @@ export function isSavingInProgress(): boolean {
   return savingInProgress;
 }
 
-export async function confirmDocumentTransition(): Promise<boolean> {
+export function confirmDocumentTransition(): Promise<boolean> {
+  return runDocumentOperation(confirmDocumentTransitionInOperation);
+}
+
+export async function confirmDocumentTransitionInOperation(): Promise<boolean> {
+  commitEditorDocumentDrafts();
+  flushEditorDirtyCheck();
   const dirty = isDocumentDirty();
   const conflicted = hasExternalModification();
   if (!dirty && !conflicted) return true;
 
   const title = conflicted ? '外部修改冲突' : '未保存的更改';
   const body = conflicted
-    ? '当前文件已被外部修改。切换到其他文件前希望如何处理？'
+    ? '当前文件已被外部修改。关闭前希望如何处理？'
     : '有未保存的内容，是否保存？';
 
   const result = await showDialog({
@@ -54,8 +63,9 @@ export async function confirmDocumentTransition(): Promise<boolean> {
   });
 
   if (result === 'save') {
-    const saved = await saveActiveDocument({ interactive: true });
-    if (saved) return true;
+    const saved = await saveActiveDocumentInOperation({ interactive: true });
+    if (saved === 'saved' && !isDocumentDirty() && !hasExternalModification()) return true;
+    if (saved === 'saved') showToast('保存期间文档又有更改，标签已保留');
     return false;
   }
 
@@ -67,7 +77,11 @@ function getConflictSavePath(path: string) {
   return path.endsWith('.md') ? `${path.slice(0, -3)}.conflict.md` : `${path}.conflict.md`;
 }
 
-export async function saveActiveDocumentAsNewFile() {
+export function saveActiveDocumentAsNewFile() {
+  const owner = getEditorDocumentVersion();
+  return runDocumentOperation(() => owner === getEditorDocumentVersion() ? saveActiveDocumentAsNewFileInOperation() : false);
+}
+export async function saveActiveDocumentAsNewFileInOperation() {
   const filePath = getActiveFilePath();
   if (!filePath) return false;
 
@@ -81,6 +95,8 @@ export async function saveActiveDocumentAsNewFile() {
     return false;
   }
   const currentContent = candidate.markdown;
+  const revision = getRevision();
+  const sourceRevision = getSourceRevision();
   const targetPath = await save({
     title: '另存为',
     defaultPath: getConflictSavePath(filePath),
@@ -88,26 +104,31 @@ export async function saveActiveDocumentAsNewFile() {
   });
 
   if (!targetPath) return false;
-  if (targetPath === filePath) {
+  if (targetPath === filePath || isPathOpenInOtherDocument(targetPath)) {
     showToast('请另选一个新文件名');
     return false;
   }
 
   try {
     suppressNextWatcherRefresh(targetPath);
-    await writeFile(targetPath, currentContent);
+    const prepared = await preparePendingImagesForSave(currentContent, targetPath);
+    await writeFile(targetPath, prepared.markdown);
+    const persistedSourceRevision = applyPreparedMarkdownIfCurrent(prepared.markdown, currentContent, revision, sourceRevision);
     setActiveFilePath(targetPath);
     // Record mtime + size for future external-modification checks
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
       setLastReadStats(stats.mtime, stats.size);
     } catch (e) { logDebug('fileops', 'Failed to get file stats after save-as (non-critical)', { path: targetPath, error: String(e) }); }
-    markDocumentPersisted(currentContent);
+    markDocumentPersisted(prepared.markdown, revision, persistedSourceRevision);
+    if (revision === getRevision() && persistedSourceRevision === getSourceRevision()) await completePendingImagesSave(prepared.draftId);
+    else abortPendingImagesSave();
     await applyFileTreeEvents([{ path: targetPath, kind: 'create', timestamp: Date.now() }]);
     refreshOutline();
     showToast('已另存为新文件');
     return true;
   } catch (e) {
+    abortPendingImagesSave();
     showToast(`另存为失败: ${e}`);
     return false;
   }
@@ -115,15 +136,22 @@ export async function saveActiveDocumentAsNewFile() {
 
 export type SaveResult = 'saved' | 'skipped' | 'failed';
 
-export async function saveActiveDocument(options: { interactive?: boolean } = {}): Promise<SaveResult> {
+export function saveActiveDocument(options: { interactive?: boolean } = {}): Promise<SaveResult> {
+  if (options.interactive === false && isDocumentOperationPending()) return Promise.resolve('skipped');
+  const owner = getEditorDocumentVersion();
+  return runDocumentOperation(() => owner === getEditorDocumentVersion() ? saveActiveDocumentInOperation(options) : 'skipped');
+}
+
+/** Caller already owns document identity, including dialogs before any write. */
+export async function saveActiveDocumentInOperation(options: { interactive?: boolean } = {}): Promise<SaveResult> {
+  if (savingInProgress) return 'skipped';
+  savingInProgress = true;
+  try { return await saveActiveDocumentContent(options); }
+  finally { savingInProgress = false; }
+}
+async function saveActiveDocumentContent(options: { interactive?: boolean }): Promise<SaveResult> {
   const { interactive = true } = options;
-
-  // ── Serial guard: skip if a save is already in progress ──────────
-  if (savingInProgress) {
-    logDebug('sidebar.save', 'Save skipped — previous save still in progress');
-    return 'skipped';
-  }
-
+  flushEditorDirtyCheck();
   let filePath = getActiveFilePath();
 
   if (!filePath) {
@@ -134,25 +162,27 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (!targetPath) return 'skipped';
+    if (isPathOpenInOtherDocument(targetPath)) { showToast('该文件已在其他标签中打开'); return 'skipped'; }
     const candidate = getMarkdownResult();
     if (!candidate.ok) return reportConversionFailure(candidate.error.stage, candidate.error.code, interactive);
     const content = candidate.markdown;
     const revision = getRevision();
-    savingInProgress = true;
+    const sourceRevision = getSourceRevision();
     try {
       const prepared = await preparePendingImagesForSave(content, targetPath);
       suppressNextWatcherRefresh(targetPath);
       await writeFile(targetPath, prepared.markdown);
       setActiveFilePath(targetPath);
-      if (prepared.markdown !== content) setMarkdown(prepared.markdown);
+      const persistedSourceRevision = applyPreparedMarkdownIfCurrent(prepared.markdown, content, revision, sourceRevision);
       // Record mtime + size for future external-modification checks
       try {
         const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: targetPath });
         setLastReadStats(stats.mtime, stats.size);
       } catch (e) { logDebug('fileops', 'Failed to get file stats after save new file (non-critical)', { path: targetPath, error: String(e) }); }
-      markDocumentPersisted(prepared.markdown, revision);
+      markDocumentPersisted(prepared.markdown, revision, persistedSourceRevision);
       try {
-        await completePendingImagesSave(prepared.draftId);
+        if (revision === getRevision() && persistedSourceRevision === getSourceRevision()) await completePendingImagesSave(prepared.draftId);
+    else abortPendingImagesSave();
       } catch (e) {
         logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
           path: targetPath,
@@ -170,8 +200,6 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       logException('sidebar.save', 'Failed to save new file without workspace', e, { path: targetPath });
       showToast('保存失败');
       return 'failed';
-    } finally {
-      savingInProgress = false;
     }
   }
 
@@ -213,7 +241,10 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       // reconcile session is stricter: without a fresh stat we cannot prove
       // its source baseline still names the disk file, so invalidate it and
       // let the existing stale-source conflict path suppress the write.
-      if (verifiedSave) markExternalModification();
+      markExternalModification();
+      if (!interactive) return 'skipped';
+      if (!confirmedExternalOverwrite && !window.confirm('无法确认磁盘文件状态（文件可能已删除）。是否明确保存当前内容？')) return 'skipped';
+      confirmedExternalOverwrite = true;
       logDebug('fileops', 'Pre-save stat check failed', { path: filePath, error: String(e) });
     }
   } else if (verifiedSave) {
@@ -244,7 +275,6 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
   const content = plan.kind === 'safe-edit' ? plan.markdown : candidate.markdown;
   const revision = getRevision();
   const sourceRevision = getSourceRevision();
-  savingInProgress = true;
   try {
     const prepared = await preparePendingImagesForSave(content, filePath);
     suppressNextWatcherRefresh(filePath);
@@ -260,7 +290,7 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     } else {
       await writeFile(filePath, prepared.markdown);
     }
-    if (prepared.markdown !== content) setMarkdown(prepared.markdown);
+    const persistedSourceRevision = applyPreparedMarkdownIfCurrent(prepared.markdown, content, revision, sourceRevision);
     // Record mtime + size after successful write
     try {
       const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path: filePath });
@@ -271,9 +301,10 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
       clearLastReadStats();
       logDebug('fileops', 'Failed to get file stats after write', { path: filePath, error: String(e) });
     }
-    markDocumentPersisted(prepared.markdown, revision);
+    markDocumentPersisted(prepared.markdown, revision, persistedSourceRevision);
     try {
-      await completePendingImagesSave(prepared.draftId);
+      if (revision === getRevision() && persistedSourceRevision === getSourceRevision()) await completePendingImagesSave(prepared.draftId);
+    else abortPendingImagesSave();
     } catch (e) {
       logDebug('sidebar.save', 'Saved document but failed to clean pending images', {
         path: filePath,
@@ -298,9 +329,16 @@ export async function saveActiveDocument(options: { interactive?: boolean } = {}
     logException('sidebar.save', 'Failed to save active document', e, { path: filePath, interactive });
     if (interactive) showToast('保存失败，请重试');
     return 'failed';
-  } finally {
-    savingInProgress = false;
   }
+}
+
+/** Rewriting staged image references must never replace newer user edits. */
+function applyPreparedMarkdownIfCurrent(markdown: string, original: string, revision: number, sourceRevision: number): number {
+  if (markdown !== original && revision === getRevision() && sourceRevision === getSourceRevision()) {
+    setMarkdown(markdown);
+    return getSourceRevision();
+  }
+  return sourceRevision;
 }
 
 function reportConversionFailure(stage: string, code: string, interactive: boolean): SaveResult {
@@ -309,7 +347,11 @@ function reportConversionFailure(stage: string, code: string, interactive: boole
   return 'failed';
 }
 
-export async function reloadActiveDocumentFromDisk(options: { force?: boolean } = {}) {
+export function reloadActiveDocumentFromDisk(options: { force?: boolean } = {}) {
+  const owner = getEditorDocumentVersion();
+  return runDocumentOperation(() => owner === getEditorDocumentVersion() ? reloadActiveDocumentFromDiskInOperation(options) : false);
+}
+export async function reloadActiveDocumentFromDiskInOperation(options: { force?: boolean } = {}) {
   const { force = false } = options;
   const filePath = getActiveFilePath();
   if (!filePath) return false;
@@ -335,84 +377,46 @@ export async function reloadActiveDocumentFromDisk(options: { force?: boolean } 
   }
 }
 
-export async function openFileInEditor(path: string) {
-  const activePath = getActiveFilePath();
-  if (path === activePath) {
-    await recordRecentFile(path);
-    if (hasExternalModification() && !isDocumentDirty()) {
-      const reloaded = await reloadActiveDocumentFromDisk({ force: true });
-      if (reloaded) showToast('已从磁盘重新加载');
-    } else if (hasExternalModification()) {
-      const result = await handleActiveDocumentExternalModification();
-      if (result === 'reloaded') showToast('已加载磁盘版本');
-    }
-    return;
-  }
-  if (!(await confirmDocumentTransition())) return;
-
+export async function openFileInEditor(path: string): Promise<boolean> {
+  path = normalizePathSegments(path.replace(/\\/g, '/'));
   try {
-    // Read metadata for tier classification
-    const metadata = await getFileMetadata(path);
-    const tier = determineTier(metadata.size, metadata.lines);
-
-    // Handle Huge tier: confirmation before opening
-    if (tier === 'huge') {
-      const choice = await showDialog({
-        title: '文件过大',
-        body: `<p style="margin:0 0 12px;font-size:14px;color:var(--fg);">该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p>
-               <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">建议以只读模式预览，或强制打开（部分功能可能受限）。</p>`,
-        buttons: [
-          { label: '取消', value: 'cancel' },
-          { label: '强制打开', value: 'force' },
-          { label: '只读预览', value: 'readonly', primary: true },
-        ],
-        width: '400px',
-      });
-      if (!choice || choice === 'cancel') return;
-
-      if (choice === 'readonly') {
-        const content = await readFile(path);
-        await prepareImageLifecycleForOpenedDocument(path);
+    const opened = await openDocumentTab(path, async () => {
+      const metadata = await getFileMetadata(path);
+      const tier = determineTier(metadata.size, metadata.lines);
+      let readOnly = false;
+      if (tier === 'huge') {
+        const choice = await showDialog({
+          title: '文件过大',
+          body: `<p>该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p><p>建议以只读模式预览，或强制打开。</p>`,
+          buttons: [{ label: '取消', value: 'cancel' }, { label: '强制打开', value: 'force' }, { label: '只读预览', value: 'readonly', primary: true }],
+          width: '400px',
+        });
+        if (!choice || choice === 'cancel') return null;
+        readOnly = choice === 'readonly';
+      }
+      const content = await readFile(path);
+      await prepareImageLifecycleForOpenedDocument(path);
+      let stats: { mtime: number; size: number } | null = null;
+      try { stats = await invoke('get_file_stats', { path }); }
+      catch (error) { logDebug('fileops', 'Failed to stat opened file', { path, error: String(error) }); }
+      return () => {
         setActiveDocumentPath(path);
         setActiveFilePath(path);
         setMarkdown(content);
-        setReadOnly(true);
-        showDegradationBar({ tier: 'huge', size: formatFileSize(metadata.size), lines: metadata.lines, readOnly: true });
+        setReadOnly(readOnly);
+        if (tier === 'large' || tier === 'huge') showDegradationBar({ tier, size: formatFileSize(metadata.size), lines: metadata.lines, readOnly });
+        else hideDegradationBar();
+        if (stats) setLastReadStats(stats.mtime, stats.size);
         resetEditorScroll();
         refreshOutline();
-        showToast('已以只读模式打开文件');
-        await recordRecentFile(path);
-        return;
-      }
-      // choice === 'force' — proceed to normal open with degradation bar
-    }
-
-    const content = await readFile(path);
-    await prepareImageLifecycleForOpenedDocument(path);
-    setActiveDocumentPath(path);
-    setActiveFilePath(path);
-    setMarkdown(content);
-    // Reset read-only state for normal/large opens
-    setReadOnly(false);
-
-    // Show degradation UI for large files
-    if (tier === 'large') {
-      showDegradationBar({ tier: 'large', size: formatFileSize(metadata.size), lines: metadata.lines });
-    } else {
-      hideDegradationBar();
-    }
-
-    // Record mtime + size for future external-modification checks
-    try {
-      const stats = await invoke<{ mtime: number; size: number }>('get_file_stats', { path });
-      setLastReadStats(stats.mtime, stats.size);
-    } catch (e) { logDebug('fileops', 'Failed to get file stats after open (non-critical)', { path, error: String(e) }); }
-    resetEditorScroll();
-    refreshOutline();
-    showToast('已打开文件');
-    await recordRecentFile(path);
+        showToast(readOnly ? '已以只读模式打开文件' : '已打开文件');
+      };
+    });
+    if (opened) await recordRecentFile(path);
+    return opened;
   } catch (e) {
     showToast(`打开失败: ${e}`);
+    return false;
   }
 }
 
@@ -433,14 +437,7 @@ async function prepareImageLifecycleForOpenedDocument(path: string): Promise<voi
       error: String(e),
     });
   }
-  try {
-    await discardActiveImageDraft();
-  } catch (e) {
-    logDebug('fileops', 'Failed to clean discarded image draft while opening document', {
-      path,
-      error: String(e),
-    });
-  }
+
 }
 
 function setReadOnly(readOnly: boolean): void {

@@ -1,6 +1,7 @@
+import { newDocumentTab, closeDocumentTab, getActiveTabId, reopenClosedDocumentTab, cycleDocumentTab } from '../lib/documentSessions';
 import { getEditor, switchToSource, switchToWysiwyg, getMode } from '../lib/editor';
 import { showToast } from '../components/toast';
-import { saveActiveDocument, openFileInEditor, confirmDocumentTransition } from '../components/sidebar';
+import { saveActiveDocument, openFileInEditor } from '../components/sidebar';
 import { showNewFileDialog } from '../components/newFileDialog';
 import { getWorkspacePath } from '../components/fileTree';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -27,6 +28,17 @@ export function initKeyboard() {
     const ctrl = e.ctrlKey || e.metaKey;
     if (!ctrl) return;
 
+    const key = e.key.toLowerCase();
+    const tabCommand = key === 't' || key === 'w' || (e.ctrlKey && key === 'tab');
+    if (tabCommand) {
+      e.preventDefault();
+      if (document.querySelector('[aria-modal="true"]')) return;
+      if (key === 't') await (e.shiftKey ? reopenClosedDocumentTab() : newDocumentTab());
+      else if (key === 'w') { const id = getActiveTabId(); if (id) await closeDocumentTab(id); }
+      else await cycleDocumentTab(e.shiftKey ? -1 : 1);
+      return;
+    }
+    if (document.querySelector('[aria-modal="true"]')) return;
     const editor = getEditor();
 
     switch (e.key.toLowerCase()) {
@@ -44,7 +56,6 @@ export function initKeyboard() {
         break;
       case 'o':
         e.preventDefault();
-        if (!(await confirmDocumentTransition())) break;
         {
           const selected = await open({
             multiple: false,

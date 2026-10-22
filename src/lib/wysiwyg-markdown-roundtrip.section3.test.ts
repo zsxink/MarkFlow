@@ -32,7 +32,7 @@ vi.mock('./storage', () => ({ getCachedSettings: mocks.getCachedSettings }));
 vi.mock('./store', () => ({ store: mocks.store }));
 vi.mock('../components/mermaidContextMenu', () => ({ showMermaidContextMenu: mocks.showMermaidContextMenu }));
 vi.mock('../components/plantumlContextMenu', () => ({ showPlantumlContextMenu: mocks.showPlantumlContextMenu }));
-vi.mock('./editor.state', () => ({
+vi.mock('./editor.state', () => ({ getActiveDocPath: () => null,
   assetToOriginalMap: new Map(),
   getMermaidExportBaseName: mocks.getMermaidExportBaseName,
   getPlantUmlExportBaseName: mocks.getPlantUmlExportBaseName,

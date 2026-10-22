@@ -15,6 +15,7 @@ import { registerDiskSafetyTests } from './disk-safety.e2e.mjs';
 import { registerKatexTests } from './katex.e2e.mjs';
 import { registerDocumentTabsTests } from './document-tabs.e2e.mjs';
 import { registerStartupCaretTests } from './startup-caret.e2e.mjs';
+import { registerTaskListTests } from './task-list.e2e.mjs';
 
 registerStartupCaretTests();
 registerLaunchTests();
@@ -25,3 +26,4 @@ registerSettingsPanelTests();
 registerDiskSafetyTests();
 registerKatexTests();
 registerDocumentTabsTests();
+registerTaskListTests();

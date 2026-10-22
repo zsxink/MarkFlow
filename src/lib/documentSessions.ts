@@ -16,7 +16,7 @@ import { confirmDocumentTransitionInOperation, openFileInEditor } from '../compo
 import { handleActiveDocumentExternalModificationInOperation, handleExternalDeletionInOperation } from '../components/sidebar.conflict';
 import { logException } from './logger';
 
-export const MAX_DOCUMENT_TABS = 10;
+export const MAX_DOCUMENT_TABS = 20;
 interface DocumentSession {
   id: string;
   path: string | null;
@@ -57,7 +57,7 @@ function matches(path: string | null, prefix: string) {
 }
 function hasCapacity() {
   if (sessions.length < MAX_DOCUMENT_TABS) return true;
-  showToast('最多打开 10 个标签，请先关闭一个标签');
+  showToast('最多打开 20 个文件，请先关闭一些文件');
   return false;
 }
 function project() {

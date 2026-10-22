@@ -3,13 +3,12 @@ import {
   closeDocumentTab,
   getActiveTabId,
   getDocumentTabs,
+  MAX_DOCUMENT_TABS,
   newDocumentTab,
   onDocumentTabsChanged,
 } from '../lib/documentSessions';
 
 type DocumentTab = ReturnType<typeof getDocumentTabs>[number];
-
-const MAX_DOCUMENT_TABS = 10;
 
 function getParentSegments(path: string): string[] {
   return path.replace(/\\/g, '/').split('/').filter(Boolean).slice(0, -1);
@@ -33,6 +32,8 @@ function getVisibleTitle(tab: DocumentTab, tabs: readonly DocumentTab[]): string
 export function initDocumentTabs() {
   const root = document.getElementById('document-tabs');
   const scroll = root?.querySelector<HTMLElement>('[data-tabs-scroll]');
+  const listButton = root?.querySelector<HTMLButtonElement>('[data-tabs-list]');
+  const list = root?.querySelector<HTMLElement>('[data-tabs-menu]');
   const newButton = root?.querySelector<HTMLButtonElement>('[data-tabs-new]');
   if (!root || !scroll || !newButton) return () => {};
 
@@ -49,6 +50,7 @@ export function initDocumentTabs() {
       const tabItem = document.createElement('div');
       tabItem.className = 'document-tab-item';
       tabItem.dataset.tabItem = tab.id;
+      tabItem.dataset.active = String(tab.id === activeId);
       tabItem.setAttribute('role', 'presentation');
 
       const item = document.createElement('button');
@@ -78,7 +80,7 @@ export function initDocumentTabs() {
       close.dataset.closeTab = tab.id;
       close.setAttribute('aria-label', `关闭 ${tab.title}`);
       close.title = `关闭 ${tab.title}`;
-      close.textContent = '×';
+      close.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"/></svg>';
 
       item.append(dirtySlot, title);
       tabItem.append(item, close);
@@ -86,8 +88,28 @@ export function initDocumentTabs() {
     });
 
     scroll.replaceChildren(fragment);
+    if (list) {
+      const listFragment = document.createDocumentFragment();
+      tabs.forEach(tab => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'document-tabs-menu-item';
+        item.dataset.activateTab = tab.id;
+        item.setAttribute('role', 'menuitemradio');
+        item.setAttribute('aria-checked', String(tab.id === activeId));
+        const title = document.createElement('span');
+        title.textContent = getVisibleTitle(tab, tabs);
+        const dirty = document.createElement('span');
+        dirty.className = 'document-tabs-menu-dirty';
+        dirty.textContent = tab.dirty ? '●' : '';
+        dirty.setAttribute('aria-hidden', 'true');
+        item.append(title, dirty);
+        listFragment.append(item);
+      });
+      list.replaceChildren(listFragment);
+    }
     newButton.disabled = tabs.length >= MAX_DOCUMENT_TABS;
-    newButton.title = newButton.disabled ? '标签已达上限（10）' : '新建标签 (Ctrl+T)';
+    newButton.title = newButton.disabled ? `文件已达上限（${MAX_DOCUMENT_TABS}）` : '新建标签 (Ctrl+T)';
     const focusId = focusActiveTab ? activeId : focusedTabId;
     if (focusId) {
       Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"][data-tab-id]'))
@@ -95,19 +117,37 @@ export function initDocumentTabs() {
     }
   };
 
+  const menuItems = () => Array.from(list?.querySelectorAll<HTMLButtonElement>('[data-activate-tab]') ?? []);
+  const openList = () => {
+    if (!list) return;
+    list.hidden = false;
+    listButton?.setAttribute('aria-expanded', 'true');
+    // Move focus into the menu so arrow keys work immediately after opening.
+    const items = menuItems();
+    (items.find(item => item.getAttribute('aria-checked') === 'true') ?? items[0])?.focus();
+  };
+  const closeList = (restoreFocus = false) => {
+    if (!list || list.hidden) return;
+    list.hidden = true;
+    listButton?.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) listButton?.focus();
+  };
+
   const unsubscribe = onDocumentTabsChanged(render);
-  newButton.addEventListener('click', () => newDocumentTab());
+  const onNewTab = () => { newDocumentTab(); };
+  newButton.addEventListener('click', onNewTab);
 
   // Keep an editing surface focused during a mouse tab switch. Otherwise the
   // button takes focus before the session coordinator can transfer the caret.
   // Keyboard navigation still owns its tab-button focus.
-  root.addEventListener('mousedown', event => {
+  const onMouseDown = (event: MouseEvent) => {
     if (event.button !== 0 || !(event.target instanceof Element)) return;
     if (!event.target.closest('[role="tab"][data-tab-id]')) return;
     if (document.activeElement?.closest('#wysiwyg-editor, #source-editor-wrapper')) event.preventDefault();
-  });
+  };
+  root.addEventListener('mousedown', onMouseDown);
 
-  root.addEventListener('click', event => {
+  const onClick = (event: MouseEvent) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const closeButton = target.closest<HTMLButtonElement>('[data-close-tab]');
@@ -117,23 +157,82 @@ export function initDocumentTabs() {
       return;
     }
 
+    const listToggle = target.closest<HTMLButtonElement>('[data-tabs-list]');
+    if (listToggle) {
+      if (list?.hidden) openList();
+      else closeList();
+      return;
+    }
+
+    const menuItem = target.closest<HTMLButtonElement>('[data-activate-tab]');
+    if (menuItem?.dataset.activateTab) {
+      const id = menuItem.dataset.activateTab;
+      closeList();
+      activateDocumentTab(id);
+      Array.from(scroll.querySelectorAll<HTMLElement>('[data-tab-id]'))
+        .find(tab => tab.dataset.tabId === id)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      return;
+    }
+
     const tab = target.closest<HTMLElement>('[role="tab"][data-tab-id]');
-    if (tab?.dataset.tabId) activateDocumentTab(tab.dataset.tabId);
-  });
+    if (tab?.dataset.tabId) {
+      closeList();
+      activateDocumentTab(tab.dataset.tabId);
+    }
+  };
+  root.addEventListener('click', onClick);
 
-  root.addEventListener('auxclick', event => {
-    if (event.button !== 1) return;
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const tabItem = target.closest<HTMLElement>('[data-tab-item]');
-    if (!tabItem?.dataset.tabItem) return;
+  const onWheel = (event: WheelEvent) => {
+    // Only take the gesture over when the strip can actually move sideways.
+    // Swallowing wheel input while every tab fits would break page scrolling.
+    const overflow = scroll.scrollWidth - scroll.clientWidth;
+    if (overflow <= 0) return;
+    const delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (delta === 0) return;
+    const next = Math.max(0, Math.min(overflow, scroll.scrollLeft + delta));
+    // At either end the gesture belongs to the surrounding page again.
+    if (next === scroll.scrollLeft) return;
+    scroll.scrollLeft = next;
     event.preventDefault();
-    closeDocumentTab(tabItem.dataset.tabItem);
-  });
+  };
+  scroll.addEventListener('wheel', onWheel, { passive: false });
 
-  root.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  const dismissList = (event: MouseEvent) => {
+    if (!list || list.hidden || !(event.target instanceof Node) || root.contains(event.target)) return;
+    closeList();
+  };
+  document.addEventListener('click', dismissList);
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    // Menu semantics: the trigger opens with Down/Enter/Space, Escape closes and
+    // hands focus back, and Up/Down/Home/End move between the radio items.
     const target = event.target;
+    const inMenu = target instanceof Node && Boolean(list?.contains(target));
+    if (event.key === 'Escape' && (inMenu || (list && !list.hidden && target === listButton))) {
+      event.preventDefault();
+      closeList(true);
+      return;
+    }
+    if (target === listButton && ['ArrowDown', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      openList();
+      return;
+    }
+    if (inMenu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      const items = menuItems();
+      const index = items.indexOf(target as HTMLButtonElement);
+      if (index < 0 || items.length === 0) return;
+      let nextIndex = index;
+      if (event.key === 'ArrowDown') nextIndex = (index + 1) % items.length;
+      if (event.key === 'ArrowUp') nextIndex = (index - 1 + items.length) % items.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = items.length - 1;
+      event.preventDefault();
+      items[nextIndex].focus();
+      return;
+    }
+    if (event.key === 'Tab' && inMenu) closeList();
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     if (!(target instanceof HTMLElement) || !target.matches('[role="tab"]')) return;
     const tabNodes = Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"]'));
     const index = tabNodes.indexOf(target);
@@ -151,8 +250,31 @@ export function initDocumentTabs() {
     activateDocumentTab(nextId);
     Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"][data-tab-id]'))
       .find(tab => tab.dataset.tabId === nextId)?.focus();
-  });
+  };
+  root.addEventListener('keydown', onKeyDown);
+
+  const onAuxClick = (event: MouseEvent) => {
+    if (event.button !== 1) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const tabItem = target.closest<HTMLElement>('[data-tab-item]');
+    if (!tabItem?.dataset.tabItem) return;
+    event.preventDefault();
+    closeDocumentTab(tabItem.dataset.tabItem);
+  };
+  root.addEventListener('auxclick', onAuxClick);
 
   render();
-  return unsubscribe;
+  // Every listener this module adds is removed here, so re-initialising the
+  // tab bar never leaves a stale handler attached to the shared nodes.
+  return () => {
+    unsubscribe();
+    document.removeEventListener('click', dismissList);
+    newButton.removeEventListener('click', onNewTab);
+    root.removeEventListener('mousedown', onMouseDown);
+    root.removeEventListener('click', onClick);
+    root.removeEventListener('keydown', onKeyDown);
+    root.removeEventListener('auxclick', onAuxClick);
+    scroll.removeEventListener('wheel', onWheel);
+  };
 }

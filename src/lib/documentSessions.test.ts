@@ -36,7 +36,7 @@ import {
   activateDocumentTab, closeDocumentTab, getDocumentTabs, getActiveTabId, newDocumentTab,
   reopenClosedDocumentTab, destroyDocumentSessions, confirmAllDocumentTabsClose, closeAllDocumentTabs, routeDocumentExternalChanges,
   rewriteDocumentTabPaths, cycleDocumentTab,
-  initDocumentSessions, openDocumentTab,
+  initDocumentSessions, openDocumentTab, MAX_DOCUMENT_TABS,
 } from './documentSessions';
 import { isDocumentOperationPending, runDocumentOperation } from './documentOperations';
 import { attachImageDraft } from './imageUtils';
@@ -206,7 +206,7 @@ describe('document session lifecycle with the production editor and file operati
     expect(document.querySelectorAll('.cm-editor')).toHaveLength(0);
   });
 
-  it('deduplicates normalized paths, rolls back failed reads, and refuses an eleventh tab', async () => {
+  it('deduplicates normalized paths, rolls back failed reads, and refuses to exceed the tab cap', async () => {
     await openFileInEditor('/a.md');
     getEditor()!.commands.insertContentAt(2, 'X');
     await openFileInEditor('/b.md');
@@ -217,12 +217,17 @@ describe('document session lifecycle with the production editor and file operati
     await expect(openFileInEditor('/missing.md')).resolves.toBe(false);
     expect(getActiveTabId()).toBe(active);
     expect(getMarkdown()).toContain('X');
-    for (let index = 0; index < 8; index++) await newDocumentTab();
+    // The requirement pins the ceiling at 20 open documents per window, so the
+    // regression asserts that literal rather than echoing the implementation
+    // constant back at itself.
+    expect(MAX_DOCUMENT_TABS).toBe(20);
+    for (let index = 0; index < 18; index++) await newDocumentTab();
     const last = getActiveTabId();
+    expect(getDocumentTabs()).toHaveLength(20);
     await expect(openFileInEditor('/c.md')).resolves.toBe(false);
-    expect(getDocumentTabs()).toHaveLength(10);
+    expect(getDocumentTabs()).toHaveLength(20);
     expect(getActiveTabId()).toBe(last);
-    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining('10'));
+    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining('20'));
     await activateDocumentTab(id('/a.md'));
     expect(getMarkdown()).toContain('X');
   });

@@ -36,6 +36,7 @@ import {
   activateDocumentTab, closeDocumentTab, getDocumentTabs, getActiveTabId, newDocumentTab,
   reopenClosedDocumentTab, destroyDocumentSessions, confirmAllDocumentTabsClose, closeAllDocumentTabs, routeDocumentExternalChanges,
   rewriteDocumentTabPaths, cycleDocumentTab,
+  initDocumentSessions, openDocumentTab,
 } from './documentSessions';
 import { isDocumentOperationPending, runDocumentOperation } from './documentOperations';
 import { attachImageDraft } from './imageUtils';
@@ -65,6 +66,75 @@ afterEach(async () => {
 });
 
 describe('document session lifecycle with the production editor and file operations', () => {
+  it('clears the startup blank caret before first file content replaces the live DOM, preserving its state', async () => {
+    await initDocumentSessions();
+    const blank = getActiveTabId()!;
+    const editor = getEditor()!;
+    await vi.waitFor(() => expect(editor.view.hasFocus()).toBe(true));
+    const saved = editor.state;
+    const selection = window.getSelection()!;
+    const paragraph = editor.view.dom.querySelector('p')!;
+    selection.setBaseAndExtent(paragraph, 0, paragraph, 0);
+    const update = editor.view.updateState.bind(editor.view);
+    let checked = false;
+    const replacement = vi.spyOn(editor.view, 'updateState').mockImplementation(state => {
+      if (!checked && state.doc !== saved.doc) {
+        checked = true;
+        expect(selection.rangeCount).toBe(0);
+        expect(document.activeElement).not.toBe(editor.view.dom);
+      }
+      update(state);
+    });
+    try {
+      expect(await openFileInEditor('/a.md')).toBe(true);
+      expect(checked).toBe(true);
+      expect(editor.view.hasFocus()).toBe(true);
+      expect(getDocumentTabs()).toHaveLength(2);
+      await activateDocumentTab(blank);
+      expect(editor.state).toEqual(saved);
+      expect(editor.state.doc).toBe(saved.doc);
+      expect(editor.state.doc.textContent).toBe('');
+      expect(editor.state.selection.anchor).toBe(1);
+    } finally { replacement.mockRestore(); }
+  });
+
+  it.each(['wysiwyg', 'source'] as const)('restores %s editing focus, model selection and history after a failed open commit', async mode => {
+    await openFileInEditor('/a.md');
+    const tab = getActiveTabId();
+    const editor = getEditor()!;
+    editor.commands.insertContentAt(2, 'X');
+    editor.commands.setTextSelection(3);
+    if (mode === 'source') {
+      switchToSource();
+      const source = await sourceReady();
+      source.dispatch({ changes: { from: 2, insert: 'Y' }, selection: { anchor: 3 } });
+      source.focus();
+    } else editor.view.focus();
+    const saved = editor.state;
+    const sourceState = getSourceView()?.state;
+
+    await expect(openDocumentTab('/failed.md', async () => () => { throw new Error('commit failed'); })).rejects.toThrow('commit failed');
+
+    expect(getActiveTabId()).toBe(tab);
+    expect(getDocumentTabs()).toHaveLength(1);
+    expect(store.getState().mode).toBe(mode);
+    expect(editor.state).toEqual(saved);
+    expect(editor.state.doc).toBe(saved.doc);
+    if (mode === 'source') {
+      const source = getSourceView()!;
+      expect(document.activeElement).toBe(source.contentDOM);
+      expect(source.state.doc).toBe(sourceState!.doc);
+      expect(source.state.selection.main.anchor).toBe(3);
+      undoSource(source);
+      expect(getSourceContent()).toBe('aXlpha');
+    } else {
+      expect(editor.view.hasFocus()).toBe(true);
+      expect(editor.state.selection.anchor).toBe(3);
+      editor.commands.undo();
+      expect(getMarkdown()).toBe('alpha');
+    }
+  });
+
   it('transfers editing focus across WYSIWYG and source sessions without stealing tab-control focus', async () => {
     await openFileInEditor('/a.md');
     getEditor()!.commands.setTextSelection(3);
@@ -91,6 +161,22 @@ describe('document session lifecycle with the production editor and file operati
     } finally { windowFocus.mockRestore(); }
   });
 
+  it('keeps editing focus on a close neighbour and preserves external control focus on file open', async () => {
+    await newDocumentTab();
+    const blank = getActiveTabId()!;
+    await openFileInEditor('/a.md');
+    getEditor()!.view.focus();
+    await closeDocumentTab(id('/a.md'));
+    expect(getActiveTabId()).toBe(blank);
+    expect(getEditor()!.view.hasFocus()).toBe(true);
+
+    const control = document.createElement('input');
+    document.body.append(control);
+    control.focus();
+    await openFileInEditor('/b.md');
+    expect(document.activeElement).toBe(control);
+  });
+
   it('preserves three full editor states, mode, undo, selections and opaque raw text without switch confirmation', async () => {
     await openFileInEditor('/a.md');
     getEditor()!.commands.insertContentAt(2, 'X');
@@ -103,7 +189,8 @@ describe('document session lifecycle with the production editor and file operati
     expect(getMarkdown()).toContain('<!-- keep -->');
     const third = getMarkdown();
     await activateDocumentTab(id('/a.md'));
-    expect(getEditor()!.state).toBe(first);
+    expect(getEditor()!.state).toEqual(first);
+    expect(getEditor()!.state.doc).toBe(first.doc);
     expect(store.getState().dirty).toBe(true);
     getEditor()!.commands.undo();
     expect(getMarkdown()).toBe('alpha');

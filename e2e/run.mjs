@@ -25,6 +25,7 @@ const defaultSettings = (workspace) => ({
   codeHighlight: true,
   plantumlServerUrl: '',
   showSidebar: true,
+  lastSidebarTab: 'files',
   showTooltips: true,
   followSystemTheme: false,
   lastWorkspace: workspace,
@@ -123,6 +124,7 @@ try {
   await writeFile(path.join(workspace, 'tabs-345-alpha.md'), '# Alpha document\n\nAlpha original content.\n');
   await writeFile(path.join(workspace, 'tabs-345-beta.md'), '# Beta document\n\nBeta original content.\n');
   await writeFile(path.join(workspace, 'tabs-348-caret.md'), '# Alpha document\n\nCaret regression fixture.\n');
+  await writeFile(path.join(workspace, 'startup-352-caret.md'), '# Skill-Hub\n\nCold startup caret regression.\n');
   // Disk-safety (5.5) fixture: multi-construct Markdown staged verbatim before
   // launch; a NO-EDIT open → switch → save → reload must leave these exact
   // bytes untouched on disk. Constructs are limited to the stage-one byte-stable

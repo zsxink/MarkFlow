@@ -67,14 +67,14 @@ describe('setActiveDocumentPath / getActiveDocPath', () => {
     expect(getActiveDocPath()).toBe('/some/file.md');
   });
 
-  it('prefers the DOM element over the store when both exist', () => {
+  it('prefers the authoritative store path over a stale active tree node', () => {
     setActiveDocumentPath('/store/path.md');
     const el = document.createElement('div');
     el.className = 'tree-file active';
     el.dataset.path = '/dom/path.md';
     document.body.appendChild(el);
 
-    expect(getActiveDocPath()).toBe('/dom/path.md');
+    expect(getActiveDocPath()).toBe('/store/path.md');
   });
 
   it('falls back to the store when the DOM element has no dataset.path', () => {

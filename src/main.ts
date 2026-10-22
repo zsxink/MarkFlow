@@ -90,9 +90,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const path of cliFiles) await openFileInEditor(path);
   }
 
-  // Mark that initial file handling is done — subsequent RunEvent::Opened opens new windows
-  if (getCurrentWebviewWindow().label === 'main') invoke('mark_initial_file_handled').catch((e) =>
-    logDebug('app.lifecycle', 'Failed to mark initial file handled (best-effort)', { error: String(e) }),
+  // Register this listener-ready window so native opens can route around a closed main window.
+  invoke('mark_initial_file_handled').catch((e) =>
+    logDebug('app.lifecycle', 'Failed to mark window ready for file opens (best-effort)', { error: String(e) }),
   );
 
   // Restore sidebar tab preference

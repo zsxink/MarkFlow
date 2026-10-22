@@ -7,6 +7,7 @@ import { attachOpaqueSession, detachOpaqueSession, releaseOpaqueSession, type Op
 import { attachImageDraft, detachImageDraft, releaseImageDraft, type ImageDraftContext } from './imageUtils';
 import { scheduler } from './taskScheduler';
 import { store } from './store';
+import { logException } from './logger';
 
 export type EditorDocumentProjection = Pick<StoreState, 'mode' | 'dirty' | 'readOnly' | 'autosaveErrorCount' | 'reconcileError'>;
 export interface EditorDocumentContext {
@@ -124,10 +125,13 @@ export function resetEditorDocument(publish = true): void {
 
 export async function releaseEditorDocument(context: EditorDocumentContext): Promise<void> {
   releaseOpaqueSession(context.opaque);
-  await releaseImageDraft(context.imageDraft);
-  context.assets.clear();
-  context.prosemirror = null;
-  context.source.state = null;
-  context.source.content = '';
-  context.source.onUpdate = null;
+  try { await releaseImageDraft(context.imageDraft); }
+  catch (error) { logException('document.tabs', 'Failed to clean up document image draft', error); }
+  finally {
+    context.assets.clear();
+    context.prosemirror = null;
+    context.source.state = null;
+    context.source.content = '';
+    context.source.onUpdate = null;
+  }
 }

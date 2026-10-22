@@ -27,17 +27,18 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(async (_command: string, 
 vi.mock('./logger', () => ({ logDebug: vi.fn(), logWarn: vi.fn(), logInfo: vi.fn(), logException: vi.fn() }));
 import { initEditor } from './editor.init';
 import { getMarkdown, switchToSource, switchToWysiwyg, getSavePlan } from './editor';
-import { getEditor, setEditor, getDocumentState } from './editor.state';
+import { getEditor, setEditor, getDocumentState, getActiveDocPath } from './editor.state';
 import { scheduler } from './taskScheduler';
 import { store } from './store';
 import { getSourceView, getSourceContent, destroySourceEditor } from './editor.source.facade';
 import { openFileInEditor, saveActiveDocument } from '../components/sidebar.fileops';
 import {
   activateDocumentTab, closeDocumentTab, getDocumentTabs, getActiveTabId, newDocumentTab,
-  reopenClosedDocumentTab, destroyDocumentSessions, confirmAllDocumentTabsClose, routeDocumentExternalChanges,
+  reopenClosedDocumentTab, destroyDocumentSessions, confirmAllDocumentTabsClose, closeAllDocumentTabs, routeDocumentExternalChanges,
   rewriteDocumentTabPaths, cycleDocumentTab,
 } from './documentSessions';
 import { isDocumentOperationPending, runDocumentOperation } from './documentOperations';
+import { attachImageDraft } from './imageUtils';
 
 function file(path: string, content: string, mtime = 1) {
   mocks.files.set(path, content);
@@ -134,6 +135,57 @@ describe('document session lifecycle with the production editor and file operati
     await activateDocumentTab(c!);
     await closeDocumentTab(c!);
     expect(store.getState().activeFilePath).toBe('/b.md');
+  });
+
+  it('keeps tab state coherent when pending-image cleanup fails during close', async () => {
+    await openFileInEditor('/a.md');
+    attachImageDraft({ draftId: 'draft-A', pendingReferences: new Set(['/pending/A.png']), immediateAbsoluteReferences: new Set() });
+    await openFileInEditor('/b.md');
+    mocks.cleanup.mockRejectedValue(new Error('cleanup failed'));
+
+    await expect(closeDocumentTab(id('/a.md'))).resolves.toBe(true);
+    expect(getDocumentTabs().map(tab => tab.path)).toEqual(['/b.md']);
+    expect(getActiveTabId()).toBe(id('/b.md'));
+    expect(getMarkdown()).toBe('beta');
+  });
+
+  it('resolves active image paths from the restored document before the file-tree highlight updates', async () => {
+    file('/one/a.md', '![one](images/photo.png)');
+    file('/two/b.md', '![two](images/photo.png)');
+    await openFileInEditor('/one/a.md');
+    await openFileInEditor('/two/b.md');
+    document.querySelectorAll('.tree-file').forEach(node => node.classList.remove('active'));
+    const oldTreeNode = document.createElement('div');
+    oldTreeNode.className = 'tree-file active';
+    oldTreeNode.dataset.path = '/two/b.md';
+    document.body.append(oldTreeNode);
+
+    let pathDuringProjection: string | null = null;
+    let oldPathDuringProjection: string | undefined;
+    const observeActivePath = () => {
+      pathDuringProjection = getActiveDocPath();
+      oldPathDuringProjection = document.querySelector<HTMLElement>('.tree-file.active')?.dataset.path;
+    };
+    store.on('file:active', observeActivePath);
+    await activateDocumentTab(id('/one/a.md'));
+    store.off('file:active', observeActivePath);
+
+    expect(oldPathDuringProjection).toBe('/two/b.md');
+    expect(pathDuringProjection).toBe('/one/a.md');
+    expect(oldTreeNode.classList.contains('active')).toBe(false);
+  });
+
+  it('empties the window coherently when pending-image cleanup fails during close-all', async () => {
+    await openFileInEditor('/a.md');
+    attachImageDraft({ draftId: 'draft-A', pendingReferences: new Set(['/pending/A.png']), immediateAbsoluteReferences: new Set() });
+    await openFileInEditor('/b.md');
+    mocks.cleanup.mockRejectedValue(new Error('cleanup failed'));
+
+    await expect(closeAllDocumentTabs()).resolves.toBe(true);
+    expect(getDocumentTabs()).toHaveLength(0);
+    expect(getActiveTabId()).toBeNull();
+    expect(store.getState().activeFilePath).toBeNull();
+    expect(getMarkdown()).toBe('');
   });
 
   it('keeps tabs when save is cancelled or fails and checks each dirty tab before a window can close', async () => {

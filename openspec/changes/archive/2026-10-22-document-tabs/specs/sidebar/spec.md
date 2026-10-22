@@ -5,7 +5,7 @@
 ### Requirement: 文件转换确认
 系统 MUST 在关闭文档或替换工作区会丢弃文档时确认未保存的更改与外部冲突；打开其他文件与切换标签 MUST 保留原会话且不弹未保存确认。
 
-#### Scenario: 切换前确认未保存的更改
+#### Scenario: 切换前保留未保存的更改
 - **WHEN** 当前文档有未保存更改或外部冲突且用户打开其他文件
 - **THEN** SHALL 新建或复用标签并保留原文档，不弹未保存确认
 
@@ -34,7 +34,7 @@
 - **THEN** 大纲须刷新
 - **THEN** 树选择应被清除
 
-#### Scenario: 重写活动文档路径
+#### Scenario: 重写打开文档路径
 - **WHEN** 目录被重命名
 - **AND** `rewriteActiveDocumentPath(from, to)` 被调用
 - **THEN** 所有匹配标签的路径与活动文件路径应更新以反映新的路径前缀
@@ -48,7 +48,7 @@
 ### Requirement: 处理外部文件删除
 The system SHALL route external deletion to every matching open document. Background documents SHALL retain memory and defer the deletion prompt until activation; active documents SHALL offer keep, discard, and save-as without silently recreating a deleted file.
 
-#### Scenario: 清理外部删除的文档
+#### Scenario: 清理外部删除的干净文档
 - **WHEN** `handleExternalDeletion(path)` 被调用
 - **AND** 活动文档没有脏，没有外部修改
 - **THEN** SHALL 明确提示删除并保留内容，只有用户明确放弃后才关闭标签
@@ -71,4 +71,3 @@ The system SHALL route external deletion to every matching open document. Backgr
 - **WHEN** `handleExternalDeletion(path)` 被调用
 - **AND** 路径与活动文档不匹配
 - **THEN** 函数应返回`'ignored'`
-

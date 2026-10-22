@@ -240,8 +240,11 @@ async function closeInternal(id: string, confirm = true) {
     closedPaths.push(tab.path);
     if (closedPaths.length > 10) closedPaths.shift();
   }
-  if (tab.context) await releaseEditorDocument(tab.context);
-  tab.context = null;
+  if (tab.context) {
+    try { await releaseEditorDocument(tab.context); }
+    catch (error) { logException('document.tabs', 'Failed to release closed document resources', error); }
+    finally { tab.context = null; }
+  }
   tab.degradation = null;
   if (originalId && originalId !== id && sessions.some(item => item.id === originalId)) {
     // Closing a background tab never changes the user's active tab.
@@ -307,7 +310,11 @@ export function closeAllDocumentTabs(): Promise<boolean> {
     }
     await settleImageOperations();
     suspendCurrent();
-    for (const tab of sessions) if (tab.context) await releaseEditorDocument(tab.context);
+    for (const tab of sessions) if (tab.context) {
+      try { await releaseEditorDocument(tab.context); }
+      catch (error) { logException('document.tabs', 'Failed to release closed document resources', error); }
+      finally { tab.context = null; }
+    }
     sessions = [];
     emptyInternal();
     return true;

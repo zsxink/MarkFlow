@@ -6,7 +6,6 @@ use crate::http::ValidatingResolver;
 use crate::paths::normalize_path;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Semaphore;
@@ -17,7 +16,7 @@ pub struct AppState {
     watcher: Mutex<Option<FileWatcher>>,
     pub pending_file: Mutex<HashMap<String, String>>,
     pub cli_files: Mutex<VecDeque<String>>,
-    pub initial_file_handled: AtomicBool,
+    ready_windows: Mutex<HashSet<String>>,
     /// Per-window close permissions keyed by window label.
     /// A label is present only between `confirm_window_close` and the
     /// subsequent `CloseRequested` event that consumes it.
@@ -46,7 +45,7 @@ impl AppState {
             watcher: Mutex::new(None),
             pending_file: Mutex::new(HashMap::new()),
             cli_files: Mutex::new(VecDeque::new()),
-            initial_file_handled: AtomicBool::new(false),
+            ready_windows: Mutex::new(HashSet::new()),
             close_permissions: Arc::new(Mutex::new(HashSet::new())),
             image_download_semaphore: Semaphore::new(4),
             http_client,
@@ -54,28 +53,58 @@ impl AppState {
         })
     }
 
-    pub fn queue_open_paths(
-        &self,
-        paths: impl IntoIterator<Item = String>,
-    ) -> Result<Vec<String>, String> {
-        let mut pending = lock_mutex(&self.cli_files).map_err(|error| error.to_string())?;
-        let paths: Vec<String> = paths.into_iter().collect();
-        if self
-            .initial_file_handled
-            .load(std::sync::atomic::Ordering::SeqCst)
-        {
-            Ok(paths)
-        } else {
-            pending.extend(paths);
-            Ok(Vec::new())
+    /// Mark a frontend ready only after its file-open listener and initial document are ready.
+    pub fn mark_window_ready(&self, label: &str) -> Result<(), String> {
+        lock_mutex(&self.ready_windows)
+            .map_err(|error| error.to_string())?
+            .insert(label.to_string());
+        Ok(())
+    }
+
+    pub fn remove_window(&self, label: &str) {
+        if let Ok(mut ready) = lock_mutex(&self.ready_windows) {
+            ready.remove(label);
+        }
+        if let Ok(mut pending) = lock_mutex(&self.pending_file) {
+            pending.remove(label);
         }
     }
 
-    pub fn mark_initial_file_handled(&self) -> Result<Vec<String>, String> {
+    /// Keep requests queued until a live frontend can receive them. Holding both
+    /// locks through delivery preserves ordering when readiness and native opens race.
+    pub fn dispatch_open_paths(
+        &self,
+        paths: impl IntoIterator<Item = String>,
+        live_labels: impl IntoIterator<Item = String>,
+        mut emit: impl FnMut(&str, &str) -> Result<(), String>,
+    ) -> Result<(), String> {
         let mut pending = lock_mutex(&self.cli_files).map_err(|error| error.to_string())?;
-        self.initial_file_handled
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-        Ok(pending.drain(..).collect())
+        let ready = lock_mutex(&self.ready_windows).map_err(|error| error.to_string())?;
+        pending.extend(paths);
+        let live: HashSet<String> = live_labels.into_iter().collect();
+        let mut failed = HashSet::new();
+
+        while let Some(path) = pending.front() {
+            let available = |label: &&String| live.contains(*label) && !failed.contains(*label);
+            let target = ready
+                .iter()
+                .filter(available)
+                .min_by_key(|label| (label.as_str() != "main", label.as_str()))
+                .cloned();
+            let Some(target) = target else { break };
+            match emit(&target, path) {
+                Ok(()) => {
+                    pending.pop_front();
+                }
+                Err(error) => {
+                    // A target may disappear between the live snapshot and delivery.
+                    // Try another ready window without consuming the queued request.
+                    failed.insert(target.clone());
+                    warn!(target: "backend.app", label = %target, error = %error, "Cannot deliver opened file; retaining request");
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Grant close permission for a specific window (called by `confirm_window_close`).
@@ -207,31 +236,145 @@ mod tests {
     }
 
     #[test]
-    fn opened_paths_queue_before_initial_handling_and_drain_in_order() {
+    fn opened_paths_wait_for_a_live_ready_frontend_and_drain_in_order() {
         let state = AppState::new().unwrap();
-
-        assert!(state
-            .queue_open_paths(["a.md".to_string(), "b.md".to_string()])
-            .unwrap()
-            .is_empty());
+        state
+            .dispatch_open_paths(
+                ["a.md".to_string(), "b.md".to_string()],
+                ["main".to_string()],
+                |_, _| panic!("frontend is not ready"),
+            )
+            .unwrap();
+        state.mark_window_ready("main").unwrap();
+        let mut delivered = Vec::new();
+        state
+            .dispatch_open_paths([], ["main".to_string()], |label, path| {
+                delivered.push((label.to_string(), path.to_string()));
+                Ok(())
+            })
+            .unwrap();
         assert_eq!(
-            state.mark_initial_file_handled().unwrap(),
-            vec!["a.md", "b.md"]
+            delivered,
+            [
+                ("main".into(), "a.md".into()),
+                ("main".into(), "b.md".into())
+            ]
         );
+        assert!(state.cli_files.lock().unwrap().is_empty());
     }
 
     #[test]
-    fn opened_paths_after_initial_handling_are_ready_to_emit() {
+    fn opened_paths_prefer_main_but_route_to_another_ready_window_when_main_is_gone() {
         let state = AppState::new().unwrap();
-        state.mark_initial_file_handled().unwrap();
+        state.mark_window_ready("main").unwrap();
+        state.mark_window_ready("window-a").unwrap();
+        let mut delivered = Vec::new();
+        state
+            .dispatch_open_paths(
+                ["a.md".to_string()],
+                ["main".to_string(), "window-a".to_string()],
+                |label, _| {
+                    delivered.push(label.to_string());
+                    Ok(())
+                },
+            )
+            .unwrap();
+        // Even a stale ready entry must not cause delivery to an absent main.
+        state
+            .dispatch_open_paths(
+                ["b.md".to_string()],
+                ["window-a".to_string()],
+                |label, _| {
+                    delivered.push(label.to_string());
+                    Ok(())
+                },
+            )
+            .unwrap();
+        assert_eq!(delivered, ["main", "window-a"]);
+    }
 
-        assert_eq!(
-            state
-                .queue_open_paths(["a.md".to_string(), "b.md".to_string()])
-                .unwrap(),
-            vec!["a.md", "b.md"]
-        );
-        assert!(state.mark_initial_file_handled().unwrap().is_empty());
+    #[test]
+    fn stale_live_snapshot_does_not_unregister_a_newly_ready_window() {
+        let state = AppState::new().unwrap();
+        state.mark_window_ready("window-a").unwrap();
+        state
+            .dispatch_open_paths(["a.md".to_string()], [], |_, _| {
+                panic!("snapshot does not include window yet")
+            })
+            .unwrap();
+        let mut delivered = Vec::new();
+        state
+            .dispatch_open_paths([], ["window-a".to_string()], |_, path| {
+                delivered.push(path.to_string());
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(delivered, ["a.md"]);
+    }
+
+    #[test]
+    fn destroyed_window_readiness_is_removed_and_new_window_must_be_ready() {
+        let state = AppState::new().unwrap();
+        state.mark_window_ready("main").unwrap();
+        state.remove_window("main");
+        state
+            .dispatch_open_paths(["a.md".to_string()], ["window-a".to_string()], |_, _| {
+                panic!("new window is not ready")
+            })
+            .unwrap();
+        state.mark_window_ready("window-a").unwrap();
+        let mut delivered = Vec::new();
+        state
+            .dispatch_open_paths([], ["window-a".to_string()], |label, path| {
+                delivered.push((label.to_string(), path.to_string()));
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(delivered, [("window-a".into(), "a.md".into())]);
+    }
+
+    #[test]
+    fn failed_delivery_falls_back_without_losing_or_reordering_paths() {
+        let state = AppState::new().unwrap();
+        state.mark_window_ready("main").unwrap();
+        state.mark_window_ready("window-a").unwrap();
+        let mut delivered = Vec::new();
+        state
+            .dispatch_open_paths(
+                ["a.md".to_string(), "b.md".to_string()],
+                ["main".to_string(), "window-a".to_string()],
+                |label, path| {
+                    if label == "main" {
+                        return Err("window disappeared".into());
+                    }
+                    delivered.push(path.to_string());
+                    Ok(())
+                },
+            )
+            .unwrap();
+        assert_eq!(delivered, ["a.md", "b.md"]);
+        assert!(state.cli_files.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn failed_delivery_stays_queued_until_a_frontend_becomes_ready_again() {
+        let state = AppState::new().unwrap();
+        state.mark_window_ready("main").unwrap();
+        state
+            .dispatch_open_paths(["a.md".to_string()], ["main".to_string()], |_, _| {
+                Err("window disappeared".into())
+            })
+            .unwrap();
+        assert_eq!(*state.cli_files.lock().unwrap(), ["a.md"]);
+        state.mark_window_ready("window-a").unwrap();
+        let mut delivered = Vec::new();
+        state
+            .dispatch_open_paths([], ["window-a".to_string()], |_, path| {
+                delivered.push(path.to_string());
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(delivered, ["a.md"]);
     }
 
     // --- Per-window close permission tests ---

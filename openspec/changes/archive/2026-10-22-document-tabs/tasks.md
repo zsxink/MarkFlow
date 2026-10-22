@@ -20,4 +20,4 @@
 
 ## 4. 集成验证
 
-- [ ] 4.1 运行关键集成回归、npm test、npx tsc --noEmit、npm run build 和 openspec validate document-tabs；修复失败并报告验证结果及视觉验证方法，供独立 Verify Agent 重验。
+- [x] 4.1 运行关键集成回归、npm test、npx tsc --noEmit、npm run build 和 OpenSpec 验证；修复失败并由独立 Verify Agent 重验。`npm run test:e2e` 原生 smoke 9 项通过；`npm test` 83 个文件、790 项通过；TypeScript、生产构建、`npm run validate:openspec`（67 项）和 `openspec validate document-tabs --type change` 通过；视觉检查方法为实际 Tauri 窗口截图 `e2e/artifacts/document-tabs.png`。

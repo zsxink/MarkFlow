@@ -15,7 +15,7 @@
 - **THEN** 文件树中路径匹配的节点 SHALL 被高亮为 active
 - **THEN** 文件树中其他节点 SHALL 移除 active 高亮
 
-#### Scenario: 文档切换时滚动位置重置
+#### Scenario: 文档切换时滚动位置恢复
 - **WHEN** 首次打开文件
 - **THEN** 编辑区滚动 SHALL 从 0 开始
 - **WHEN** 激活已打开的标签
@@ -25,7 +25,7 @@
 - **WHEN** 调用 `reloadActiveDocumentFromDisk` 重新加载当前文档
 - **THEN** editor-area 滚动容器的 scrollTop SHALL 保持不变
 
-#### Scenario: rewriteActiveDocumentPath 替换路径前缀
+#### Scenario: rewriteActiveDocumentPath 替换所有打开路径前缀
 - **WHEN** 调用 `rewriteActiveDocumentPath(from, to)`
 - **AND** 当前活动路径以 `from` 开头
 - **THEN** 所有已打开标签中匹配路径或目录前缀的路径 SHALL 被替换为 `to` + 原路径的 `from` 之后部分
@@ -43,7 +43,7 @@
 - **THEN** 文件树选中状态 SHALL 被清除
 - **THEN** 大纲 SHALL 被刷新
 
-#### Scenario: clearActiveDocumentIfMatches 按路径匹配清除
+#### Scenario: clearActiveDocumentIfMatches 按路径匹配关闭文档
 - **WHEN** 调用 `clearActiveDocumentIfMatches(path)`
 - **AND** 当前活动路径等于 `path` 或以 `path/` 开头
 - **THEN** SHALL 只处理匹配的打开标签并保留不匹配标签，脏内容须明确确认后方可丢弃

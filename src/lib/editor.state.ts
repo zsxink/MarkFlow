@@ -122,8 +122,7 @@ export function setActiveDocumentPath(path: string | null) {
 }
 
 export function getActiveDocPath(): string | null {
-  const el = document.querySelector('.tree-file.active') as HTMLElement | null;
-  return el?.dataset?.path || store.getState().activeFilePath;
+  return store.getState().activeFilePath;
 }
 
 // ── Shared utilities ────────────────────────────────────────────────

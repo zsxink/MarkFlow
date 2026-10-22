@@ -171,25 +171,32 @@ fn take_cli_files(state: tauri::State<AppState>) -> Vec<String> {
 }
 
 #[tauri::command]
-fn mark_initial_file_handled(app: tauri::AppHandle) -> Result<(), String> {
-    let state = app.state::<AppState>();
-    for path in state.mark_initial_file_handled()? {
-        let _ = app.emit_to("main", "file-open-requested", path);
-    }
+fn mark_initial_file_handled(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
+    app.state::<AppState>().mark_window_ready(window.label())?;
+    request_open_paths(&app, []);
     Ok(())
 }
 
 fn request_open_paths(app: &tauri::AppHandle, paths: impl IntoIterator<Item = String>) {
     let state = app.state::<AppState>();
-    let paths = match state.queue_open_paths(paths) {
-        Ok(paths) => paths,
-        Err(e) => {
-            tracing::warn!(target: "backend.app", error = %e, "Cannot queue opened files: lock poisoned");
-            return;
-        }
-    };
-    for path in paths {
-        let _ = app.emit_to("main", "file-open-requested", path);
+    let live_labels = app.webview_windows().into_keys();
+    if let Err(error) = state.dispatch_open_paths(paths, live_labels, |label, path| {
+        // Recheck existence because a window can close after collecting live labels.
+        app.get_webview_window(label)
+            .ok_or_else(|| "Target window no longer exists".to_string())?;
+        app.emit_to(
+            EventTarget::WebviewWindow {
+                label: label.to_string(),
+            },
+            "file-open-requested",
+            path,
+        )
+        .map_err(|error| error.to_string())
+    }) {
+        tracing::warn!(target: "backend.app", error = %error, "Cannot queue opened files: lock poisoned");
     }
 }
 
@@ -221,6 +228,7 @@ fn intercept_close_request(
                     .map(|mut perms| perms.remove(&label))
                     .unwrap_or(false);
                 if has_permission {
+                    w.app_handle().state::<AppState>().remove_window(&label);
                     tracing::debug!(target: "backend.close", label = %label, "Close permission consumed, allowing close");
                     return;
                 }
@@ -237,7 +245,8 @@ fn intercept_close_request(
                 if let Ok(mut perms) = error::lock_mutex(&close_permissions) {
                     perms.remove(&label);
                 }
-                tracing::debug!(target: "backend.close", label = %label, "Cleaned up close permission on window destroy");
+                w.app_handle().state::<AppState>().remove_window(&label);
+                tracing::debug!(target: "backend.close", label = %label, "Cleaned up window readiness and close permission on window destroy");
             }
             _ => {}
         }

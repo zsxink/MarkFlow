@@ -144,7 +144,10 @@ describe('caret after a whole-document load', () => {
     editor.view.focus();
     placeCaretAfterContentLoad(editor, 'start', 1);
     expect(document.activeElement).toBe(editor.view.dom);
+    const dom = editor.view.dom;
     editor.destroy();
     outside.remove();
+    // Leave no detached editor node behind for later cases in this file.
+    dom.remove();
   });
 });

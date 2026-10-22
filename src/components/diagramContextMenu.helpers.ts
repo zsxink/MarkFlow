@@ -21,7 +21,6 @@ export function clampMenuPosition({
 }: MenuPositionInput) {
   const maxLeft = Math.max(MENU_PADDING, viewportWidth - menuWidth - MENU_PADDING);
   const maxTop = Math.max(MENU_PADDING, viewportHeight - menuHeight - MENU_PADDING);
-
   return {
     left: Math.max(MENU_PADDING, Math.min(x, maxLeft)),
     top: Math.max(MENU_PADDING, Math.min(y, maxTop)),

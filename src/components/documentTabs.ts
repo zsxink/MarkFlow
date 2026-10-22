@@ -98,6 +98,15 @@ export function initDocumentTabs() {
   const unsubscribe = onDocumentTabsChanged(render);
   newButton.addEventListener('click', () => newDocumentTab());
 
+  // Keep an editing surface focused during a mouse tab switch. Otherwise the
+  // button takes focus before the session coordinator can transfer the caret.
+  // Keyboard navigation still owns its tab-button focus.
+  root.addEventListener('mousedown', event => {
+    if (event.button !== 0 || !(event.target instanceof Element)) return;
+    if (!event.target.closest('[role="tab"][data-tab-id]')) return;
+    if (document.activeElement?.closest('#wysiwyg-editor, #source-editor-wrapper')) event.preventDefault();
+  });
+
   root.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;

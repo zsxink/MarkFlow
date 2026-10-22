@@ -3,14 +3,13 @@ import { store } from './store';
 import { normalizePathSegments, getFileName } from './pathUtils';
 import { getDocumentState, markExternalModification } from './editor.state';
 import { getEditor } from './editor';
+import { getSourceView } from './editor.source.facade';
 import {
   attachEditorDocument, detachEditorDocument, releaseEditorDocument,
   resetEditorDocument, flushEditorDirtyCheck, type EditorDocumentContext,
 } from './editor.context';
 import { settleImageOperations } from './imageUtils';
 import { runDocumentOperation } from './documentOperations';
-import { refreshOutline } from '../components/outline';
-import { refreshFrontmatterPanel } from '../components/frontmatterPanel';
 import { showToast } from '../components/toast';
 import { hideDegradationBar } from '../components/degradationBar';
 import { confirmDocumentTransitionInOperation, openFileInEditor } from '../components/sidebar.fileops';
@@ -85,26 +84,34 @@ function project() {
   }
   if (!empty) placeholder?.remove();
   if (empty) getEditor()?.setEditable(false, false);
-  refreshOutline();
-  refreshFrontmatterPanel();
+  // Outline and frontmatter already subscribe to this event. Refreshing them
+  // directly too would traverse/render the same document twice on every switch.
   store.emit({ type: 'editor:update' });
   notify();
 }
 function suspendCurrent() {
   const tab = current();
-  if (!tab) return;
+  if (!tab) return false;
+  // CM's hasFocus also checks whether the whole window is foreground, unlike
+  // PM's predicate. Focus transfer depends on which surface owns the active
+  // DOM element, including when a window is restored in the background.
+  const activeElement = document.activeElement;
+  const focused = Boolean(activeElement && (
+    getEditor()?.view.dom.contains(activeElement) || getSourceView()?.contentDOM.contains(activeElement)
+  ));
   tab.context = detachEditorDocument();
   tab.path = store.getState().activeFilePath;
   tab.degradation = document.getElementById('degradation-bar');
   tab.degradation?.remove();
+  return focused;
 }
-function restore(tab: DocumentSession) {
+function restore(tab: DocumentSession, focusEditor = false) {
   activeId = tab.id;
   const context = tab.context;
   publishing = true;
   try {
     store.stageState({ ...(context?.projection ?? {}), activeFilePath: tab.path });
-    if (context) attachEditorDocument(context, false);
+    if (context) attachEditorDocument(context, false, focusEditor);
     store.setState({ ...(context?.projection ?? {}), activeFilePath: tab.path });
     tab.context = null;
   } finally { publishing = false; }
@@ -141,10 +148,10 @@ async function activateInternal(id: string, check = true) {
   await settleImageOperations();
   if (id !== activeId) {
     const previous = current();
-    suspendCurrent();
-    try { restore(tab); }
+    const focusEditor = suspendCurrent();
+    try { restore(tab, focusEditor); }
     catch (error) {
-      if (previous) restore(previous);
+      if (previous) restore(previous, focusEditor);
       else emptyInternal();
       logException('document.tabs', 'Failed to restore document context', error);
       showToast('标签切换失败，已保留原文档');

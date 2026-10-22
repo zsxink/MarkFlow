@@ -66,6 +66,29 @@ describe('initDocumentTabs', () => {
     expect(document.activeElement?.getAttribute('data-tab-id')).toBe('b');
   });
 
+  it('preserves editing focus for primary mouse switches while leaving keyboard tab focus intact', () => {
+    initDocumentTabs();
+    const editor = document.createElement('div');
+    editor.id = 'wysiwyg-editor';
+    editor.tabIndex = 0;
+    document.body.append(editor);
+    const tab = document.querySelector<HTMLElement>('[data-tab-id="b"]')!;
+    editor.focus();
+    const pointer = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+    tab.dispatchEvent(pointer);
+    expect(pointer.defaultPrevented).toBe(true);
+
+    tab.focus();
+    const keyboardOwned = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+    tab.dispatchEvent(keyboardOwned);
+    expect(keyboardOwned.defaultPrevented).toBe(false);
+
+    editor.focus();
+    const middle = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+    tab.dispatchEvent(middle);
+    expect(middle.defaultPrevented).toBe(false);
+  });
+
   it('closes by button or middle click and creates a tab from the fixed plus button', () => {
     initDocumentTabs();
     document.querySelector<HTMLButtonElement>('[data-close-tab="b"]')!.click();

@@ -17,6 +17,20 @@ async function openTab(name) {
   });
 }
 
+// The embedded WebDriver's element.click() runs el.click(); el.focus(), without
+// mousedown. Model the browser's cancelable default focus action explicitly so
+// this regression exercises the same sequence as a user's mouse activation.
+async function pointerActivate(tabId) {
+  await browser.execute((id) => {
+    const tab = document.querySelector(`#document-tabs [data-tab-id="${id}"]`);
+    const down = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+    if (tab.dispatchEvent(down)) tab.focus();
+    tab.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true }));
+    tab.click();
+  }, tabId);
+  await browser.waitUntil(async () => await $(`#document-tabs [data-tab-id="${tabId}"]`).getAttribute('aria-selected') === 'true', { timeout: 5_000 });
+}
+
 async function dispatchTabShortcut(key, shift = false) {
   // WebKit reserves tab-management shortcuts, so dispatch the app's cancelable
   // DOM event after native input has verified the rest of the UI.
@@ -116,6 +130,59 @@ export function registerDocumentTabsTests() {
         timeoutMsg: 'Expected Ctrl+T to open a new document tab',
       });
       await browser.saveScreenshot(path.join(process.cwd(), 'e2e', 'artifacts', 'document-tabs.png'));
+    });
+
+    it('restores the visible WYSIWYG caret and insertion point when switching from a blank tab', async () => {
+      const blankTabId = await $('#document-tabs [role="tab"][aria-selected="true"]').getAttribute('data-tab-id');
+      await openTab('tabs-345-beta.md');
+      const sourceTabId = await TAB('tabs-345-beta.md').getAttribute('data-tab-id');
+      await (await app.sourceMode()).click();
+      await (await app.sourceContent()).waitForDisplayed({ timeout: 5_000 });
+      await openFileInTree('tabs-348-caret.md');
+      const caretTabId = await TAB('tabs-348-caret.md').getAttribute('data-tab-id');
+      await browser.execute(() => {
+        const editor = document.querySelector('#wysiwyg-editor .tiptap').editor;
+        editor.commands.setTextSelection(9);
+        editor.view.focus();
+      });
+      const selection = () => browser.execute(() => {
+        const root = document.querySelector('#wysiwyg-editor .tiptap');
+        const view = root.editor.view;
+        const dom = window.getSelection();
+        const inside = node => node && root.contains(node);
+        return {
+          anchor: view.state.selection.anchor,
+          head: view.state.selection.head,
+          domAnchor: inside(dom.anchorNode) ? view.posAtDOM(dom.anchorNode, dom.anchorOffset) : null,
+          domHead: inside(dom.focusNode) ? view.posAtDOM(dom.focusNode, dom.focusOffset) : null,
+          focused: view.hasFocus(),
+          status: document.getElementById('cursor-pos').textContent,
+        };
+      });
+      expect(await selection()).toMatchObject({ anchor: 9, head: 9, domAnchor: 9, domHead: 9, focused: true });
+
+      await pointerActivate(blankTabId);
+      await browser.waitUntil(async () => (await selection()).anchor === 1, { timeout: 5_000 });
+      expect(await selection()).toMatchObject({ anchor: 1, head: 1, domAnchor: 1, domHead: 1 });
+      await pointerActivate(caretTabId);
+      expect(await selection()).toEqual({ anchor: 9, head: 9, domAnchor: 9, domHead: 9, focused: true, status: '行 1, 列 8' });
+
+      await pointerActivate(sourceTabId);
+      expect(await browser.execute(() => Boolean(document.activeElement?.closest('#source-editor-wrapper .cm-content')))).toBe(true);
+      await pointerActivate(caretTabId);
+      expect(await selection()).toEqual({ anchor: 9, head: 9, domAnchor: 9, domHead: 9, focused: true, status: '行 1, 列 8' });
+      await dispatchTabShortcut('Tab');
+      await browser.waitUntil(async () => await TAB('tabs-348-caret.md').getAttribute('aria-selected') === 'false', { timeout: 5_000 });
+      await dispatchTabShortcut('Tab', true);
+      await browser.waitUntil(async () => await TAB('tabs-348-caret.md').getAttribute('aria-selected') === 'true', { timeout: 5_000 });
+      expect(await selection()).toEqual({ anchor: 9, head: 9, domAnchor: 9, domHead: 9, focused: true, status: '行 1, 列 8' });
+
+      // Text input in the real WebView must use the same location shown by the restored caret.
+      await $('#wysiwyg-editor .tiptap').addValue('Z');
+      await expect($('#wysiwyg-editor h1')).toHaveText('Alpha doZcument');
+      await browser.execute(() => document.querySelector('#wysiwyg-editor .tiptap').editor.commands.undo());
+      await expect($('#wysiwyg-editor h1')).toHaveText('Alpha document');
+      await browser.saveScreenshot(path.join(process.cwd(), 'e2e', 'artifacts', 'document-tabs-caret.png'));
     });
   });
 }

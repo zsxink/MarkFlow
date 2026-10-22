@@ -2,7 +2,7 @@ import { EditorState } from '@tiptap/pm/state';
 import type { StoreState } from '../types/events';
 import { refreshFrontmatterPanel } from '../components/frontmatterPanel';
 import { advanceEditorDocumentVersion, assetToOriginalMap, getDocumentState, getEditor, resetDocumentState, withProgrammaticUpdate, type DocumentState } from './editor.state';
-import { detachSourceDocument, attachSourceDocument, destroySourceEditor, type SourceDocumentContext } from './editor.source.facade';
+import { detachSourceDocument, attachSourceDocument, destroySourceEditor, getSourceView, type SourceDocumentContext } from './editor.source.facade';
 import { attachOpaqueSession, detachOpaqueSession, releaseOpaqueSession, type OpaqueSessionContext } from './editor.markdown.opaque.session';
 import { attachImageDraft, detachImageDraft, releaseImageDraft, type ImageDraftContext } from './imageUtils';
 import { scheduler } from './taskScheduler';
@@ -74,7 +74,7 @@ export function detachEditorDocument(): EditorDocumentContext {
 }
 
 /** Restore live state first; publish=false lets the coordinator add its path atomically. */
-export function attachEditorDocument(context: EditorDocumentContext, publish = true): void {
+export function attachEditorDocument(context: EditorDocumentContext, publish = true, focusEditor = false): void {
   advanceEditorDocumentVersion();
   cancelDocumentTasks();
   Object.assign(getDocumentState(), context.documentState);
@@ -91,6 +91,13 @@ export function attachEditorDocument(context: EditorDocumentContext, publish = t
   const wrapper = document.getElementById('source-editor-wrapper');
   if (wrapper && context.projection.mode === 'source') attachSourceDocument(context.source, wrapper, context.projection.readOnly);
   showMode(context.projection.mode);
+  // EditorView skips writing the browser selection while unfocused. Transfer
+  // focus only after the target representation is visible, using its saved
+  // state directly so undo history and the selection stay intact.
+  if (focusEditor) {
+    if (context.projection.mode === 'source') getSourceView()?.focus();
+    else editor?.view.focus();
+  }
   const area = document.getElementById('editor-area');
   if (area) { area.scrollTop = context.scroll.top; area.scrollLeft = context.scroll.left; }
   const scroller = document.querySelector<HTMLElement>('#source-editor-wrapper .cm-scroller');

@@ -65,6 +65,32 @@ afterEach(async () => {
 });
 
 describe('document session lifecycle with the production editor and file operations', () => {
+  it('transfers editing focus across WYSIWYG and source sessions without stealing tab-control focus', async () => {
+    await openFileInEditor('/a.md');
+    getEditor()!.commands.setTextSelection(3);
+    await openFileInEditor('/b.md');
+    switchToSource();
+    const source = await sourceReady();
+    source.dispatch({ selection: { anchor: 2 } });
+    source.focus();
+    const windowFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    try {
+      await activateDocumentTab(id('/a.md'));
+      expect(getEditor()!.view.hasFocus()).toBe(true);
+      expect(getEditor()!.state.selection.anchor).toBe(3);
+      await activateDocumentTab(id('/b.md'));
+      expect(document.activeElement).toBe(getSourceView()!.contentDOM);
+      expect(getSourceView()!.state.selection.main.anchor).toBe(2);
+
+      const tabControl = document.createElement('button');
+      document.body.append(tabControl);
+      tabControl.focus();
+      await activateDocumentTab(id('/a.md'));
+      expect(document.activeElement).toBe(tabControl);
+      expect(getEditor()!.view.hasFocus()).toBe(false);
+    } finally { windowFocus.mockRestore(); }
+  });
+
   it('preserves three full editor states, mode, undo, selections and opaque raw text without switch confirmation', async () => {
     await openFileInEditor('/a.md');
     getEditor()!.commands.insertContentAt(2, 'X');

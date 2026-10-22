@@ -755,6 +755,9 @@
   position: relative; /* selectedCell 覆盖层以此为定位容器 */
 }
 
+/* ── 任务列表（change: task-list-checkbox-caret-spacing） ─────
+   Tiptap 的 TaskItem NodeView 渲染成 li(flex) > label(复选框) + div(内容)。
+   尺寸与间距全部用 em，跟随 .ProseMirror 的内联字号/行高设置缩放。 */
 .ProseMirror ul[data-type="taskList"] {
   list-style: none;
   padding-left: 0;
@@ -764,11 +767,53 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  /* 任务项间距必须小于段落间距（.ProseMirror p 的 0.75em）。 */
+  margin-bottom: 0.25em;
 }
 
+/* 复选框容器：行高归一，避免行框半行距把复选框往下推。 */
+.ProseMirror ul[data-type="taskList"] li > label {
+  display: flex;
+  align-items: flex-start;
+  flex: none;
+  line-height: 1;
+}
+
+/* 1em 方块 + flex: none：随字号缩放，且不被 flex 收缩压扁。
+   input 默认不继承字体，字体大小必须显式继承，否则 1em 取的是 UA 默认字号。 */
 .ProseMirror ul[data-type="taskList"] li input[type="checkbox"] {
-  margin-top: 4px;
+  width: 1em;
+  height: 1em;
+  font-size: inherit;
+  flex: none;
+  margin: 0;
+  /* (行高 1.7em − 1em) / 2 = 0.35em：与首行文字视觉居中。 */
+  margin-top: 0.35em;
   accent-color: var(--accent);
+}
+
+/* 内容区 flex-basis 归零，空任务项的宽度仍是「行宽 − 复选框 − gap」，
+   否则零宽度空块在 WebKit 下不绘制插入光标。 */
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 任务项内部段落归零，避免与 li 的 margin-bottom 叠加成段落级留白。 */
+.ProseMirror ul[data-type="taskList"] li > div > p {
+  margin: 0;
+}
+
+/* 单个任务项内的多段落仍保留可读间隔。 */
+.ProseMirror ul[data-type="taskList"] li > div > p + p {
+  margin-top: 0.4em;
+}
+
+/* 嵌套任务列表收窄尾部留白，避免嵌套块在任务项末尾撑出段落级空白。
+   选择器必须再限定 `[data-type="taskList"]`：只写裸 `ul` 会连带命中任务项里
+   嵌套的普通项目符号/有序列表，把它们的 `.ProseMirror ul` 1em 下边距改成 0.25em。 */
+.ProseMirror ul[data-type="taskList"] li > div > ul[data-type="taskList"] {
+  margin-bottom: 0.25em;
 }
 
 .ProseMirror .is-editor-empty:first-child::before {

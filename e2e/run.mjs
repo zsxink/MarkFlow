@@ -125,6 +125,24 @@ try {
   await writeFile(path.join(workspace, 'tabs-345-beta.md'), '# Beta document\n\nBeta original content.\n');
   await writeFile(path.join(workspace, 'tabs-348-caret.md'), '# Alpha document\n\nCaret regression fixture.\n');
   await writeFile(path.join(workspace, 'startup-352-caret.md'), '# Skill-Hub\n\nCold startup caret regression.\n');
+  // Task-list layout fixture (change: task-list-checkbox-caret-spacing): an
+  // empty top-level task item (caret paint regression), a checked item, a
+  // parent item with a nested list that contains another empty item, and two
+  // trailing paragraphs used as the paragraph-spacing baseline.
+  // The trailing space after `[ ]` is significant: marked only recognises a
+  // task item when `]` is followed by whitespace.
+  await writeFile(
+    path.join(workspace, 'task-list-layout.md'),
+    '# Task List Layout\n\nParagraph before the list.\n\n- [ ] \n- [x] completed item\n- [ ] parent item\n  - [ ] \n  - [x] nested done\n\nParagraph one after the list.\n\nParagraph two after the list.\n',
+  );
+  // Nested-list leak fixture (change: task-list-checkbox-caret-spacing round 2):
+  // item 0 nests a PLAIN bullet list, item 1 nests a TASK list. Both render as
+  // `li > div > ul`, so a task-list rule ending in a bare `ul` would squeeze the
+  // plain list's margin-bottom from the generic 1em down to 0.25em.
+  await writeFile(
+    path.join(workspace, 'task-list-nested-lists.md'),
+    '# Task List Nesting\n\n- [ ] item with a plain list\n  - plain bullet one\n  - plain bullet two\n- [ ] item with a nested task list\n  - [ ] nested task item\n  - [x] nested task done\n\nTail paragraph.\n',
+  );
   // Disk-safety (5.5) fixture: multi-construct Markdown staged verbatim before
   // launch; a NO-EDIT open → switch → save → reload must leave these exact
   // bytes untouched on disk. Constructs are limited to the stage-one byte-stable

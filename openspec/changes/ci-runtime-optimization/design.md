@@ -42,11 +42,14 @@
 
 ### 3. apt 缓存用 `actions/cache` + `--no-download`，不用第三方 action
 
-`actions/cache@v4` 缓存 `/var/cache/apt/archives`（deb 文件本身），命中时以 `apt-get install --no-download` 安装；失败则回退网络安装。
+`actions/cache@v4` 缓存 workspace 内的 `.apt-archives`（deb 文件本身），命中时以 `apt-get install --no-download` 安装；失败则回退网络安装。
 
-- 相比 `awalsh128/cache-apt-pkgs-action`：少一个第三方 action 依赖，也不需要它额外安装 `apt-fast`（该 action 每次还要 `curl` 拉 quick-install 脚本，本身又是一个网络依赖点）。代价是不缓存「已解包文件」，命中时仍需本地 dpkg 解包，但这部分是磁盘 IO，不在抖动长尾里。
-- 相比把依赖塞进容器镜像：改动面更大，且要维护镜像构建流水线，超出本 issue 范围。
+- 不用 `/var/cache/apt/archives` 的原因：它归 root 所有，而 `actions/cache` 以 runner 用户恢复与打包，会因权限失败。改用 `Dir::Cache::archives` 重定向到 workspace 内目录。
+- 不用 `awalsh128/cache-apt-pkgs-action` 的原因：少一个第三方依赖，也不需要它额外安装 `apt-fast`（该 action 每次还要 `curl` 拉 quick-install 脚本，本身又是一个网络依赖点）。代价是不缓存「已解包文件」，命中时仍需本地 dpkg 解包，但这部分是磁盘 IO，不在抖动长尾里。
+- 不用容器镜像的原因：改动面更大，且要维护镜像构建流水线，超出本 issue 范围。
 - 缓存 key 带 ISO 周号（`date -u +%Y-%W`）+ `restore-keys` 前缀：既避免 key 永不轮换导致缓存长期过期，又能命中上周的近似缓存。
+
+已知取舍：`restore-keys` 命中的是**近似** key 时，`actions/cache` 的 `isExactKeyMatch` 为 false，因此不会回写当前周的新 key。结果是缓存周号轮换后的第一次运行走网络下载且不写缓存，第二次才精确命中。这属于可接受的一次性成本（单次约 30s），代价远小于原本的 23 分钟长尾。
 
 ### 4. 抗抖动参数与超时
 
@@ -57,9 +60,9 @@
 
 ### 5. 构建步骤改跑 `npx vite build`
 
-`npm run build` = `tsc && vite build`，而同一 job 前面已有 `npx tsc --noEmit`（同一 `tsconfig.json`、同一 `src` 范围）。重复的 `tsc` 对门禁无增量信息，属于过时冗余检查，去掉后构建步骤只剩打包。
+`npm run build` = `tsc && vite build`，而同一 job 前面已有 `npx tsc --noEmit`（同一 `tsconfig.json`、同一 `src` 范围）。`tsconfig.json` 的 `noEmit: true` 意味着 `tsc` 本身不产出文件，与 `tsc --noEmit` 完全等价，重复跑对门禁无增量信息。
 
-保留 `tsc --noEmit` 独立步骤（`ci-type-check` 规范要求），只去掉构建里的重复那次。
+保留 `tsc --noEmit` 独立步骤（`ci-type-check` 规范要求），只去掉构建里的重复那次。因为 `regression-coverage` 原本把门禁写成具体命令 `npm run build`，本次同时把它改为「类型检查 + Vite 打包，两者均必须执行」，允许两步分开跑。
 
 ### 6. 先修 Linux 编译错误（阻塞项）
 

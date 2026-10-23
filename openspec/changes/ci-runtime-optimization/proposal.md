@@ -21,6 +21,7 @@ CI 的 `audit-and-test` 单 job 把「不需要 Tauri 系统库的前端/spec �
 ### Modified Capabilities
 
 - `archive-sync-gate`: CI 归档同步校验所在 job 由 `audit-and-test` 改为 `web-checks`。
+- `regression-coverage`: 前端构建门禁由「执行 `npm run build`」改为「类型检查 + Vite 打包，两者均必须执行」，允许两步分开跑。
 
 ## Impact
 

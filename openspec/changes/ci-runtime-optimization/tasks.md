@@ -15,7 +15,7 @@
 
 ## 3. 移除过时冗余检查
 
-- [x] 3.1 构建步骤从 `npm run build`（`tsc && vite build`）改为 `npx vite build`，避免与前面的 `tsc --noEmit` 重复
+- [x] 3.1 构建步骤从 `npm run build`（`tsc && vite build`）改为 `npx vite build`，避免与前面的 `tsc --noEmit` 重复；`regression-coverage` 的构建门禁契约改为「类型检查 + Vite 打包」，两者均必须在 PR 运行（见 specs/regression-coverage）
 
 ## 4. 修复阻塞 `rust-checks` 的 Linux 编译错误
 

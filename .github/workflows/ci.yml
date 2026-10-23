@@ -104,10 +104,11 @@ jobs:
             -o Dir::Cache::archives=${{ github.workspace }}/.apt-archives/
             -o APT::Keep-Downloaded-Packages=true
         run: |
-          # apt drops privileges to `_apt` for downloads, so the cache directory
-          # must be writable by that user even though we create it as the runner.
+          # apt drops privileges to `_apt` for downloads, so only the download
+          # staging directory needs to be writable by it. The archives directory
+          # itself stays runner-owned so the cache action can read it later.
           mkdir -p "$APT_ARCHIVES/partial"
-          chmod -R 777 "$APT_ARCHIVES"
+          chmod 777 "$APT_ARCHIVES/partial"
           # shellcheck disable=SC2086 # word splitting of the option lists is intended
           sudo apt-get update $APT_OPTS
           # Prefer the restored archives; fall back to the network when a cached
@@ -118,14 +119,11 @@ jobs:
             echo "::warning::apt archive cache incomplete, downloading from network"
             sudo apt-get install -y $APT_OPTS $APT_PACKAGES
           fi
-
-      # apt runs as root and leaves root-owned `lock` / `partial/` behind, which
-      # the cache action's post step (running as the runner user) cannot read.
-      # Hand the archives back to the runner so they can actually be saved.
-      - name: Normalize apt archive ownership
-        run: |
-          rm -rf .apt-archives/lock .apt-archives/partial
-          sudo chown -R "$(id -u):$(id -g)" .apt-archives
+          # apt leaves root-owned `lock` and `partial/` behind; the cache action's
+          # post step runs as the runner user and cannot read them, which makes
+          # the save fail. Drop them and hand the archives back to the runner.
+          rm -rf "$APT_ARCHIVES/lock" "$APT_ARCHIVES/partial"
+          sudo chown -R "$(id -u):$(id -g)" "$APT_ARCHIVES"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

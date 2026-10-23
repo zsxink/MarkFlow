@@ -3,7 +3,6 @@ import { app, openFileInTree, waitForAppReady } from '../../page-objects/app.mjs
 
 const TAB = (name) => $(`#document-tabs [role="tab"][title$="/${name}"]`);
 const TABS = () => $$('#document-tabs [role="tab"]');
-const PRIMARY_MODIFIER = process.platform === 'darwin' ? 'META' : 'CTRL';
 
 async function openTab(name) {
   await TAB(name).waitForDisplayed({ timeout: 10_000 });
@@ -31,14 +30,15 @@ async function pointerActivate(tabId) {
   await browser.waitUntil(async () => await $(`#document-tabs [data-tab-id="${tabId}"]`).getAttribute('aria-selected') === 'true', { timeout: 5_000 });
 }
 
-async function dispatchTabShortcut(key, shift = false) {
-  // WebKit reserves tab-management shortcuts, so dispatch the app's cancelable
-  // DOM event after native input has verified the rest of the UI.
-  await browser.execute((shortcutKey, withShift) => {
-    document.dispatchEvent(new KeyboardEvent('keydown', {
-      key: shortcutKey, ctrlKey: true, shiftKey: withShift, bubbles: true, cancelable: true,
-    }));
-  }, key, shift);
+// Tab commands arrive from the native menu bar: the OS consumes the accelerator
+// and Rust re-emits `menu:action`. The embedded WebDriver cannot press native
+// menu accelerators (WebKit also reserves tab-management keys), so drive the
+// same bridge instead of synthesising DOM keydown events — the DOM handler no
+// longer executes menu commands (keyboard-shortcuts spec).
+async function dispatchNativeMenuAction(action) {
+  await browser.execute(async (actionId) => {
+    await window.__TAURI__.event.emit('menu:action', actionId);
+  }, action);
 }
 
 export function registerDocumentTabsTests() {
@@ -104,30 +104,30 @@ export function registerDocumentTabsTests() {
 
       // Ctrl+Tab cycles to the next document and Shift+Ctrl+Tab cycles back.
       await openTab('tabs-345-alpha.md');
-      await dispatchTabShortcut('Tab');
+      await dispatchNativeMenuAction('next-tab');
       await expect(await TAB('tabs-345-beta.md')).toHaveAttribute('aria-selected', 'true');
-      await dispatchTabShortcut('Tab', true);
+      await dispatchNativeMenuAction('previous-tab');
       await expect(await TAB('tabs-345-alpha.md')).toHaveAttribute('aria-selected', 'true');
 
       // Close a clean document, then reopen its most recently closed session.
       await openTab('tabs-345-beta.md');
-      await dispatchTabShortcut('w');
+      await dispatchNativeMenuAction('close-tab');
       await browser.waitUntil(async () => (await TABS()).length === baselineTabCount + 1, {
         timeout: 10_000,
-        timeoutMsg: 'Expected Ctrl+W to close the active clean tab',
+        timeoutMsg: 'Expected the 关闭标签页 menu action to close the active clean tab',
       });
-      await dispatchTabShortcut('t', true);
+      await dispatchNativeMenuAction('reopen-tab');
       await browser.waitUntil(async () => (await TABS()).length === baselineTabCount + 2, {
         timeout: 10_000,
-        timeoutMsg: 'Expected Ctrl+Shift+T to restore the closed tab',
+        timeoutMsg: 'Expected the 恢复关闭的标签页 menu action to restore the closed tab',
       });
       await expect(await TAB('tabs-345-beta.md')).toBeDisplayed();
 
       // Ctrl+T opens a new blank document session without replacing the files.
-      await dispatchTabShortcut('t');
+      await dispatchNativeMenuAction('new-tab');
       await browser.waitUntil(async () => (await TABS()).length === baselineTabCount + 3, {
         timeout: 10_000,
-        timeoutMsg: 'Expected Ctrl+T to open a new document tab',
+        timeoutMsg: 'Expected the 新建标签页 menu action to open a new document tab',
       });
       await browser.saveScreenshot(path.join(process.cwd(), 'e2e', 'artifacts', 'document-tabs.png'));
     });
@@ -171,9 +171,9 @@ export function registerDocumentTabsTests() {
       expect(await browser.execute(() => Boolean(document.activeElement?.closest('#source-editor-wrapper .cm-content')))).toBe(true);
       await pointerActivate(caretTabId);
       expect(await selection()).toEqual({ anchor: 9, head: 9, domAnchor: 9, domHead: 9, focused: true, status: '行 1, 列 8' });
-      await dispatchTabShortcut('Tab');
+      await dispatchNativeMenuAction('next-tab');
       await browser.waitUntil(async () => await TAB('tabs-348-caret.md').getAttribute('aria-selected') === 'false', { timeout: 5_000 });
-      await dispatchTabShortcut('Tab', true);
+      await dispatchNativeMenuAction('previous-tab');
       await browser.waitUntil(async () => await TAB('tabs-348-caret.md').getAttribute('aria-selected') === 'true', { timeout: 5_000 });
       expect(await selection()).toEqual({ anchor: 9, head: 9, domAnchor: 9, domHead: 9, focused: true, status: '行 1, 列 8' });
 

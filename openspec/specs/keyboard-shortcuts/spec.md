@@ -4,16 +4,15 @@
 定义全局键盘快捷键的初始化、编辑器命令映射及其对文件操作和界面模式的约束。
 
 ## Agent Context
-- **源码入口：** `src/utils/keyboard.ts`、`src/main.ts`、`src/components/linkDialog.ts`。
-- **关联规范：** `sidebar`、`dialog-system`、`url-decoration`。
-- **不变量：** Ctrl/Cmd 均应可用；已处理命令必须阻止浏览器默认行为；输入控件与编辑器自身快捷键不得被全局处理器误吞。
+- **源码入口：** `src/utils/keyboard.ts`（全局处理器与原生加速键镜像）、`src/utils/nativeMenu.ts`（原生菜单动作分发器）、`src-tauri/src/menu.rs`（加速键定义）、`src/main.ts`、`src/components/linkDialog.ts`。
+- **关联规范：** `native-menu-bar`、`sidebar`、`dialog-system`、`url-decoration`。
+- **不变量：** Ctrl/Cmd 均应可用；已处理命令必须阻止浏览器默认行为；输入控件与编辑器自身快捷键不得被全局处理器误吞；已由原生菜单加速键接管的命令不得在前端重复执行。
 - **验证：** `npm test -- src/utils`；`npx openspec validate keyboard-shortcuts --strict`。
 
 ## Requirements
 
 ### Requirement: 全局快捷键初始化
-
-系统 MUST 通过 `src/utils/keyboard.ts` 的 `initKeyboard` 注册全局键盘事件，并同时支持 Ctrl 与 Cmd 修饰键。快捷键处理 MUST 阻止已处理命令的浏览器默认行为。
+系统 MUST 通过 `src/utils/keyboard.ts` 的 `initKeyboard` 注册全局键盘事件，并同时支持 Ctrl 与 Cmd 修饰键。快捷键处理 MUST 阻止已处理命令的浏览器默认行为。已由原生菜单加速键接管的命令 MUST 与菜单触发相同操作，且前端不得重复处理同一按键事件。
 
 #### Scenario: 保存快捷键
 - **WHEN** 用户按 Ctrl/Cmd+S
@@ -23,8 +22,15 @@
 - **WHEN** 用户按 Ctrl/Cmd+N 且未按 Shift
 - **THEN** 系统打开工作区内的新建文件对话框
 
-### Requirement: 编辑器与界面快捷键
+#### Scenario: 原生菜单加速键
+- **WHEN** 用户通过原生菜单加速键触发一个已实现的菜单命令
+- **THEN** 对应操作仅执行一次，且与菜单项触发的操作相同
 
+#### Scenario: 占位菜单项的加速键
+- **WHEN** 用户按下某个尚未实现（置灰）菜单项的加速键
+- **THEN** 该按键不被全局处理器吞掉，浏览器与页面默认行为保持可用
+
+### Requirement: 编辑器与界面快捷键
 系统 MUST 提供粗体、斜体、删除线、链接、编辑器模式切换、侧边栏折叠和专注模式的快捷键。链接快捷键 MUST 拒绝不支持的协议。
 
 #### Scenario: 切换编辑器模式

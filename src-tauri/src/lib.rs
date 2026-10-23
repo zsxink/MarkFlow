@@ -4,6 +4,7 @@ mod error;
 mod fs;
 mod http;
 mod logger;
+mod menu;
 mod paths;
 mod state;
 
@@ -20,6 +21,13 @@ use tauri::EventTarget;
 use tauri::RunEvent;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_single_instance::init as single_instance_init;
+
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    // The frontend has already confirmed unsaved documents before asking to quit.
+    tracing::info!(target: "backend.app", "Quit requested from the native menu");
+    app.exit(0);
+}
 
 #[tauri::command]
 fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), String> {
@@ -377,6 +385,7 @@ pub fn run() {
 
     let app = builder
         .manage(app_state)
+        .on_menu_event(|app, event| menu::dispatch(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             commands::export::print_webview,
             commands::export::create_pdf,
@@ -431,8 +440,16 @@ pub fn run() {
             clear_recent_history,
             set_workspace,
             get_workspace,
+            menu::update_menu_state,
+            logger::get_log_dir,
+            quit_app,
         ])
         .setup(|app| {
+            let (native_menu, menu_handles) = menu::build(app.handle())?;
+            app.set_menu(native_menu)?;
+            // Handles stay owned by the app so `update_menu_state` can enable
+            // the workspace/document/recent items the frontend reports.
+            app.manage(menu_handles);
             let settings = settings::load_settings_inner();
 
             // Clean up stale temp files from previous crashed writes

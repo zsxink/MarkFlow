@@ -15,6 +15,13 @@ fn log_dir() -> PathBuf {
     app_config_dir().join("logs")
 }
 
+/// Expose the active log directory so the 帮助 → 打开日志目录 menu item can
+/// reveal it with the system file manager.
+#[tauri::command]
+pub fn get_log_dir() -> String {
+    normalize_path(&log_dir())
+}
+
 /// Install a panic hook that records the panic location and message with
 /// structured context before deferring to the default hook. Registered once.
 pub fn install_panic_hook() {

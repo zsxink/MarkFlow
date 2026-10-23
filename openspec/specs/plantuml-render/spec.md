@@ -5,7 +5,7 @@
 
 ## Agent Context
 - **源码入口：** `src/render/plantuml.ts`、`src/ui/settings/panel.ts` 与 `src/editor/session.ts`。
-- **关联规范：** `safe-http-fetch`、`bundle-budget`、`error-handling`。
+- **关联规范：** `safe-http-fetch`、`bundle-budget`、`error-handling`、`license-compliance`。
 - **不变量：** 未配置服务器时绝不发起网络请求；请求仅发送当前图表源码；失败时保留可读源内容并展示可恢复状态。
 - **验证：** `npm test -- src/lib`；`npm run build`；`npx openspec validate plantuml-render --strict`。
 
@@ -15,6 +15,8 @@
 系统 SHALL 提供一个名为"PlantUML 服务器地址"的可持久化设置，默认值 MUST 为空字符串。设置界面 MUST 明确说明：使用外部 PlantUML 服务器会将该图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容 SHALL 建议使用自建服务器。
 
 系统 MUST 确保 PlantUML 的 HTTP 请求通过 Tauri capability ACL 授权。capability 配置 MUST 在 `tauri.conf.json` 的 `app.security.capabilities` 中显式启用，且 URL scope MUST 覆盖用户配置的 HTTP/HTTPS 服务器地址（包括自定义端口）。
+
+用户文档 SHALL 同样说明该对外数据流：仅在用户配置服务器后，且仅发送该图表的源码；服务器由用户选择和控制。文档说明 MUST 与产品内提示一致，不得弱化。
 
 #### Scenario: 默认设置不渲染
 - **WHEN** 用户未配置 PlantUML 服务器地址
@@ -31,6 +33,11 @@
 #### Scenario: capability URL scope 覆盖自建服务器
 - **WHEN** 用户配置的自建 PlantUML 服务器地址为 `http://localhost:8080/plantuml`
 - **THEN** capability URL scope SHALL 允许该请求通过 ACL 校验
+
+#### Scenario: 用户文档说明数据外发
+- **WHEN** 用户阅读隐私说明文档
+- **THEN** 文档 SHALL 说明配置 PlantUML 服务器后，图表源码会发送到该服务器
+- **THEN** 文档 SHALL 说明该服务器由用户选择和控制，敏感内容应使用自建服务器
 
 ### Requirement: 按需加载、渲染与缓存
 系统 SHALL 仅在文档出现 `plantuml` 代码块且已配置服务器地址时，动态加载 PlantUML 渲染实现。实现 MUST 缓存渲染结果（以 `serverUrl + source` 为 key），主入口 bundle MUST NOT 包含该渲染实现。渲染请求 MUST 通过 `@tauri-apps/plugin-http` 发出以绕过 webview CSP。

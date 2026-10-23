@@ -31,10 +31,12 @@
   font-display: block;
 }
 
-/* Source Han Serif SC (思源宋体) — 中文衬线，SIL OFL 协议
-   使用 GB2312 Level 1 子集（~3755 常用汉字），稀有字符回退系统字体 */
+/* MarkFlow Serif SC (思源宋体 GB2312 Level 1 子集) — 中文衬线，SIL OFL 协议
+   使用 GB2312 Level 1 子集（3755 常用汉字），稀有字符回退系统字体。
+   子集化属于 OFL 的 Modified Version，因此不得沿用上游保留字体名 “Source”；
+   上游族名仅作为系统回退保留在 --font-serif 栈里。见 third-party/fonts/PROVENANCE.md */
 @font-face {
-  font-family: 'Source Han Serif SC';
+  font-family: 'MarkFlow Serif SC';
   src: url('../assets/fonts/SourceHanSerifSC-Regular-common.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
@@ -42,7 +44,7 @@
 }
 
 @font-face {
-  font-family: 'Source Han Serif SC';
+  font-family: 'MarkFlow Serif SC';
   src: url('../assets/fonts/SourceHanSerifSC-Bold-common.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
@@ -70,7 +72,7 @@
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 
   --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-serif: 'Source Serif 4', 'Source Han Serif SC', 'Songti SC', SimSun, serif;
+  --font-serif: 'Source Serif 4', 'MarkFlow Serif SC', 'Source Han Serif SC', 'Songti SC', SimSun, serif;
   --font-code: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }

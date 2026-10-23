@@ -16,6 +16,8 @@
     "check-size": "bash scripts/check-bundle-size.sh",
     "benchmark:file-tree": "node scripts/file-tree-benchmark.mjs",
     "validate:openspec": "openspec validate --all",
+    "licenses:generate": "node scripts/generate-license-inventory.mjs",
+    "licenses:check": "node scripts/check-license-inventory.mjs",
     "build:dmg-background": "node scripts/build-dmg-background.mjs",
     "build:dmg": "node scripts/build-dmg.mjs",
     "style:dmg": "node scripts/style-dmg.mjs",

@@ -41,6 +41,18 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "licenseFile": "../LICENSE",
+    "shortDescription": "本地优先的所见即所得 Markdown 编辑器",
+    "longDescription": "MarkFlow 是一个本地优先的 Markdown 编辑器：所见即所得编辑、源码模式、文件树、大纲、Mermaid 与 PlantUML 图表、HTML/Word/PDF 导出。文档保存在你自己的磁盘上，不上传云端。",
+    "copyright": "Copyright (c) 2026 zsxink",
+    "publisher": "zsxink",
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../THIRD-PARTY-NOTICES.md": "THIRD-PARTY-NOTICES.md",
+      "../third-party/texts/*.txt": "third-party/texts/",
+      "../docs/privacy.md": "privacy.md",
+      "../docs/privacy.en.md": "privacy.en.md"
+    },
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico",

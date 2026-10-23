@@ -1,0 +1,2889 @@
+{
+  "ecosystem": "npm",
+  "note": "Generated from package-lock.json by scripts/generate-license-inventory.mjs. Do not edit by hand.",
+  "count": 240,
+  "packages": [
+    {
+      "ecosystem": "npm",
+      "name": "@antfu/install-pkg",
+      "version": "1.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2021 Anthony Fu <https://github.com/antfu>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@braintree/sanitize-url",
+      "version": "7.1.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2017 Braintree"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@chevrotain/types",
+      "version": "11.1.2",
+      "license": "Apache-2.0",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/autocomplete",
+      "version": "6.20.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/commands",
+      "version": "6.10.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-css",
+      "version": "6.3.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-go",
+      "version": "6.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2024 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-html",
+      "version": "6.4.11",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-java",
+      "version": "6.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-javascript",
+      "version": "6.2.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-json",
+      "version": "6.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-markdown",
+      "version": "6.5.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-python",
+      "version": "6.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-rust",
+      "version": "6.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-sql",
+      "version": "6.10.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-xml",
+      "version": "6.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lang-yaml",
+      "version": "6.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2024 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/language",
+      "version": "6.12.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/legacy-modes",
+      "version": "6.5.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/lint",
+      "version": "6.9.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/search",
+      "version": "6.7.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/state",
+      "version": "6.6.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@codemirror/view",
+      "version": "6.43.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@iconify/types",
+      "version": "2.0.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2021 - 2022 Vjacheslav Trushkin / Iconify OÜ"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@iconify/utils",
+      "version": "3.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2021-PRESENT Vjacheslav Trushkin"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/common",
+      "version": "1.5.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/css",
+      "version": "1.3.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/go",
+      "version": "1.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/highlight",
+      "version": "1.2.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/html",
+      "version": "1.3.13",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/java",
+      "version": "1.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/javascript",
+      "version": "1.5.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/json",
+      "version": "1.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin>, Arun Srinivasan <rulfzid@gmail.com>, and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/lr",
+      "version": "1.4.10",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/markdown",
+      "version": "1.7.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/python",
+      "version": "1.1.19",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/rust",
+      "version": "1.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/xml",
+      "version": "1.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@lezer/yaml",
+      "version": "1.0.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2024 by Marijn Haverbeke <marijnh@gmail.com> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@marijn/find-cluster-break",
+      "version": "1.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2024 by Marijn Haverbeke <marijn@haverbeke.berlin>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@mermaid-js/parser",
+      "version": "1.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2023 Yokozuna59"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tauri-apps/api",
+      "version": "2.11.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tauri-apps/plugin-dialog",
+      "version": "2.7.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "2019-2022, The Tauri Programme in the Commons Conservancy"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tauri-apps/plugin-http",
+      "version": "2.5.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "2019-2022, The Tauri Programme in the Commons Conservancy"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tauri-apps/plugin-shell",
+      "version": "2.3.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "2019-2022, The Tauri Programme in the Commons Conservancy"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/core",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-blockquote",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-bold",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-bullet-list",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-code",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-code-block",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-code-block-lowlight",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-document",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-dropcursor",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-gapcursor",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-hard-break",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-heading",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-horizontal-rule",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-image",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-italic",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-link",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-list",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-list-item",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-list-keymap",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-ordered-list",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-paragraph",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-placeholder",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-strike",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-table",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-text",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extension-underline",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/extensions",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/markdown",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/pm",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@tiptap/starter-kit",
+      "version": "3.30.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2025, Tiptap GmbH"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3",
+      "version": "7.4.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-array",
+      "version": "3.2.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-axis",
+      "version": "3.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-brush",
+      "version": "3.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-chord",
+      "version": "3.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-color",
+      "version": "3.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-contour",
+      "version": "3.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-delaunay",
+      "version": "6.0.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-dispatch",
+      "version": "3.0.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-drag",
+      "version": "3.0.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-dsv",
+      "version": "3.0.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-ease",
+      "version": "3.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-fetch",
+      "version": "3.0.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-force",
+      "version": "3.0.10",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-format",
+      "version": "3.0.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-geo",
+      "version": "3.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-hierarchy",
+      "version": "3.1.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-interpolate",
+      "version": "3.0.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-path",
+      "version": "3.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-polygon",
+      "version": "3.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-quadtree",
+      "version": "3.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-random",
+      "version": "3.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-scale",
+      "version": "4.0.9",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-scale-chromatic",
+      "version": "3.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-selection",
+      "version": "3.0.11",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-shape",
+      "version": "3.1.8",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-time",
+      "version": "3.0.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-time-format",
+      "version": "4.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-timer",
+      "version": "3.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-transition",
+      "version": "3.0.9",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/d3-zoom",
+      "version": "3.0.8",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/geojson",
+      "version": "7946.0.16",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/hast",
+      "version": "3.0.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/node",
+      "version": "25.9.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/trusted-types",
+      "version": "2.0.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@types/unist",
+      "version": "3.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "@upsetjs/venn.js",
+      "version": "2.0.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2013 Ben Frederickson"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "argparse",
+      "version": "2.0.1",
+      "license": "Python-2.0",
+      "chosen": "Python-2.0",
+      "texts": [
+        "Python-2.0"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "codemirror",
+      "version": "6.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "commander",
+      "version": "15.0.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "commander",
+      "version": "7.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "core-util-is",
+      "version": "1.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "cose-base",
+      "version": "1.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2019 - present, iVis@Bilkent."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "cose-base",
+      "version": "2.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2019 - present, iVis@Bilkent."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "crelt",
+      "version": "1.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "cytoscape",
+      "version": "3.34.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2016-2026, The Cytoscape Consortium."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "cytoscape-cose-bilkent",
+      "version": "4.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2016-2018, The Cytoscape Consortium."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "cytoscape-fcose",
+      "version": "2.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2018 - present, iVis-at-Bilkent."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3",
+      "version": "7.9.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2023 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-array",
+      "version": "2.12.1",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2020 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-array",
+      "version": "3.2.4",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2023 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-axis",
+      "version": "3.0.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-brush",
+      "version": "3.0.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-chord",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-color",
+      "version": "3.1.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2022 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-contour",
+      "version": "4.0.2",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2012-2023 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-delaunay",
+      "version": "6.0.4",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2018-2021 Observable, Inc."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-dispatch",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-drag",
+      "version": "3.0.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-dsv",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2013-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-ease",
+      "version": "3.0.1",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-fetch",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2016-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-force",
+      "version": "3.0.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-format",
+      "version": "3.1.2",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2026 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-geo",
+      "version": "3.1.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2024 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-hierarchy",
+      "version": "3.1.2",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-interpolate",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-path",
+      "version": "1.0.9",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2015-2016 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-path",
+      "version": "3.1.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2015-2022 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-polygon",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-quadtree",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-random",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-sankey",
+      "version": "0.12.3",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2015, Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-scale",
+      "version": "4.0.2",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-scale-chromatic",
+      "version": "3.1.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2024 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-selection",
+      "version": "3.0.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-shape",
+      "version": "1.3.7",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2015 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-shape",
+      "version": "3.2.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2022 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-time",
+      "version": "3.1.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2022 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-time-format",
+      "version": "4.1.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-timer",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-transition",
+      "version": "3.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "d3-zoom",
+      "version": "3.0.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2010-2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "dagre-d3-es",
+      "version": "7.0.14",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2022-2024 Thibaut Lassalle, David Newell, Alois Klink, Sidharth Vinod and dagre-es contributors"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "dayjs",
+      "version": "1.11.23",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2018-present, iamkun"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "delaunator",
+      "version": "5.1.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2026, Mapbox"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "dequal",
+      "version": "2.0.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "devlop",
+      "version": "1.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2023 Titus Wormer <tituswormer@gmail.com>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "docx",
+      "version": "9.7.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2016 Dolan"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "dompurify",
+      "version": "3.4.17",
+      "license": "(MPL-2.0 OR Apache-2.0)",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "entities",
+      "version": "4.5.0",
+      "license": "BSD-2-Clause",
+      "chosen": "BSD-2-Clause",
+      "texts": [
+        "BSD-2-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "es-toolkit",
+      "version": "1.46.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2024 Viva Republica, Inc"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "fastdom",
+      "version": "1.0.12",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "hachure-fill",
+      "version": "0.5.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2023 Preet Shihn"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "hash.js",
+      "version": "1.1.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "highlight.js",
+      "version": "11.11.1",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2006, Ivan Sagalaev."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "iconv-lite",
+      "version": "0.6.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2011 Alexander Shtuchkin"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "immediate",
+      "version": "3.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, Domenic Denicola, Brian Cavalier"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "import-meta-resolve",
+      "version": "4.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "inherits",
+      "version": "2.0.4",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "internmap",
+      "version": "1.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "internmap",
+      "version": "2.0.3",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2021 Mike Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "isarray",
+      "version": "1.0.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "jszip",
+      "version": "3.10.1",
+      "license": "(MIT OR GPL-3.0-or-later)",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "katex",
+      "version": "0.18.10",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2013-2020 Khan Academy and other contributors"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "khroma",
+      "version": "2.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "license-file:license",
+      "copyright": "Copyright (c) 2019-present Fabio Spampinato, Andrew Maney"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "layout-base",
+      "version": "1.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2019 iVis@Bilkent"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "layout-base",
+      "version": "2.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2019 iVis@Bilkent"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "lie",
+      "version": "3.3.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2014-2018 Calvin Metcalf, Jordan Harband"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "linkify-it",
+      "version": "5.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2015 Vitaly Puzrin."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "linkifyjs",
+      "version": "4.3.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2024 Nick Frasser"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "lodash-es",
+      "version": "4.18.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "lowlight",
+      "version": "3.3.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "markdown-it",
+      "version": "14.3.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "marked",
+      "version": "16.4.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "marked",
+      "version": "17.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "mdurl",
+      "version": "2.0.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin."
+    },
+    {
+      "ecosystem": "npm",
+      "name": "mermaid",
+      "version": "11.17.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2014 - 2022 Knut Sveidqvist"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "minimalistic-assert",
+      "version": "1.0.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2015 Calvin Metcalf"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "nanoid",
+      "version": "5.1.16",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright 2017 Andrey Sitnik <andrey@sitnik.es>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "orderedmap",
+      "version": "2.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "package-manager-detector",
+      "version": "1.6.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2020-PRESENT Anthony Fu <https://github.com/antfu>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "pako",
+      "version": "1.0.11",
+      "license": "(MIT AND Zlib)",
+      "chosen": "MIT AND Zlib",
+      "texts": [
+        "MIT",
+        "Zlib"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "pako",
+      "version": "2.2.0",
+      "license": "(MIT AND Zlib)",
+      "chosen": "MIT AND Zlib",
+      "texts": [
+        "MIT",
+        "Zlib"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "path-data-parser",
+      "version": "0.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2020 Preet Shihn"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "points-on-curve",
+      "version": "0.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2020 Preet Shihn"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "points-on-path",
+      "version": "0.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2020 Preet"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "process-nextick-args",
+      "version": "2.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2015 Calvin Metcalf"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-changeset",
+      "version": "2.4.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-commands",
+      "version": "1.7.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-dropcursor",
+      "version": "1.8.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-gapcursor",
+      "version": "1.4.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-history",
+      "version": "1.5.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-inputrules",
+      "version": "1.5.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-keymap",
+      "version": "1.2.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-model",
+      "version": "1.25.11",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-schema-list",
+      "version": "1.5.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-state",
+      "version": "1.4.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-tables",
+      "version": "1.8.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-transform",
+      "version": "1.12.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "prosemirror-view",
+      "version": "1.42.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "punycode.js",
+      "version": "2.3.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "readable-stream",
+      "version": "2.3.8",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "robust-predicates",
+      "version": "3.0.3",
+      "license": "Unlicense",
+      "chosen": "Unlicense",
+      "texts": [
+        "Unlicense"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "rope-sequence",
+      "version": "1.3.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "roughjs",
+      "version": "4.6.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2019 Preet Shihn"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "rw",
+      "version": "1.3.3",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2014-2016, Michael Bostock"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "safe-buffer",
+      "version": "5.1.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2018 Nikita Skovoroda <chalkerx@gmail.com>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "sax",
+      "version": "1.6.0",
+      "license": "BlueOak-1.0.0",
+      "chosen": "BlueOak-1.0.0",
+      "texts": [
+        "BlueOak-1.0.0"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "setimmediate",
+      "version": "1.0.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, and Domenic Denicola"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "strictdom",
+      "version": "1.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "string_decoder",
+      "version": "1.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "style-mod",
+      "version": "4.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "stylis",
+      "version": "4.4.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2016-present Sultan Tarimo"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "tinyexec",
+      "version": "1.1.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2024 Tinylibs"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "ts-dedent",
+      "version": "2.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2018 Tamino Martinius"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "uc.micro",
+      "version": "2.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "undici-types",
+      "version": "7.24.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "npm",
+      "name": "util-deprecate",
+      "version": "1.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2014 Nathan Rajlich <nathan@tootallnate.net>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "uuid",
+      "version": "14.0.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2010-2020 Robert Kieffer and other contributors"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "w3c-keyname",
+      "version": "2.2.8",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "xml",
+      "version": "1.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2011-2016 Dylan Greene <dylang@gmail.com>"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "xml-js",
+      "version": "1.6.11",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": "Copyright (c) 2016-2017 Yousuf Almarzooqi"
+    },
+    {
+      "ecosystem": "npm",
+      "name": "yaml",
+      "version": "2.9.1",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "lockfile",
+      "copyright": ""
+    }
+  ]
+}

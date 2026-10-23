@@ -19,7 +19,7 @@ MarkFlow lets you write Markdown as if it were rich text. Type and see it render
 - **Source mode** — Toggle to a plain-text editor for raw Markdown (`Ctrl+/`)
 - **Focus mode** — Hide toolbar, sidebar, and status bar for distraction-free writing (`Ctrl+Shift+F`)
 - **Mermaid diagrams** — Write Mermaid syntax in code blocks, rendered as diagrams automatically
-- **PlantUML diagrams** — Write PlantUML syntax in code blocks, rendered as diagrams automatically; right-click to export as SVG, PNG, or copy to clipboard
+- **PlantUML diagrams** — Write PlantUML syntax in code blocks, rendered as diagrams automatically; right-click to export as SVG, PNG, or copy to clipboard. Rendering uses a PlantUML server **you configure yourself**: once set, that diagram's source is sent to that server. The server is your choice and under your control — use a self-hosted one for sensitive content. See the [privacy notice](docs/privacy.en.md).
 - **Accessibility** — ARIA attributes on core UI components for screen reader support
 - **Context menu** — Right-click files in the file tree to create, rename, duplicate, or delete
 - **File drag and drop** — Drag files and folders within the file tree to move them
@@ -158,9 +158,17 @@ Settings file location:
 | Technical Design | Architecture details, component design, key implementations | `openspec/specs/technical-design.md` |
 | UI Design Spec   | Pixel-level UI specification                                | `openspec/ui-design/SPEC.md`         |
 | UI Fixes Record  | CSS layout experience and fix checklist                     | `openspec/specs/ui-fixes-spec.md`    |
+| Privacy Notice   | Local storage, no telemetry, PlantUML data flow             | [`docs/privacy.en.md`](docs/privacy.en.md) |
+| Third-Party      | Dependency inventory and bundled license texts              | [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) |
 
 > `openspec/specs/` is the canonical spec source.
 
+## Privacy and data
+
+MarkFlow is local-first: documents, settings and logs live only on your disk. It reports no telemetry and does not check for updates. The only outbound traffic is the PlantUML server **you configure** (after which only that diagram's source is sent) and remote images you reference yourself. See the [privacy notice](docs/privacy.en.md) for the full description.
+
 ## License
 
-MIT
+MarkFlow itself is released under the [MIT license](LICENSE).
+
+Third-party components bundled with the installer carry their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the full inventory and license texts. Bundled font provenance is recorded in [third-party/fonts/PROVENANCE.md](third-party/fonts/PROVENANCE.md), and icon / installer artwork in [third-party/assets/PROVENANCE.md](third-party/assets/PROVENANCE.md).

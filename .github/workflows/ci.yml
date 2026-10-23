@@ -36,6 +36,11 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
+      # Third-party license inventory (npm half). Reads the lockfile and
+      # `node_modules/` only, so it needs no Rust toolchain and stays offline.
+      - name: Check third-party license inventory (npm)
+        run: node scripts/check-license-inventory.mjs --npm
+
       - name: Run tests
         run: npm test
 
@@ -138,6 +143,11 @@ jobs:
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test
+
+      # Third-party license inventory (Rust half). Lives here because it needs
+      # `cargo metadata`, which this job already has warm via rust-cache.
+      - name: Check third-party license inventory (Rust)
+        run: node scripts/check-license-inventory.mjs --cargo
 
       - name: Check Rust formatting
         working-directory: src-tauri

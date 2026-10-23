@@ -51,7 +51,7 @@ export function buildExportTheme(
   }
 
   const bodyFont = cssVars?.['--font-body']
-    ?? "'Source Serif 4', 'PingFang SC', 'Source Han Serif SC', 'Microsoft YaHei', serif";
+    ?? "'Source Serif 4', 'PingFang SC', 'MarkFlow Serif SC', 'Microsoft YaHei', serif";
   const codeFont = cssVars?.['--font-code']
     ?? "'SF Mono', 'Cascadia Code', ui-monospace, monospace";
 
@@ -72,7 +72,7 @@ export function buildExportTheme(
     },
     fonts: {
       latin: bodyFont,
-      eastAsia: "'Source Han Serif SC', 'PingFang SC', 'Microsoft YaHei', serif",
+      eastAsia: "'MarkFlow Serif SC', 'Source Han Serif SC', 'PingFang SC', 'Microsoft YaHei', serif",
       code: codeFont,
     },
     colors,

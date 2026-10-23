@@ -4,10 +4,10 @@
 定义 MarkFlow 右键菜单的 API、DOM 结构、定位和关闭交互规范。
 
 ## Agent Context
-- **源码入口：** `src/components/ui/contextMenu.ts`；调用方包括 `src/components/contextMenu.ts` 和 `src/components/imageContextMenu.ts`。
+- **源码入口：** `src/ui/context-menu.ts`；调用方包括 `src/ui/file-tree-context-menu.ts` 和 `src/ui/image-context-menu.ts`。
 - **关联规范：** `safe-dom-construction`、`sidebar`、`dialog-system`。
 - **不变量：** 菜单必须经统一工厂创建；关闭行为不得泄漏全局事件监听器；用户可控标签必须作为文本插入。
-- **验证：** `npm test -- src/components/contextMenu.test.ts`；`npx openspec validate context-menu --strict`。
+- **验证：** `npm test -- src/ui/__tests__/file-tree-context-menu.test.ts`；`npx openspec validate context-menu --strict`。
 
 > 定义 MarkFlow 所有右键菜单（Context Menu）的统一结构和交互模式
 

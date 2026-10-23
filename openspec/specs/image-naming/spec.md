@@ -4,10 +4,10 @@
 定义粘贴图片的唯一命名策略，并保证既有图片引用和存储结构不受影响。
 
 ## Agent Context
-- **源码入口：** `src/lib/imageUtils.ts`、`src/lib/storage.ts` 与 `src-tauri/src/commands/files.rs`。
+- **源码入口：** `src/infra/images/core.ts`、`src/infra/storage.ts` 与 `src-tauri/src/commands/files/`。
 - **关联规范：** `image-streaming`、`atomic-save`、`sidebar`。
 - **不变量：** 新名称必须保留安全扩展名；同名冲突不得覆盖既有图片；既有图片路径与引用不得被迁移。
-- **验证：** `npm test -- src/lib/imageUtils.test.ts`；`npx openspec validate image-naming --strict`。
+- **验证：** `npm test -- src/infra/images/__tests__/core.test.ts`；`npx openspec validate image-naming --strict`。
 
 ## Requirements
 

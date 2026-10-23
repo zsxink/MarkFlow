@@ -4,10 +4,10 @@
 为 MarkFlow 桌面端提供可发现、跨平台且随应用状态变化的原生菜单入口，使用户能从菜单栏执行常用操作并理解暂未支持的能力范围。
 
 ## Agent Context
-- **源码入口：** Rust `src-tauri/src/menu.rs`（菜单结构、事件派发、状态联动命令）、`src-tauri/src/lib.rs`（注册 `on_menu_event`/`set_menu`/`update_menu_state`）；前端 `src/utils/nativeMenu.ts`（统一动作分发器）、`src/utils/keyboard.ts`（加速键镜像）、`src/main.ts`（初始化）。
+- **源码入口：** Rust `src-tauri/src/menu/`（菜单结构、事件派发、状态联动命令）、`src-tauri/src/lib.rs`（注册 `on_menu_event`/`set_menu`/`update_menu_state`）；前端 `src/ui/native-menu.ts`（统一动作分发器）、`src/utils/keyboard.ts`（加速键镜像）、`src/main.ts`（初始化）。
 - **关联规范：** `keyboard-shortcuts`、`document-tabs`、`dialog-system`、`context-menu`、`crash-logging`。
 - **不变量：** 菜单不得在 Rust 侧重复实现前端业务逻辑；菜单加速键与前端快捷键单一来源；未实现能力保留原位并置灰。
-- **验证：** `cargo test --manifest-path src-tauri/Cargo.toml`（`menu::tests`）；`npm test -- src/utils/nativeMenu.test.ts src/utils/keyboard.test.ts`；`npx openspec validate native-menu-bar --strict`。
+- **验证：** `cargo test --manifest-path src-tauri/Cargo.toml`（`menu::tests`）；`npm test -- src/ui/__tests__/native-menu.test.ts src/utils/__tests__/keyboard.test.ts`；`npx openspec validate native-menu-bar --strict`。
 
 ## Requirements
 

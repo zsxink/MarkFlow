@@ -6,10 +6,10 @@
 
 ## Agent Context
 
-- **源码入口：** `src/styles/editor.css` 的任务列表样式段（`.ProseMirror ul[data-type="taskList"]` 及其子选择器）；`src/lib/editor.init.ts` 注册 `TaskList` 与 `TaskItem.configure({ nested: true })`。
+- **源码入口：** `src/styles/editor.css` 的任务列表样式段（`.ProseMirror ul[data-type="taskList"]` 及其子选择器）；`src/editor/init.ts` 注册 `TaskList` 与 `TaskItem.configure({ nested: true })`。
 - **关联规范：** `wysiwyg-markdown-round-trip`（任务列表结构与勾选状态往返）、`product-spec.md`（任务列表 P0 支持）、`enter-content-integrity`、`editor-bottom-spacer`。
 - **不变量：** 任务列表布局只通过样式实现，不修改 Tiptap 扩展、NodeView 或 Markdown 转换链路；尺寸与间距以 `em` 表达，跟随设置中的正文字号与行高缩放；任务列表样式不得外溢到普通段落、无序列表与有序列表。
-- **验证：** `npx vitest run src/lib/task-list-styles.test.ts`（样式契约）、`npm run test:e2e`（原生 WebKit 几何实测与截图）、`npx openspec validate task-list-wysiwyg --strict`。
+- **验证：** `npx vitest run src/__tests__/task-list-styles.test.ts`（样式契约）、`npm run test:e2e`（原生 WebKit 几何实测与截图）、`npx openspec validate task-list-wysiwyg --strict`。
 
 ## Requirements
 

@@ -3,7 +3,7 @@
     "v2": "markdown-it",
     "v3": "tiptap-v3-@tiptap/markdown"
   },
-  "note": "v3 per-fixture round-trip status is asserted by src/lib/tiptap-v3-spike.test.ts (TIPTAP_V3_CORPUS_RESULTS must be all supported=pass).",
+  "note": "v3 per-fixture round-trip status is asserted by src/__tests__/tiptap-v3-spike.test.ts (TIPTAP_V3_CORPUS_RESULTS must be all supported=pass).",
   "supported": [
     {
       "id": "heading-basic",

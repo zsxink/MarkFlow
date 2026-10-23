@@ -4,10 +4,10 @@
 确保自动保存失败时用户能持续获知状态且文档保持未保存标记，同时避免瞬时失败造成界面噪声。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.serializer.ts`、`src/components/sidebar.fileops.ts`、`src/components/statusbar.ts` 与 `src/lib/store.ts`。
+- **源码入口：** `src/editor/serializer.ts`、`src/ui/sidebar/fileops.ts`、`src/ui/status-bar.ts` 与 `src/infra/store.ts`。
 - **关联规范：** `atomic-save`、`active-document-state`、`statusbar`。
 - **不变量：** 保存失败不得清除 dirty 状态；连续失败达到阈值才显示持续警告；一次后续成功必须清除持续警告。
-- **验证：** `npm test -- src/lib/autosave.test.ts`；`npx openspec validate autosave-reliability --strict`。
+- **验证：** `npm test -- src/__tests__/main.autosave.test.ts`；`npx openspec validate autosave-reliability --strict`。
 
 ## Requirements
 

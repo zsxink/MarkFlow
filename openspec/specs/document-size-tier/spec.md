@@ -4,10 +4,10 @@
 定义按文档大小分级、降级提示及可配置阈值的处理策略。
 
 ## Agent Context
-- **源码入口：** `src/lib/fileSizeTier.ts`、`src/components/sidebar.fileops.ts` 与 `src/components/statusbar.ts`。
+- **源码入口：** `src/utils/file-size-tier.ts`、`src/ui/sidebar/fileops.ts` 与 `src/ui/status-bar.ts`。
 - **关联规范：** `codemirror-source-editor`、`active-document-state`、`statusbar`。
 - **不变量：** 分级必须发生在打开前；降级不应丢失原始内容；只读预览不得允许持久化编辑。
-- **验证：** `npm test -- src/lib/fileSizeTier.test.ts`；`npx openspec validate document-size-tier --strict`。
+- **验证：** `npm test -- src/utils/__tests__/file-size-tier.test.ts`；`npx openspec validate document-size-tier --strict`。
 
 ## Requirements
 
@@ -67,7 +67,7 @@
 ### Requirement: UI降级
 系统 MUST 为降级模式提供清晰的 UI 指示器。
 
-`src/components/degradationBar.ts` MUST 通过 `showDegradationBar` 在编辑器区域顶部显示大文件或只读提示，并通过 `hideDegradationBar` 移除该提示。可编辑的大文件提示 MUST 提供切换到源码模式的操作；只读提示不得提供该操作。
+`src/ui/degradation-bar.ts` MUST 通过 `showDegradationBar` 在编辑器区域顶部显示大文件或只读提示，并通过 `hideDegradationBar` 移除该提示。可编辑的大文件提示 MUST 提供切换到源码模式的操作；只读提示不得提供该操作。
 
 #### Scenario: 降级模式指示器可见
 - **WHEN** 文档以 Large 或 Huge 层打开

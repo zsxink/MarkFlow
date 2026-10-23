@@ -4,7 +4,7 @@
 定义全局键盘快捷键的初始化、编辑器命令映射及其对文件操作和界面模式的约束。
 
 ## Agent Context
-- **源码入口：** `src/utils/keyboard.ts`（全局处理器与原生加速键镜像）、`src/utils/nativeMenu.ts`（原生菜单动作分发器）、`src-tauri/src/menu.rs`（加速键定义）、`src/main.ts`、`src/components/linkDialog.ts`。
+- **源码入口：** `src/utils/keyboard.ts`（全局处理器与原生加速键镜像）、`src/ui/native-menu.ts`（原生菜单动作分发器）、`src-tauri/src/menu/`（加速键定义）、`src/main.ts`、`src/ui/link-dialog.ts`。
 - **关联规范：** `native-menu-bar`、`sidebar`、`dialog-system`、`url-decoration`。
 - **不变量：** Ctrl/Cmd 均应可用；已处理命令必须阻止浏览器默认行为；输入控件与编辑器自身快捷键不得被全局处理器误吞；已由原生菜单加速键接管的命令不得在前端重复执行。
 - **验证：** `npm test -- src/utils`；`npx openspec validate keyboard-shortcuts --strict`。

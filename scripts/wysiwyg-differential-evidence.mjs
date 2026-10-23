@@ -68,7 +68,7 @@ function v2Signature(markdown) {
 // Load the real fixtures module (single source of truth), transpiled with
 // esbuild so this script stays in sync with the fixtures the gate test uses.
 const built = await build({
-  entryPoints: ['src/lib/wysiwyg-roundtrip.fixtures.ts'],
+  entryPoints: ['src/__fixtures__/wysiwyg-roundtrip.fixtures.ts'],
   bundle: true,
   format: 'esm',
   write: false,
@@ -87,7 +87,7 @@ const byId = new Map(fixturesModule.WYSIWYG_ROUNDTRIP_FIXTURES.map((f) => [f.id,
 
 const report = {
   engine: { v2: 'markdown-it', v3: 'tiptap-v3-@tiptap/markdown' },
-  note: 'v3 per-fixture round-trip status is asserted by src/lib/tiptap-v3-spike.test.ts (TIPTAP_V3_CORPUS_RESULTS must be all supported=pass).',
+  note: 'v3 per-fixture round-trip status is asserted by src/__tests__/tiptap-v3-spike.test.ts (TIPTAP_V3_CORPUS_RESULTS must be all supported=pass).',
   supported: [],
   invalid: [],
 };

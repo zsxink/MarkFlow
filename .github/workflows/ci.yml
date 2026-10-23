@@ -65,6 +65,9 @@ jobs:
       - name: Check archived changes are synced to main specs
         run: bash scripts/check-archive-synced.sh
 
+      - name: Check source layering, file size and test separation
+        run: node scripts/check-layering.mjs
+
       - name: Build frontend
         run: npm run build
 

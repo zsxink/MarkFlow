@@ -6,16 +6,17 @@
 
 | 常见任务 | 必读模块规范 | 代码入口 | 最低验证 |
 |---|---|---|---|
-| 打开、保存、另存为、外部修改或文件冲突 | [sidebar](sidebar/spec.md)、[active-document-state](active-document-state/spec.md)、[autosave-reliability](autosave-reliability/spec.md)、[atomic-save](atomic-save/spec.md) | `src/components/sidebar.ts`、`sidebar.fileops.ts`、`sidebar.conflict.ts`、`src/lib/editor.state.ts`、`storage.ts` | `npm test`、`npm run build` |
-| 文件树、工作区、监听、拖放或大目录 | [file-tree-architecture](file-tree-architecture/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[active-document-state](active-document-state/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/fileTree.ts`、`fileTree.core.ts`、`fileTree.state.ts`、`fileTree.dragdrop.ts` | `npm test`、`npm run benchmark:file-tree`（性能改动） |
-| 所见即所得编辑、Markdown 完整性、模式切换或 URL | [enter-content-integrity](enter-content-integrity/spec.md)、[url-decoration](url-decoration/spec.md)、[editor-bottom-spacer](editor-bottom-spacer/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md)、[frontmatter-visual-editor](frontmatter-visual-editor/spec.md) | `src/lib/editor.ts`、`editor.init.ts`、`editor.state.ts`、`urlDecorationPlugin.ts` | `npm test`、`npm run build` |
-| 源码编辑器、语言高亮或大文档降级 | [codemirror-source-editor](codemirror-source-editor/spec.md)、[lazy-code-languages](lazy-code-languages/spec.md)、[document-size-tier](document-size-tier/spec.md)、[expensive-task-scheduling](expensive-task-scheduling/spec.md)、[frontmatter-visual-editor](frontmatter-visual-editor/spec.md) | `src/lib/editor.source.ts`、`codemirror-languages.ts`、`codemirror-highlight-limit.ts`、`fileSizeTier.ts`、`src/components/degradationBar.ts` | `npm test`、`npm run build` |
-| 菜单、对话框、状态栏或工具栏交互 | [dialog-system](dialog-system/spec.md)、[context-menu](context-menu/spec.md)、[statusbar](statusbar/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/ui/dialog.ts`、`ui/modal.ts`、`contextMenu.ts`、`toolbar.ts`、`statusbar.ts` | `npm test`、`npm run build` |
-| 导出 HTML、Word 或 PDF | [rendered-document-export](rendered-document-export/spec.md)、[export-workspace-bypass](export-workspace-bypass/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/components/toolbar.ts`、`src/lib/documentExport.ts`、`storage.ts` | `npm test`、`npm run build` |
-| 图片设置、存储规则、粘贴命名或首次保存 | [image-storage-engine](image-storage-engine/spec.md)、[image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[settings-code-highlight](settings-code-highlight/spec.md) | `src/lib/imageUtils.ts`、`pathUtils.ts`、`storage.ts`、`src-tauri/src/commands/files_image.rs` | `npm test`、`cargo test` |
-| 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[image-storage-engine](image-storage-engine/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/lib/editor.image.*.ts`、`imageUtils.ts`、`mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
-| 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/lib/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
-| 体积、字体、CI、回归测试、e2e 测试、DMG 打包外观或 archive 门禁 | [e2e-test-coverage](e2e-test-coverage/spec.md)、[bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md)、[dmg-installer-appearance](dmg-installer-appearance/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`scripts/`、`.github/`、`scripts/check-archive-synced.sh`、`e2e/` | `npm test`、`npm run test:e2e`（smoke 套件）、`npm run build` |
+| 打开、保存、另存为、外部修改或文件冲突 | [sidebar](sidebar/spec.md)、[active-document-state](active-document-state/spec.md)、[autosave-reliability](autosave-reliability/spec.md)、[atomic-save](atomic-save/spec.md) | `src/ui/sidebar/index.ts`、`sidebar/fileops.ts`、`sidebar/conflict.ts`、`src/editor/state.ts`、`src/infra/storage.ts` | `npm test`、`npm run build` |
+| 文件树、工作区、监听、拖放或大目录 | [file-tree-architecture](file-tree-architecture/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[active-document-state](active-document-state/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/ui/file-tree/index.ts`、`render.ts`、`loader.ts`、`events.ts`、`state.ts`、`dragdrop.ts` | `npm test`、`npm run benchmark:file-tree`（性能改动） |
+| 所见即所得编辑、Markdown 完整性、模式切换或 URL | [enter-content-integrity](enter-content-integrity/spec.md)、[url-decoration](url-decoration/spec.md)、[editor-bottom-spacer](editor-bottom-spacer/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md)、[frontmatter-visual-editor](frontmatter-visual-editor/spec.md) | `src/editor/session.ts`、`serialize.ts`、`mode.ts`、`init.ts`、`state.ts`、`url-decoration.ts` | `npm test`、`npm run build` |
+| 源码编辑器、语言高亮或大文档降级 | [codemirror-source-editor](codemirror-source-editor/spec.md)、[lazy-code-languages](lazy-code-languages/spec.md)、[document-size-tier](document-size-tier/spec.md)、[expensive-task-scheduling](expensive-task-scheduling/spec.md)、[frontmatter-visual-editor](frontmatter-visual-editor/spec.md) | `src/editor/source.ts`、`src/render/codemirror-languages.ts`、`codemirror-highlight-limit.ts`、`src/utils/file-size-tier.ts`、`src/ui/degradation-bar.ts` | `npm test`、`npm run build` |
+| 菜单、对话框、状态栏或工具栏交互 | [dialog-system](dialog-system/spec.md)、[context-menu](context-menu/spec.md)、[statusbar](statusbar/spec.md)、[keyboard-shortcuts](keyboard-shortcuts/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/ui/dialog.ts`、`modal.ts`、`context-menu.ts`、`toolbar.ts`、`status-bar.ts` | `npm test`、`npm run build` |
+| 导出 HTML、Word 或 PDF | [rendered-document-export](rendered-document-export/spec.md)、[export-workspace-bypass](export-workspace-bypass/spec.md)、[safe-dom-construction](safe-dom-construction/spec.md) | `src/ui/toolbar.ts`、`src/export/index.ts`、`src/infra/storage.ts` | `npm test`、`npm run build` |
+| 图片设置、存储规则、粘贴命名或首次保存 | [image-storage-engine](image-storage-engine/spec.md)、[image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[settings-code-highlight](settings-code-highlight/spec.md) | `src/infra/images/`、`src/utils/paths.ts`、`src/infra/storage.ts`、`src-tauri/src/commands/images/` | `npm test`、`cargo test` |
+| 粘贴图片、网络图片或图表渲染 | [image-naming](image-naming/spec.md)、[image-streaming](image-streaming/spec.md)、[image-storage-engine](image-storage-engine/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md)、[lazy-mermaid](lazy-mermaid/spec.md)、[plantuml-render](plantuml-render/spec.md) | `src/editor/image-bubble.ts`、`image-resolver.ts`、`src/infra/images/`、`src/render/mermaid-lazy.ts`、`plantuml-lazy.ts` | `npm test`、`npm run build` |
+| 类型、错误、日志、后台任务或安全边界 | [type-system](type-system/spec.md)、[error-handling](error-handling/spec.md)、[crash-logging](crash-logging/spec.md)、[background-task-lifecycle](background-task-lifecycle/spec.md)、[safe-http-fetch](safe-http-fetch/spec.md) | `src/types/`、`src/infra/error.ts`、`logger.ts`、`src-tauri/src/` | `npm test`、`npm run build` |
+| 新增文件、改目录结构、拆超行文件或分层依赖 | [source-layering](source-layering/spec.md)、[code-standards](code-standards/spec.md) | `scripts/check-layering.mjs`、`src/`、`src-tauri/src/` | `node scripts/check-layering.mjs`、`npx tsc --noEmit`、`npm test` |
+| 体积、字体、CI、回归测试、e2e 测试、DMG 打包外观或 archive 门禁 | [e2e-test-coverage](e2e-test-coverage/spec.md)、[bundle-budget](bundle-budget/spec.md)、[font-stack](font-stack/spec.md)、[dep-audit-ci](dep-audit-ci/spec.md)、[regression-coverage](regression-coverage/spec.md)、[archive-sync-gate](archive-sync-gate/spec.md)、[dmg-installer-appearance](dmg-installer-appearance/spec.md) | `vite.config.*`、`scripts/check-bundle-size.sh`、`scripts/check-layering.mjs`、`.github/`、`scripts/check-archive-synced.sh`、`e2e/` | `npm test`、`npm run test:e2e`（smoke 套件）、`npm run build` |
 
 所有改动完成后运行 `npm run validate:openspec`（执行 `openspec validate --all`，与 CI 一致，覆盖规范及变更）。路由没有覆盖的任务，先从 `src/main.ts` 和最接近的模块测试反查实际入口，再为受影响行为补充或更新模块规范。
 
@@ -34,12 +35,18 @@
 
 每个目录中的 `spec.md` 都是可验证的行为约束；按任务域阅读，而不是从头到尾通读。
 
+### 架构与规范
+
+- [source-layering](source-layering/spec.md) — 前端/后端分层目录、依赖方向、barrel、测试分离与门禁。
+- [code-standards](code-standards/spec.md) — 文件大小、命名、错误处理、去重、安全、设计模式与文档分级的硬性规范。
+
 ### 文档与编辑
 
 - [active-document-state](active-document-state/spec.md) — 活动文档路径与共享状态。
 - [autosave-reliability](autosave-reliability/spec.md) — 自动保存失败与未保存状态。
 - [codemirror-source-editor](codemirror-source-editor/spec.md) — CodeMirror 源码模式与同步。
 - [document-size-tier](document-size-tier/spec.md) — 文档大小分级与降级。
+- [document-tabs](document-tabs/spec.md) — 多文档标签的打开、切换、关闭与恢复。
 - [editor-bottom-spacer](editor-bottom-spacer/spec.md) — 两种编辑模式的底部留白。
 - [enter-content-integrity](enter-content-integrity/spec.md) — Enter 与模式切换的内容完整性。
 - [expensive-task-scheduling](expensive-task-scheduling/spec.md) — 高开销编辑任务的调度。
@@ -70,6 +77,7 @@
 - [plantuml-render](plantuml-render/spec.md) — PlantUML 设置、渲染与回退。
 - [safe-dom-construction](safe-dom-construction/spec.md) — 用户内容的 DOM 安全边界。
 - [sidebar](sidebar/spec.md) — 侧边栏、文件操作与冲突解决。
+- [native-menu-bar](native-menu-bar/spec.md) — 跨平台原生菜单栏与状态联动。
 - [statusbar](statusbar/spec.md) — 编辑器统计、自动保存提示与状态栏操作。
 
 ### 可靠性、质量与安全

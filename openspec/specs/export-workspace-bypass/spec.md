@@ -4,10 +4,10 @@
 定义导出文件写入可绕过工作区路径限制的行为，使用户能够将导出结果保存至任意有写入权限的位置。
 
 ## Agent Context
-- **源码入口：** `src/lib/storage.ts`、`src-tauri/src/commands/files.rs` 与 `src/lib/documentExport.ts`。
+- **源码入口：** `src/infra/storage.ts`、`src-tauri/src/commands/files/` 与 `src/export/document-export.ts`。
 - **关联规范：** `rendered-document-export`、`atomic-save`、`error-handling`。
 - **不变量：** 仅导出写入可绕过工作区校验；取消保存不得写入；失败必须反馈给调用方而非伪报成功。
-- **验证：** `npm test -- src/lib/documentExport.test.ts`；`cargo test --manifest-path src-tauri/Cargo.toml`；`npx openspec validate export-workspace-bypass --strict`。
+- **验证：** `npm test -- src/export/__tests__/document-export.test.ts`；`cargo test --manifest-path src-tauri/Cargo.toml`；`npx openspec validate export-workspace-bypass --strict`。
 
 ## Requirements
 

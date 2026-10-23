@@ -4,10 +4,10 @@
 确保 WYSIWYG 模式按 Enter 后生成有效 Markdown，并在模式切换中保持内容完整性。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.ts`、`src/lib/editor.source.ts` 与 `src/lib/editor.serializer.ts`。
+- **源码入口：** `src/editor/session.ts`、`src/editor/source.ts` 与 `src/editor/serializer.ts`。
 - **关联规范：** `codemirror-source-editor`、`active-document-state`、`atomic-save`。
 - **不变量：** Enter 前后的文本与嵌套结构必须可往返序列化；模式切换不得丢失内容；完整性检查失败不得静默覆盖用户内容。
-- **验证：** `npm test -- src/lib/editor.test.ts src/lib/markdown.test.ts`；`npx openspec validate enter-content-integrity --strict`。
+- **验证：** `npm test -- src/editor/__tests__`；`npx openspec validate enter-content-integrity --strict`。
 续写段落行为的主题规范为 [`block-continuation-paragraph`](../block-continuation-paragraph/spec.md)；下文中与归档 delta 同名的要求作为 archive-sync 必需的历史兼容镜像保留，新的续写语义以主题规范为准。
 
 ## Requirements

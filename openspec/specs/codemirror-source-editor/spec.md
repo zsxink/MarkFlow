@@ -4,11 +4,11 @@
 定义 CodeMirror 6 源码编辑器的生命周期、Markdown 编辑能力以及与 WYSIWYG 模式的内容同步。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.source.ts`、`src/lib/editor.ts`、`src/lib/editor.state.ts`、`src/lib/editor.stats.ts` 和 `src/styles/editor.css`。
+- **源码入口：** `src/editor/source.ts`、`src/editor/session.ts`、`src/editor/state.ts`、`src/editor/stats.ts` 和 `src/styles/editor.css`。
 - **关联规范：** `type-system`、`enter-content-integrity`、`document-size-tier`、`autosave-reliability`。
 - **不变量：** 同一时刻只存在一个当前模式的编辑器视图；模式切换不得丢失 Markdown 或错误改变 dirty 状态；程序化写入必须避免被当作用户编辑，源码模式的只读状态必须与 store 一致。
-- **运行时 Compartment：** 源码编辑器有 readOnly / highlight / softWrap 三个运行时 Compartment（`readOnlyCompartment` / `highlightCompartment` / `softWrapCompartment`，见 `src/lib/editor.source.ts`），各自独立 `reconfigure`，切换任一项都不会销毁重建 CM6 view，因此光标位置、选区与滚动位置得以保留；`setSourceSoftWrap()` 在没有 view 时会暂存该取值，供下一次 `createSourceEditor()` 作为初值使用（`softWrapEnabled ?? (settings.softWrap !== false)`）。
-- **验证：** `npm test -- src/lib/editor.state.test.ts src/lib/editor.helpers.test.ts src/lib/editor.serializer.test.ts`；`npm run build`；`npx openspec validate codemirror-source-editor --strict`。
+- **运行时 Compartment：** 源码编辑器有 readOnly / highlight / softWrap 三个运行时 Compartment（`readOnlyCompartment` / `highlightCompartment` / `softWrapCompartment`，见 `src/editor/source.ts`），各自独立 `reconfigure`，切换任一项都不会销毁重建 CM6 view，因此光标位置、选区与滚动位置得以保留；`setSourceSoftWrap()` 在没有 view 时会暂存该取值，供下一次 `createSourceEditor()` 作为初值使用（`softWrapEnabled ?? (settings.softWrap !== false)`）。
+- **验证：** `npm test -- src/editor/__tests__/state.test.ts src/editor/__tests__/line-numbers.test.ts src/editor/__tests__/serializer.test.ts`；`npm run build`；`npx openspec validate codemirror-source-editor --strict`。
 ## Requirements
 ### Requirement: CM6 实例生命周期管理
 

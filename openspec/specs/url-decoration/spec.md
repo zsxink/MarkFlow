@@ -4,16 +4,16 @@
 定义所见即所得编辑器中裸 URL 的非侵入式识别、交互与复制行为，确保视觉增强不会修改 Markdown 源内容。
 
 ## Agent Context
-- **源码入口：** `src/lib/urlDecorationPlugin.ts`、`src/lib/editor.ts` 与 `src/components/linkDialog.ts`。
+- **源码入口：** `src/editor/url-decoration.ts`、`src/editor/session.ts` 与 `src/ui/link-dialog.ts`。
 - **关联规范：** `safe-http-fetch`、`keyboard-shortcuts`、`enter-content-integrity`。
 - **不变量：** 装饰不得写入或改变 Markdown；已有链接与行内代码必须跳过；打开链接必须要求修饰键并使用安全窗口选项。
-- **验证：** `npm test -- src/lib/urlDecorationPlugin.test.ts`；`npx openspec validate url-decoration --strict`。
+- **验证：** `npm test -- src/editor/__tests__`；`npx openspec validate url-decoration --strict`。
 
 ## Requirements
 
 ### Requirement: 裸 URL 装饰
 
-系统 MUST 通过 `src/lib/urlDecorationPlugin.ts` 的 `createUrlDecorationPlugin` 识别文本中的裸 URL，并以 `.auto-link-deco` 内联装饰显示。该装饰 MUST 不创建链接标记，且必须跳过已有链接标记或行内代码中的文本。
+系统 MUST 通过 `src/editor/url-decoration.ts` 的 `createUrlDecorationPlugin` 识别文本中的裸 URL，并以 `.auto-link-deco` 内联装饰显示。该装饰 MUST 不创建链接标记，且必须跳过已有链接标记或行内代码中的文本。
 
 #### Scenario: 识别普通文本中的 URL
 - **WHEN** 所见即所得文档包含未标记的 `https` URL

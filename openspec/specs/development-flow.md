@@ -260,7 +260,7 @@ GitHub Release 自动生成（`generate_release_notes: true`），手动补充�
 ```
 1. 创建 Issue #12：「fix: 行号显示不准确」
    - 标题：fix: 行号显示不准确
-   - 背景：markflow/src/lib/editor.ts 中 getLineCount() 实现...
+   - 背景：markflow/src/editor/session.ts 中 getLineCount() 实现...
 
 2. 创建分支：fix/#12-line-number-bug
 

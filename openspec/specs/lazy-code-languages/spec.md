@@ -4,7 +4,7 @@
 定义 CodeMirror 语言包按需加载及加载失败时的回退行为。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.source.ts` 与 `src/lib/codemirror-languages.ts`。
+- **源码入口：** `src/editor/source.ts` 与 `src/render/codemirror-languages.ts`。
 - **关联规范：** `codemirror-source-editor`、`bundle-budget`、`document-size-tier`。
 - **不变量：** 未使用语言不得进入初始加载路径；缓存的语言扩展必须复用；加载失败必须保留可编辑的纯文本回退。
 - **验证：** `npm test -- src/lib`；`npm run build`；`npx openspec validate lazy-code-languages --strict`。

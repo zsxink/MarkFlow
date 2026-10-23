@@ -5,7 +5,7 @@
 定义工具栏按钮组容器和整体布局规范，确保 ARIA 分组不破坏视觉布局。
 
 ## Agent Context
-- **源码入口：** `src/styles/toolbar.css`、`src/components/toolbar.ts`
+- **源码入口：** `src/styles/toolbar.css`、`src/ui/toolbar.ts`
 - **关联规范：** `ui-aria-attributes`、`statusbar`。
 - **不变量：** 待实现。
 - **验证：** 待实现。

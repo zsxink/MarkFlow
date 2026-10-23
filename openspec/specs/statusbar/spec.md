@@ -5,16 +5,16 @@
 定义底部状态栏的统计、自动保存警告与快捷操作行为。
 
 ## Agent Context
-- **源码入口：** `src/components/statusbar.ts`、`src/lib/store.ts` 与 `src/lib/editor.source.ts`。
+- **源码入口：** `src/ui/status-bar.ts`、`src/infra/store.ts` 与 `src/editor/source.ts`。
 - **关联规范：** `autosave-reliability`、`codemirror-source-editor`、`document-size-tier`。
 - **不变量：** 统计必须跟随当前编辑模式；连续自动保存失败才显示持续警告；快捷操作不得改变未保存文档内容。
-- **验证：** `npm test -- src/components/statusbar.test.ts`；`npx openspec validate statusbar --strict`。
+- **验证：** `npm test -- src/ui/__tests__`；`npx openspec validate statusbar --strict`。
 
 ## Requirements
 
 ### Requirement: 状态栏统计与快捷操作
 
-系统 MUST 通过 `src/components/statusbar.ts` 初始化状态栏。状态栏 MUST 订阅 `editor:update` 事件，并显示当前编辑模式下的字数、行数和光标位置；设置、专注模式和主题操作 MUST 保持可用。
+系统 MUST 通过 `src/ui/status-bar.ts` 初始化状态栏。状态栏 MUST 订阅 `editor:update` 事件，并显示当前编辑模式下的字数、行数和光标位置；设置、专注模式和主题操作 MUST 保持可用。
 
 #### Scenario: 编辑后更新统计
 - **WHEN** 编辑器发出 `editor:update` 事件

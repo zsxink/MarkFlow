@@ -4,10 +4,10 @@
 定义事件、编辑器、文件树和设置类型的集中管理及其在源代码模块中的使用要求。
 
 ## Agent Context
-- **源码入口：** `src/types/events.ts`、`src/types/editor.ts`、`src/types/fileTree.ts`、`src/types/settings.ts`；消费者包括 `src/lib/store.ts`、`src/lib/storage.ts`、`src/lib/imageUtils.ts`、`src/components/fileTree.core.ts`、`src/components/settings.ts` 和 `src/main.ts`。
+- **源码入口：** `src/types/events.ts`、`src/types/editor.ts`、`src/types/file-tree.ts`、`src/types/settings.ts`；消费者包括 `src/infra/store.ts`、`src/infra/storage.ts`、`src/infra/images/core.ts`、`src/ui/file-tree/core.ts`、`src/ui/settings/panel.ts` 和 `src/main.ts`。
 - **关联规范：** `active-document-state`、`file-tree-architecture`、`codemirror-source-editor`、`atomic-save`。
 - **不变量：** 跨模块共享类型只在 `src/types/` 定义；前端 Settings 字段必须与 Rust 的 camelCase 序列化结构对应；类型重构不得改变运行时事件名称、store 字段或默认设置。
-- **验证：** `npx tsc --noEmit`；`npm test -- src/lib/store.test.ts src/components/fileTree.state.test.ts`；`npx openspec validate type-system --strict`。
+- **验证：** `npx tsc --noEmit`；`npm test -- src/infra/__tests__/store.test.ts src/ui/file-tree/__tests__/state.test.ts`；`npx openspec validate type-system --strict`。
 
 ## Requirements
 
@@ -61,46 +61,46 @@
 
 ### Requirement: 文件树类型集中管理
 
-系统 SHALL 将文件树相关类型定义在 `src/types/fileTree.ts` 中，包括但不限于：
+系统 SHALL 将文件树相关类型定义在 `src/types/file-tree.ts` 中，包括但不限于：
 - `FileEntry` — 文件条目接口
 - `RemoteImageData` — 远程图片数据接口
 - `DragState` — 拖拽状态类型
 
 #### Scenario: FileEntry 正确定义
 
-- **WHEN** 从 `src/types/fileTree.ts` import `FileEntry`
+- **WHEN** 从 `src/types/file-tree.ts` import `FileEntry`
 - **THEN** `FileEntry` 应包含 `name`、`path`、`isDir` 字段
 - **AND** 可选包含 `children?: FileEntry[]`
 
 #### Scenario: RemoteImageData 正确定义
 
-- **WHEN** 从 `src/types/fileTree.ts` import `RemoteImageData`
+- **WHEN** 从 `src/types/file-tree.ts` import `RemoteImageData`
 - **THEN** `RemoteImageData` 应包含 `data: string` 和 `mimeType: string` 字段
 
 #### Scenario: DragState 正确定义
 
-- **WHEN** 从 `src/types/fileTree.ts` import `DragState`
+- **WHEN** 从 `src/types/file-tree.ts` import `DragState`
 - **THEN** `DragState` 应为包含 `srcPath: string | null`、`srcEl: HTMLElement | null`、`isDragging: boolean` 的 interface
 
 ### Requirement: 源代码模块导入新类型
 
 系统 SHALL 将所有源模块中内联定义的类型替换为从 `src/types/` 导入，包括：
-- `src/lib/storage.ts` 移除内联的 `FileEntry` 和 `RemoteImageData`，从 `src/types/fileTree.ts` 导入
-- `src/lib/imageUtils.ts` 移除内联的 `ImageSettings`，从 `src/types/editor.ts` 导入
+- `src/infra/storage.ts` 移除内联的 `FileEntry` 和 `RemoteImageData`，从 `src/types/file-tree.ts` 导入
+- `src/infra/images/core.ts` 移除内联的 `ImageSettings`，从 `src/types/editor.ts` 导入
 - `src/main.ts` 移除内联的 `FileChangeEvent`，从 `src/types/events.ts` 导入
-- `src/lib/store.ts` 移除内联的 `StoreEvent` 和 `StoreState`，从 `src/types/events.ts` 导入
-- `src/components/fileTree.core.ts` 移除内联的 `dragState` 对象，从 `src/types/fileTree.ts` 导入 `DragState` 类型
+- `src/infra/store.ts` 移除内联的 `StoreEvent` 和 `StoreState`，从 `src/types/events.ts` 导入
+- `src/ui/file-tree/core.ts` 移除内联的 `dragState` 对象，从 `src/types/file-tree.ts` 导入 `DragState` 类型
 
 #### Scenario: storage.ts 使用导入类型
 
 - **WHEN** 构建项目
-- **THEN** `src/lib/storage.ts` 不包含 `interface FileEntry` 或 `interface RemoteImageData` 定义
-- **AND** 从 `src/types/fileTree.ts` import 这两个类型
+- **THEN** `src/infra/storage.ts` 不包含 `interface FileEntry` 或 `interface RemoteImageData` 定义
+- **AND** 从 `src/types/file-tree.ts` import 这两个类型
 
 #### Scenario: imageUtils.ts 使用导入类型
 
 - **WHEN** 构建项目
-- **THEN** `src/lib/imageUtils.ts` 不包含 `interface ImageSettings` 定义
+- **THEN** `src/infra/images/core.ts` 不包含 `interface ImageSettings` 定义
 - **AND** 从 `src/types/editor.ts` import `ImageSettings`
 
 #### Scenario: main.ts 使用导入类型
@@ -112,7 +112,7 @@
 #### Scenario: store.ts 使用导入类型
 
 - **WHEN** 构建项目
-- **THEN** `src/lib/store.ts` 不包含 `type StoreEvent` 或 `interface StoreState` 定义
+- **THEN** `src/infra/store.ts` 不包含 `type StoreEvent` 或 `interface StoreState` 定义
 - **AND** 从 `src/types/events.ts` import 这两个类型
 
 ### Requirement: 类型检查通过
@@ -155,7 +155,7 @@
 
 ### Requirement: storage.ts 使用 Settings 类型
 
-系统 SHALL 将 `src/lib/storage.ts` 中的 `loadSettings`/`saveSettings` 返回/接收类型从 `Record<string, unknown>` 改为 `Settings`。
+系统 SHALL 将 `src/infra/storage.ts` 中的 `loadSettings`/`saveSettings` 返回/接收类型从 `Record<string, unknown>` 改为 `Settings`。
 
 #### Scenario: loadSettings 返回 Settings 类型
 
@@ -169,10 +169,20 @@
 
 ### Requirement: settings.ts 组件引用 DEFAULT_SETTINGS
 
-系统 SHALL 将 `src/components/settings.ts`（组件）中对 `DEFAULT_SETTINGS` 的定义改为从 `src/types/settings.ts` 导入。
+系统 SHALL 将 `src/ui/settings/panel.ts`（组件）中对 `DEFAULT_SETTINGS` 的定义改为从 `src/types/settings.ts` 导入。
 
 #### Scenario: settings.ts 使用导入的 DEFAULT_SETTINGS
 
 - **WHEN** 构建项目
-- **THEN** `src/components/settings.ts` 不包含 `const DEFAULT_SETTINGS` 定义
+- **THEN** `src/ui/settings/panel.ts` 不包含 `const DEFAULT_SETTINGS` 定义
 - **AND** 从 `src/types/settings.ts` import `DEFAULT_SETTINGS`
+
+### Requirement: 跨层类型导入经 barrel 收敛
+
+系统 SHALL 让 `src/ui/` 与 `src/main.ts` 只从 `src/editor/index.ts`、`src/render/index.ts`、`src/export/index.ts` 取得这些层的公共类型，避免依赖其内部文件布局。
+
+#### Scenario: UI 层不直连引擎内部类型文件
+
+- **WHEN** 检查 `src/ui/` 对编辑器、渲染、导出层的类型 import
+- **THEN** import 目标 SHALL 为对应层的 `index.ts`
+- **AND** SHALL NOT 出现指向该层内部实现文件的类型 import

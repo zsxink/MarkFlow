@@ -4,7 +4,7 @@
 定义 WYSIWYG 与源码编辑器底部视觉留白，保证滚动体验在两种模式下保持一致。
 
 ## Agent Context
-- **源码入口：** `src/styles/editor.css`、`src/lib/editor.ts` 与 `src/lib/editor.source.ts`。
+- **源码入口：** `src/styles/editor.css`、`src/editor/session.ts` 与 `src/editor/source.ts`。
 - **关联规范：** `codemirror-source-editor`、`document-size-tier`。
 - **不变量：** 留白只影响视觉滚动空间，不得进入 Markdown；两种编辑模式的留白高度必须一致；不得影响末尾光标或选择。
 - **验证：** `npm run build`；`npx openspec validate editor-bottom-spacer --strict`。

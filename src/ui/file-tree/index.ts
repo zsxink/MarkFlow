@@ -1,0 +1,24 @@
+// Entry file — pure re-exports from sub-modules.
+// Consumers should continue to import from 'fileTree' (no path change needed).
+
+export {
+  getWorkspacePath,
+  setWorkspacePath,
+  suppressNextWatcherRefresh,
+  cancelSuppressedWatcherRefresh,
+  isSuppressedPath,
+  suppressAllDescendants,
+  refreshFileTree,
+  initTreeAria,
+  insertEntryIntoTree,
+  removeEntryFromTree,
+  renameEntryInTree,
+  applyFileTreeEvents,
+  cleanup,
+  flushPendingMutations,
+} from './core';
+
+export {
+  startInlineRename,
+  startInlineCreate,
+} from './inline';

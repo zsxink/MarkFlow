@@ -1,8 +1,10 @@
 /**
- * 发布流水线回归门禁（Issue #320）。
+ * 发布流水线回归门禁（Issue #320、#374）。
  *
  * v0.1.1 发布时 Windows 构建静默失败、Homebrew 拿不到草稿资产，
  * 两处都是流水线自身的 bug。这里从源码层面锁死修复方式，防止回归。
+ * #374 再补一组：Release 产物矩阵必须覆盖 Intel macOS（x86_64 DMG），
+ * 交叉编译传参、target 域产物路径、架构自检、双架构下载说明全部锁死。
  *
  * 断言只看**代码**，不看注释：注释里正当地写着「不要这么写」的反例，
  * 直接对全文做正则会把解释文字当成违规。
@@ -50,5 +52,53 @@ describe('release pipeline (issue #320)', () => {
     expect(codeOnly(downloadFn)).not.toMatch(/releases\/download/)
     expect(downloadFn).toContain('gh release download')
     expect(downloadFn).toContain('--pattern')
+  })
+})
+
+describe('release pipeline (issue #374: Intel macOS x86_64 包)', () => {
+  it('build matrix 必须同时覆盖 macOS aarch64 与 x86_64 两个条目', () => {
+    const src = codeOnly(read('.github/workflows/release.yml'))
+    // 两条目都跑在 macos-latest（arm64 runner）上，x86_64 靠交叉编译产出
+    expect(src).toMatch(/platform: macos-latest\s*\r?\n\s*rust_target: aarch64-apple-darwin/)
+    expect(src).toMatch(/platform: macos-latest\s*\r?\n\s*rust_target: x86_64-apple-darwin/)
+  })
+
+  it('macOS 构建必须显式传 --target，Windows/Linux 保持不传', () => {
+    const src = codeOnly(read('.github/workflows/release.yml'))
+    // tauri-action 的 args 按 platform 条件派生：x86_64 交叉编译必需；
+    // arm job 一并传让产物路径统一为 target 域。Windows/Linux 传了反而扰动原生构建与缓存键。
+    expect(src).toMatch(
+      /args: \$\{\{ matrix\.platform == 'macos-latest' && format\('--target \{0\}', matrix\.rust_target\) \|\| '' \}\}/,
+    )
+  })
+
+  it('构建后必须对 .app 主二进制跑 lipo 架构自检（期望值由 matrix 派生）', () => {
+    const src = codeOnly(read('.github/workflows/release.yml'))
+    expect(src).toContain('lipo -info')
+    // --target 传递失效会让 x86_64 job 静默产出 arm64 包，架构断言是最低门槛
+    expect(src).toMatch(/matrix\.rust_target == 'aarch64-apple-darwin' && 'arm64' \|\| 'x86_64'/)
+  })
+
+  it('DMG 外观三步的 glob 必须落在 target/<rust_target> 域', () => {
+    const src = codeOnly(read('.github/workflows/release.yml'))
+    const scoped = src.match(
+      /src-tauri\/target\/\$\{\{ matrix\.rust_target \}\}\/release\/bundle\/dmg\/\*\.dmg/g,
+    )
+    expect(scoped?.length).toBe(3)
+    // 旧的非 target 域路径不允许回归：传 --target 后那里没有产物，循环会静默跳过
+    expect(src).not.toMatch(/src-tauri\/target\/release\/bundle\//)
+  })
+
+  it('releaseBody 下载说明必须区分 Apple Silicon 与 Intel', () => {
+    const src = codeOnly(read('.github/workflows/release.yml'))
+    expect(src).toMatch(/macOS \(Apple Silicon\)[^\n]*_aarch64\.dmg/)
+    expect(src).toMatch(/macOS \(Intel\)[^\n]*_x86_64\.dmg/)
+  })
+
+  it('homebrew-publish 仍须保留 on_intel 段与 x86_64 资产名（cask 双架构靠它）', () => {
+    const src = codeOnly(read('scripts/homebrew-publish.sh'))
+    expect(src).toContain('on_intel do')
+    expect(src).toContain('MarkFlow_#{version}_x86_64.dmg')
+    expect(src).toContain('download_sha "x86_64"')
   })
 })

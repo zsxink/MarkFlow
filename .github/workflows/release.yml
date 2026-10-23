@@ -18,6 +18,8 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
           - platform: macos-latest
             rust_target: aarch64-apple-darwin
+          - platform: macos-latest
+            rust_target: x86_64-apple-darwin
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
 
@@ -66,7 +68,8 @@ jobs:
 
             ### 下载说明
             - **Windows**: 下载 `.exe` 文件运行安装
-            - **macOS**: 下载 `_aarch64.dmg` 文件，将 MarkFlow 拖入 Applications
+            - **macOS (Apple Silicon)**: 下载 `_aarch64.dmg` 文件，将 MarkFlow 拖入 Applications
+            - **macOS (Intel)**: 下载 `_x86_64.dmg` 文件，将 MarkFlow 拖入 Applications
             - **Linux**: 下载 `.AppImage` 或 `.deb` 文件安装
 
             ### Homebrew (macOS)
@@ -75,22 +78,44 @@ jobs:
             ```
           releaseDraft: true
           prerelease: false
+          # macOS 必须显式传 --target：x86_64 包在 arm64 runner 上交叉编译必需；
+          # arm job 一并传使两个 macOS job 对称、产物路径统一为 target 域。
+          # Windows/Linux 不传，避免扰动原生构建路径与缓存键。
+          args: ${{ matrix.platform == 'macos-latest' && format('--target {0}', matrix.rust_target) || '' }}
+
+      # 交叉编译架构自检（Issue #374）：--target 传递一旦失效，x86_64 job 会静默
+      # 产出 arm64 包而无人察觉。对 .app 主二进制跑 lipo，架构与 matrix 目标
+      # 不符直接失败。Intel 包没在真机启动过，这是发布前的最低门槛。
+      - name: Verify app binary architecture
+        if: matrix.platform == 'macos-latest'
+        run: |
+          expected="${{ matrix.rust_target == 'aarch64-apple-darwin' && 'arm64' || 'x86_64' }}"
+          app_bin="$(echo src-tauri/target/${{ matrix.rust_target }}/release/bundle/macos/*.app)/Contents/MacOS/MarkFlow"
+          info="$(lipo -info "$app_bin")"
+          echo "lipo -info: $info (expected: $expected)"
+          # lipo 对 fat 文件会大写架构名（X86_64），grep -i 兼容两种输出
+          if ! grep -qi "$expected" <<<"$info"; then
+            echo "::error::架构与目标 ${{ matrix.rust_target }} 不符: $info"
+            exit 1
+          fi
 
       # DMG 外观收尾。Tauri 的 AppleScript 段对 iconSize / arrangeBy 不可靠——实测两项都没落地，
       # 而 DmgConfig 里根本没有对应字段，配置层面改不了。所以构建后补一次字节级归一化，
       # 再对**产物本身**断言（而不是看打包日志）。断言失败让 job 失败，配合 releaseDraft: true
       # 保证有问题的草稿不会被发布。
+      # 传 --target 后产物落在 target/<rust_target>/release/ 域，两个 macOS job
+      # 各自 glob 到自己的 DMG，互不影响。
       - name: Normalize DMG appearance
         if: matrix.platform == 'macos-latest'
         run: |
-          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+          for dmg in src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg; do
             node scripts/style-dmg.mjs "$dmg"
           done
 
       - name: Verify DMG appearance
         if: matrix.platform == 'macos-latest'
         run: |
-          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+          for dmg in src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg; do
             # 隔离采集入口（Issue #293）：先清场再挂载目标卷，断言读取的
             # 是产物自身的 .DS_Store，不受 Finder 跨 DMG 窗口状态影响。
             node scripts/collect-dmg-appearance.mjs "$dmg"
@@ -101,7 +126,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for dmg in src-tauri/target/release/bundle/dmg/*.dmg; do
+          for dmg in src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg/*.dmg; do
             gh release upload "${{ github.ref_name }}" "$dmg" --clobber
           done
 

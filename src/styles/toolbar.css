@@ -173,3 +173,53 @@
   z-index: 100;
   pointer-events: none;
 }
+
+/* --- Window controls (undecorated Windows/Linux title bar) --- */
+
+.toolbar-window-controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+/* The author display rule would override the UA [hidden] rule — restate it. */
+.toolbar-window-controls[hidden],
+.window-control-btn svg[hidden] {
+  display: none;
+}
+
+.window-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+}
+
+.window-control-btn:hover {
+  background: var(--code-bg);
+}
+
+.window-control-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.window-control-close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+.toolbar.has-window-controls {
+  padding-right: 0;
+}

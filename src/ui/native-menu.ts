@@ -23,6 +23,7 @@ import {
   reopenClosedDocumentTab,
 } from './documents/session';
 import { clearRecentHistory, loadSettings, onRecentHistoryChanged } from '../infra/storage';
+import { classifyError } from '../infra/error';
 import { getEditor, getMode } from '../editor';
 import { getSourceView } from '../editor';
 import { cycleTheme } from '../infra/theme';
@@ -110,7 +111,9 @@ async function openSettings(): Promise<void> {
 
 async function openLogDirectory(): Promise<void> {
   const directory = await invoke<string>('get_log_dir');
-  await shellOpen(directory);
+  // Local paths go through the backend command: the shell plugin's URL
+  // whitelist rejects normalized forward-slash Windows paths (issue #377).
+  await invoke('open_in_file_manager', { path: directory });
 }
 
 async function openFeedback(): Promise<void> {
@@ -242,6 +245,10 @@ export async function dispatchNativeMenuAction(action: string): Promise<boolean>
     else await handler?.();
   } catch (error) {
     logException('native-menu', 'Native menu action failed', error, { action });
+    // Lower-layer handlers mostly toast-and-swallow their own failures; this
+    // toast covers errors that still propagate up. An occasional duplicate
+    // toast for the same failure is accepted over silent menu actions.
+    showToast(`操作失败: ${classifyError(error).message}`);
   }
   // Workspace/document/recent state may have changed; keep the native menu in step.
   await syncNativeMenuState();

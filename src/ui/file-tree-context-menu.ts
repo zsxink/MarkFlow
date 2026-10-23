@@ -1,9 +1,9 @@
 import { deletePath, copyFile, readSingleDir } from '../infra/storage';
 import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './file-tree/index';
 import { showToast } from './toast';
-import { reportUserActionError } from '../infra/error';
+import { classifyError, reportUserActionError } from '../infra/error';
 import { getFileName, getParentDir } from '../utils/paths';
-import { open as shellOpen } from '@tauri-apps/plugin-shell';
+import { invoke } from '@tauri-apps/api/core';
 import { open as dialogOpen } from '@tauri-apps/plugin-dialog';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { showContextMenuStatic } from './context-menu';
@@ -168,9 +168,11 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         const revealPath = path || getWorkspacePath();
         if (revealPath) {
           try {
-            await shellOpen(revealPath);
+            // Backend command keeps this working for normalized forward-slash
+            // Windows paths, which the shell plugin whitelist rejects (#377).
+            await invoke('open_in_file_manager', { path: revealPath });
           } catch (e) {
-            showToast(`打开失败: ${e}`);
+            showToast(`打开失败: ${classifyError(e).message}`);
           }
         }
         break;

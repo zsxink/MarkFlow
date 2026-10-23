@@ -1,0 +1,74 @@
+# file-manager-open Specification
+
+## Purpose
+为应用提供经后端命令以系统文件管理器打开目录或定位本地文件的能力，保证本地路径打开不受前端 URL 白名单校验与路径分隔符形态影响，并在失败时给出用户可见、可分类的错误提示。
+
+## Agent Context
+- **源码入口：** Rust `src-tauri/src/fs/open.rs`（`open_in_file_manager` 命令与目标分类）、`src-tauri/src/lib.rs`（插件与命令注册）；前端 `src/ui/native-menu.ts`（帮助 → 打开日志目录、菜单失败反馈）、`src/ui/file-tree-context-menu.ts`（在文件资源管理器中显示）、`src/ui/image-context-menu.ts`（打开文件所在）。
+- **关联规范：** `native-menu-bar`、`error-handling`、`crash-logging`、`context-menu`。
+- **不变量：** 本地文件系统路径不得交给按 URL 白名单校验的前端 shell open；外部 URL（问题反馈等）仍走 shell open；命令接受任意路径分隔符形态；失败必须返回统一错误类型并呈现用户可见提示。
+- **验证：** `cargo test --manifest-path src-tauri/Cargo.toml`（`fs::open`）；`npm test -- src/ui/__tests__/native-menu.test.ts src/ui/__tests__/file-tree-context-menu.test.ts`；`npx openspec validate file-manager-open --strict`。
+
+## Requirements
+
+### Requirement: 后端文件管理器打开命令
+
+后端 MUST 提供 `open_in_file_manager` 命令：给定本地路径，当路径是目录时在系统文件管理器中打开该目录，当路径是文件时在系统文件管理器中定位该文件。命令 MUST 接受任意路径分隔符形态（正斜杠或反斜杠），不得依赖前端 shell 插件的白名单校验。命令失败时 MUST 返回携带稳定错误码与可读消息的统一错误类型；路径不存在时 MUST 返回 Io 类错误。
+
+#### Scenario: 打开目录
+
+- **WHEN** 调用方传入一个存在的目录路径（如日志目录）
+- **THEN** 系统文件管理器打开该目录
+
+#### Scenario: 定位文件
+
+- **WHEN** 调用方传入一个存在的文件路径（如工作区中的某个 Markdown 文件）
+- **THEN** 系统文件管理器打开其父目录并定位选中该文件
+
+#### Scenario: 正斜杠路径在 Windows 可用
+
+- **WHEN** 调用方传入使用正斜杠分隔的 Windows 绝对路径（如 `C:/Users/xxx/AppData/Roaming/MarkFlow/logs`）
+- **THEN** 命令正常执行对应的打开或定位行为，不因路径分隔符形态被拒绝
+
+#### Scenario: 路径不存在
+
+- **WHEN** 调用方传入不存在的路径
+- **THEN** 命令返回 Io 类统一错误，消息包含该路径，且不产生任何系统调用副作用
+
+### Requirement: 本地路径打开入口统一走后端命令
+
+用户可见的本地路径打开入口——帮助菜单「打开日志目录」、文件树右键「在文件资源管理器中显示」、图片右键「打开文件所在」——MUST 全部通过 `open_in_file_manager` 命令完成，不得将本地文件系统路径交给按 URL 白名单校验的前端 shell open。外部 URL（如问题反馈链接）不受此约束。
+
+#### Scenario: 帮助菜单打开日志目录
+
+- **WHEN** 用户在菜单栏选择「帮助 → 打开日志目录」
+- **THEN** 应用调用后端命令打开日志目录，Windows 上同样生效
+
+#### Scenario: 文件树右键在资源管理器中显示
+
+- **WHEN** 用户在文件树右键选择「在文件资源管理器中显示」
+- **THEN** 应用调用后端命令定位该文件或打开该文件夹
+
+#### Scenario: 图片右键打开文件所在
+
+- **WHEN** 用户对本地图片右键选择「打开文件所在」
+- **THEN** 应用调用后端命令打开图片所在目录
+
+#### Scenario: 外部链接仍走 URL 打开
+
+- **WHEN** 用户在菜单栏选择「帮助 → 问题反馈」
+- **THEN** 外部 URL 仍经前端 shell open 打开，行为不变
+
+### Requirement: 本地路径打开失败的用户可见反馈
+
+上述本地路径打开入口在命令失败时 MUST 向用户呈现可恢复的提示（toast），提示内容基于统一错误分类生成，同时保留结构化日志记录；不得表现为静默失败。文件树右键与图片右键的既有失败提示行为 MUST 保持。
+
+#### Scenario: 打开日志目录失败有提示
+
+- **WHEN** 「帮助 → 打开日志目录」的后端命令失败
+- **THEN** 用户看到基于错误分类的 toast 提示，且失败被写入结构化日志
+
+#### Scenario: 右键入口失败提示保持
+
+- **WHEN** 文件树右键或图片右键的打开动作失败
+- **THEN** 用户看到失败 toast 提示，既有提示文案行为不回退

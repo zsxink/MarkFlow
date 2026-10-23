@@ -72,6 +72,7 @@
 
 - [context-menu](context-menu/spec.md) — 右键菜单 API 与交互。
 - [dialog-system](dialog-system/spec.md) — 对话框结构、样式与创建方式。
+- [file-manager-open](file-manager-open/spec.md) — 系统文件管理器打开/定位本地路径与失败反馈。
 - [font-stack](font-stack/spec.md) — 跨平台字体栈与分发。
 - [lazy-mermaid](lazy-mermaid/spec.md) — Mermaid 按需加载与渲染状态。
 - [plantuml-render](plantuml-render/spec.md) — PlantUML 设置、渲染与回退。

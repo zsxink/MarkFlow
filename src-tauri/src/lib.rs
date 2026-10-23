@@ -365,6 +365,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(single_instance_init(|app, args, _cwd| {
             let paths = args
                 .iter()
@@ -403,6 +404,7 @@ pub fn run() {
             files::dialogs::save_document_export,
             files_pagination::read_dir,
             files::entry::read_path_entry,
+            fs::open::open_in_file_manager,
             files::crud::create_file,
             files::crud::create_dir,
             files::crud::rename_path,

@@ -6,6 +6,7 @@
 import { setWorkspace as setWorkspaceIPC, addRecentFolder } from '../../infra/storage';
 import { logException, logInfo } from '../../infra/logger';
 import { store } from '../../infra/store';
+import { normalizeWorkspacePath } from '../../utils/paths';
 import { suppressPaths, SUPPRESS_DURATION_MS } from './context';
 
 export function getWorkspacePath() {
@@ -13,7 +14,7 @@ export function getWorkspacePath() {
 }
 
 export async function setWorkspacePath(path: string | null) {
-  const normalized = path ? path.replace(/\\/g, '/') : null;
+  const normalized = path ? normalizeWorkspacePath(path) : null;
   if (path) {
     try {
       await setWorkspaceIPC(path);

@@ -8,6 +8,7 @@ import {
   computeRelativePath,
   getImageMimeType,
   normalizeImageStoragePath,
+  normalizeWorkspacePath,
 } from '../paths';
 
 // ---------------------------------------------------------------------------
@@ -227,5 +228,36 @@ describe('getImageMimeType', () => {
   it('is case-insensitive for extension matching', () => {
     expect(getImageMimeType('photo.PNG')).toBe('image/png');
     expect(getImageMimeType('photo.JPG')).toBe('image/jpeg');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeWorkspacePath
+// ---------------------------------------------------------------------------
+
+describe('normalizeWorkspacePath', () => {
+  it('lower-cases a Windows drive letter and drops the trailing separator', () => {
+    expect(normalizeWorkspacePath('C:\\Users\\me\\Notes\\')).toBe('c:/Users/me/Notes');
+  });
+
+  it('converts backslashes and keeps inner separators', () => {
+    expect(normalizeWorkspacePath('D:\\work\\notes')).toBe('d:/work/notes');
+  });
+
+  it('drops a trailing slash from a POSIX path', () => {
+    expect(normalizeWorkspacePath('/home/user/notes/')).toBe('/home/user/notes');
+  });
+
+  it('keeps a POSIX root and a bare drive root intact', () => {
+    expect(normalizeWorkspacePath('/')).toBe('/');
+    expect(normalizeWorkspacePath('C:/')).toBe('c:/');
+  });
+
+  it('leaves an already normalized path unchanged', () => {
+    expect(normalizeWorkspacePath('c:/Users/me/Notes')).toBe('c:/Users/me/Notes');
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(normalizeWorkspacePath('  /home/user/notes  ')).toBe('/home/user/notes');
   });
 });

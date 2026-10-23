@@ -4,12 +4,12 @@ import { createEmptyFrontmatter, extractFrontmatter } from '../utils/frontmatter
 import { store } from '../infra/store';
 import { openNewFrontmatterField } from './frontmatter-panel';
 import { open } from '@tauri-apps/plugin-dialog';
-import { setWorkspacePath, refreshFileTree, getWorkspacePath } from './file-tree/index';
+import { getWorkspacePath } from './file-tree/index';
 import { showNewFileDialog } from './new-file-dialog';
 import { showLinkDialog } from './link-dialog';
 import { showToast } from './toast';
 import { showModal } from './modal';
-import { openFileInEditor, saveActiveDocument } from './sidebar/index';
+import { openFileInEditor, saveActiveDocument, openWorkspaceFolderFlow } from './sidebar/index';
 import { copyLocalFileToStorage, handleNetworkImage, getImageSettings, imagePathToSrc } from '../infra/images/core';
 import { assetToOriginalMap, getActiveDocPath, getEditorDocumentVersion } from '../editor';
 import { logException } from '../infra/logger';
@@ -44,12 +44,7 @@ function bindToolbarEvents() {
   });
 
   bind('sidebar-open-folder', async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (selected) {
-      await setWorkspacePath(selected);
-      await refreshFileTree();
-      showToast('文件夹已打开');
-    }
+    await openWorkspaceFolderFlow();
   });
 
   bind('toolbar-open-file', async () => {

@@ -27,8 +27,8 @@ import { getEditor, getMode } from '../editor';
 import { getSourceView } from '../editor';
 import { cycleTheme } from '../infra/theme';
 import { store } from '../infra/store';
-import { getWorkspacePath, refreshFileTree, setWorkspacePath } from './file-tree/index';
-import { openFileInEditor, saveActiveDocument, switchSidebarTab } from './sidebar/index';
+import { getWorkspacePath } from './file-tree/index';
+import { activateWorkspaceFolder, openFileInEditor, openWorkspaceFolderFlow, saveActiveDocument, switchSidebarTab } from './sidebar/index';
 import { saveActiveDocumentAsNewFile } from './sidebar/fileops';
 import { showNewFileDialog } from './new-file-dialog';
 import { showLinkDialog } from './link-dialog';
@@ -48,13 +48,7 @@ function click(id: string): void {
 }
 
 function openWorkspaceFolder(): Promise<void> {
-  return (async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (!selected) return;
-    await setWorkspacePath(selected);
-    await refreshFileTree();
-    showToast('文件夹已打开');
-  })();
+  return openWorkspaceFolderFlow();
 }
 
 function openMarkdownFile(): Promise<void> {
@@ -141,9 +135,7 @@ async function clearHistory(): Promise<void> {
 }
 
 async function openRecentFolder(path: string): Promise<void> {
-  await setWorkspacePath(path);
-  await refreshFileTree();
-  showToast('文件夹已打开');
+  await activateWorkspaceFolder(path);
 }
 
 const actionHandlers: Record<string, MenuHandler> = {

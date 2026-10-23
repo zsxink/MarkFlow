@@ -6,8 +6,8 @@
 ## Agent Context
 - **源码入口：** `src/ui/file-tree/index.ts`、`src/ui/file-tree/core.ts`、`src/ui/file-tree/state.ts`、`src/ui/file-tree/dragdrop.ts`、`src/ui/file-tree/inline.ts`；后端目录与 watcher 命令位于 `src-tauri/src/commands/files/`。
 - **关联规范：** `active-document-state`、`sidebar`、`background-task-lifecycle`、`expensive-task-scheduling`。
-- **不变量：** 规范化 path 是节点和目录状态的稳定键；目录加载只处理直接子项并保留排序；单项事件不得重建整棵树，重命名必须迁移已加载后代及活动/展开状态；增量更新 SHALL 使用 rAF 批量提交，pendingMutations 队列积累 16ms 内变更。
-- **验证：** `npm test -- src/ui/file-tree/__tests__/core.test.ts src/ui/file-tree/__tests__/lazy.test.ts src/ui/file-tree/__tests__/state.test.ts`；`npm run benchmark:file-tree`；`npx openspec validate file-tree-architecture --strict`。
+- **不变量：** 规范化 path 是节点和目录状态的稳定键；工作区根路径与节点键 MUST 使用同一规范化形态（含 Windows 盘符大小写），根目录容器查找对大小写差异容错；目录加载只处理直接子项并保留排序；单项事件不得重建整棵树，重命名必须迁移已加载后代及活动/展开状态；增量更新 SHALL 使用 rAF 批量提交，pendingMutations 队列积累 16ms 内变更。
+- **验证：** `npm test -- src/ui/file-tree/__tests__/core.test.ts src/ui/file-tree/__tests__/lazy.test.ts src/ui/file-tree/__tests__/state.test.ts src/ui/file-tree/__tests__/dom.test.ts`；`npm run benchmark:file-tree`；`npx openspec validate file-tree-architecture --strict`。
 
 ## Requirements
 
@@ -62,6 +62,38 @@
 **运行时行为**
 
 文件树运行时行为 MUST 满足以下按需加载、事件处理和性能要求。
+
+### Requirement: 工作区根路径与节点键使用同一规范化形态
+
+文件树 MUST 以单一规范化形态作为路径键：反斜杠转正斜杠、去掉尾部斜杠、Windows 盘符统一为小写。工作区根路径写入状态时 MUST 经过同一规范化，使根目录判断与节点键比较不因盘符大小写差异而失配。
+
+#### Scenario: Windows 盘符大小写不一致
+- **WHEN** 用户在 Windows 上选择一个路径形如 `C:/Notes` 的目录作为工作区
+- **THEN** 工作区路径以 `c:/Notes` 形态记录
+- **THEN** 根目录的直接子项被渲染到文件树容器
+
+#### Scenario: 尾部斜杠或反斜杠形式的根路径
+- **WHEN** 工作区路径以 `C:\\Notes\\` 或 `/home/user/notes/` 形式传入
+- **THEN** 记录的工作区路径不含尾部斜杠且使用正斜杠
+- **THEN** 根目录的直接子项被渲染到文件树容器
+
+### Requirement: 根目录容器查找对大小写差异容错
+
+文件树渲染在定位某目录的子项容器时 MUST 对工作区根目录做大小写不敏感比较；路径大小写差异 MUST NOT 导致整次渲染被丢弃。
+
+#### Scenario: 根路径大小写与节点键不同
+- **WHEN** 传入的父路径与已记录的工作区路径仅盘符大小写不同
+- **THEN** 渲染目标解析为文件树根容器
+- **THEN** 该目录的子项出现在文件树中
+
+### Requirement: 目录渲染失败可诊断
+
+文件树渲染在找不到目标容器时 MUST 记录一条包含目录路径与工作区路径的告警日志，而非静默返回。
+
+#### Scenario: 目标容器缺失
+- **WHEN** 渲染某目录时无法定位其子项容器
+- **THEN** 前端日志记录目录路径与工作区路径
+- **THEN** 不抛出异常中断后续目录加载
 
 ### Requirement: 浅层按需目录加载
 系统 SHALL 在打开工作区时只读取根目录的首批必要条目，并在用户展开尚未加载的目录时才请求该目录的直接子项。目录读取结果 MUST 使用规范化绝对路径作为稳定标识，不得递归附带全部后代。

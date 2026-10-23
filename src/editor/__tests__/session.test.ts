@@ -33,11 +33,13 @@ import { store } from '../../infra/store';
 import { getMarkdownResult, getSavePlan, setMarkdown, switchToSource, switchToWysiwyg } from '../session';
 
 function editorDouble(overrides: Record<string, unknown> = {}) {
+  const getMarkdown = (overrides.getMarkdown as (() => string) | undefined) ?? vi.fn(() => '# markdown');
   return {
     commands: { setContent: vi.fn(), focus: vi.fn() },
     setEditable: vi.fn(),
     getJSON: vi.fn(() => ({ type: 'doc', content: [] })),
-    getMarkdown: vi.fn(() => '# markdown'),
+    getMarkdown,
+    markdown: { serialize: vi.fn(() => getMarkdown()) },
     ...overrides,
   } as any;
 }
@@ -107,7 +109,7 @@ describe('stage-one Markdown bridge integration', () => {
   it('parses Source into WYSIWYG with the v3 Markdown content type and destroys Source only on success', () => {
     const editor = editorDouble({
       getMarkdown: vi.fn(() => '# source'),
-      markdown: { parse: vi.fn(() => ({ type: 'doc', content: [] })) },
+      markdown: { parse: vi.fn(() => ({ type: 'doc', content: [] })), serialize: vi.fn(() => '# source') },
     });
     setEditor(editor);
     setMode('source');
@@ -141,7 +143,7 @@ describe('stage-one Markdown bridge integration', () => {
 
   it('uses the last persisted Source baseline when WYSIWYG serialization fails', () => {
     const editor = editorDouble();
-    delete editor.getMarkdown;
+    delete editor.markdown;
     setEditor(editor);
     getDocumentState().lastPersistedMarkdown = '# safe baseline';
 

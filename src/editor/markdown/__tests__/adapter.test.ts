@@ -8,7 +8,7 @@ import { serializeTipTapMarkdown } from '../adapter';
 function fakeEditor(json: unknown, markdown?: string) {
   return {
     getJSON: vi.fn(() => json),
-    getMarkdown: vi.fn(() => markdown),
+    markdown: { serialize: vi.fn(() => markdown) },
   } as any;
 }
 
@@ -20,10 +20,11 @@ describe('serializeTipTapMarkdown unknown-type detection (task 18)', () => {
     );
     const result = serializeTipTapMarkdown(editor);
     expect(result).toEqual({ ok: true, markdown: '# heading' });
-    expect(editor.getMarkdown).toHaveBeenCalledOnce();
+    expect(editor.markdown.serialize).toHaveBeenCalledOnce();
+    expect(editor.markdown.serialize).toHaveBeenCalledWith(editor.getJSON());
   });
 
-  it('rejects a document with an unknown node type and does not call getMarkdown', () => {
+  it('rejects a document with an unknown node type and does not call the serializer', () => {
     const editor = fakeEditor(
       { type: 'doc', content: [{ type: 'widget', content: [{ type: 'text', text: 'x' }] }] },
       undefined,
@@ -33,7 +34,7 @@ describe('serializeTipTapMarkdown unknown-type detection (task 18)', () => {
     if (!result.ok) {
       expect(result.error).toMatchObject({ stage: 'serialize', code: 'unknown-node-type', details: { nodeType: 'widget' } });
     }
-    expect(editor.getMarkdown).not.toHaveBeenCalled();
+    expect(editor.markdown.serialize).not.toHaveBeenCalled();
   });
 
   it('rejects a document with an unknown mark type', () => {
@@ -63,5 +64,11 @@ describe('serializeTipTapMarkdown unknown-type detection (task 18)', () => {
     }, '| h |');
     const result = serializeTipTapMarkdown(editor);
     expect(result).toEqual({ ok: true, markdown: '| h |' });
+  });
+
+  it('rejects when the markdown manager is unavailable', () => {
+    const editor = { getJSON: vi.fn(() => ({ type: 'doc' })) } as any;
+    const result = serializeTipTapMarkdown(editor);
+    expect(result).toEqual({ ok: false, error: { stage: 'serialize', code: 'markdown-api-unavailable' } });
   });
 });

@@ -4,6 +4,7 @@ import { classifyEligibility } from './eligibility';
 import { semanticFingerprint } from './fingerprint';
 import { scanCodeRegions } from './opaque/index';
 import { parseTipTapMarkdownToDoc } from './adapter';
+import { annotateAdjacentListRuns } from './adjacent-list-runs';
 
 export const RAW_MARKDOWN_NODE = 'markflowRawMarkdown';
 
@@ -164,7 +165,7 @@ export function serializeLocalizedMarkdown(editor: Editor): { markdown: string; 
     return node.content ? { ...node, content: node.content.map(tag) } : node;
   }
   const manager = (editor as unknown as { markdown: { serialize(doc: JSONContent): string } }).markdown;
-  const serialized = manager.serialize(tag(doc));
+  const serialized = manager.serialize(annotateAdjacentListRuns(tag(doc)));
   const verificationDoc = parseLocalizedMarkdown(editor, serialized, [...sources.keys()]);
   function restoreNode(node: JSONContent): JSONContent {
     if (node.type === RAW_MARKDOWN_NODE && sources.has(String(node.attrs?.source))) {

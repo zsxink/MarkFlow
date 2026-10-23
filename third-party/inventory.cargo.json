@@ -1,7 +1,7 @@
 {
   "ecosystem": "cargo",
   "note": "Generated from `cargo metadata --all-features` by scripts/generate-license-inventory.mjs. Do not edit by hand.",
-  "count": 586,
+  "count": 587,
   "packages": [
     {
       "ecosystem": "cargo",
@@ -4862,6 +4862,18 @@
       "ecosystem": "cargo",
       "name": "tauri-plugin-http",
       "version": "2.5.9",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-opener",
+      "version": "2.5.5",
       "license": "Apache-2.0 OR MIT",
       "chosen": "MIT",
       "texts": [

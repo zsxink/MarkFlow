@@ -7,7 +7,7 @@ MarkFlow bundles third-party software. This file is generated — do not edit it
 - `license` is the expression declared upstream, verbatim.
 - `chosen` is the branch MarkFlow relies on. For dual- or multi-licensed packages the project takes the permissive branch listed below.
 - License texts are shipped in `third-party/texts/` (and inside the installed app under its resources directory).
-- Entries: 826 (npm 240, Rust 586).
+- Entries: 827 (npm 240, Rust 587).
 - Generated: 2026-10-23
 
 ## License texts shipped with this project
@@ -157,7 +157,7 @@ Upstream offers a choice that includes a copyleft or exception branch. MarkFlow 
 - `rustls-webpki@0.103.13` — Copyright 2015 Brian Smith.
 - `untrusted@0.9.0` — Brian Smith <brian@briansmith.org>
 
-### MIT (726)
+### MIT (727)
 
 - `@antfu/install-pkg@1.1.0` — Copyright (c) 2021 Anthony Fu <https://github.com/antfu>
 - `@braintree/sanitize-url@7.1.2` — Copyright (c) 2017 Braintree
@@ -716,6 +716,7 @@ Upstream offers a choice that includes a copyleft or exception branch. MarkFlow 
 - `tauri-plugin-dialog@2.7.1` — Copyright (c) 2017 - Present Tauri Apps Contributors
 - `tauri-plugin-fs@2.5.1` — Copyright (c) 2017 - Present Tauri Apps Contributors
 - `tauri-plugin-http@2.5.9` — Copyright (c) 2017 - Present Tauri Apps Contributors
+- `tauri-plugin-opener@2.5.5` — Copyright (c) 2017 - Present Tauri Apps Contributors
 - `tauri-plugin-shell@2.3.5` — Copyright (c) 2017 - Present Tauri Apps Contributors
 - `tauri-plugin-single-instance@2.4.2` — Copyright (c) 2017 - Present The Tauri Programme in the Commons Conservancy
 - `tauri-plugin-wdio@1.2.0` — WebDriverIO Community

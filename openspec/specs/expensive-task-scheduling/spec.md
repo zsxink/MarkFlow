@@ -4,10 +4,10 @@
 定义高开销任务的防抖、取消、复杂度上限和增量计算要求，保障编辑器响应性。
 
 ## Agent Context
-- **源码入口：** `src/lib/taskScheduler.ts`、`src/lib/editor.ts` 与 `src/components/statusbar.ts`。
+- **源码入口：** `src/infra/task-scheduler.ts`、`src/editor/session.ts` 与 `src/ui/status-bar.ts`。
 - **关联规范：** `document-size-tier`、`codemirror-source-editor`、`regression-coverage`。
 - **不变量：** 新请求必须使过期任务结果失效；各任务队列独立去抖；取消后不得发布部分结果。
-- **验证：** `npm test -- src/lib/taskScheduler.test.ts`；`npx openspec validate expensive-task-scheduling --strict`。
+- **验证：** `npm test -- src/infra/__tests__/task-scheduler.test.ts`；`npx openspec validate expensive-task-scheduling --strict`。
 
 ## Requirements
 

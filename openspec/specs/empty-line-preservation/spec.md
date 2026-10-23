@@ -4,10 +4,10 @@
 定义源码模式下用户输入空行的保留规则，确保保存和模式切换不会因图片归一化逻辑而静默删除用户明确输入的空行。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.serializer.ts`（`normalizeImageMarkdown`、`fixImageNewlines`）
+- **源码入口：** `src/editor/serializer.ts`（`normalizeImageMarkdown`、`fixImageNewlines`）
 - **关联规范：** `enter-content-integrity`、`codemirror-source-editor`、`block-continuation-paragraph`
 - **不变量：** 用户输入的连续 2 个及以上的空行在保存后保持不变；图片与相邻非空内容之间至少保留一个空行；用户已有的额外空行不会被压缩。
-- **验证：** `npm test -- src/lib/editor.serializer.test.ts`；`npx openspec validate empty-line-preservation --strict`。
+- **验证：** `npm test -- src/editor/__tests__/serializer.test.ts`；`npx openspec validate empty-line-preservation --strict`。
 
 ## Requirements
 

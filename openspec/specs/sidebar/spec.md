@@ -4,10 +4,10 @@
 定义 MarkFlow 侧边栏的完整行为，包括 UI 初始化、文件操作（保存/另存为）、外部变更检测与冲突解决。
 
 ## Agent Context
-- **源码入口：** `src/components/sidebar.ts`、`src/components/sidebar.fileops.ts`、`src/components/fileTree.ts`。
+- **源码入口：** `src/ui/sidebar/index.ts`、`src/ui/sidebar/fileops.ts`、`src/ui/file-tree/index.ts`。
 - **关联规范：** `active-document-state`、`file-tree-architecture`、`atomic-save`、`dialog-system`。
 - **不变量：** 文件切换前必须处理未保存修改；外部冲突不得静默覆盖本地内容；折叠侧边栏不得保留布局空白。
-- **验证：** `npm test -- src/components/sidebar.test.ts src/components/fileTree.core.test.ts`；`npx openspec validate sidebar --strict`。
+- **验证：** `npm test -- src/ui/sidebar/__tests__ src/ui/file-tree/__tests__`；`npx openspec validate sidebar --strict`。
 
 ## Requirements
 
@@ -196,7 +196,7 @@ The system SHALL detect external file modifications by comparing the file's `mti
 
 ### Requirement: 新建文件和文件夹
 
-系统 MUST 通过 `src/components/newFileDialog.ts` 的 `showNewFileDialog` 创建文件或文件夹。有工作区时，系统 MUST 在工作区根目录创建条目、增量更新文件树并在创建文件后打开它；没有工作区时，系统 MUST 使用系统文件或目录选择对话框。
+系统 MUST 通过 `src/ui/new-file-dialog.ts` 的 `showNewFileDialog` 创建文件或文件夹。有工作区时，系统 MUST 在工作区根目录创建条目、增量更新文件树并在创建文件后打开它；没有工作区时，系统 MUST 使用系统文件或目录选择对话框。
 
 #### Scenario: 在工作区中新建文件
 - **WHEN** 用户在已打开工作区中确认新建 Markdown 文件名

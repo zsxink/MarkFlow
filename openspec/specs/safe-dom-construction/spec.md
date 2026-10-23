@@ -4,7 +4,7 @@
 定义处理用户可控内容时的安全 DOM 构造、事件委托和空状态渲染要求。
 
 ## Agent Context
-- **源码入口：** `src/components/contextMenu.ts`、`src/components/sidebar.ts` 与 `src/components/ui/contextMenu.ts`。
+- **源码入口：** `src/ui/file-tree-context-menu.ts`、`src/ui/sidebar/index.ts` 与 `src/ui/context-menu.ts`。
 - **关联规范：** `context-menu`、`dialog-system`、`sidebar`。
 - **不变量：** 用户可控字符串不得进入 `innerHTML`；可交互列表使用事件委托；空状态与错误状态也遵循安全 DOM API。
 - **验证：** `npm test -- src/components`；`npx openspec validate safe-dom-construction --strict`。

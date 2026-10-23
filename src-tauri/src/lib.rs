@@ -5,13 +5,14 @@ mod fs;
 mod http;
 mod logger;
 mod menu;
+mod net;
 mod paths;
 mod state;
 
 use commands::files;
-use commands::files_image;
 use commands::files_meta;
 use commands::files_pagination;
+use commands::images;
 use commands::settings;
 use error::AppError;
 use paths::normalize_path;
@@ -318,7 +319,7 @@ fn set_workspace(
     }
 
     // Clean up stale temp files in the workspace
-    files::cleanup_stale_temp_files(&workspace);
+    files::atomic::cleanup_stale_temp_files(&workspace);
 
     tracing::info!(target: "backend.workspace", path = %path, "Switching workspace");
 
@@ -385,46 +386,46 @@ pub fn run() {
 
     let app = builder
         .manage(app_state)
-        .on_menu_event(|app, event| menu::dispatch(app, event.id().as_ref()))
+        .on_menu_event(|app, event| menu::dispatch::dispatch(app, event.id().as_ref()))
         .invoke_handler(tauri::generate_handler![
             commands::export::print_webview,
             commands::export::create_pdf,
             commands::export::save_binary_export,
-            files::read_file,
-            files::file_metadata,
-            files::write_file,
-            files::write_file_if_unchanged,
-            files::save_mermaid_svg_export,
-            files::save_mermaid_png_export,
-            files::save_plantuml_svg_export,
-            files::save_plantuml_png_export,
-            files::save_image_export,
-            files::save_document_export,
+            files::entry::read_file,
+            files::entry::file_metadata,
+            files::entry::write_file,
+            files::entry::write_file_if_unchanged,
+            files::dialogs::save_mermaid_svg_export,
+            files::dialogs::save_mermaid_png_export,
+            files::dialogs::save_plantuml_svg_export,
+            files::dialogs::save_plantuml_png_export,
+            files::dialogs::save_image_export,
+            files::dialogs::save_document_export,
             files_pagination::read_dir,
-            files::read_path_entry,
-            files::create_file,
-            files::create_dir,
-            files::rename_path,
-            files::delete_path,
-            files::copy_file,
-            files::read_single_dir,
-            files::file_exists,
-            files::get_file_stats,
-            files::read_file_as_base64,
-            files::write_file_from_base64,
-            files_image::write_image_to_storage,
-            files_image::copy_image_to_storage,
-            files_image::authorize_image_storage,
-            files_image::write_pending_image,
-            files_image::copy_image_to_pending,
-            files_image::download_image_to_pending,
-            files_image::migrate_pending_images,
-            files_image::cleanup_pending_images,
-            files_image::cleanup_expired_pending_images,
-            files_image::fetch_remote_image_as_base64,
+            files::entry::read_path_entry,
+            files::crud::create_file,
+            files::crud::create_dir,
+            files::crud::rename_path,
+            files::crud::delete_path,
+            files::crud::copy_file,
+            files::crud::read_single_dir,
+            files::entry::file_exists,
+            files::entry::get_file_stats,
+            files::entry::read_file_as_base64,
+            files::entry::write_file_from_base64,
+            images::write_image_to_storage,
+            images::copy_image_to_storage,
+            images::authorize_image_storage,
+            images::write_pending_image,
+            images::copy_image_to_pending,
+            images::download_image_to_pending,
+            images::migrate_pending_images,
+            images::cleanup_pending_images,
+            images::cleanup_expired_pending_images,
+            images::fetch_remote_image_as_base64,
             files_meta::fetch_page_title,
-            files_image::download_image,
-            files_image::download_image_to_storage,
+            images::download_image,
+            images::download_image_to_storage,
             confirm_window_close,
             settings::load_settings,
             settings::save_settings,
@@ -440,7 +441,7 @@ pub fn run() {
             clear_recent_history,
             set_workspace,
             get_workspace,
-            menu::update_menu_state,
+            menu::dispatch::update_menu_state,
             logger::get_log_dir,
             quit_app,
         ])
@@ -453,8 +454,8 @@ pub fn run() {
             let settings = settings::load_settings_inner();
 
             // Clean up stale temp files from previous crashed writes
-            files::cleanup_stale_temp_files(&paths::app_config_dir());
-            files_image::cleanup_expired_pending_images_on_startup();
+            files::atomic::cleanup_stale_temp_files(&paths::app_config_dir());
+            images::cleanup_expired_pending_images_on_startup();
 
             let cli_files: Vec<PathBuf> = std::env::args()
                 .skip(1)

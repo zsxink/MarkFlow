@@ -4,10 +4,10 @@
 定义文件树 DOM 增量更新机制，使用 rAF 批量提交变更，避免每次文件系统事件触发全量重建。
 
 ## Agent Context
-- **源码入口：** `src/components/fileTree.core.ts`、`src/components/fileTree.ts`。
+- **源码入口：** `src/ui/file-tree/core.ts`、`src/ui/file-tree/index.ts`。
 - **关联规范：** `file-tree-architecture`、`expensive-task-scheduling`。
 - **不变量：** 增量更新 SHALL 使用 rAF 批量提交，pendingMutations 队列积累 16ms 内变更；首次加载或 workspace 切换时仍使用全量重建。
-- **验证：** `npm test -- src/components/fileTree.core.test.ts`；`npm run benchmark:file-tree`。
+- **验证：** `npm test -- src/ui/file-tree/__tests__/core.test.ts`；`npm run benchmark:file-tree`。
 
 ## Requirements
 

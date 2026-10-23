@@ -4,10 +4,10 @@
 定义特殊块（图片、引用、代码块）后自动创建续写段落的统一规则，确保用户在任何特殊块位于文档末尾时可直接继续写作。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.ts`、`src/lib/editor.init.ts`、`src/lib/editor.extensions.ts`
+- **源码入口：** `src/editor/session.ts`、`src/editor/init.ts`、`src/editor/extensions/index.ts`
 - **关联规范：** `empty-line-preservation`、`enter-content-integrity`、`source-toolbar-cm6`
 - **不变量：** 续写段落是编辑器编辑态，不出现在 Markdown 序列化中；不改变已有内容的块；多图片时仅创建一个续写段落。
-- **验证：** `npm test -- src/lib/editor.test.ts`；`npx openspec validate block-continuation-paragraph --strict`。
+- **验证：** `npm test -- src/editor/__tests__/session.test.ts`；`npx openspec validate block-continuation-paragraph --strict`。
 
 ## Requirements
 

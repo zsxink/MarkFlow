@@ -76,6 +76,25 @@ CLI：`openspec new change <name>`、`openspec validate <change>`、`openspec ar
 
 2. **合入 / 归档前必须派独立 agent 复核**：在 merge PR 或 archive 之前，**派出一个独立的 sub-agent** 做一轮不偏不倚的复核与验证（静态走查 + 跑测试 `npm test` / `npx tsc --noEmit`），再执行 merge/archive。主执行流容易漏掉复核，必须显式交给独立 agent 完成并回读结论。
 
+## 新增代码自检清单
+
+新增或搬迁代码前对照 [`openspec/specs/source-layering/spec.md`](openspec/specs/source-layering/spec.md)
+与 [`openspec/specs/code-standards/spec.md`](openspec/specs/code-standards/spec.md)，逐项确认：
+
+- **分层落点**：文件属于 `types` / `utils` / `infra` / `editor`·`render`·`export` / `ui` / `main` 哪一层？依赖只能指向左侧：`types ← utils ← infra ← editor/render/export ← ui ← main`。
+- **不反向依赖**：`infra`/`utils`/`types` 不得 import `ui`；`editor`/`render`/`export` 需要用户可见能力（提示、对话框、右键菜单、面板刷新、降级条）时走 `src/infra/ui-ports.ts` 的注入端口，不得 import `ui`。
+- **只经 barrel**：`ui`/`main` 只能从 `editor/index.ts`、`render/index.ts`、`export/index.ts` 取能力，不直连内部实现文件；模块内部文件不跨模块穿越。
+- **无深穿 import**：相对 import 不得出现三层及以上向上穿越（`../../../`）。
+- **状态单真相**：同一概念只保留一套 accessor，由消费方直接导入定义，不靠 UI 组件中转再导出。
+- **依赖注入优先**：模块协作走参数/回调/端口，不新增模块级可变全局状态。
+- **纯函数下沉**：无副作用逻辑放 `src/utils/`，且不得 import DOM/Tauri API。
+- **文件行数**：目标 ≤500 行，硬上限 900 行；超 400 行进入观察区，超限按职责拆分而非按行数硬切。
+- **测试位置**：测试放镜像的 `src/**/__tests__/`，仅测试用的 fixture/helper 放 `src/__fixtures__/`；Rust 单元测试放同目录 `tests.rs`，生产文件只留 `#[cfg(test)] mod tests;`。
+- **命名与注释**：TS 文件小写短横线，Rust 文件/函数 `snake_case`；注释只解释「为什么」；不 `export` 仅本文件使用的符号。
+- **不掩盖死代码**：不用 `#[allow(dead_code)]` 等属性掩盖未使用符号，删除或真正接入调用链。
+
+提交前跑 `node scripts/check-layering.mjs`（分层/行数/测试分离门禁，CI 同款）。
+
 ## 调试规则
 
 - **先查运行日志再改代码**：日志目录由 `app_config_dir().join("logs")` 动态决定（启动时打印 `log_dir=`），各平台默认位置见下表

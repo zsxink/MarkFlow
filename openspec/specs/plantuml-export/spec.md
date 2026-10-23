@@ -4,8 +4,8 @@
 定义 PlantUML 图表的右键导出菜单，允许用户将已渲染的 PlantUML 图表保存为 SVG 或 PNG 文件，或复制 SVG 源码和 PNG 图像到剪贴板。
 
 ## Agent Context
-- **源码入口：** `src/components/plantumlContextMenu.ts`、`src/components/plantumlContextMenu.helpers.ts`
-- **调用端：** `src/lib/editor.extensions.ts`（NodeView 右键事件）
+- **源码入口：** `src/ui/plantuml-context-menu.ts`、`src/ui/menu-position.ts`
+- **调用端：** `src/editor/extensions/index.ts`（NodeView 右键事件）
 - **依赖规范：** `plantuml-render`、`context-menu`、`editor-bottom-spacer`、`safe-dom-construction`
 - **不变量：** 仅当 PlantUML 渲染成功（`renderedSvg` 非空）时才显示菜单；导出操作不会修改编辑器内容；SVG→PNG 转换不改变原始 SVG 数据。
 - **验证：** `npm test`；`npx openspec validate plantuml-export --strict`

@@ -4,7 +4,7 @@
 定义代码高亮设置（`codeHighlight`）在 WYSIWYG 和源码模式下的实际控制行为，确保开关真正影响围栏代码块的语法高亮渲染，并移除僵尸设置项。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.init.ts`、`src/lib/editor.source.ts`、`src/lib/codemirror-highlight-limit.ts`、`src/components/settings.ts`
+- **源码入口：** `src/editor/init.ts`、`src/editor/source.ts`、`src/render/codemirror-highlight-limit.ts`、`src/ui/settings/panel.ts`
 - **关联规范：** `codemirror-source-editor`、`lazy-code-languages`
 - **不变量：** 关闭代码高亮时，围栏代码块仍保留代码块样式，仅隐藏语法着色；切换无需重新加载编辑器
 - **验证：** `npm test -- src/lib`；手动验证 WYSIWYG 和源码模式

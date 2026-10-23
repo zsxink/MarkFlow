@@ -46,68 +46,63 @@
 
 ## 项目结构
 
+目录分层、每层职责边界、允许的依赖方向与测试分离要求由
+[source-layering](source-layering/spec.md) 定义，文件大小/命名/错误处理等硬性约束由
+[code-standards](code-standards/spec.md) 定义，两者均由 `scripts/check-layering.mjs` 在 CI 中强制。
+本节只给出概览，冲突时以两份规范为准。
+
 ```
 markflow/
 ├── src/                          # 前端源码 (TypeScript + CSS)
-│   ├── main.ts                   # 入口
-│   ├── styles/                   # 布局、组件、编辑器与主题样式
-│   │   ├── app.css
-│   │   ├── components.css
-│   │   ├── editor.css
-│   │   ├── sidebar.css
-│   │   ├── toolbar.css
-│   │   └── variables.css         # CSS 自定义属性 (light/dark/sepia)
-│   ├── components/
-│   │   ├── toolbar.ts            # 顶部工具栏
-│   │   ├── sidebar.ts            # 侧边栏容器
-│   │   ├── statusbar.ts          # 底部状态栏
-│   │   ├── settings.ts           # 设置面板
-│   │   ├── fileTree*.ts          # 文件树协调、状态、懒加载与拖放
-│   │   ├── outline.ts            # 文档大纲提取
-│   │   ├── contextMenu.ts        # 右键菜单
-│   │   ├── toast.ts              # 提示通知
-│   │   ├── newFileDialog.ts      # 新建文件/文件夹对话框
-│   │   └── ui/                   # 可复用上下文菜单、对话框与模态框
-│   ├── lib/
-│   │   ├── editor*.ts            # ProseMirror (Tiptap) 编辑器、扩展与序列化
-│   │   ├── imageUtils.ts         # 图片存储、路径解析、粘贴逻辑
-│   │   ├── pathUtils.ts          # 路径工具函数
-│   │   ├── storage.ts            # Tauri IPC 文件系统封装
-│   │   ├── theme.ts              # 主题切换逻辑
-│   │   ├── mermaid*.ts           # Mermaid 图表渲染与懒加载
-│   │   └── store.ts              # 全局状态存储
-│   ├── types/                    # 编辑器、文件树、设置与事件类型
-│   └── utils/
-│       ├── dom.ts                # DOM 工具
-│       └── keyboard.ts           # 快捷键处理
+│   ├── main.ts                   # 入口与唯一装配点（含 registerUiPorts）
+│   ├── types/                    # 跨模块共享类型，无运行时依赖
+│   ├── utils/                    # 无副作用纯函数（不 import DOM/Tauri）
+│   ├── infra/                    # IPC/storage、logger、error、store、调度器、UI 端口
+│   │   ├── images/               #   图片管道（naming/settings/draft/core）
+│   │   └── ui-ports.ts           #   引擎层回调注入端口
+│   ├── editor/                   # 编辑器引擎（barrel: index.ts）
+│   │   ├── markdown/             #   Markdown 桥接、准入、对账、opaque 会话
+│   │   └── extensions/           #   Tiptap 节点/扩展拆分
+│   ├── render/                   # 内容渲染（barrel: index.ts）
+│   ├── export/                   # 导出（barrel: index.ts）
+│   │   └── theme/                #   导出主题令牌
+│   ├── ui/                       # 组件与交互
+│   │   ├── file-tree/            #   aria/dom/render/loader/events/state/inline/dragdrop
+│   │   ├── sidebar/              #   index/fileops/conflict
+│   │   ├── settings/             #   panel/fields/markup
+│   │   └── documents/            #   多标签会话与 hooks
+│   ├── __tests__/                # 根级集成测试
+│   ├── __fixtures__/             # 仅测试使用的 fixture/helper
+│   └── styles/                   # 布局、组件、编辑器与主题样式
 ├── src-tauri/                    # Rust 后端源码
 │   ├── src/
 │   │   ├── main.rs               # Tauri 应用入口
 │   │   ├── lib.rs                # 库入口，命令注册
 │   │   ├── commands/
-│   │   │   ├── files.rs          # 文件操作命令
-│   │   │   ├── files_image.rs    # 图片专用命令（写入、复制、下载、暂存、迁移、清理）
-│   │   │   └── settings.rs       # 设置读写命令
-│   │   ├── fs/                   # 文件监听与忽略规则
-│   │   ├── config/
-│   │   │   └── settings.rs       # Settings 结构体与持久化
-│   │   ├── logger.rs             # 日志配置
-│   │   ├── paths.rs              # 路径工具函数
-│   │   ├── state.rs              # 应用状态管理
-│   │   ├── error.rs              # 应用错误类型
-│   │   └── http.rs               # 网络图片下载
+│   │   │   ├── files/            # paths/atomic/entry/crud/dialogs
+│   │   │   ├── images/           # storage/pending/io/commands
+│   │   │   ├── export/           # PDF 与二进制导出
+│   │   │   ├── settings/
+│   │   │   └── files_meta.rs, files_pagination.rs
+│   │   ├── net/                  # url/dns/redirect/magic/redact/fetch（http.rs 为门面）
+│   │   ├── fs/                   # watcher/ignore（tests 子模块文件）
+│   │   ├── menu/                 # mod/native/recent/dispatch
+│   │   ├── config/settings.rs    # Settings 结构体与持久化
+│   │   ├── logger.rs, paths.rs, state.rs, error.rs
+│   │   └── */tests.rs            # 各模块同目录测试子模块（生产文件不含内联测试）
 │   ├── Cargo.toml
 │   ├── tauri.conf.json           # Tauri 配置
 │   └── capabilities/             # Tauri v2 权限声明
+├── scripts/check-layering.mjs    # 分层/行数/测试分离门禁
 ├── openspec/                     # OpenSpec 规范与变更追踪
-│   ├── specs/                    #   - 产品规格、架构、技术设计等
-│   ├── ui-design/                #   - 历史视觉参考（非当前行为规范）
-│   └── changes/                  #   - 变更追踪
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
 └── README.md
 ```
+
+依赖方向（单向，不可反转）：`types ← utils ← infra ← editor/render/export ← ui ← main`。
+`editor`/`render`/`export` 需要用户可见能力时走 `src/infra/ui-ports.ts` 的注入端口，不得 import `ui`。
 
 ---
 

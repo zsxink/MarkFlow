@@ -4,7 +4,7 @@
 定义源码模式下工具栏操作（图片、引用、代码块）使用 CodeMirror 6 API 执行 Markdown 插入的规则。
 
 ## Agent Context
-- **源码入口：** `src/components/toolbar.ts`、`src/lib/editor.source.ts`、`src/lib/editor.ts`
+- **源码入口：** `src/ui/toolbar.ts`、`src/editor/source.ts`、`src/editor/session.ts`
 - **关联规范：** `codemirror-source-editor`、`block-continuation-paragraph`
 - **不变量：** CM6 模式下的所有工具栏块操作必须通过 `view.dispatch` API 而非操作隐藏的 ProseMirror 编辑器；WYSIWYG 模式下保持 Tiptap 命令操作。
 - **验证：** `npm run build`；手动验证两个编辑模式下工具栏操作的正确性。

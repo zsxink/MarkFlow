@@ -5,10 +5,10 @@
 为 Markdown 文档顶部的 YAML frontmatter 提供安全、可感知的可视化编辑，同时确保不支持的 YAML 仍以原始文本无损保留。
 
 ## Agent Context
-- **源码入口：** 前置 frontmatter 提取与无损补齐模块（frontmatter 域层）、字段编辑器与同步控制器（编辑 UI）、`src/lib/editor.source.ts`（源码模式 YAML 高亮）；添加 `yaml` v2 直接依赖并提供安全子集扩展证据。
+- **源码入口：** 前置 frontmatter 提取与无损补齐模块（frontmatter 域层）、字段编辑器与同步控制器（编辑 UI）、`src/editor/source.ts`（源码模式 YAML 高亮）；添加 `yaml` v2 直接依赖并提供安全子集扩展证据。
 - **关联规范：** `codemirror-source-editor`、`enter-content-integrity`、`atomic-save`、`file-tree-architecture`。
 - **不变量：** 完整前置 frontmatter 块是编辑器视图的单层呈现，原始完整 Markdown 始终是权威文档值；结构化编辑仅面向安全子集顶层映射，且必须是无损的源码范围补丁；不支持的 YAML 保持可直接编辑的原始文本并有明确的降级原因。
-- **验证：** `npm test -- src/lib/frontmatter*.test.ts`（安全子集解析、无损补齐、双向同步、复杂降级、只读、菜单创建、源码 YAML 高亮）；`npx tsc --noEmit`；`npm run build`；`npx openspec validate frontmatter-visual-editor --strict`。
+- **验证：** `npm test -- src/utils/__tests__/frontmatter.test.ts src/ui/__tests__/frontmatter-panel.test.ts`（安全子集解析、无损补齐、双向同步、复杂降级、只读、菜单创建、源码 YAML 高亮）；`npx tsc --noEmit`；`npm run build`；`npx openspec validate frontmatter-visual-editor --strict`。
 
 ## Requirements
 

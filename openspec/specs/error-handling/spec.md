@@ -4,10 +4,10 @@
 定义后端锁恢复、统一错误分类以及前端异常处理的要求。
 
 ## Agent Context
-- **源码入口：** `src-tauri/src/error.rs`、`src-tauri/src/state.rs` 与 `src/lib/logger.ts`。
+- **源码入口：** `src-tauri/src/error.rs`、`src-tauri/src/state.rs` 与 `src/infra/logger.ts`。
 - **关联规范：** `crash-logging`、`background-task-lifecycle`、`safe-http-fetch`。
 - **不变量：** 可恢复的中毒锁不得 panic；命令失败必须保留稳定分类；用户触发的失败不得静默忽略。
-- **验证：** `cargo test --manifest-path src-tauri/Cargo.toml`；`npm test -- src/lib`；`npx openspec validate error-handling --strict`。
+- **验证：** `cargo test --manifest-path src-tauri/Cargo.toml`；`npm test -- src/infra`；`npx openspec validate error-handling --strict`。
 
 ## Requirements
 
@@ -59,3 +59,24 @@ The frontend SHALL NOT contain `catch` blocks that silently ignore errors withou
 - **THEN** 生产者在取得 guard 后检测到中毒标记，跳过该次范围合并，仍标记溢出
 - **THEN** 消费端读取恢复范围时退化为根路径 `rescan`，不 panic watcher 线程
 - **THEN** 文件树通过该受控重扫恢复一致状态
+
+### Requirement: UI 能力经注入端口上报
+
+基础设施层与引擎层 SHALL NOT 直接 import UI 层来展示提示、对话框或菜单；用户可见反馈 SHALL 通过注入的端口回调完成，端口未注册时 MUST 安全降级并记录结构化日志。
+
+#### Scenario: 基础设施层不反向依赖 UI 层
+
+- **WHEN** 检查 `src/infra/`、`src/editor/`、`src/render/`、`src/export/` 的 import
+- **THEN** 不存在指向 `src/ui/` 的 import 语句
+- **AND** 提示与对话框能力 SHALL 来自 `src/infra/ui-ports.ts` 暴露的端口
+
+#### Scenario: 端口缺失时的上报降级
+
+- **WHEN** 端口尚未注册而失败路径需要上报用户
+- **THEN** 系统 SHALL 记录 `warn` 级结构化日志并继续执行
+- **AND** SHALL NOT 因缺少端口抛出未捕获异常
+
+#### Scenario: 已注册端口保持既有用户可见行为
+
+- **WHEN** 端口已由入口装配注册
+- **THEN** 用户可见的错误提示、确认对话框与右键菜单行为 SHALL 与分层重构前一致

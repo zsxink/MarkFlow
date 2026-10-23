@@ -1,10 +1,16 @@
-# MarkFlow 代码规范（新增）
+# MarkFlow 代码规范（已转正）
 
-> **归档说明（2026-10-21）**：本文件随清理方案一并归档到 `docs/archive/cleanup-plan/`（原 `docs/cleanup-plan/`）。方案本身已收口，未完成事项见跟踪 issue **#337**；但本文提出的代码规范**仍然适用**，新代码应继续遵守，且本文仍被 `src/lib/field-scan.test.ts` 纳入扫描语料以防规范悄悄失效。
+> **权威源已迁移（issue #360）**：本文的规范内容已升级为正式规范
+> [`openspec/specs/code-standards/spec.md`](../../../openspec/specs/code-standards/spec.md)，
+> 目录分层与依赖方向见 [`openspec/specs/source-layering/spec.md`](../../../openspec/specs/source-layering/spec.md)。
+> 两者均由 `scripts/check-layering.mjs` 在 CI 中强制（分层白名单、循环依赖、深穿 import、
+> 生产目录测试文件混入、生产文件 ≤900 行、Rust 内联测试模块）。
+>
+> **本文件仅作为历史记录保留，不再作为规范依据**；新增或修改规范请改 `openspec/specs/`。
+> 若本文件与正式规范冲突，以正式规范为准。
 
-> 建议落地日期：2026-08-31
-> 适用：`src/`（TS/TSX）、`src-tauri/src/`（Rust）、`docs/`、`scripts/`
-> 目的：本仓库目前只有 git 流程规范（`AGENTS.md`/`CLAUDE.md`），**缺少代码级规范**。本文补上文件行数、分层、命名、错误处理、安全、去重、提交等硬性约定。
+> 原始背景（2026-08-21）：本仓库当时只有 git 流程规范（`AGENTS.md`/`CLAUDE.md`），缺少代码级规范；
+> 本文曾补上文件行数、分层、命名、错误处理、安全、去重等硬性约定，现已成为上述正式规范的来源。
 
 ---
 

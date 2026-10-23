@@ -4,10 +4,10 @@
 定义本地与网络图片的流式传输、临时文件处理、IPC 限制和并发控制。
 
 ## Agent Context
-- **源码入口：** `src/lib/imageUtils.ts`、`src/lib/storage.ts`、`src-tauri/src/commands/files.rs`。
+- **源码入口：** `src/infra/images/core.ts`、`src/infra/storage.ts`、`src-tauri/src/commands/files/`。
 - **关联规范：** `safe-http-fetch`、`image-naming`、`rendered-document-export`。
 - **不变量：** 本地文件优先经 asset 协议访问；网络下载必须先写同目录临时文件再原子改名；并发限制不得绕过大小或类型校验。
-- **验证：** `npm test -- src/lib/imageUtils.test.ts`；`cargo test --manifest-path src-tauri/Cargo.toml`；`npx openspec validate image-streaming --strict`。
+- **验证：** `npm test -- src/infra/images/__tests__/core.test.ts`；`cargo test --manifest-path src-tauri/Cargo.toml`；`npx openspec validate image-streaming --strict`。
 
 ## Requirements
 

@@ -1,24 +1,24 @@
-import { initTheme } from './lib/theme';
-import { initEditor, isDocumentDirty } from './lib/editor';
-import { initToolbar } from './components/toolbar';
-import { initSidebar } from './components/sidebar';
-import { initMenu } from './components/menu';
-import { initStatusBar } from './components/statusbar';
+import { initTheme } from './infra/theme';
+import { initEditor, isDocumentDirty } from './editor';
+import { initToolbar } from './ui/toolbar';
+import { initSidebar } from './ui/sidebar/index';
+import { initMenu } from './ui/menu';
+import { initStatusBar } from './ui/status-bar';
 import { initKeyboard } from './utils/keyboard';
-import { initNativeMenu } from './utils/nativeMenu';
+import { initNativeMenu } from './ui/native-menu';
 import { invoke } from '@tauri-apps/api/core';
-import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
-import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
-import { getActiveFilePath, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './components/sidebar';
-import { shouldSuppressAutosave } from './lib/editor.save.reconcile';
-import { showToast } from './components/toast';
-import { setToastReporter } from './lib/error';
-import { store } from './lib/store';
-import { initDocumentSessions, confirmAllDocumentTabsClose, routeDocumentExternalChanges, getActiveTabId, onDocumentTabsChanged } from './lib/documentSessions';
-import { isDocumentOperationPending } from './lib/documentOperations';
-import { initDocumentTabs } from './components/documentTabs';
+import { getWorkspace, loadSettings, addRecentFile } from './infra/storage';
+import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './ui/file-tree/index';
+import { getActiveFilePath, openFileInEditor, saveActiveDocument, isSavingInProgress, switchSidebarTab } from './ui/sidebar/index';
+import { shouldSuppressAutosave } from './editor';
+import { showToast } from './ui/toast';
+import { setToastReporter } from './infra/error';
+import { store } from './infra/store';
+import { initDocumentSessions, confirmAllDocumentTabsClose, routeDocumentExternalChanges, getActiveTabId, onDocumentTabsChanged } from './ui/documents/session';
+import { isDocumentOperationPending } from './infra/document-operations';
+import { initDocumentTabs } from './ui/document-tabs';
 import './styles/document-tabs.css';
-import { logDebug, logException, logInfo } from './lib/logger';
+import { logDebug, logException, logInfo } from './infra/logger';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import './styles/variables.css';
@@ -30,7 +30,17 @@ import './styles/components.css';
 import type { FileChangeEvent } from './types/events';
 import type { Settings } from './types/settings';
 import { DEFAULT_SETTINGS } from './types/settings';
-import { showEditorContextMenu } from './components/editorContextMenu';
+import { showEditorContextMenu } from './ui/editor-context-menu';
+import { registerUiPorts } from './infra/ui-ports';
+import { showDialog } from './ui/dialog';
+import { showMermaidContextMenu } from './ui/mermaid-context-menu';
+import { showPlantumlContextMenu } from './ui/plantuml-context-menu';
+import { showTableContextMenu } from './ui/table-context-menu';
+import { showImageContextMenu } from './ui/image-context-menu';
+import { mountFrontmatterPanel, refreshFrontmatterPanel } from './ui/frontmatter-panel';
+import { showDegradationBar, hideDegradationBar } from './ui/degradation-bar';
+import { confirmDocumentTransitionInOperation } from './ui/sidebar/fileops';
+import { handleActiveDocumentExternalModificationInOperation, handleExternalDeletionInOperation } from './ui/sidebar/conflict';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -43,6 +53,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   logInfo('app.lifecycle', 'Application boot started');
   setToastReporter((msg) => showToast(msg));
 
+  // Engine/render/export layers never import the UI layer; they call these
+  // ports instead. This is the single assembly point.
+  registerUiPorts({
+    notify: (message, duration) => showToast(message, duration),
+    confirm: (options) => showDialog(options),
+    openDocument: (path) => openFileInEditor(path),
+    showDiagramContextMenu: (x, y, state) => {
+      // The diagram name decides which saver/menu variant applies; both menu
+      // modules share the same state shape.
+      if (/plantuml|puml/i.test(state.defaultName)) showPlantumlContextMenu(x, y, state);
+      else showMermaidContextMenu(x, y, state);
+    },
+    showTableContextMenu: (x, y, state) => showTableContextMenu(x, y, state),
+    showImageContextMenu: (x, y, state) => showImageContextMenu(x, y, state),
+    refreshFrontmatter: (markdown) => refreshFrontmatterPanel(markdown),
+    mountFrontmatter: (container) => mountFrontmatterPanel(container),
+    showDegradationBar: (info) => showDegradationBar(info),
+    hideDegradationBar: () => hideDegradationBar(),
+    confirmDocumentTransition: () => confirmDocumentTransitionInOperation(),
+    handleExternalModification: () => handleActiveDocumentExternalModificationInOperation(),
+    handleExternalDeletion: (path) => handleExternalDeletionInOperation(path),
+  });
+
   // Specialized editor/file-tree handlers stop propagation before this default menu.
   document.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -53,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSidebar();
   initMenu();
   initStatusBar();
-  void import('./components/settings').then(m => m.initSettings());
+  void import('./ui/settings/panel').then(m => m.initSettings());
   await initEditor();
   await initDocumentSessions();
   initDocumentTabs();

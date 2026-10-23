@@ -6,7 +6,7 @@
 This delta spec documents the DOM structure changes in the settings panel: tab reorganization, removal of the livePreview toggle, image panel form element changes, and PlantUML layout adjustments.
 
 ## Agent Context
-- **源码入口：** `src/components/ui/modal.ts`、`src/components/newFileDialog.ts` 与 `src/components/linkDialog.ts`。
+- **源码入口：** `src/ui/modal.ts`、`src/ui/new-file-dialog.ts` 与 `src/ui/link-dialog.ts`。
 - **关联规范：** `context-menu`、`safe-dom-construction`、`sidebar`。
 - **不变量：** 对话框遮罩和焦点必须在关闭时清理；Escape/关闭按钮不得执行主操作；表单内容不得以不安全 HTML 拼接用户输入。
 - **验证：** `npm test -- src/components`；`npx openspec validate dialog-system --strict`。
@@ -173,7 +173,7 @@ Same as `openspec/specs/dialog-system/spec.md`.
 
 ### Requirement: 链接插入对话框
 
-系统 MUST 通过 `src/components/linkDialog.ts` 的 `showLinkDialog` 提供链接插入对话框。对话框 MUST 验证 URL 仅使用 `http` 或 `https` 协议；在源码模式插入 Markdown 链接，在所见即所得模式应用链接标记。用户选择自动填充且页面标题获取失败时，显示文本 MUST 回退为 URL。
+系统 MUST 通过 `src/ui/link-dialog.ts` 的 `showLinkDialog` 提供链接插入对话框。对话框 MUST 验证 URL 仅使用 `http` 或 `https` 协议；在源码模式插入 Markdown 链接，在所见即所得模式应用链接标记。用户选择自动填充且页面标题获取失败时，显示文本 MUST 回退为 URL。
 
 #### Scenario: 在源码模式插入链接
 - **WHEN** 用户在源码模式确认有效 URL 和链接文本

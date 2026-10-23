@@ -4,7 +4,7 @@
 定义 Rust 核心、前端高风险路径和拉取请求质量门禁的可执行回归覆盖要求。
 
 ## Agent Context
-- **源码入口：** `src/lib/editor.serializer.test.ts`、`src/lib/documentExport.test.ts`、`src-tauri/src/error.rs` 与 `.github/workflows/ci.yml`。
+- **源码入口：** `src/editor/__tests__/serializer.test.ts`、`src/export/__tests__/document-export.test.ts`、`src-tauri/src/error.rs` 与 `.github/workflows/ci.yml`。
 - **关联规范：** `dep-audit-ci`、`atomic-save`、`safe-http-fetch`、`file-tree-architecture`。
 - **不变量：** 高风险故障路径必须有自动化覆盖；测试必须确定性且离线；回归门禁不得仅依赖人工验证。
 - **验证：** `npm test`；`cargo test --manifest-path src-tauri/Cargo.toml`；`npx openspec validate regression-coverage --strict`。

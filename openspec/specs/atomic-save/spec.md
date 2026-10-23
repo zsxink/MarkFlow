@@ -4,7 +4,7 @@
 定义原子写入基础设施，防止崩溃或断电导致文件损坏，并供文档和设置持久化使用。
 
 ## Agent Context
-- **源码入口：** `src-tauri/src/commands/files.rs` 中的 `atomic_write` 与 `write_file`；`src-tauri/src/commands/settings.rs` 中的 `save_settings_inner`。
+- **源码入口：** `src-tauri/src/commands/files/` 中的 `atomic_write` 与 `write_file`；`src-tauri/src/commands/settings.rs` 中的 `save_settings_inner`。
 - **关联规范：** `autosave-reliability`、`error-handling`、`type-system`。
 - **不变量：** 临时文件必须与目标位于同一目录；只有同步成功后才能替换目标；任一失败路径都不得截断旧文件，并应尽力清理临时文件。
 - **验证：** `cd src-tauri && cargo test atomic_write`；`npx openspec validate atomic-save --strict`。

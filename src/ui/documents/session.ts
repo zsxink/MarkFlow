@@ -24,6 +24,8 @@ interface DocumentSession {
   context: EditorDocumentContext | null;
   pendingExternal: 'modify' | 'delete' | null;
   degradation: HTMLElement | null;
+  /** True only for the tab created by `initDocumentSessions` at app startup. */
+  startup: boolean;
 }
 export interface DocumentTab { id: string; path: string | null; title: string; dirty: boolean }
 let sessions: DocumentSession[] = [];
@@ -178,7 +180,7 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
     if (!hasCapacity()) return false;
     const previous = current();
     const focusEditor = suspendCurrent();
-    const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', context: null, pendingExternal: null, degradation: null };
+    const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', context: null, pendingExternal: null, degradation: null, startup: false };
     sessions.push(tab);
     activeId = tab.id;
     publishing = true;
@@ -199,17 +201,32 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
       throw error;
     } finally { publishing = false; }
     project();
+    await closeStartupTabIfEmpty();
     return true;
   });
 }
-export function newDocumentTab(): Promise<boolean> {
+
+/**
+ * The startup default tab only greets the user. Once a document opened
+ * successfully (both the file-tree and Finder entries funnel through
+ * `openDocumentTab`) it has served its purpose — retire it while it is still
+ * empty. By this point `suspendCurrent` has demoted it to a background tab, so
+ * `closeInternal(id, false)` releases its context without moving the user's
+ * focus off the freshly opened document.
+ */
+async function closeStartupTabIfEmpty() {
+  const startup = sessions.find(tab =>
+    tab.startup && tab.path === null && !tab.context?.projection.dirty);
+  if (startup) await closeInternal(startup.id, false);
+}
+export function newDocumentTab(startup = false): Promise<boolean> {
   return runDocumentOperation(async () => {
     if (!hasCapacity()) return false;
     await settleImageOperations();
     suspendCurrent();
     activeId = `document-${++sequence}`;
     const title = `未命名 ${sequence}`;
-    sessions.push({ id: activeId, path: null, title, context: null, pendingExternal: null, degradation: null });
+    sessions.push({ id: activeId, path: null, title, context: null, pendingExternal: null, degradation: null, startup });
     publishing = true;
     try {
       resetEditorDocument(false);
@@ -398,7 +415,7 @@ registerDocumentTabHooks({
   discardCurrentDocumentTabInOperation,
 });
 
-export function initDocumentSessions(): Promise<boolean> { return newDocumentTab(); }
+export function initDocumentSessions(): Promise<boolean> { return newDocumentTab(true); }
 
 /** Test/lifecycle teardown. It intentionally does not persist sensitive drafts. */
 export async function destroyDocumentSessions() {

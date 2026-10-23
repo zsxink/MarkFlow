@@ -84,9 +84,8 @@ afterEach(async () => {
 });
 
 describe('document session lifecycle with the production editor and file operations', () => {
-  it('clears the startup blank caret before first file content replaces the live DOM, preserving its state', async () => {
+  it('clears the startup blank caret before first file content replaces the live DOM, then retires the empty startup tab', async () => {
     await initDocumentSessions();
-    const blank = getActiveTabId()!;
     const editor = getEditor()!;
     await vi.waitFor(() => expect(editor.view.hasFocus()).toBe(true));
     const saved = editor.state;
@@ -107,12 +106,11 @@ describe('document session lifecycle with the production editor and file operati
       expect(await openFileInEditor('/a.md')).toBe(true);
       expect(checked).toBe(true);
       expect(editor.view.hasFocus()).toBe(true);
-      expect(getDocumentTabs()).toHaveLength(2);
-      await activateDocumentTab(blank);
-      expect(editor.state).toEqual(saved);
-      expect(editor.state.doc).toBe(saved.doc);
-      expect(editor.state.doc.textContent).toBe('');
-      expect(editor.state.selection.anchor).toBe(1);
+      // The still-empty startup tab is retired by the successful open; the
+      // opened document becomes the only active tab.
+      expect(getDocumentTabs()).toHaveLength(1);
+      expect(getDocumentTabs()[0].path).toBe('/a.md');
+      expect(getActiveTabId()).toBe(getDocumentTabs()[0].id);
     } finally { replacement.mockRestore(); }
   });
 
@@ -490,5 +488,63 @@ describe('document session lifecycle with the production editor and file operati
     expect(store.getState().activeFilePath).toBe('/a.md');
     await cycleDocumentTab(-1);
     expect(store.getState().activeFilePath).toBe('/b.md');
+  });
+});
+
+describe('startup blank tab auto-close', () => {
+  it('marks the initDocumentSessions tab so the first successful open retires it and activates the new document', async () => {
+    await initDocumentSessions();
+    const startupTab = getActiveTabId()!;
+    expect(getDocumentTabs()).toHaveLength(1);
+    // openFileInEditor is the shared funnel for both the file tree and the
+    // system file browser, so this covers both spec entries at once.
+    expect(await openFileInEditor('/a.md')).toBe(true);
+    expect(getDocumentTabs()).toHaveLength(1);
+    expect(getDocumentTabs()[0]).toMatchObject({ path: '/a.md', id: getActiveTabId() });
+    expect(getDocumentTabs()[0].id).not.toBe(startupTab);
+    expect(store.getState().activeFilePath).toBe('/a.md');
+    expect(getMarkdown()).toBe('alpha');
+  });
+
+  it('marks newDocumentTab tabs differently: a manually created blank tab survives an open', async () => {
+    await newDocumentTab();
+    const manual = getActiveTabId()!;
+    await openFileInEditor('/a.md');
+    expect(getDocumentTabs()).toHaveLength(2);
+    expect(getDocumentTabs().map(tab => tab.id)).toContain(manual);
+    expect(getActiveTabId()).toBe(id('/a.md'));
+  });
+
+  it('keeps an edited (dirty) startup tab with its content when a document opens', async () => {
+    await initDocumentSessions();
+    const startupTab = getActiveTabId()!;
+    getEditor()!.commands.insertContent('draft');
+    await openFileInEditor('/a.md');
+    expect(getDocumentTabs()).toHaveLength(2);
+    expect(getDocumentTabs().find(tab => tab.id === startupTab)!.dirty).toBe(true);
+    await activateDocumentTab(startupTab);
+    expect(getMarkdown()).toBe('draft');
+  });
+
+  it('keeps the startup blank tab when an open fails before prepare or during commit', async () => {
+    await initDocumentSessions();
+    const startupTab = getActiveTabId()!;
+    expect(await openFileInEditor('/missing.md')).toBe(false);
+    expect(getActiveTabId()).toBe(startupTab);
+    expect(getDocumentTabs()).toHaveLength(1);
+    await expect(openDocumentTab('/broken.md', async () => () => { throw new Error('commit failed'); })).rejects.toThrow('commit failed');
+    expect(getActiveTabId()).toBe(startupTab);
+    expect(getDocumentTabs()).toHaveLength(1);
+    expect(getDocumentTabs()[0].id).toBe(startupTab);
+    expect(getMarkdown()).toBe('');
+  });
+
+  it('retires the startup blank tab exactly once across consecutive opens', async () => {
+    await initDocumentSessions();
+    await openFileInEditor('/a.md');
+    expect(getDocumentTabs().map(tab => tab.path)).toEqual(['/a.md']);
+    await openFileInEditor('/b.md');
+    expect(getDocumentTabs().map(tab => tab.path)).toEqual(['/a.md', '/b.md']);
+    expect(getActiveTabId()).toBe(id('/b.md'));
   });
 });

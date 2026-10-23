@@ -207,14 +207,33 @@ describe('native menu dispatcher: document and view commands', () => {
     expect(wysiwygSpy).toHaveBeenCalledOnce();
   });
 
-  it('opens the log directory and the feedback issue tracker', async () => {
+  it('opens the log directory through the backend command and feedback via shell', async () => {
     mocks.invoke.mockResolvedValue('/logs');
     await dispatchNativeMenuAction('open-logs');
     expect(mocks.invoke).toHaveBeenCalledWith('get_log_dir');
-    expect(mocks.shellOpen).toHaveBeenCalledWith('/logs');
+    // Local paths must not pass through the shell plugin whitelist (issue #377).
+    expect(mocks.invoke).toHaveBeenCalledWith('open_in_file_manager', { path: '/logs' });
+    expect(mocks.shellOpen).not.toHaveBeenCalled();
 
     await dispatchNativeMenuAction('feedback');
     expect(mocks.shellOpen).toHaveBeenCalledWith('https://github.com/zsxink/MarkFlow/issues');
+  });
+
+  it('shows a classified toast and logs when a menu action fails', async () => {
+    mocks.invoke.mockImplementation((command: string) => {
+      if (command === 'get_log_dir') return Promise.resolve('C:/Users/me/logs');
+      return Promise.reject({ code: 'io', message: 'Path does not exist: C:/Users/me/logs' });
+    });
+
+    await dispatchNativeMenuAction('open-logs');
+
+    expect(mocks.logException).toHaveBeenCalledWith(
+      'native-menu',
+      'Native menu action failed',
+      expect.objectContaining({ code: 'io' }),
+      { action: 'open-logs' },
+    );
+    expect(mocks.showToast).toHaveBeenCalledWith('操作失败: Path does not exist: C:/Users/me/logs');
   });
 
   it('confirms unsaved documents before quitting', async () => {
@@ -413,7 +432,7 @@ describe('native menu dispatcher: unknown ids and modal protection', () => {
 
     await dispatchNativeMenuAction('open-logs');
     expect(mocks.invoke).toHaveBeenCalledWith('get_log_dir');
-    expect(mocks.shellOpen).toHaveBeenCalledWith('/logs');
+    expect(mocks.invoke).toHaveBeenCalledWith('open_in_file_manager', { path: '/logs' });
 
     await dispatchNativeMenuAction('feedback');
     expect(mocks.shellOpen).toHaveBeenCalledWith('https://github.com/zsxink/MarkFlow/issues');

@@ -1,4 +1,4 @@
-import { open } from '@tauri-apps/plugin-shell';
+import { invoke } from '@tauri-apps/api/core';
 import { getImageMimeType, getFileName, getParentDir, resolveImagePath } from '../utils/paths';
 import { fetchRemoteImageAsBase64, readFileAsBase64, saveImageExport } from '../infra/storage';
 import { showToast } from './toast';
@@ -202,7 +202,9 @@ async function openContainingFolder(state: ImageContextMenuState) {
   if (!localPath) {
     throw new Error('当前图片没有本地路径');
   }
-  await open(getParentDir(localPath));
+  // Backend command instead of shell open: the shell plugin whitelist rejects
+  // normalized forward-slash Windows paths (issue #377).
+  await invoke('open_in_file_manager', { path: getParentDir(localPath) });
   showToast('已打开图片所在位置');
 }
 

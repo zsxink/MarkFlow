@@ -37,8 +37,10 @@ export function registerStartupCaretTests() {
       await file.click();
       await expect($('#wysiwyg-editor h1')).toHaveText('Skill-Hub');
       expect(await browser.execute(() => window.__startupCaretBoundary)).toEqual({ rangeCount: 0, outgoingFocused: false });
-      await expect($(`#document-tabs [data-tab-id="${blankId}"]`)).toBeDisplayed();
-      expect(await $$('#document-tabs [role="tab"]')).toHaveLength(2);
+      // The still-empty startup tab is retired by the first successful open;
+      // the opened document becomes the only active tab.
+      await expect($(`#document-tabs [data-tab-id="${blankId}"]`)).not.toBeDisplayed();
+      expect(await $$('#document-tabs [role="tab"]')).toHaveLength(1);
 
       // Embedded WebDriver synthesizes click events without browser caret
       // placement. Assert DOM/model insertion separately; OS mouse clicks and

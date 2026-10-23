@@ -19,7 +19,7 @@ MarkFlow 让你像编辑富文本一样编写 Markdown。输入内容即可实�
 - **源码模式** —— 可切换到纯文本编辑器直接编辑 Markdown（`Ctrl+/`）
 - **专注模式** —— 隐藏工具栏、侧边栏和状态栏，获得无干扰写作体验（`Ctrl+Shift+F`）
 - **Mermaid 图表** —— 在代码块中编写 Mermaid 语法并自动渲染
-- **PlantUML 图表 / PlantUML** —— 在代码块中编写 PlantUML 语法并自动渲染；右键图表可导出为 SVG、PNG 或复制到剪贴板
+- **PlantUML 图表 / PlantUML** —— 在代码块中编写 PlantUML 语法并自动渲染；右键图表可导出为 SVG、PNG 或复制到剪贴板。图表渲染依赖你在设置中自行配置的 PlantUML 服务器：**配置后该图表的源码会发送到该服务器**，服务器由你选择和控制，敏感内容请使用自建服务器。详见 [隐私说明](docs/privacy.md)。
 - **无障碍支持 / Accessibility** —— 核心 UI 组件具备 ARIA 属性，屏幕阅读器友好
 - **右键菜单 / Context Menu** —— 在文件树中右键可新建、重命名、复制、删除文件和文件夹
 - **文件拖拽排序 / Drag & Drop** —— 在文件树中拖拽文件或文件夹即可移动至目标目录
@@ -180,9 +180,17 @@ npm run tauri build
 | 技术设计 | 架构细节、组件设计、关键实现 | `openspec/specs/technical-design.md` |
 | UI 设计稿 | 像素级 UI 规格 | `openspec/ui-design/SPEC.md` |
 | UI 修复记录 | CSS 布局经验与修复清单 | `openspec/specs/ui-fixes-spec.md` |
+| 隐私说明 | 本地存储、无遥测、PlantUML 数据流 | [`docs/privacy.md`](docs/privacy.md) |
+| 第三方许可证 | 依赖清单与随包许可证文本 | [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) |
 
 > `openspec/specs/` 为 canonical spec 来源。
 
+## 隐私与数据
+
+MarkFlow 本地优先：文档、设置与日志都只存在你的磁盘上，不上报遥测、不做自动更新检查。唯一的对外网络行为是**你自行配置**的 PlantUML 服务器（配置后仅发送该图表源码）和你主动引用的网络图片。完整说明见 [隐私说明](docs/privacy.md)。
+
 ## 许可证
 
-MIT
+MarkFlow 本身以 [MIT 许可证](LICENSE) 发布。
+
+随发行包分发的第三方组件适用各自许可证，完整清单与许可证文本见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)；内置字体的来源与授权依据见 [字体授权记录](third-party/fonts/PROVENANCE.md)，图标与安装器素材见 [随包素材授权记录](third-party/assets/PROVENANCE.md)。

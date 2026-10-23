@@ -1,0 +1,7047 @@
+{
+  "ecosystem": "cargo",
+  "note": "Generated from `cargo metadata --all-features` by scripts/generate-license-inventory.mjs. Do not edit by hand.",
+  "count": 586,
+  "packages": [
+    {
+      "ecosystem": "cargo",
+      "name": "adler2",
+      "version": "2.0.1",
+      "license": "0BSD OR MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jonas Schievink <jonasschievink@gmail.com>; oyvindln <oyvindln@users.noreply.github.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "aho-corasick",
+      "version": "1.1.4",
+      "license": "Unlicense OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Andrew Gallant"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "alloc-no-stdlib",
+      "version": "2.0.4",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Dropbox, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "alloc-stdlib",
+      "version": "0.2.2",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Daniel Reiter Horn <danielrh@dropbox.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "android_system_properties",
+      "version": "0.1.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013 Nicolas Silva"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "anyhow",
+      "version": "1.0.102",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-broadcast",
+      "version": "0.7.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Yoshua Wuyts"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-channel",
+      "version": "2.5.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-executor",
+      "version": "1.14.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-io",
+      "version": "2.6.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-lock",
+      "version": "3.4.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-process",
+      "version": "2.5.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-recursion",
+      "version": "1.1.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Robert Usher <266585+dcchut@users.noreply.github.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-signal",
+      "version": "0.2.14",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-task",
+      "version": "4.7.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "async-trait",
+      "version": "0.1.89",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "atk",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "atk-sys",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "atomic-waker",
+      "version": "1.1.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; Contributors to futures-rs"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "autocfg",
+      "version": "1.5.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 Josh Stone"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "axum",
+      "version": "0.8.9",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 axum Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "axum-core",
+      "version": "0.5.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019–2025 axum Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "base64",
+      "version": "0.21.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Alice Maz"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "base64",
+      "version": "0.22.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Alice Maz"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bit-set",
+      "version": "0.8.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bit-vec",
+      "version": "0.8.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bitflags",
+      "version": "1.3.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bitflags",
+      "version": "2.11.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2019 The RustCrypto Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "block2",
+      "version": "0.6.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mads Marquart <mads@marquart.dk>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "blocking",
+      "version": "1.6.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "brotli",
+      "version": "8.0.2",
+      "license": "BSD-3-Clause AND MIT",
+      "chosen": "BSD-3-Clause AND MIT",
+      "texts": [
+        "BSD-3-Clause",
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "brotli-decompressor",
+      "version": "5.0.0",
+      "license": "BSD-3-Clause OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Dropbox, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bs58",
+      "version": "0.5.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The roaring-rs developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bumpalo",
+      "version": "3.20.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Nick Fitzgerald"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bytemuck",
+      "version": "1.25.0",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Daniel \"Lokathor\" Gee."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "byteorder",
+      "version": "1.5.0",
+      "license": "Unlicense OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Andrew Gallant"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "bytes",
+      "version": "1.11.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 Carl Lerche"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cairo-rs",
+      "version": "0.18.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cairo-sys-rs",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "camino",
+      "version": "1.2.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Without Boats <saoirse@without.boats>; Ashley Williams <ashley666ashley@gmail.com>; Steve Klabnik <steve@steveklabnik.com>; Rain <rain@sunshowers.io>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cargo_metadata",
+      "version": "0.19.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Oliver Schneider <git-spam-no-reply9815368754983@oli-obk.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cargo_toml",
+      "version": "0.22.3",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Kornel <kornel@geekhood.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cargo-platform",
+      "version": "0.1.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cc",
+      "version": "1.2.62",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cesu8",
+      "version": "1.1.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Eric Kidd <git@randomhacks.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cfb",
+      "version": "0.7.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Matthew D. Steele"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cfg_aliases",
+      "version": "0.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Katharos Technology"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cfg-expr",
+      "version": "0.15.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Embark Studios"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cfg-expr",
+      "version": "0.20.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Embark Studios"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cfg-if",
+      "version": "1.0.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "chrono",
+      "version": "0.4.44",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "combine",
+      "version": "4.6.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Markus Westerlind"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "concurrent-queue",
+      "version": "2.5.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; Taiki Endo <te316e89@gmail.com>; John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cookie",
+      "version": "0.18.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Sergio Benitez"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cookie_store",
+      "version": "0.22.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "core-foundation",
+      "version": "0.10.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "core-foundation",
+      "version": "0.9.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "core-foundation-sys",
+      "version": "0.8.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "core-graphics",
+      "version": "0.25.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "core-graphics-types",
+      "version": "0.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020-2025 The RustCrypto Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "crc32fast",
+      "version": "1.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 Sam Rijs, Alex Crichton and contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "crossbeam-channel",
+      "version": "0.5.15",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 The Crossbeam Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "crossbeam-utils",
+      "version": "0.8.21",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 The Crossbeam Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2021 RustCrypto Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cssparser",
+      "version": "0.36.0",
+      "license": "MPL-2.0",
+      "chosen": "MPL-2.0",
+      "texts": [
+        "MPL-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Simon Sapin <simon.sapin@exyr.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "cssparser-macros",
+      "version": "0.6.1",
+      "license": "MPL-2.0",
+      "chosen": "MPL-2.0",
+      "texts": [
+        "MPL-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Simon Sapin <simon.sapin@exyr.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ctor",
+      "version": "0.8.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Matt Mastracci <matthew@mastracci.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ctor-proc-macro",
+      "version": "0.0.7",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Matt Mastracci <matthew@mastracci.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "darling",
+      "version": "0.23.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Ted Driggs"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "darling_core",
+      "version": "0.23.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Ted Driggs"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "darling_macro",
+      "version": "0.23.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Ted Driggs"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "data-url",
+      "version": "0.3.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2025 The rust-url developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dbus",
+      "version": "0.9.11",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2018 David Henningsson <diwic@ubuntu.com> and other contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "deranged",
+      "version": "0.5.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Jacob Pratt et al."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "derive_more",
+      "version": "2.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Jelte Fennema"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "derive_more-impl",
+      "version": "2.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Jelte Fennema"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "digest",
+      "version": "0.10.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Artyom Pavlov"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dirs",
+      "version": "6.0.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2019 dirs-rs contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dirs-sys",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2019 dirs-rs contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dispatch2",
+      "version": "0.3.1",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mads Marquart <mads@marquart.dk>; Mary <mary@mary.zone>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "displaydoc",
+      "version": "0.2.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jane Lusby <jlusby@yaah.dev>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dlopen2",
+      "version": "0.8.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Szymon Wieloch <szymon.wieloch@gmail.com>; Ahmed Masud <ahmed.masud@saf.ai>; OpenByte <development.openbyte@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dlopen2_derive",
+      "version": "0.4.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Szymon Wieloch <szymon.wieloch@gmail.com>; OpenByte <development.openbyte@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "document-features",
+      "version": "0.2.12",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Olivier Goffart <ogoffart@sixtyfps.io>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dom_query",
+      "version": "0.27.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 Mykola Humanov"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dpi",
+      "version": "0.1.2",
+      "license": "Apache-2.0 AND MIT",
+      "chosen": "Apache-2.0 AND MIT",
+      "texts": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dtoa",
+      "version": "1.0.11",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dtoa-short",
+      "version": "0.3.5",
+      "license": "MPL-2.0",
+      "chosen": "MPL-2.0",
+      "texts": [
+        "MPL-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Xidorn Quan <me@upsuper.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dtor",
+      "version": "0.3.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Matt Mastracci <matthew@mastracci.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dtor-proc-macro",
+      "version": "0.0.6",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Matt Mastracci <matthew@mastracci.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dunce",
+      "version": "1.0.5",
+      "license": "CC0-1.0 OR MIT-0 OR Apache-2.0",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Kornel <kornel@geekhood.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "dyn-clone",
+      "version": "1.0.20",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "embed_plist",
+      "version": "1.2.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Nikolai Vazquez"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "embed-resource",
+      "version": "3.0.9",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 nabijaczleweli"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "encoding_rs",
+      "version": "0.8.35",
+      "license": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
+      "chosen": "MIT AND BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause",
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Henri Sivonen <hsivonen@hsivonen.fi>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "endi",
+      "version": "1.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Zeeshan Ali Khan <zeenix@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "enumflags2",
+      "version": "0.7.12",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017-2023 Maik Klein, Maja Kądziołka"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "enumflags2_derive",
+      "version": "0.7.12",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Maik Klein"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "equivalent",
+      "version": "1.0.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016--2023"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "erased-serde",
+      "version": "0.4.10",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "errno",
+      "version": "0.3.14",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Chris Wong"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "event-listener",
+      "version": "5.4.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "event-listener-strategy",
+      "version": "0.5.4",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "fastrand",
+      "version": "2.4.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "fdeflate",
+      "version": "0.3.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The image-rs Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "field-offset",
+      "version": "0.3.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016-2021 Diggory Blake, and other contributors."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "filetime",
+      "version": "0.2.28",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "find-msvc-tools",
+      "version": "0.1.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "flate2",
+      "version": "1.1.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2026 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "fnv",
+      "version": "1.0.7",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foldhash",
+      "version": "0.1.5",
+      "license": "Zlib",
+      "chosen": "Zlib",
+      "texts": [
+        "Zlib"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Orson Peters"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foldhash",
+      "version": "0.2.0",
+      "license": "Zlib",
+      "chosen": "Zlib",
+      "texts": [
+        "Zlib"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Orson Peters"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foreign-types",
+      "version": "0.3.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 The foreign-types Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foreign-types",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 The foreign-types Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foreign-types-macros",
+      "version": "0.2.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 The foreign-types Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foreign-types-shared",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 The foreign-types Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "foreign-types-shared",
+      "version": "0.3.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 The foreign-types Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "form_urlencoded",
+      "version": "1.2.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2016 The rust-url developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "fsevent-sys",
+      "version": "4.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Pierre Baillet"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-channel",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-core",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-executor",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-io",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-lite",
+      "version": "2.6.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; Contributors to futures-rs"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-macro",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-sink",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-task",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "futures-util",
+      "version": "0.3.32",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdk",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdk-pixbuf",
+      "version": "0.18.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdk-pixbuf-sys",
+      "version": "0.18.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdk-sys",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdkwayland-sys",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdkx11",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gdkx11-sys",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "generic-array",
+      "version": "0.14.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Bartłomiej Kamiński"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "getrandom",
+      "version": "0.2.17",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2024 The rust-random Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "getrandom",
+      "version": "0.3.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2025 The rust-random Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "getrandom",
+      "version": "0.4.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2026 The rust-random Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gio",
+      "version": "0.18.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gio-sys",
+      "version": "0.18.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gio-sys",
+      "version": "0.21.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glib",
+      "version": "0.18.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glib",
+      "version": "0.21.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glib-macros",
+      "version": "0.18.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glib-macros",
+      "version": "0.21.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glib-sys",
+      "version": "0.18.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glib-sys",
+      "version": "0.21.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "glob",
+      "version": "0.3.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gobject-sys",
+      "version": "0.18.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gobject-sys",
+      "version": "0.21.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gtk",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gtk-sys",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "gtk3-macros",
+      "version": "0.18.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "h2",
+      "version": "0.4.14",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 h2 authors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hashbrown",
+      "version": "0.12.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Amanieu d'Antras"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hashbrown",
+      "version": "0.15.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Amanieu d'Antras"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hashbrown",
+      "version": "0.17.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Amanieu d'Antras"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "heck",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "heck",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hermit-abi",
+      "version": "0.5.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stefan Lankes"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hex",
+      "version": "0.4.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2014 The Rust Project Developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "html5ever",
+      "version": "0.38.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The html5ever Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "http",
+      "version": "1.4.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 http-rs authors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "http-body",
+      "version": "1.0.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019-2024 Sean McArthur & Hyper Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "http-body-util",
+      "version": "0.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019-2025 Sean McArthur & Hyper Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "http-range",
+      "version": "0.1.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Luka Zakrajšek"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "httparse",
+      "version": "1.10.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015-2025 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "httpdate",
+      "version": "1.0.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Pyfisch"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hyper",
+      "version": "1.9.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2026 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hyper-rustls",
+      "version": "0.27.9",
+      "license": "Apache-2.0 OR ISC OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Joseph Birr-Pixton <jpixton@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hyper-tls",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "hyper-util",
+      "version": "0.1.20",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023-2025 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "iana-time-zone",
+      "version": "0.1.65",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Andrew D. Straw"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "iana-time-zone-haiku",
+      "version": "0.1.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Andrew D. Straw"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ico",
+      "version": "0.5.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 Matthew D. Steele"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_collections",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_locale_core",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_normalizer",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_normalizer_data",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_properties",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_properties_data",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "icu_provider",
+      "version": "2.2.0",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "id-arena",
+      "version": "2.3.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ident_case",
+      "version": "1.0.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Ted Driggs <ted.driggs@outlook.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "idna",
+      "version": "1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2025 The rust-url developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "idna_adapter",
+      "version": "1.2.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The rust-url developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "indexmap",
+      "version": "1.9.3",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016--2017"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "indexmap",
+      "version": "2.14.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016--2017"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "infer",
+      "version": "0.19.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Bojan"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "inotify",
+      "version": "0.10.2",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Hanno Braun <mail@hannobraun.de>; Félix Saparelli <me@passcod.name>; Cristian Kubis <cristian.kubis@tsunix.de>; Frank Denis <github@pureftpd.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "inotify-sys",
+      "version": "0.1.5",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Hanno Braun <hb@hannobraun.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "instant",
+      "version": "0.1.13",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019, Sébastien Crozet"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ipnet",
+      "version": "2.12.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2017 Juniper Networks, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "is-docker",
+      "version": "0.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 Sean Larkin"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "is-wsl",
+      "version": "0.4.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 Sean Larkin"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "itoa",
+      "version": "1.0.18",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "javascriptcore-rs",
+      "version": "1.1.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2021, The Gtk-rs Project Developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "javascriptcore-rs-sys",
+      "version": "1.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2017, The Gtk-rs Project Developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "jni",
+      "version": "0.21.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Prevoty, Inc. and jni-rs contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "jni-sys",
+      "version": "0.3.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 The rust-jni-sys Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "jni-sys",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 The rust-jni-sys Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "jni-sys-macros",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Robert Bragg <robert@sixbynine.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "js-sys",
+      "version": "0.3.98",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "json-patch",
+      "version": "3.0.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Ivan Dubrov"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "jsonptr",
+      "version": "0.6.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2022 Chance Dinkins"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "keyboard-types",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Pyfisch"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "kqueue",
+      "version": "1.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 William Orr <will@worrbase.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "kqueue-sys",
+      "version": "1.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 William Orr <will@worrbase.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "lazy_static",
+      "version": "1.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2010 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "leb128fmt",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Bryant Luk <code@bryantluk.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "libappindicator",
+      "version": "0.9.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017-2021 qDot"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "libappindicator-sys",
+      "version": "0.9.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "libc",
+      "version": "0.2.186",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "libdbus-sys",
+      "version": "0.2.7",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2018 David Henningsson <diwic@ubuntu.com> and other contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "libloading",
+      "version": "0.7.4",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2015, Simonas Kazlauskas"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "libredox",
+      "version": "0.1.16",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 4lDO2"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "linux-raw-sys",
+      "version": "0.12.1",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Dan Gohman <dev@sunfishcode.online>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "litemap",
+      "version": "0.8.2",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "litrs",
+      "version": "1.0.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020 Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "lock_api",
+      "version": "0.4.14",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "log",
+      "version": "0.4.29",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "lru-slab",
+      "version": "0.1.2",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 The lru-slab Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "markup5ever",
+      "version": "0.38.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The html5ever Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "matchit",
+      "version": "0.8.4",
+      "license": "MIT AND BSD-3-Clause",
+      "chosen": "MIT AND BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause",
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2022 Ibraheem Ahmed"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "memchr",
+      "version": "2.8.0",
+      "license": "Unlicense OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Andrew Gallant"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "memoffset",
+      "version": "0.9.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Gilad Naaman"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "mime",
+      "version": "0.3.17",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "miniz_oxide",
+      "version": "0.8.9",
+      "license": "MIT OR Zlib OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2013-2014 RAD Game Tools and Valve Software"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "mio",
+      "version": "1.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Carl Lerche and other MIO contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "muda",
+      "version": "0.19.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2022-2022 Tauri Programme within The Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "native-tls",
+      "version": "0.2.18",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The rust-native-tls Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ndk",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Rust Mobile contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ndk-sys",
+      "version": "0.6.0+11769913",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Rust Windowing contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "new_debug_unreachable",
+      "version": "1.0.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Jonathan Reem"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "notify",
+      "version": "7.0.0",
+      "license": "CC0-1.0",
+      "chosen": "CC0-1.0",
+      "texts": [
+        "CC0-1.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Félix Saparelli <me@passcod.name>; Daniel Faust <hessijames@gmail.com>; Aron Heinecke <Ox0p54r36@t-online.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "notify-types",
+      "version": "1.0.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 Notify Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "nu-ansi-term",
+      "version": "0.50.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Benjamin Sago"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "num_enum",
+      "version": "0.7.6",
+      "license": "BSD-3-Clause OR MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Daniel Wagner-Hall <dawagner@gmail.com>; Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>; Vincent Esche <regexident@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "num_enum_derive",
+      "version": "0.7.6",
+      "license": "BSD-3-Clause OR MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Daniel Wagner-Hall <dawagner@gmail.com>; Daniel Henry-Mantilla <daniel.henry.mantilla@gmail.com>; Vincent Esche <regexident@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "num-conv",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jacob Pratt <jacob@jhpratt.dev>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "num-traits",
+      "version": "0.2.19",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2",
+      "version": "0.6.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mads Marquart <mads@marquart.dk>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-app-kit",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-cloud-kit",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-data",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-foundation",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-graphics",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-image",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-location",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-text",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-core-video",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-encode",
+      "version": "4.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mads Marquart <mads@marquart.dk>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-exception-helper",
+      "version": "0.1.1",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mads Marquart <mads@marquart.dk>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-foundation",
+      "version": "0.3.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-io-surface",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-javascript-core",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-quartz-core",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-security",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-ui-kit",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-user-notifications",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "objc2-web-kit",
+      "version": "0.3.2",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "once_cell",
+      "version": "1.21.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Aleksey Kladov <aleksey.kladov@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "open",
+      "version": "5.3.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © `2015` `Sebastian Thiel`"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "openssl",
+      "version": "0.10.80",
+      "license": "Apache-2.0",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2011-2017 Google Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "openssl-macros",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2022 Steven Fackler"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "openssl-probe",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "openssl-sys",
+      "version": "0.9.116",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "option-ext",
+      "version": "0.2.0",
+      "license": "MPL-2.0",
+      "chosen": "MPL-2.0",
+      "texts": [
+        "MPL-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Simon Ochsenreither <simon@ochsenreither.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ordered-stream",
+      "version": "0.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Daniel De Graaf <code@danieldg.net>; Zeeshan Ali Khan <zeeshanak@gnome.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "os_pipe",
+      "version": "1.2.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jack O'Connor"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "pango",
+      "version": "0.18.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "pango-sys",
+      "version": "0.18.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The gtk-rs Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "parking",
+      "version": "2.2.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "parking_lot",
+      "version": "0.12.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "parking_lot_core",
+      "version": "0.9.12",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "pathdiff",
+      "version": "0.2.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Manish Goregaokar <manishsmail@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "percent-encoding",
+      "version": "2.3.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2025 The rust-url developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "phf",
+      "version": "0.13.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2022 Steven Fackler, Yuki Okushi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "phf_codegen",
+      "version": "0.13.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2022 Steven Fackler, Yuki Okushi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "phf_generator",
+      "version": "0.13.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2022 Steven Fackler, Yuki Okushi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "phf_macros",
+      "version": "0.13.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2022 Steven Fackler, Yuki Okushi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "phf_shared",
+      "version": "0.13.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014-2022 Steven Fackler, Yuki Okushi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "pin-project-lite",
+      "version": "0.2.17",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "piper",
+      "version": "0.2.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "pkg-config",
+      "version": "0.3.33",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "plist",
+      "version": "1.9.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Edward Barnard"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "png",
+      "version": "0.17.16",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 nwin"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "png",
+      "version": "0.18.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 nwin"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "polling",
+      "version": "3.11.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Stjepan Glavina <stjepang@gmail.com>; John Nunley <dev@notgull.net>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "potential_utf",
+      "version": "0.1.5",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "powerfmt",
+      "version": "0.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 Jacob Pratt et al."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ppv-lite86",
+      "version": "0.2.21",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 The CryptoCorrosion Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "precomputed-hash",
+      "version": "0.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Emilio Cobos Álvarez"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "prettyplease",
+      "version": "0.2.37",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "proc-macro-crate",
+      "version": "1.3.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Bastian Köcher <git@kchr.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "proc-macro-crate",
+      "version": "2.0.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Bastian Köcher <git@kchr.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "proc-macro-crate",
+      "version": "3.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Bastian Köcher <git@kchr.de>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "proc-macro-error",
+      "version": "1.0.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019-2020 CreepySkeleton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "proc-macro-error-attr",
+      "version": "1.0.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019-2020 CreepySkeleton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "proc-macro2",
+      "version": "1.0.106",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>; Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "psl-types",
+      "version": "2.0.11",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2021 Rushmore Mushambi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "publicsuffix",
+      "version": "2.3.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Rushmore Mushambi"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "quick-xml",
+      "version": "0.39.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Johann Tuffe"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "quinn",
+      "version": "0.11.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 The quinn Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "quinn-proto",
+      "version": "0.11.14",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 The quinn Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "quinn-udp",
+      "version": "0.5.14",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 The quinn Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "quote",
+      "version": "1.0.45",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "r-efi",
+      "version": "5.3.0",
+      "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "r-efi",
+      "version": "6.0.0",
+      "license": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand",
+      "version": "0.9.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2018 Developers of the Rand project"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand_chacha",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2018 Developers of the Rand project"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rand_core",
+      "version": "0.9.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2018 Developers of the Rand project"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "raw-window-handle",
+      "version": "0.6.2",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Osspial <osspial@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "redox_syscall",
+      "version": "0.5.18",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Redox OS Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "redox_users",
+      "version": "0.5.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Jose Narvaez"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ref-cast",
+      "version": "1.0.25",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ref-cast-impl",
+      "version": "1.0.25",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "regex",
+      "version": "1.12.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "regex-automata",
+      "version": "0.4.14",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "regex-syntax",
+      "version": "0.8.10",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "reqwest",
+      "version": "0.12.28",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016-2025 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "reqwest",
+      "version": "0.13.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016-2026 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rfd",
+      "version": "0.16.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2022 Bartłomiej Maryńczak"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ring",
+      "version": "0.17.14",
+      "license": "Apache-2.0 AND ISC",
+      "chosen": "Apache-2.0 AND ISC",
+      "texts": [
+        "Apache-2.0",
+        "ISC"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustc_version",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustc-hash",
+      "version": "2.1.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustix",
+      "version": "1.1.4",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Dan Gohman <dev@sunfishcode.online>; Jakub Konka <kubkon@jakubkonka.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustls",
+      "version": "0.23.40",
+      "license": "Apache-2.0 OR ISC OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Joseph Birr-Pixton <jpixton@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustls-pki-types",
+      "version": "1.14.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 Dirkjan Ochtman <dirkjan@ochtman.nl>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustls-webpki",
+      "version": "0.103.13",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2015 Brian Smith."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "rustversion",
+      "version": "1.0.22",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "ryu",
+      "version": "1.0.23",
+      "license": "Apache-2.0 OR BSL-1.0",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "same-file",
+      "version": "1.0.6",
+      "license": "Unlicense OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Andrew Gallant"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "schannel",
+      "version": "0.1.29",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 steffengy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "schemars",
+      "version": "0.8.22",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Graham Esau"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "schemars",
+      "version": "0.9.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Graham Esau"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "schemars",
+      "version": "1.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Graham Esau"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "schemars_derive",
+      "version": "0.8.22",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Graham Esau"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "scopeguard",
+      "version": "1.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016-2019 Ulrik Sverdrup \"bluss\" and scopeguard developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "security-framework",
+      "version": "3.7.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Steven Fackler"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "security-framework-sys",
+      "version": "2.17.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Steven Fackler"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "selectors",
+      "version": "0.36.1",
+      "license": "MPL-2.0",
+      "chosen": "MPL-2.0",
+      "texts": [
+        "MPL-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Servo Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "semver",
+      "version": "1.0.28",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Erick Tryzelaar <erick.tryzelaar@gmail.com>; David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_core",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Erick Tryzelaar <erick.tryzelaar@gmail.com>; David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_derive",
+      "version": "1.0.228",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Erick Tryzelaar <erick.tryzelaar@gmail.com>; David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_derive_internals",
+      "version": "0.29.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Erick Tryzelaar <erick.tryzelaar@gmail.com>; David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_json",
+      "version": "1.0.149",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Erick Tryzelaar <erick.tryzelaar@gmail.com>; David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_path_to_error",
+      "version": "0.1.20",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_repr",
+      "version": "0.1.20",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_spanned",
+      "version": "0.6.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_spanned",
+      "version": "1.1.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_urlencoded",
+      "version": "0.7.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Anthony Ramine"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_with",
+      "version": "3.20.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde_with_macros",
+      "version": "3.20.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serde-untagged",
+      "version": "0.1.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serialize-to-javascript",
+      "version": "0.1.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2021 Chip Reed"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "serialize-to-javascript-impl",
+      "version": "0.1.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2021 Chip Reed"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "servo_arc",
+      "version": "0.4.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Servo Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "sha2",
+      "version": "0.10.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2006-2009 Graydon Hoare"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "sharded-slab",
+      "version": "0.1.7",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Eliza Weisman"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "shared_child",
+      "version": "1.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "jacko"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "shlex",
+      "version": "1.3.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Nicholas Allegra (comex)."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "sigchld",
+      "version": "0.2.4",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jack O'Connor"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "signal-hook",
+      "version": "0.3.18",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 tokio-jsonrpc developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "signal-hook-registry",
+      "version": "1.4.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 tokio-jsonrpc developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "simd-adler32",
+      "version": "0.3.9",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) [2021] [Marvin Countryman]"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "siphasher",
+      "version": "1.0.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2012-2016 The Rust Project Developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "slab",
+      "version": "0.4.12",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Carl Lerche"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "smallvec",
+      "version": "1.15.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018 The Servo Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "socket2",
+      "version": "0.6.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "softbuffer",
+      "version": "0.4.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2022 Kirill Chibisov"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "soup3",
+      "version": "0.5.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2017, The Gtk-rs Project Developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "soup3-sys",
+      "version": "0.5.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2017, The Gtk-rs Project Developers."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "stable_deref_trait",
+      "version": "1.2.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Robert Grosse"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "string_cache",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "string_cache_codegen",
+      "version": "0.6.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2012-2013 Mozilla Foundation"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "strsim",
+      "version": "0.11.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Danny Guo"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "subtle",
+      "version": "2.6.1",
+      "license": "BSD-3-Clause",
+      "chosen": "BSD-3-Clause",
+      "texts": [
+        "BSD-3-Clause"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016-2017 Isis Agora Lovecruft, Henry de Valence. All rights reserved."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "swift-rs",
+      "version": "1.0.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 The swift-rs Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "symlink",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Chris Morgan and the Teepee project developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "syn",
+      "version": "1.0.109",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "syn",
+      "version": "2.0.117",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "sync_wrapper",
+      "version": "1.0.2",
+      "license": "Apache-2.0",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Actyx AG <developer@actyx.io>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "synstructure",
+      "version": "0.13.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2016 Nika Layzell"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "system-configuration",
+      "version": "0.7.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Mullvad VPN AB"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "system-configuration-sys",
+      "version": "0.6.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Mullvad VPN AB"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "system-deps",
+      "version": "6.2.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Guillaume Desmottes <guillaume.desmottes@collabora.com>; Josh Triplett <josh@joshtriplett.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "system-deps",
+      "version": "7.0.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Guillaume Desmottes <guillaume.desmottes@collabora.com>; Josh Triplett <josh@joshtriplett.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tao",
+      "version": "0.35.2",
+      "license": "Apache-2.0",
+      "chosen": "Apache-2.0",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Tauri Programme within The Commons Conservancy; The winit contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tao-macros",
+      "version": "0.1.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Tauri Programme within The Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "target-lexicon",
+      "version": "0.12.16",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "chosen": "Apache-2.0 WITH LLVM-exception",
+      "texts": [
+        "Apache-2.0",
+        "LLVM-exception"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Dan Gohman <sunfish@mozilla.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "target-lexicon",
+      "version": "0.13.5",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "chosen": "Apache-2.0 WITH LLVM-exception",
+      "texts": [
+        "Apache-2.0",
+        "LLVM-exception"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Dan Gohman <sunfish@mozilla.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri",
+      "version": "2.11.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-build",
+      "version": "2.6.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-codegen",
+      "version": "2.6.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-macros",
+      "version": "2.6.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin",
+      "version": "2.6.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Tauri Programme within The Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-dialog",
+      "version": "2.7.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-fs",
+      "version": "2.5.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-http",
+      "version": "2.5.9",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-shell",
+      "version": "2.3.5",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-single-instance",
+      "version": "2.4.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present The Tauri Programme in the Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-wdio",
+      "version": "1.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "WebDriverIO Community"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-plugin-wdio-webdriver",
+      "version": "1.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 WebdriverIO Community"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-runtime",
+      "version": "2.11.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-runtime-wry",
+      "version": "2.11.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-utils",
+      "version": "2.9.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tauri-winres",
+      "version": "0.3.6",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 - Present Tauri Apps Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tempfile",
+      "version": "3.27.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Steven Allen"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tendril",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Keegan McAllister"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "thiserror",
+      "version": "1.0.69",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "thiserror",
+      "version": "2.0.18",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "thiserror-impl",
+      "version": "1.0.69",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "thiserror-impl",
+      "version": "2.0.18",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "thread_local",
+      "version": "1.1.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "time",
+      "version": "0.3.47",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jacob Pratt <open-source@jhpratt.dev>; Time contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "time-core",
+      "version": "0.1.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jacob Pratt <open-source@jhpratt.dev>; Time contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "time-macros",
+      "version": "0.2.27",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Jacob Pratt <open-source@jhpratt.dev>; Time contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tinystr",
+      "version": "0.8.3",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tinyvec",
+      "version": "1.11.0",
+      "license": "Zlib OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Lokathor <zefria@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tinyvec_macros",
+      "version": "0.1.1",
+      "license": "MIT OR Apache-2.0 OR Zlib",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Soveu <marx.tomasz@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tokio",
+      "version": "1.52.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Tokio Contributors <team@tokio.rs>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tokio-macros",
+      "version": "2.7.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Yoshua Wuyts"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tokio-native-tls",
+      "version": "0.3.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tokio-rustls",
+      "version": "0.26.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 quininer kel"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tokio-util",
+      "version": "0.7.18",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Tokio Contributors <team@tokio.rs>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml",
+      "version": "0.8.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml",
+      "version": "0.9.12+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml",
+      "version": "1.1.2+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_datetime",
+      "version": "0.6.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_datetime",
+      "version": "0.7.5+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_datetime",
+      "version": "1.1.1+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_edit",
+      "version": "0.19.15",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Andronik Ordian <write@reusable.software>; Ed Page <eopage@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_edit",
+      "version": "0.20.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Andronik Ordian <write@reusable.software>; Ed Page <eopage@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_edit",
+      "version": "0.25.11+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_parser",
+      "version": "1.1.2+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "toml_writer",
+      "version": "1.1.1+spec-1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tower",
+      "version": "0.5.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tower Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tower-http",
+      "version": "0.6.10",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019-2021 Tower Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tower-layer",
+      "version": "0.3.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tower Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tower-service",
+      "version": "0.3.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tower Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tracing",
+      "version": "0.1.44",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tracing-appender",
+      "version": "0.2.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tracing-attributes",
+      "version": "0.1.31",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tracing-core",
+      "version": "0.1.36",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tracing-log",
+      "version": "0.2.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tracing-subscriber",
+      "version": "0.3.23",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 Tokio Contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "tray-icon",
+      "version": "0.23.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2022-2022 Tauri Programme within The Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "try-lock",
+      "version": "0.2.5",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2023 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "typeid",
+      "version": "1.0.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "typenum",
+      "version": "1.20.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Paho Lurie-Gregg <paho@paholg.com>; Andre Bogus <bogusandre@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "uds_windows",
+      "version": "1.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Azure IoT Edge Devs; Harald Hoyer <harald@redhat.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unic-char-property",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The UNIC Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unic-char-range",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The UNIC Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unic-common",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The UNIC Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unic-ucd-ident",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The UNIC Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unic-ucd-version",
+      "version": "0.9.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The UNIC Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "chosen": "MIT AND Unicode-3.0",
+      "texts": [
+        "MIT",
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unicode-segmentation",
+      "version": "1.13.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "unicode-xid",
+      "version": "0.2.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "untrusted",
+      "version": "0.9.0",
+      "license": "ISC",
+      "chosen": "ISC",
+      "texts": [
+        "ISC"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Brian Smith <brian@briansmith.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "url",
+      "version": "2.5.8",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2013-2025 The rust-url developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "urlpattern",
+      "version": "0.3.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2021 the Deno authors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "utf-8",
+      "version": "0.7.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Simon Sapin <simon.sapin@exyr.org>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "utf8_iter",
+      "version": "1.0.4",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Henri Sivonen <hsivonen@hsivonen.fi>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "uuid",
+      "version": "1.23.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The Rust Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "valuable",
+      "version": "0.1.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "vcpkg",
+      "version": "0.2.15",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Jim McGrath"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "version_check",
+      "version": "0.9.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017-2018 Sergio Benitez"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "version-compare",
+      "version": "0.2.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Tim Visée"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "vswhom",
+      "version": "0.1.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 nabijaczleweli"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "vswhom-sys",
+      "version": "0.1.3",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2019 nabijaczleweli"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "walkdir",
+      "version": "2.5.0",
+      "license": "Unlicense OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Andrew Gallant"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "want",
+      "version": "0.3.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2019 Sean McArthur"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasi",
+      "version": "0.11.1+wasi-snapshot-preview1",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "The Cranelift Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasip2",
+      "version": "1.0.3+wasi-0.2.9",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasip3",
+      "version": "0.4.0+wasi-0.3.0-rc-2026-01-06",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-bindgen",
+      "version": "0.2.121",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-bindgen-futures",
+      "version": "0.4.71",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-bindgen-macro",
+      "version": "0.2.121",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-bindgen-macro-support",
+      "version": "0.2.121",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-bindgen-shared",
+      "version": "0.2.121",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-encoder",
+      "version": "0.244.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Nick Fitzgerald <fitzgen@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-metadata",
+      "version": "0.244.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-streams",
+      "version": "0.4.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mattias Buelens <mattias@buelens.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasm-streams",
+      "version": "0.5.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Mattias Buelens <mattias@buelens.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wasmparser",
+      "version": "0.244.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Yury Delendik <ydelendik@mozilla.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "web_atoms",
+      "version": "0.2.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 The html5ever Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "web-sys",
+      "version": "0.3.98",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2014 Alex Crichton"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "web-time",
+      "version": "1.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2023 dAxpeDDa"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "webkit2gtk",
+      "version": "2.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Boucher, Antoni <bouanto@zoho.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "webkit2gtk-sys",
+      "version": "2.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2016 Boucher, Antoni <bouanto@zoho.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "webpki-roots",
+      "version": "1.0.7",
+      "license": "CDLA-Permissive-2.0",
+      "chosen": "CDLA-Permissive-2.0",
+      "texts": [
+        "CDLA-Permissive-2.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "webview2-com",
+      "version": "0.38.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "webview2-com-macros",
+      "version": "0.8.1",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "webview2-com-sys",
+      "version": "0.38.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winapi",
+      "version": "0.3.9",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015-2018 The winapi-rs Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winapi-i686-pc-windows-gnu",
+      "version": "0.4.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Peter Atashian <retep998@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winapi-util",
+      "version": "0.1.11",
+      "license": "Unlicense OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2017 Andrew Gallant"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winapi-x86_64-pc-windows-gnu",
+      "version": "0.4.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Peter Atashian <retep998@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "window-vibrancy",
+      "version": "0.6.0",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020-2022 Tauri Programme within The Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows",
+      "version": "0.61.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_aarch64_gnullvm",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_aarch64_msvc",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_aarch64_msvc",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_aarch64_msvc",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_gnu",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_gnu",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_gnu",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_gnullvm",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_gnullvm",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_msvc",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_msvc",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_i686_msvc",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_gnu",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_gnu",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_gnu",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_gnullvm",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_msvc",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_msvc",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows_x86_64_msvc",
+      "version": "0.53.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-collections",
+      "version": "0.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-core",
+      "version": "0.61.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-core",
+      "version": "0.62.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-future",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-implement",
+      "version": "0.60.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-interface",
+      "version": "0.59.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-link",
+      "version": "0.1.3",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-link",
+      "version": "0.2.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-numerics",
+      "version": "0.2.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-registry",
+      "version": "0.6.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-result",
+      "version": "0.3.4",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-result",
+      "version": "0.4.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-strings",
+      "version": "0.4.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-strings",
+      "version": "0.5.1",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-sys",
+      "version": "0.45.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-sys",
+      "version": "0.52.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-sys",
+      "version": "0.59.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-sys",
+      "version": "0.60.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-sys",
+      "version": "0.61.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-targets",
+      "version": "0.42.2",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-targets",
+      "version": "0.52.6",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-targets",
+      "version": "0.53.5",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-threading",
+      "version": "0.1.0",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Microsoft"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "windows-version",
+      "version": "0.1.7",
+      "license": "MIT OR Apache-2.0",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winnow",
+      "version": "0.5.40",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winnow",
+      "version": "0.7.15",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winnow",
+      "version": "1.0.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": ""
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "winreg",
+      "version": "0.55.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2015 Igor Shaula"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-bindgen",
+      "version": "0.51.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-bindgen",
+      "version": "0.57.1",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-bindgen-core",
+      "version": "0.51.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-bindgen-rust",
+      "version": "0.51.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-bindgen-rust-macro",
+      "version": "0.51.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-component",
+      "version": "0.244.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Peter Huene <peter@huene.dev>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wit-parser",
+      "version": "0.244.0",
+      "license": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Alex Crichton <alex@alexcrichton.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "writeable",
+      "version": "0.6.3",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "wry",
+      "version": "0.55.1",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2020-2023 Ngo Iok Ui & Tauri Programme within The Commons Conservancy"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "x11",
+      "version": "2.21.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "daggerbot <daggerbot@gmail.com>; Erle Pereira <erle@erlepereira.com>; AltF02 <contact@altf2.dev>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "x11-dl",
+      "version": "2.21.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "daggerbot <daggerbot@gmail.com>; Erle Pereira <erle@erlepereira.com>; AltF02 <contact@altf2.dev>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "yoke",
+      "version": "0.8.2",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "yoke-derive",
+      "version": "0.8.2",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zbus",
+      "version": "5.16.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Zeeshan Ali Khan & zbus contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zbus_macros",
+      "version": "5.16.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Zeeshan Ali Khan & zbus contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zbus_names",
+      "version": "4.3.2",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Zeeshan Ali Khan & zbus contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerocopy",
+      "version": "0.8.48",
+      "license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2023 The Fuchsia Authors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerocopy-derive",
+      "version": "0.8.48",
+      "license": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright 2023 The Fuchsia Authors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerofrom",
+      "version": "0.1.7",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerofrom-derive",
+      "version": "0.1.7",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zeroize",
+      "version": "1.8.2",
+      "license": "Apache-2.0 OR MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2018-2021 The RustCrypto Project Developers"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerotrie",
+      "version": "0.2.4",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerovec",
+      "version": "0.11.6",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zerovec-derive",
+      "version": "0.11.3",
+      "license": "Unicode-3.0",
+      "chosen": "Unicode-3.0",
+      "texts": [
+        "Unicode-3.0"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright © 2020-2024 Unicode, Inc."
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zmij",
+      "version": "1.0.21",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "David Tolnay <dtolnay@gmail.com>"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zvariant",
+      "version": "5.12.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Zeeshan Ali Khan & zbus contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zvariant_derive",
+      "version": "5.12.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Copyright (c) 2024 Zeeshan Ali Khan & zbus contributors"
+    },
+    {
+      "ecosystem": "cargo",
+      "name": "zvariant_utils",
+      "version": "3.4.0",
+      "license": "MIT",
+      "chosen": "MIT",
+      "texts": [
+        "MIT"
+      ],
+      "licenseSource": "Cargo.toml",
+      "copyright": "Zeeshan Ali Khan <zeeshanak@gnome.org>; turbocooler <turbocooler@cocaine.ninja>"
+    }
+  ]
+}

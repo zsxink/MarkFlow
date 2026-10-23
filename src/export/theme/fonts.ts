@@ -12,9 +12,9 @@ const FONT_FILES: Array<{
   { family: 'Source Serif 4', weight: 400, style: 'italic', url: '/assets/fonts/SourceSerif4SmText-It.ttf.woff2' },
   { family: 'Source Serif 4', weight: 700, style: 'normal', url: '/assets/fonts/SourceSerif4-Bold.ttf.woff2' },
   { family: 'Source Serif 4', weight: 700, style: 'italic', url: '/assets/fonts/SourceSerif4-BoldIt.ttf.woff2' },
-  // Source Han Serif SC (CJK serif, common subset)
-  { family: 'Source Han Serif SC', weight: 400, style: 'normal', url: '/assets/fonts/SourceHanSerifSC-Regular-common.woff2' },
-  { family: 'Source Han Serif SC', weight: 700, style: 'normal', url: '/assets/fonts/SourceHanSerifSC-Bold-common.woff2' },
+  // MarkFlow Serif SC (GB2312 Level 1 subset of Source Han Serif SC, common subset)
+  { family: 'MarkFlow Serif SC', weight: 400, style: 'normal', url: '/assets/fonts/SourceHanSerifSC-Regular-common.woff2' },
+  { family: 'MarkFlow Serif SC', weight: 700, style: 'normal', url: '/assets/fonts/SourceHanSerifSC-Bold-common.woff2' },
 ];
 
 /**

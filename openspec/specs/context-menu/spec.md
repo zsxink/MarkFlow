@@ -4,10 +4,11 @@
 定义 MarkFlow 右键菜单的 API、DOM 结构、定位和关闭交互规范。
 
 ## Agent Context
-- **源码入口：** `src/ui/context-menu.ts`；调用方包括 `src/ui/file-tree-context-menu.ts` 和 `src/ui/image-context-menu.ts`。
-- **关联规范：** `safe-dom-construction`、`sidebar`、`dialog-system`。
+- **源码入口：** `src/ui/context-menu.ts`（统一工厂）；调用方包括 `src/ui/editor-context-menu.ts`（默认编辑菜单）、`src/ui/file-tree-context-menu.ts`、`src/ui/frontmatter-panel.ts`、`src/ui/table-context-menu.ts`、`src/ui/image-context-menu.ts`、`src/ui/diagram-context-menu.ts` / `mermaid-context-menu.ts` / `plantuml-context-menu.ts`。
+- **关联规范：** `safe-dom-construction`、`sidebar`、`dialog-system`、`frontmatter-visual-editor`。
 - **不变量：** 菜单必须经统一工厂创建；关闭行为不得泄漏全局事件监听器；用户可控标签必须作为文本插入。
-- **验证：** `npm test -- src/ui/__tests__/file-tree-context-menu.test.ts`；`npx openspec validate context-menu --strict`。
+- **子菜单契约：** 菜单项支持 `icon` / `disabled` / `shortcut` / `submenu`，子菜单由同一工厂渲染并按 `data-menu-path` 路径分发（路径分段即 `submenu` 数组下标），因此**分隔线也占一个下标**，调用方不得按「可见按钮序号」索引；子菜单支持鼠标悬停与 `ArrowRight` / `ArrowLeft` 展开收起，主面板与子面板均实测尺寸后贴合光标并在空间不足时向相反方向翻转。
+- **验证：** `npm test -- src/ui/__tests__/context-menu.test.ts src/ui/__tests__/file-tree-context-menu.test.ts src/ui/__tests__/diagram-context-menu.test.ts`；`npx openspec validate context-menu --strict`。
 
 > 定义 MarkFlow 所有右键菜单（Context Menu）的统一结构和交互模式
 
@@ -24,10 +25,14 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 ```
 
 **ContextMenuItem:**
-- `label: string` — 菜单项显示文本
+- `label?: string` — 菜单项显示文本
+- `icon?: string` — 左侧图标（作为文本渲染）
 - `onClick?: () => void` — 点击执行的回调函数
 - `danger?: boolean` — 标记为危险操作（红色样式）
 - `divider?: boolean` — 分隔线，为 true 时忽略其他字段
+- `disabled?: boolean` — 禁用项，渲染 `aria-disabled="true"` 与 `disabled`，不参与键盘导航
+- `shortcut?: string` — 右侧快捷键提示文案（仅展示，不绑定按键）
+- `submenu?: ContextMenuItem[]` — 子菜单项列表，非空时渲染 chevron 与 `aria-haspopup="menu"`
 
 **ContextMenuOptions:**
 - `containerId?: string` — 容器元素 ID，默认 `'context-menu'`
@@ -42,17 +47,28 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 右键菜单 MUST 使用规定的容器、菜单项和分隔线 DOM 结构。
 
 ```html
-<div id="context-menu" class="context-menu">
-  <button class="context-menu-item">菜单项</button>
-  <button class="context-menu-item danger">危险操作</button>
-  <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
-  <button class="context-menu-item">更多操作</button>
+<div id="context-menu" class="context-menu" role="menu">
+  <button class="context-menu-item" role="menuitem" data-menu-path="0">菜单项</button>
+  <button class="context-menu-item danger" role="menuitem" data-menu-path="1">危险操作</button>
+  <hr class="context-menu-divider" role="separator">
+  <!-- 带子菜单的项包在 entry 里，子面板与主面板共用渲染函数 -->
+  <div class="context-menu-entry">
+    <button class="context-menu-item has-submenu" role="menuitem" aria-haspopup="menu" aria-expanded="false" data-menu-path="2">更多操作<span class="context-menu-chevron" aria-hidden="true">›</span></button>
+    <div class="context-menu-submenu-panel" role="menu" hidden>
+      <button class="context-menu-item" role="menuitem" data-menu-path="2.0">子项</button>
+    </div>
+  </div>
 </div>
 ```
 
 #### Scenario: 菜单按规定结构渲染
 - **WHEN** 右键菜单包含普通项、危险项和分隔线
 - **THEN** 菜单渲染对应的 `.context-menu`、按钮和分隔线元素
+
+#### Scenario: 带子菜单的项渲染 entry 与子面板
+- **WHEN** 菜单项提供非空 `submenu`
+- **THEN** 该项渲染为 `.context-menu-entry` 内的 `has-submenu` 按钮加同级的 `.context-menu-submenu-panel`
+- **THEN** 子项路径以父项路径为前缀（如 `2.0`），分隔线同样占用一个下标
 
 ### Requirement: 右键菜单交互
 
@@ -141,3 +157,40 @@ showContextMenuStatic(items: ContextMenuItem[], position: { x: number; y: number
 #### Scenario: 非特殊节点右键走通用菜单
 - **WHEN** 用户在普通段落文本上右键
 - **THEN** 弹出通用文本编辑菜单，不出现节点专用项
+
+### Requirement: 编辑区域默认编辑菜单
+
+对于未由专用菜单处理的应用区域，系统 SHALL 提供默认编辑右键菜单；该菜单 SHALL 根据当前编辑模式提供剪切、复制、粘贴、纯文本粘贴、全选及适用的链接、文本格式、段落和插入操作。只读文档 SHALL 禁用会修改内容的操作。可编辑表单控件 SHALL 提供适用于当前选区的文本操作。
+
+#### Scenario: 普通所见即所得文本右键
+- **WHEN** 用户在普通段落文本上右键
+- **THEN** 系统显示默认编辑菜单，菜单操作作用于右键位置或保留的选区
+
+#### Scenario: 源码模式右键
+- **WHEN** 用户在源码编辑区右键
+- **THEN** 系统显示剪切、复制、粘贴、纯文本粘贴和全选，并保留源码模式的光标和选区语义
+
+#### Scenario: 专用菜单继续优先
+- **WHEN** 用户在表格、图片或 Mermaid/PlantUML 渲染内容上右键
+- **THEN** 系统只显示该内容已有的专用菜单，图片和图表的导出操作保持不变
+
+#### Scenario: 只读文档
+- **WHEN** 用户在只读文档的编辑区域右键
+- **THEN** 剪切、粘贴、格式、段落和插入操作不可用
+- **THEN** 复制和全选仍可用
+
+### Requirement: 统一右键菜单视觉与子菜单
+
+所有通过统一菜单工厂创建的右键菜单 SHALL 使用一致的紧凑圆角表面、清晰分组、可辨识的焦点/悬停/禁用状态和视口内定位。菜单项 SHALL 可包含快捷键提示或子菜单；子菜单 SHALL 可通过鼠标和键盘打开，且不得超出视口。
+
+#### Scenario: 专用菜单使用统一视觉
+- **WHEN** 系统显示文件、Frontmatter、表格、图片或图表专用菜单
+- **THEN** 它们 SHALL 使用与默认编辑菜单相同的菜单表面、字号、圆角、间距与焦点样式
+
+#### Scenario: 打开子菜单
+- **WHEN** 用户悬停或键盘聚焦带子菜单的菜单项并向右展开
+- **THEN** 对应子菜单显示在主菜单旁边并保持在视口范围内
+
+#### Scenario: 菜单靠近视口边缘
+- **WHEN** 主菜单或子菜单打开位置靠近窗口边缘
+- **THEN** 系统调整其位置以保证菜单内容可见

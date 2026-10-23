@@ -1,6 +1,7 @@
 import { initTheme } from './infra/theme';
 import { initEditor, isDocumentDirty } from './editor';
 import { initToolbar } from './ui/toolbar';
+import { initWindowControls } from './ui/window-controls';
 import { initSidebar } from './ui/sidebar/index';
 import { initMenu } from './ui/menu';
 import { initStatusBar } from './ui/status-bar';
@@ -94,6 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     void getCurrentWebviewWindow().setTitle(document.title).catch(error => logDebug('document.tabs', 'Failed to update window title', { error: String(error) }));
   });
   initToolbar();
+  initWindowControls();
   initKeyboard();
   await initNativeMenu();
 

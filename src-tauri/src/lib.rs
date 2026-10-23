@@ -120,12 +120,16 @@ fn open_file_in_new_window(path: String, app: tauri::AppHandle) -> Result<(), St
         }
     };
 
-    let window_result =
-        WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
-            .title(&file_name)
-            .inner_size(win_w, win_h)
-            .position(pos_x, pos_y)
-            .build();
+    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+        .title(&file_name)
+        .inner_size(win_w, win_h)
+        .position(pos_x, pos_y);
+    // Undecorated windows let the toolbar row act as the title bar (see the
+    // window-chrome spec); macOS keeps the system title bar untouched.
+    if !cfg!(target_os = "macos") {
+        builder = builder.decorations(false);
+    }
+    let window_result = builder.build();
 
     let window = match window_result {
         Ok(w) => w,

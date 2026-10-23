@@ -2,19 +2,34 @@
 .context-menu {
   position: fixed;
   box-sizing: border-box;
-  min-width: 240px;
-  max-width: min(340px, calc(100vw - 16px));
+  min-width: 198px;
+  max-width: min(304px, calc(100vw - 16px));
   max-height: min(72vh, calc(100vh - 16px));
   overflow: auto;
-  padding: 6px;
+  padding: 4px;
   color: var(--fg);
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 16px;
-  box-shadow: 0 12px 34px rgba(20, 20, 20, 0.18), 0 2px 8px rgba(20, 20, 20, 0.08);
+  isolation: isolate;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(20, 20, 20, 0.16), 0 2px 8px rgba(20, 20, 20, 0.07);
   z-index: 200;
-  font: 15px/1.35 var(--font-ui);
+  font: 13px/1.4 var(--font-ui);
   overscroll-behavior: contain;
+}
+
+.context-menu::before,
+.context-menu-submenu-panel::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 62%, transparent);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  pointer-events: none;
 }
 
 .context-menu[hidden],
@@ -33,15 +48,15 @@
 .context-menu-item {
   display: flex;
   align-items: center;
-  gap: 20px;
-  min-height: 37px;
+  gap: 12px;
+  min-height: 28px;
   box-sizing: border-box;
   width: 100%;
-  padding: 7px 11px;
+  padding: 4px 9px;
   border: none;
   background: none;
   text-align: left;
-  border-radius: 10px;
+  border-radius: 8px;
   font: inherit;
   color: var(--fg);
   cursor: pointer;
@@ -64,6 +79,16 @@
   color: #fff;
   background: #d93636;
 }
+
+.context-menu-icon {
+  display: inline-grid;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+}
+
+.context-menu-icon svg { display: block; }
 
 .context-menu-item:disabled,
 .context-menu-item[aria-disabled="true"] {
@@ -99,7 +124,7 @@
 }
 
 .context-menu-chevron {
-  font-size: 22px;
+  font-size: 18px;
   line-height: 0.8;
   margin-right: -2px;
 }
@@ -108,7 +133,7 @@
   height: 0;
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
-  margin: 5px 8px;
+  margin: 4px 6px;
 }
 
 .context-menu-entry {
@@ -119,16 +144,17 @@
   position: fixed;
   z-index: 1;
   box-sizing: border-box;
-  min-width: 208px;
-  max-width: min(320px, calc(100vw - 16px));
+  min-width: 175px;
+  max-width: min(285px, calc(100vw - 16px));
   max-height: min(72vh, calc(100vh - 16px));
   overflow: auto;
-  padding: 6px;
+  padding: 4px;
   color: var(--fg);
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
-  border-radius: 16px;
-  box-shadow: 0 12px 34px rgba(20, 20, 20, 0.18), 0 2px 8px rgba(20, 20, 20, 0.08);
+  isolation: isolate;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(20, 20, 20, 0.16), 0 2px 8px rgba(20, 20, 20, 0.07);
   overscroll-behavior: contain;
 }
 

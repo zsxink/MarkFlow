@@ -1,5 +1,6 @@
 import {
   activateDocumentTab,
+  closeAllDocumentTabs,
   closeDocumentTab,
   getActiveTabId,
   getDocumentTabs,
@@ -90,6 +91,20 @@ export function initDocumentTabs() {
     scroll.replaceChildren(fragment);
     if (list) {
       const listFragment = document.createDocumentFragment();
+      const closeAll = document.createElement('button');
+      closeAll.type = 'button';
+      closeAll.className = 'document-tabs-menu-item document-tabs-menu-action';
+      closeAll.dataset.closeAllTabs = '';
+      closeAll.setAttribute('role', 'menuitem');
+      closeAll.textContent = '全部关闭';
+      closeAll.disabled = tabs.length === 0;
+      listFragment.append(closeAll);
+
+      const divider = document.createElement('div');
+      divider.className = 'document-tabs-menu-divider';
+      divider.setAttribute('role', 'separator');
+      listFragment.append(divider);
+
       tabs.forEach(tab => {
         const item = document.createElement('button');
         item.type = 'button';
@@ -98,6 +113,7 @@ export function initDocumentTabs() {
         item.setAttribute('role', 'menuitemradio');
         item.setAttribute('aria-checked', String(tab.id === activeId));
         const title = document.createElement('span');
+        title.className = 'document-tabs-menu-title';
         title.textContent = getVisibleTitle(tab, tabs);
         const dirty = document.createElement('span');
         dirty.className = 'document-tabs-menu-dirty';
@@ -117,7 +133,7 @@ export function initDocumentTabs() {
     }
   };
 
-  const menuItems = () => Array.from(list?.querySelectorAll<HTMLButtonElement>('[data-activate-tab]') ?? []);
+  const menuItems = () => Array.from(list?.querySelectorAll<HTMLButtonElement>('[data-activate-tab], [data-close-all-tabs]') ?? []);
   const openList = () => {
     if (!list) return;
     list.hidden = false;
@@ -161,6 +177,13 @@ export function initDocumentTabs() {
     if (listToggle) {
       if (list?.hidden) openList();
       else closeList();
+      return;
+    }
+
+    const closeAllButton = target.closest<HTMLButtonElement>('[data-close-all-tabs]');
+    if (closeAllButton) {
+      closeList();
+      void closeAllDocumentTabs();
       return;
     }
 

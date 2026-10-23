@@ -45,7 +45,7 @@
 .ProseMirror {
   outline: none;
   font-family: var(--font-body);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.6;
   color: var(--fg);
 }
@@ -916,9 +916,12 @@
 .frontmatter-panel .frontmatter-tag button { flex: 0 0 22px; width: 22px; min-height: 24px; padding: 0; }
 .frontmatter-panel .frontmatter-tag-new { flex: 0 1 90px; width: 90px; height: 24px; padding: 1px 3px; font-size: 13px; }
 .frontmatter-panel .frontmatter-tag-new::placeholder { color: var(--frontmatter-muted); }
-.frontmatter-add-form { display: grid; grid-template-columns: minmax(80px, 140px) minmax(0, 1fr) 76px auto auto; gap: 4px; margin-top: 6px; }
+.frontmatter-add-form { display: grid; grid-template-columns: 24px minmax(80px, 140px) minmax(0, 1fr) auto auto; gap: 4px; margin-top: 6px; }
+.frontmatter-panel .frontmatter-add-kind { cursor: pointer; }
 .frontmatter-add-form input,
 .frontmatter-add-form select { background: var(--surface); border-color: var(--border); }
+.frontmatter-add-form .frontmatter-tag-new { background: transparent; border-color: transparent; }
+.frontmatter-add-tags .frontmatter-tag-label { padding: 1px 5px; font-size: 13px; }
 .frontmatter-add-form button { color: var(--fg); }
 .frontmatter-panel textarea { display: block; width: 100%; min-height: 100px; resize: vertical; font: 13px/1.6 var(--font-code); background: var(--code-bg); }
 .frontmatter-fallback-reason { margin: 4px 0 8px; color: var(--frontmatter-muted); font-size: 12px; }
@@ -938,7 +941,7 @@
 
 @media (max-width: 900px) {
   .frontmatter-field { grid-template-columns: 24px minmax(72px, 110px) minmax(0, 1fr) 24px; }
-  .frontmatter-add-form { grid-template-columns: minmax(72px, 110px) minmax(0, 1fr) 76px; }
+  .frontmatter-add-form { grid-template-columns: 24px minmax(72px, 110px) minmax(0, 1fr) auto auto; }
 }
 @media (hover: none) {
   .frontmatter-panel .frontmatter-menu-button { opacity: 1; }
@@ -961,7 +964,7 @@
 .source-editor-wrapper .cm-scroller {
   padding: 16px 48px 120px;
   font-family: var(--font-code);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.6;
 }
 

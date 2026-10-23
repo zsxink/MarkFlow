@@ -132,8 +132,8 @@ function createSettingsContent(): string {
                 <div class="settings-label">正文字号</div>
                 <select class="settings-select" id="setting-fontsize">
                   <option value="14">14px</option>
-                  <option value="16" selected>16px</option>
-                  <option value="18">18px</option>
+                  <option value="16">16px</option>
+                  <option value="18" selected>18px</option>
                   <option value="20">20px</option>
                   <option value="22">22px</option>
                 </select>

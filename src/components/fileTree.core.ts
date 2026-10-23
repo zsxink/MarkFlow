@@ -1,5 +1,5 @@
 import type { FileEntry, DragState } from '../types/fileTree';
-import { readDirPage, readPathEntry, setWorkspace as setWorkspaceIPC, openFileInNewWindow, addRecentFolder } from '../lib/storage';
+import { readDirPage, readPathEntry, setWorkspace as setWorkspaceIPC, addRecentFolder } from '../lib/storage';
 import { openFileInEditor } from './sidebar';
 import { getActiveFilePath, rewriteActiveDocumentPath } from './activeDocument';
 import { showContextMenu } from './contextMenu';
@@ -494,7 +494,7 @@ function createFileNode(entry: FileEntry, depth: number): HTMLElement {
       clearTimeout(existing);
       dbClickTimers.delete(file);
     }
-    openFileInNewWindow(path);
+    openFileInEditor(path);
   });
 
   file.addEventListener('contextmenu', (e) => {

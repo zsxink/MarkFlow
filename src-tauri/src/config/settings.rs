@@ -153,7 +153,7 @@ impl Default for Settings {
         Self {
             version: 3,
             theme: "light".into(),
-            font_size: 16,
+            font_size: 18,
             line_height: 1.6,
             autosave: true,
             autosave_interval: 10000,

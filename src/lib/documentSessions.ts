@@ -60,6 +60,13 @@ function hasCapacity() {
   showToast('最多打开 20 个文件，请先关闭一些文件');
   return false;
 }
+function hasReplaceableEmptyTab() {
+  const tab = current();
+  return sessions.length === 1
+    && tab?.path === null
+    && !tab.context
+    && !store.getState().dirty;
+}
 function project() {
   document.querySelectorAll<HTMLElement>('.tree-file').forEach(el => {
     el.classList.toggle('active', el.dataset.path === current()?.path);
@@ -171,10 +178,15 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
     path = canonical(path);
     const existing = sessions.find(tab => tab.path === path);
     if (existing) return activateInternal(existing.id);
-    if (!hasCapacity()) return false;
+    if (!hasReplaceableEmptyTab() && !hasCapacity()) return false;
     const commit = await prepare();
     if (!commit) return false;
     await settleImageOperations();
+    // Keep an untouched startup/new-tab placeholder from lingering beside the
+    // first file. Recheck after async preparation because the user may have
+    // started typing while the file was being read.
+    const replaceEmptyTab = hasReplaceableEmptyTab();
+    if (!replaceEmptyTab && !hasCapacity()) return false;
     const previous = current();
     const focusEditor = suspendCurrent();
     const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', context: null, pendingExternal: null, degradation: null };
@@ -197,6 +209,14 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
       else emptyInternal();
       throw error;
     } finally { publishing = false; }
+    if (replaceEmptyTab && previous) {
+      sessions = sessions.filter(item => item !== previous);
+      if (previous.context) {
+        try { await releaseEditorDocument(previous.context); }
+        catch (error) { logException('document.tabs', 'Failed to release replaced empty tab resources', error); }
+        finally { previous.context = null; }
+      }
+    }
     project();
     return true;
   });

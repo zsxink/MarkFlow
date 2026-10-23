@@ -9,6 +9,7 @@ import { clampMenuPosition } from '../diagramContextMenu.helpers';
 
 export interface ContextMenuItem {
   label?: string;
+  icon?: string;
   onClick?: () => void;
   danger?: boolean;
   divider?: boolean;
@@ -62,9 +63,10 @@ export function showContextMenuStatic(
     const submenuClass = item.submenu?.length ? ' has-submenu' : '';
     const disabledAttr = item.disabled ? ' aria-disabled="true" disabled' : '';
     const submenuAttr = item.submenu?.length ? ' aria-haspopup="menu" aria-expanded="false"' : '';
+    const icon = item.icon ? `<span class="context-menu-icon" aria-hidden="true">${item.icon}</span>` : '';
     const shortcut = item.shortcut ? `<span class="context-menu-shortcut">${escapeHtml(item.shortcut)}</span>` : '';
     const arrow = item.submenu?.length ? '<span class="context-menu-chevron" aria-hidden="true">›</span>' : '';
-    const button = `<button class="context-menu-item${dangerClass}${submenuClass}" role="menuitem" data-menu-path="${path}"${disabledAttr}${submenuAttr}><span class="context-menu-label">${escapeHtml(item.label || '')}</span>${shortcut}${arrow}</button>`;
+    const button = `<button class="context-menu-item${dangerClass}${submenuClass}" role="menuitem" data-menu-path="${path}"${disabledAttr}${submenuAttr}>${icon}<span class="context-menu-label">${escapeHtml(item.label || '')}</span>${shortcut}${arrow}</button>`;
     if (!item.submenu?.length) return button;
     return `<div class="context-menu-entry">${button}<div class="context-menu-submenu-panel" role="menu" hidden>${renderItems(item.submenu, path)}</div></div>`;
   }).join('');

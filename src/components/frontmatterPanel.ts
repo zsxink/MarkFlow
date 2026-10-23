@@ -353,6 +353,7 @@ export function mountFrontmatterPanel(container: HTMLElement): void {
     const row = target.closest<HTMLElement>('.frontmatter-field');
     if (!row?.dataset.key || !current(row.dataset.key)) return;
     event.preventDefault();
+    event.stopPropagation();
     const tag = target.closest<HTMLElement>('.frontmatter-tag');
     const input = tag?.querySelector<HTMLInputElement>('[data-fm-tag-value]');
     if (!input) { fieldMenu(row.dataset.key, { x: event.clientX, y: event.clientY }); return; }

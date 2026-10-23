@@ -13,7 +13,7 @@ vi.mock('../lib/store', () => ({ store: { getState: () => mocks.state, on: (name
 vi.mock('./ui/contextMenu', () => ({ showContextMenuStatic: mocks.menu }));
 import { mountFrontmatterPanel, refreshFrontmatterPanel, openNewFrontmatterField } from './frontmatterPanel';
 
-type MenuItem = { label?: string; disabled?: boolean; onClick?: () => void };
+type MenuItem = { label?: string; disabled?: boolean; onClick?: () => void; submenu?: MenuItem[] };
 function input(attribute: string, key: string): HTMLInputElement {
   const result = [...document.querySelectorAll<HTMLInputElement>(`[${attribute}]`)].find(element => element.getAttribute(attribute) === key);
   if (!result) throw new Error(`Missing ${attribute}: ${key}`);
@@ -22,7 +22,20 @@ function input(attribute: string, key: string): HTMLInputElement {
 function change(element: HTMLInputElement | HTMLTextAreaElement, value: string) { element.value = value; element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); }
 function fields() { const result = analyzeFrontmatter(mocks.markdown); if (!result.supported) throw new Error(result.reason); return result.fields; }
 function value(key: string) { return fields().find(field => field.key === key)?.value; }
-function menuItem(label: string): MenuItem { const menu = mocks.menu.mock.calls[mocks.menu.mock.calls.length - 1]?.[0] as MenuItem[]; const item = menu.find(item => item.label === label); if (!item) throw new Error(`Missing menu: ${label}`); return item; }
+function menuItem(label: string): MenuItem {
+  const menu = mocks.menu.mock.calls[mocks.menu.mock.calls.length - 1]?.[0] as MenuItem[];
+  const find = (items: MenuItem[]): MenuItem | undefined => {
+    for (const item of items) {
+      if (item.label === label) return item;
+      const nested = item.submenu && find(item.submenu);
+      if (nested) return nested;
+    }
+    return undefined;
+  };
+  const item = find(menu);
+  if (!item) throw new Error(`Missing menu: ${label}`);
+  return item;
+}
 function openMenu(key: string) { input('data-fm-menu', key).click(); }
 function key(element: HTMLElement, value: string, altKey = false) { element.dispatchEvent(new KeyboardEvent('keydown', { key: value, altKey, bubbles: true, cancelable: true })); }
 function setup(source = '---\ntitle: Hello\ntags: [one, "two,three"]\ncount: 2\n---\n\nBody\n') {
@@ -40,7 +53,7 @@ describe('compact frontmatter panel', () => {
     expect(document.querySelectorAll('.frontmatter-type svg')).toHaveLength(3);
     expect(document.querySelector('select')).toBeNull(); expect(document.querySelector('[data-fm-add]')).toBeNull();
     expect(document.querySelector('.frontmatter-field')?.getAttribute('draggable')).toBeNull();
-    expect(input('data-fm-kind', 'title').getAttribute('draggable')).toBe('true');
+    expect(input('data-fm-kind', 'title').title).toContain('按住拖动');
   });
   it('commits name/value on Enter without per-keystroke writes or DOM replacement', () => {
     setup(); const name = input('data-fm-key-value', 'title'); name.focus(); name.value = 'name';
@@ -95,10 +108,10 @@ describe('compact frontmatter panel', () => {
     document.getElementById('frontmatter-region')!.dispatchEvent(new Event('markflow:commit-draft'));
     expect(mocks.markdown).toContain('child: saved'); expect(document.activeElement).toBe(raw);
   });
-  it('keeps natural Tab focus transfer and supports focus from the menu', () => {
+  it('keeps natural Tab focus transfer and exposes inline name/value editing', () => {
     setup(); const title = input('data-fm-value', 'title'); title.focus(); title.value = 'Draft';
     const menu = input('data-fm-menu', 'title'); title.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: menu })); menu.focus();
-    expect(document.activeElement).toBe(menu); openMenu('title'); menuItem('编辑值').onClick?.(); expect(document.activeElement).toBe(title);
+    expect(document.activeElement).toBe(menu); expect(input('data-fm-key-value', 'title')).toBeTruthy(); expect(title).toBeTruthy();
   });
   it('edits comma-containing tags as single values, adds on Enter/blur and removes chips', () => {
     setup(); const tags = document.querySelectorAll<HTMLInputElement>('[data-fm-tag-value="tags"]');
@@ -112,7 +125,9 @@ describe('compact frontmatter panel', () => {
   });
   it('uses a context menu for tag editing/removal and checks stale tag indices', () => {
     setup(); const tag = document.querySelector<HTMLInputElement>('[data-fm-tag-value="tags"]')!;
+    const outside = vi.fn(); document.addEventListener('contextmenu', outside);
     tag.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    expect(outside).not.toHaveBeenCalled(); document.removeEventListener('contextmenu', outside);
     menuItem('编辑标签').onClick?.(); expect(document.activeElement).toBe(tag);
     const remove = menuItem('移除标签').onClick;
     mocks.markdown = mocks.markdown.replace('[one, "two,three"]', '[different, "two,three"]'); remove?.();
@@ -134,11 +149,11 @@ describe('compact frontmatter panel', () => {
   });
   it('offers field operations, rejects unsafe type conversions and uses scalar-preserving array conversion', () => {
     setup(); openMenu('title'); expect(menuItem('上移').disabled).toBe(true);
-    menuItem('属性类型…').onClick?.(); menuItem('数字').onClick?.();
+    expect(menuItem('属性类型').submenu).toBeTruthy(); menuItem('数字').onClick?.();
     expect(value('title')).toBe('Hello'); expect(document.querySelector('output')?.textContent).toContain('数字');
     input('data-fm-kind', 'title').click(); menuItem('复选框').onClick?.(); expect(value('title')).toBe('Hello');
     input('data-fm-kind', 'title').click(); menuItem('列表').onClick?.(); expect(value('title')).toEqual(['Hello']);
-    openMenu('title'); menuItem('重命名').onClick?.(); expect(document.activeElement).toBe(input('data-fm-key-value', 'title'));
+    expect(input('data-fm-key-value', 'title')).toBeTruthy();
     openMenu('title'); menuItem('删除属性').onClick?.(); expect(value('title')).toBeUndefined();
   });
   it('converts empty text to an empty list and makes null editing explicit through the type menu', () => {
@@ -180,15 +195,31 @@ describe('compact frontmatter panel', () => {
   });
   it('drags only from a handle, highlights target and clears canceled drag state', () => {
     setup(); const handle = input('data-fm-kind', 'title'); const target = document.querySelector<HTMLElement>('[data-key="count"]')!;
-    handle.dispatchEvent(new Event('dragstart', { bubbles: true, cancelable: true })); expect(handle.closest('.is-dragging')).toBeTruthy();
-    target.dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true })); expect(target.classList.contains('is-drop-target')).toBe(true); expect(target.classList.contains('is-drop-after')).toBe(true);
-    target.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true })); expect(fields().map(field => field.key)).toEqual(['tags', 'count', 'title']);
-    const next = input('data-fm-kind', 'title'); next.dispatchEvent(new Event('dragstart', { bubbles: true }));
-    const upward = document.querySelector<HTMLElement>('[data-key="count"]')!; upward.dispatchEvent(new Event('dragover', { bubbles: true, cancelable: true }));
+    const originalElementFromPoint = document.elementFromPoint;
+    let hitTarget = target;
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: vi.fn(() => hitTarget) });
+    Object.defineProperty(target, 'getBoundingClientRect', { configurable: true, value: () => ({ top: 0, height: 20 }) });
+    const pointer = (type: string, pointerId: number, clientX: number, clientY: number) => {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX, clientY });
+      Object.defineProperty(event, 'pointerId', { value: pointerId });
+      return event;
+    };
+    Object.defineProperty(handle, 'setPointerCapture', { configurable: true, value: vi.fn() });
+    handle.dispatchEvent(pointer('pointerdown', 1, 0, 0));
+    handle.dispatchEvent(pointer('pointermove', 1, 10, 20)); expect(handle.closest('.is-dragging')).toBeTruthy();
+    expect(target.classList.contains('is-drop-target')).toBe(true); expect(target.classList.contains('is-drop-after')).toBe(true);
+    handle.dispatchEvent(pointer('pointerup', 1, 10, 20)); expect(fields().map(field => field.key)).toEqual(['tags', 'count', 'title']);
+    const next = input('data-fm-kind', 'title'); const upward = document.querySelector<HTMLElement>('[data-key="count"]')!;
+    hitTarget = upward;
+    Object.defineProperty(next, 'setPointerCapture', { configurable: true, value: vi.fn() });
+    Object.defineProperty(upward, 'getBoundingClientRect', { configurable: true, value: () => ({ top: 0, height: 20 }) });
+    next.dispatchEvent(pointer('pointerdown', 2, 0, 0)); next.dispatchEvent(pointer('pointermove', 2, 10, 0));
     expect(upward.classList.contains('is-drop-target')).toBe(true); expect(upward.classList.contains('is-drop-after')).toBe(false);
-    next.dispatchEvent(new Event('dragend', { bubbles: true }));
+    next.dispatchEvent(pointer('pointercancel', 2, 10, 0));
     expect(document.querySelector('.is-dragging')).toBeNull(); expect(document.querySelector('.is-drop-after')).toBeNull();
-    const count = document.querySelector('[data-key="count"]')!; count.dispatchEvent(new Event('drop', { bubbles: true, cancelable: true })); expect(fields().map(field => field.key)).toEqual(['tags', 'count', 'title']);
+    expect(fields().map(field => field.key)).toEqual(['tags', 'count', 'title']);
+    if (originalElementFromPoint) Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: originalElementFromPoint });
+    else delete (document as Partial<Document>).elementFromPoint;
   });
   it('keeps collapse across commits/refresh and allows collapsing read-only metadata', () => {
     setup(); document.querySelector<HTMLButtonElement>('[data-fm-collapse]')!.click();

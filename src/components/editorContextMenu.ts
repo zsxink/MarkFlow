@@ -195,7 +195,8 @@ async function pasteIntoEditor(plainTextOnly: boolean): Promise<void> {
     } else {
       const editor = getEditor();
       if (!editor || store.getState().readOnly) return;
-      editor.commands.insertContent(clip.html && !plainTextOnly ? clip.html : clip.text);
+      if (clip.html && !plainTextOnly) editor.commands.insertContent(clip.html);
+      else editor.commands.insertContent({ type: 'text', text: clip.text });
       editor.commands.focus();
     }
   } catch (error) { reportClipboardError(error); }

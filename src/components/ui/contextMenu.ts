@@ -191,7 +191,7 @@ export function showContextMenuStatic(
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
     const scope = current.closest('.context-menu-submenu-panel, .context-menu') as HTMLElement | null;
     if (!scope) return;
-    const enabled = Array.from(scope.querySelectorAll(':scope > .context-menu-item, :scope > .context-menu-entry > .context-menu-item')) as HTMLElement[];
+    const enabled = Array.from(scope.querySelectorAll(':scope > .context-menu-item:not(:disabled), :scope > .context-menu-entry > .context-menu-item:not(:disabled)')) as HTMLElement[];
     if (!enabled.length) return;
     e.preventDefault();
     const index = enabled.indexOf(current);

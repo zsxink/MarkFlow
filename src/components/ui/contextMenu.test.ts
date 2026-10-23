@@ -31,11 +31,24 @@ describe('shared context menu', () => {
     ], { x: 0, y: 0 });
     const buttons = document.querySelectorAll<HTMLButtonElement>('.context-menu-item');
     expect(document.activeElement).toBe(buttons[1]);
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    buttons[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(buttons[2]);
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    buttons[2].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(buttons[1]);
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    buttons[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('skips disabled actions during Home, End, and arrow navigation', () => {
+    showContextMenuStatic([
+      { label: '第一项' }, { label: '禁用', disabled: true }, { divider: true }, { label: '最后一项' },
+    ], { x: 0, y: 0 });
+    const buttons = document.querySelectorAll<HTMLButtonElement>('.context-menu-item');
+    buttons[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(buttons[2]);
+    buttons[2].dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(buttons[0]);
+    buttons[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(buttons[2]);
   });
 });

@@ -150,16 +150,16 @@ describe('任务列表样式契约', () => {
     expect(endsWithPlainList(NESTED_LIST)).toBe(false)
     expect(endsWithPlainList('.ProseMirror ul[data-type="taskList"] > li')).toBe(false)
 
-    // 通用列表规则保持原值：普通 `ul`/`ol` 的下边距仍是 1em。
-    expect(declaration('.ProseMirror ul', 'margin-bottom')).toBe('1em')
-    expect(declaration('.ProseMirror ol', 'margin-bottom')).toBe('1em')
+    // 视觉排版收紧后，普通 `ul`/`ol` 的下边距统一为 0.75em。
+    expect(declaration('.ProseMirror ul', 'margin-bottom')).toBe('0.75em')
+    expect(declaration('.ProseMirror ol', 'margin-bottom')).toBe('0.75em')
   })
 
   it('连续任务项间距小于段落间距，嵌套任务列表尾部留白同步收窄', () => {
     const paragraphGap = emValue(declaration('.ProseMirror p', 'margin-bottom'), '.ProseMirror p margin-bottom')
     const itemGap = emValue(declaration(ITEM, 'margin-bottom'), '任务项 margin-bottom')
 
-    expect(paragraphGap).toBe(0.75)
+    expect(paragraphGap).toBe(0.6)
     expect(itemGap).toBe(0.25)
     expect(itemGap).toBeLessThan(paragraphGap)
 
@@ -182,13 +182,15 @@ describe('任务列表样式契约', () => {
 
     // 间距类声明同样会被不知不觉外溢出去：本变更引入的 `0.25em` / `0.4em`
     // 一旦出现在非任务列表选择器上，普通段落/列表/引用的排版就被改动了。
-    // 例外只有变更前就存在的同名取值：`.ProseMirror li { margin-bottom: 0.25em }`
-    // （普通列表项间距，本变更未动），按「选择器 + 属性 + 值」精确白名单放行，
-    // 因此给 `.ProseMirror li` 新增 `margin-top: 0.25em` 之类的规则仍会被抓到。
+    // 例外包含原有普通列表项间距，以及视觉排版中为收紧列表垂直节奏新增的
+    // 段落与嵌套列表间距，按「选择器 + 属性 + 值」精确白名单放行。
     const spacingProperties = ['margin', 'margin-top', 'margin-bottom', 'padding', 'padding-left', 'gap', 'row-gap', 'column-gap']
     const introducedSpacing = /^0?\.(?:25|4)em$/
     const preExistingGenericSpacing = [
       { selector: '.ProseMirror li', property: 'margin-bottom', value: '0.25em' },
+      { selector: '.ProseMirror li p', property: 'margin-bottom', value: '0.25em' },
+      { selector: '.ProseMirror li > ul', property: 'margin-top', value: '0.25em' },
+      { selector: '.ProseMirror li > ol', property: 'margin-top', value: '0.25em' },
     ].map((entry) => ({ ...entry, selector: normalizeSelector(entry.selector) }))
     const spacingLeaks = rules.flatMap((rule) => rule.selectors
       .filter((selector) => !selector.includes('data-type="taskList"'))
@@ -202,8 +204,8 @@ describe('任务列表样式契约', () => {
         .map((property) => `${selector} { ${property}: ${rule.declarations[property]} }`)))
     expect(spacingLeaks).toEqual([])
 
-    // 通用规则保持原值：普通段落间距、普通列表项间距、普通列表缩进都没被改动。
-    expect(declaration('.ProseMirror p', 'margin-bottom')).toBe('0.75em')
+    // 通用段落间距跟随视觉调整，列表缩进与列表项间距保持稳定。
+    expect(declaration('.ProseMirror p', 'margin-bottom')).toBe('0.6em')
     expect(declaration('.ProseMirror li', 'margin-bottom')).toBe('0.25em')
     expect(declaration('.ProseMirror ul', 'padding-left')).toBe('24px')
   })

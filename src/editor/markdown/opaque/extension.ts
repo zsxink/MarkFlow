@@ -21,6 +21,7 @@ import {
   sentinelFor,
 } from './index';
 import { resolveClipboardOpaque } from './clipboard';
+import { annotateAdjacentListRuns } from '../adjacent-list-runs';
 import type { OpaqueCategory } from '../types';
 
 /**
@@ -53,7 +54,7 @@ export function handleOpaqueCopy(
   if (slice.size === 0) return false;
   const manager = (editor as unknown as { markdown?: { serialize?(json: JSONContent): string } }).markdown;
   if (!manager?.serialize) return false;
-  const md = manager.serialize({ type: 'doc', content: slice.content.toJSON() as JSONContent[] });
+  const md = manager.serialize(annotateAdjacentListRuns({ type: 'doc', content: slice.content.toJSON() as JSONContent[] }));
   if (md.length === 0) return false;
   const resolved = resolveClipboardOpaque(md, registry ?? activeRegistry);
   clipboardData.setData('text/markdown', resolved);

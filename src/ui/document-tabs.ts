@@ -15,6 +15,30 @@ function getParentSegments(path: string): string[] {
   return path.replace(/\\/g, '/').split('/').filter(Boolean).slice(0, -1);
 }
 
+export interface TabStripScrollGeometry {
+  /** 活动标签左边缘在滚动内容坐标系中的位置（offsetLeft 减去容器自身 offsetLeft）。 */
+  tabOffsetLeft: number;
+  /** 活动标签整体外沿宽度（含关闭按钮）。 */
+  tabOffsetWidth: number;
+  /** 滚动容器当前 scrollLeft。 */
+  scrollLeft: number;
+  /** 滚动容器可视宽度。 */
+  clientWidth: number;
+}
+
+/**
+ * `inline: "nearest"` 语义的最小滚动量：活动标签左越界则左对齐、右越界则
+ * 右对齐，已完整可见时保持原值。纯几何计算，便于无 DOM 单测；标签宽于
+ * 容器时永远无法完整可见，左分支优先保证看到标签开头。
+ */
+export function computeActiveTabScrollLeft(geometry: TabStripScrollGeometry): number {
+  const { tabOffsetLeft, tabOffsetWidth, scrollLeft, clientWidth } = geometry;
+  if (tabOffsetLeft < scrollLeft) return tabOffsetLeft;
+  const tabRight = tabOffsetLeft + tabOffsetWidth;
+  if (tabRight > scrollLeft + clientWidth) return tabRight - clientWidth;
+  return scrollLeft;
+}
+
 function getVisibleTitle(tab: DocumentTab, tabs: readonly DocumentTab[]): string {
   const duplicates = tabs.filter(candidate => candidate.title === tab.title);
   if (!tab.path || duplicates.length < 2) return tab.title;
@@ -45,6 +69,9 @@ export function initDocumentTabs() {
       ? document.activeElement.closest<HTMLElement>('[role="tab"][data-tab-id]')?.dataset.tabId
       : undefined;
     const focusActiveTab = document.activeElement === newButton;
+    // replaceChildren 整体重建滚动容器子节点，浏览器可能把 scrollLeft 归零，
+    // 渲染前先记下，重建后恢复，避免无关刷新（如脏状态变化）引起跳变。
+    const previousScrollLeft = scroll.scrollLeft;
     const fragment = document.createDocumentFragment();
 
     tabs.forEach(tab => {
@@ -89,6 +116,19 @@ export function initDocumentTabs() {
     });
 
     scroll.replaceChildren(fragment);
+    scroll.scrollLeft = previousScrollLeft;
+    const activeItem = scroll.querySelector<HTMLElement>('[data-tab-item][data-active="true"]');
+    if (activeItem) {
+      // 标签条左侧是可调宽度的 sidebar，tabItem 的 offsetLeft 相对 offsetParent
+      // （body）计量，需减去滚动容器自身 offsetLeft 才得到可与 scrollLeft 比较
+      // 的内容坐标；固定按钮是滚动容器的兄弟节点，scrollLeft 不会把标签滚到按钮下面。
+      scroll.scrollLeft = computeActiveTabScrollLeft({
+        tabOffsetLeft: activeItem.offsetLeft - scroll.offsetLeft,
+        tabOffsetWidth: activeItem.offsetWidth,
+        scrollLeft: scroll.scrollLeft,
+        clientWidth: scroll.clientWidth,
+      });
+    }
     if (list) {
       const listFragment = document.createDocumentFragment();
       const closeAll = document.createElement('button');
@@ -189,11 +229,9 @@ export function initDocumentTabs() {
 
     const menuItem = target.closest<HTMLButtonElement>('[data-activate-tab]');
     if (menuItem?.dataset.activateTab) {
-      const id = menuItem.dataset.activateTab;
       closeList();
-      activateDocumentTab(id);
-      Array.from(scroll.querySelectorAll<HTMLElement>('[data-tab-id]'))
-        .find(tab => tab.dataset.tabId === id)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+      // 滚入视野由 render() 末尾的活动标签可见性逻辑统一保证。
+      activateDocumentTab(menuItem.dataset.activateTab);
       return;
     }
 

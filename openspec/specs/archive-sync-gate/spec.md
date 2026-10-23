@@ -42,7 +42,7 @@ The CI workflow (`.github/workflows/ci.yml`) SHALL run `npx openspec validate --
 - **THEN** the workflow SHALL fail at the validate step
 
 ### Requirement: CI archive sync verification gate
-The CI workflow SHALL run `bash scripts/check-archive-synced.sh` as part of the audit-and-test job on every PR to `main` and push to `main`.
+The CI workflow SHALL run `bash scripts/check-archive-synced.sh` as part of the `web-checks` job on every PR to `main` and push to `main`.
 
 #### Scenario: Archive sync passes
 - **WHEN** running in CI and all archived changes are properly synced
@@ -51,6 +51,10 @@ The CI workflow SHALL run `bash scripts/check-archive-synced.sh` as part of the 
 #### Scenario: Archive sync fails in CI
 - **WHEN** running in CI and an archived change has unsynced delta specs
 - **THEN** the check step SHALL fail
+
+#### Scenario: Archive sync check does not wait for system libraries
+- **WHEN** CI runs the archive sync verification
+- **THEN** the check runs in a job that installs no Linux system packages
 
 ### Requirement: Development flow documentation
 The development flow documentation (`AGENTS.md`) SHALL include an explicit "archive verification" step after archive operations.

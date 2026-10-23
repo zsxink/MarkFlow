@@ -68,10 +68,12 @@ export async function restoreExpandedState() {
     if (!fileTree || !wsPath) return;
 
     let relativePath = path;
-    if (relativePath.startsWith(wsPath)) {
-      relativePath = relativePath.substring(wsPath.length);
-      if (relativePath.startsWith('/')) relativePath = relativePath.substring(1);
-    }
+    // Compare normalized keys so a persisted expanded path still spelled with an
+    // upper-case drive letter resolves against the workspace root (issue #375).
+    const workspaceKey = normalizeTreePath(wsPath);
+    const pathKey = normalizeTreePath(path);
+    if (pathKey === workspaceKey) continue; // the root itself is not a folder to expand
+    if (pathKey.startsWith(workspaceKey + '/')) relativePath = pathKey.slice(workspaceKey.length + 1);
     const folders = relativePath.split('/');
     if (folders.length === 0 || folders[0] === '') return;
 

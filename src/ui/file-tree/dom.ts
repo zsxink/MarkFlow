@@ -2,6 +2,8 @@
 // Pure string/DOM utilities shared by the renderer, the ARIA layer and the
 // inline-rename editor. They must stay free of tree state.
 
+import { normalizeTreePath } from './state';
+
 /** Escape a path for use inside an attribute selector. */
 export function escapePathSelector(path: string): string {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -20,10 +22,16 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** Locate the element that holds the children of `parentPath`. */
+/** Locate the element that holds the children of `parentPath`.
+ *
+ * The root check compares normalized tree keys: the workspace root and the tree
+ * node keys must agree even when a persisted path still carries an upper-case
+ * Windows drive letter (issue #375). A mismatch here returns null and makes the
+ * renderer drop the whole directory silently.
+ */
 export function findChildrenContainer(parentPath: string, workspacePath: string | null): HTMLElement | null {
   if (!workspacePath) return null;
-  if (parentPath === workspacePath) return document.getElementById('file-tree');
+  if (normalizeTreePath(parentPath) === normalizeTreePath(workspacePath)) return document.getElementById('file-tree');
   const folderEl = document.querySelector(
     `.tree-folder[data-path="${escapePathSelector(parentPath)}"]`,
   );

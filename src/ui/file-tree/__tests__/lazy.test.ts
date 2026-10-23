@@ -16,6 +16,7 @@ vi.mock('../../../infra/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(
 import {
   applyFileTreeEvents, createTreeNode, flushPendingMutations,
   loadDirectoryForTesting, refreshFileTree, resetFileTreeStateForTesting,
+  restoreExpandedState,
 } from '../core';
 import { setActiveFilePath } from '../../active-document';
 import { store } from '../../../infra/store';
@@ -80,6 +81,35 @@ describe('lazy file tree loading', () => {
     const folder = document.querySelector('[data-path="/ws/folder"]')!;
     expect(folder.querySelector('.tree-chevron')?.classList.contains('expanded')).toBe(true);
     expect(document.querySelector('[data-path="/ws/folder/a.md"]')).not.toBeNull();
+  });
+
+  it('renders the root when a persisted Windows root keeps its upper-case drive', async () => {
+    // A workspace root persisted before the normalization fix is spelled
+    // `C:/Notes` while every tree node key is lower-cased. The renderer used to
+    // drop the root directory silently, leaving the sidebar empty (issue #375).
+    store.setState({ workspacePath: 'C:/Notes', expandedPaths: [] });
+    mocks.readDirPage.mockResolvedValue({
+      entries: [{ name: 'folder', path: 'c:/Notes/folder', isDir: true }],
+      nextCursor: null, generation: '1', truncated: false,
+    });
+
+    await refreshFileTree();
+
+    expect(document.querySelector('[data-path="c:/Notes/folder"]')).not.toBeNull();
+  });
+
+  it('restores a persisted expanded path spelled with an upper-case drive', async () => {
+    store.setState({ workspacePath: 'C:/Notes', expandedPaths: ['C:/Notes/folder'] });
+    mocks.readDirPage.mockImplementation((path: string) => Promise.resolve(path === 'c:/Notes'
+      ? { entries: [{ name: 'folder', path: 'c:/Notes/folder', isDir: true }], nextCursor: null, generation: '1', truncated: false }
+      : { entries: [{ name: 'a.md', path: 'c:/Notes/folder/a.md', isDir: false }], nextCursor: null, generation: '2', truncated: false }));
+
+    await loadDirectoryForTesting('c:/Notes');
+    await restoreExpandedState();
+
+    const folder = document.querySelector('[data-path="c:/Notes/folder"]');
+    expect(folder?.querySelector('.tree-chevron')?.classList.contains('expanded')).toBe(true);
+    expect(document.querySelector('[data-path="c:/Notes/folder/a.md"]')).not.toBeNull();
   });
 });
 

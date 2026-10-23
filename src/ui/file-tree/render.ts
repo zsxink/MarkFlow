@@ -7,6 +7,7 @@
 import type { FileEntry } from '../../types/file-tree';
 import { getActiveFilePath } from '../active-document';
 import { uiPorts } from '../../infra/ui-ports';
+import { logWarn } from '../../infra/logger';
 import { treeContextMenuHooks } from './hooks';
 import { dragState, getTreeState, loadDirectoryThroughHook } from './context';
 import {
@@ -151,8 +152,14 @@ export function renderDirectory(path: string, appendedEntries?: FileEntry[]): vo
   const state = getTreeState();
   const directory = state.directories.get(path);
   if (!directory) return;
-  const container = findChildrenContainer(path, getWorkspacePath());
-  if (!container) return;
+  const workspacePath = getWorkspacePath();
+  const container = findChildrenContainer(path, workspacePath);
+  if (!container) {
+    // A missing container means the whole subtree stays invisible while the
+    // directory itself loaded fine, so log it instead of dropping the render.
+    logWarn('file-tree.render', 'No container for directory render', { path, workspacePath });
+    return;
+  }
   const depth = getDepth(container);
   if (appendedEntries) {
     container.querySelector(':scope > .tree-load-more')?.remove();

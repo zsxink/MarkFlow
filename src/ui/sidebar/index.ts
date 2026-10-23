@@ -29,12 +29,7 @@ export function initSidebar() {
 
   // Sidebar footer buttons
   document.getElementById('sidebar-open-btn')?.addEventListener('click', async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (selected) {
-      await setWorkspacePath(selected);
-      await refreshFileTree();
-      showToast('文件夹已打开');
-    }
+    await openWorkspaceFolderFlow();
   });
 
   document.getElementById('sidebar-newfolder-btn')?.addEventListener('click', () => {
@@ -107,4 +102,47 @@ export function switchSidebarTab(tab: 'files' | 'outline') {
   }
   if (outlineTree) outlineTree.hidden = tab !== 'outline';
   if (footer) footer.style.display = tab === 'files' ? 'flex' : 'none';
+}
+
+/**
+ * Reveal the file tree of a freshly opened workspace.
+ *
+ * Opening a folder is an explicit request to browse it, so the sidebar must end
+ * up expanded on the files tab — the default (and restored) tab is the outline,
+ * which left the tree hidden behind `#file-tree[hidden]` (issue #375). A
+ * collapsed sidebar is expanded through its toggle button so the button icon and
+ * `aria-pressed` stay in sync with the visible sidebar.
+ */
+export function revealFilesTab(): void {
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar?.classList.contains('collapsed')) {
+    document.getElementById('sidebar-toggle')?.click();
+  }
+  switchSidebarTab('files');
+}
+
+/**
+ * Open a workspace folder: pick a directory, register it, load the tree and show
+ * it. Every entry point (sidebar footer, toolbar, native menu) goes through this
+ * one flow so they cannot drift apart.
+ */
+export async function openWorkspaceFolderFlow(): Promise<void> {
+  const selected = await open({ directory: true, multiple: false });
+  if (!selected) return;
+  await activateWorkspaceFolder(selected);
+}
+
+/**
+ * Activate an already-known workspace folder (recent folders, startup restore).
+ * Same as {@link openWorkspaceFolderFlow} without the directory dialog.
+ */
+export async function activateWorkspaceFolder(path: string): Promise<void> {
+  await setWorkspacePath(path);
+  // setWorkspacePath logs and swallows backend failures; revealing the files tab
+  // and reporting success on top of an empty tree would reproduce the very
+  // symptom this flow exists to remove (issue #375).
+  if (!getWorkspacePath()) return;
+  await refreshFileTree();
+  revealFilesTab();
+  showToast('文件夹已打开');
 }

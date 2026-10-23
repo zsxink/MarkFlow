@@ -99,6 +99,24 @@ export function normalizePathSegments(input: string): string {
   return `${root}${parts.join('/')}`;
 }
 
+/**
+ * Normalize a workspace root path to the single shape the file tree keys use:
+ * forward slashes, no trailing slash, lower-cased Windows drive letter.
+ *
+ * The tree stores every node under `normalizeTreePath()` (which lower-cases the
+ * drive letter), so the root must be recorded the same way — otherwise the
+ * root-vs-node comparison in the renderer silently fails on Windows and the
+ * whole tree renders nothing (issue #375).
+ */
+export function normalizeWorkspacePath(path: string): string {
+  let normalized = path.trim().replace(/\\/g, '/');
+  // Keep `/` and `C:/` intact: stripping their trailing slash yields '' or 'c:'.
+  while (normalized.length > 1 && normalized.endsWith('/') && !/^[a-zA-Z]:\/$/.test(normalized)) {
+    normalized = normalized.slice(0, -1);
+  }
+  return /^[A-Z]:/.test(normalized) ? normalized[0].toLowerCase() + normalized.slice(1) : normalized;
+}
+
 function getPathRoot(path: string): string {
   const normalized = path.replace(/\\/g, '/');
   if (normalized.startsWith('//')) {

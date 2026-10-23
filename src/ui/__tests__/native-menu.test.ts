@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   saveAs: vi.fn(),
   switchSidebarTab: vi.fn(),
+  openWorkspaceFolderFlow: vi.fn(),
+  activateWorkspaceFolder: vi.fn(),
   setWorkspacePath: vi.fn(),
   refreshFileTree: vi.fn(),
   getWorkspacePath: vi.fn<() => string | null>(() => null),
@@ -65,13 +67,13 @@ vi.mock('../../infra/store', () => ({ store: { on: vi.fn() } }));
 vi.mock('../../infra/logger', () => ({ logException: mocks.logException }));
 vi.mock('../file-tree/index', () => ({
   getWorkspacePath: mocks.getWorkspacePath,
-  setWorkspacePath: mocks.setWorkspacePath,
-  refreshFileTree: mocks.refreshFileTree,
 }));
 vi.mock('../sidebar/index', () => ({
   openFileInEditor: mocks.openFile,
   saveActiveDocument: mocks.save,
   switchSidebarTab: mocks.switchSidebarTab,
+  openWorkspaceFolderFlow: mocks.openWorkspaceFolderFlow,
+  activateWorkspaceFolder: mocks.activateWorkspaceFolder,
 }));
 vi.mock('../sidebar/fileops', () => ({ saveActiveDocumentAsNewFile: mocks.saveAs }));
 vi.mock('../new-file-dialog', () => ({ showNewFileDialog: mocks.showNewFileDialog }));
@@ -259,18 +261,16 @@ describe('native menu dispatcher: open dialogs and editor commands', () => {
     });
     expect(mocks.openFile).toHaveBeenCalledWith('/workspace/note.md');
 
-    mocks.dialogOpen.mockResolvedValue('/other/folder');
+    // Folder opening owns the dialog, the workspace switch and the sidebar tab
+    // inside the shared sidebar flow, so the menu only delegates to it.
     await dispatchNativeMenuAction('open-folder');
-    expect(mocks.setWorkspacePath).toHaveBeenCalledWith('/other/folder');
-    expect(mocks.refreshFileTree).toHaveBeenCalledOnce();
+    expect(mocks.openWorkspaceFolderFlow).toHaveBeenCalledOnce();
   });
 
   it('ignores cancelled dialogs', async () => {
     mocks.dialogOpen.mockResolvedValue(null);
     await dispatchNativeMenuAction('open-file');
-    await dispatchNativeMenuAction('open-folder');
     expect(mocks.openFile).not.toHaveBeenCalled();
-    expect(mocks.setWorkspacePath).not.toHaveBeenCalled();
   });
 
   it('runs heading and inline formatting through the editor chain', async () => {
@@ -353,9 +353,9 @@ describe('native menu dispatcher: recent history ids', () => {
     expect(await dispatchNativeMenuAction('recent-file:/work/notes/a.md')).toBe(true);
     expect(mocks.openFile).toHaveBeenCalledWith('/work/notes/a.md');
 
+    // Recent folders skip the dialog but reuse the same reveal-the-tree flow.
     await dispatchNativeMenuAction('recent-folder:/work/notes');
-    expect(mocks.setWorkspacePath).toHaveBeenCalledWith('/work/notes');
-    expect(mocks.refreshFileTree).toHaveBeenCalledOnce();
+    expect(mocks.activateWorkspaceFolder).toHaveBeenCalledWith('/work/notes');
   });
 
   it('keeps windows-style paths intact', async () => {

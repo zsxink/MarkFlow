@@ -809,6 +809,15 @@
   margin-top: 0.4em;
 }
 
+/* 已勾选任务项正文降为主题弱化前景色，与未勾选项拉开视觉层次。
+   只按 data-checked="true" 收窄正文段落（li > div > p），不碰复选框
+   label（accent-color 独立着色），未勾选项继续继承 .ProseMirror 的
+   var(--fg)；勾选切换由 NodeView 原地更新 data-checked，属性选择器
+   即时命中，无需 JS 参与。 */
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  color: var(--muted);
+}
+
 /* 嵌套任务列表收窄尾部留白，避免嵌套块在任务项末尾撑出段落级空白。
    选择器必须再限定 `[data-type="taskList"]`：只写裸 `ul` 会连带命中任务项里
    嵌套的普通项目符号/有序列表，把它们的 `.ProseMirror ul` 1em 下边距改成 0.25em。 */

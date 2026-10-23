@@ -119,6 +119,14 @@ jobs:
             sudo apt-get install -y $APT_OPTS $APT_PACKAGES
           fi
 
+      # apt runs as root and leaves root-owned `lock` / `partial/` behind, which
+      # the cache action's post step (running as the runner user) cannot read.
+      # Hand the archives back to the runner so they can actually be saved.
+      - name: Normalize apt archive ownership
+        run: |
+          rm -rf .apt-archives/lock .apt-archives/partial
+          sudo chown -R "$(id -u):$(id -g)" .apt-archives
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:

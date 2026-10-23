@@ -13,6 +13,7 @@ describe('Markdown bridge', () => {
       commands: { setContent: vi.fn() },
       getJSON: vi.fn(() => ({ type: 'doc', content: [] })),
       getMarkdown: vi.fn(() => '# heading'),
+      markdown: { serialize: vi.fn(() => '# heading') },
     } as any;
 
     const parsed = parseMarkdown(editor, '# heading');

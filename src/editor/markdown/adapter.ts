@@ -4,6 +4,7 @@ import type {
   MarkdownParseResult,
   MarkdownSerializeResult,
 } from './types';
+import { annotateAdjacentListRuns } from './adjacent-list-runs';
 
 /**
  * The only TipTap-specific Markdown boundary.  v3 is authoritative: the
@@ -13,6 +14,7 @@ import type {
  */
 type MarkdownCapableEditor = Editor & {
   getMarkdown?: () => string;
+  markdown?: { serialize?: (doc: JSONContent) => string };
 };
 
 /**
@@ -103,10 +105,10 @@ export function serializeTipTapMarkdown(editor: Editor): MarkdownSerializeResult
   try {
     const markdownEditor = editor as MarkdownCapableEditor;
 
-    // @tiptap/markdown v3 exposes this API on the editor directly.  The v2
-    // `storage.markdown` fallback no longer exists on the pinned v3 package set.
-    const getMarkdown = markdownEditor.getMarkdown;
-    if (typeof getMarkdown !== 'function') {
+    // Serialize through the manager (identical to `getMarkdown()`, which is
+    // `manager.serialize(editor.getJSON())`) so the JSON can be annotated first.
+    const serialize = markdownEditor.markdown?.serialize;
+    if (typeof serialize !== 'function') {
       return { ok: false, error: { stage: 'serialize', code: 'markdown-api-unavailable' } };
     }
 
@@ -117,7 +119,7 @@ export function serializeTipTapMarkdown(editor: Editor): MarkdownSerializeResult
     const unknown = findUnserializableType(json);
     if (unknown) return { ok: false, error: unknown };
 
-    return { ok: true, markdown: getMarkdown.call(markdownEditor) };
+    return { ok: true, markdown: serialize.call(markdownEditor.markdown, annotateAdjacentListRuns(json)) };
   } catch (cause) {
     return { ok: false, error: error('serialize', 'markdown-serialize-failed', cause) };
   }

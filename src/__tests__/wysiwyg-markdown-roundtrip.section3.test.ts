@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } from '@tiptap/extension-list';
+import { BulletList, ListKeymap, OrderedList, TaskList } from '@tiptap/extension-list';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { CellSelection, TableMap } from '@tiptap/pm/tables';
 import { createMarkdownExtension } from '../editor/init';
 import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
+import { VariantListItem, VariantTaskItem } from '../editor/extensions/list-marker-variants';
+import { RawMarkdown, rawMarkdownSources } from '../editor/markdown/fallback';
+import { OpaqueNode } from '../editor/markdown/opaque/extension';
 import { classifyEligibility } from '../editor/markdown/eligibility';
 import { decideAdmission } from '../editor/markdown/admission';
 import { runSaveBoundary } from '../editor/save-reconcile';
@@ -45,8 +48,10 @@ function createAppEditor() {
     extensions: [
       StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
       SafeParagraph,
-      BulletList, OrderedList, ListItem, ListKeymap,
-      TaskList, TaskItem.configure({ nested: true }),
+      BulletList, OrderedList, VariantListItem, ListKeymap,
+      TaskList, VariantTaskItem.configure({ nested: true }),
+      OpaqueNode,
+      RawMarkdown,
       MarkdownSafeTable.configure({ resizable: true }),
       TableRow, TableCell, TableHeader,
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
@@ -278,8 +283,8 @@ describe('Section 3 dedicated syntax round-trip tests', () => {
     });
   });
 
-  describe('4.2 表格编辑走既有安全管道，无法往返时降级源码（table-wysiwyg-interaction）', () => {
-    it('列数不一致的表格源码被判定 malformed-table 且拒绝 admit（不进入 WYSIWYG 基线）', () => {
+  describe('4.2 表格编辑走既有安全管道，无法往返时局部保留（table-wysiwyg-interaction）', () => {
+    it('列数不一致的表格源码被判定 malformed-table 且整块局部保留，准入建立 reconcile 会话', () => {
       const src = '| A | B |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n';
       const c = classifyEligibility(src);
       expect(c.verdict).toBe('source-only');
@@ -288,9 +293,11 @@ describe('Section 3 dedicated syntax round-trip tests', () => {
       const editor = createAppEditor();
       try {
         const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
-        // 无法安全往返的表格不建立 reconcile 会话——降级源码语义。
-        expect(admission.mode).toBe('source-only');
-        expect(admission.reason).toBe('malformed-table');
+        // spec（wysiwyg-markdown-reconciliation）：畸形表格 MUST 先尝试局部
+        // 字面量保留；本例整篇即该表格，以保留原文的 raw 块进入 reconcile 会话。
+        expect(admission.mode).toBe('reconcile');
+        expect(admission.reason).toBe('opaque-covered');
+        expect(rawMarkdownSources(editor.getJSON()).join('\n')).toBe(src);
       } finally {
         editor.destroy();
       }

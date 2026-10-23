@@ -1,7 +1,7 @@
 import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { BulletList, ListItem, ListKeymap, OrderedList, TaskItem, TaskList } from '@tiptap/extension-list';
+import { BulletList, ListKeymap, OrderedList, TaskList } from '@tiptap/extension-list';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Marked } from 'marked';
@@ -27,6 +27,7 @@ import {
   mermaidCodeBlockExtension,
 } from './extensions';
 import { RawMarkdown } from './markdown/fallback';
+import { VariantListItem, VariantTaskItem } from './extensions/list-marker-variants';
 import { OpaqueNode } from './markdown/opaque/extension';
 import { uiPorts } from '../infra/ui-ports';
 
@@ -105,10 +106,10 @@ export async function initEditor() {
       }),
       BulletList,
       OrderedList,
-      ListItem,
+      VariantListItem,
       ListKeymap,
       TaskList,
-      TaskItem.configure({
+      VariantTaskItem.configure({
         nested: true,
       }),
       MarkdownSafeTable.configure({

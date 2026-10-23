@@ -63,9 +63,14 @@
   --accent-soft: rgba(181, 71, 42, 0.10);
   --code-bg: #F2F0ED;
   --selection: rgba(181, 71, 42, 0.12);
+  --source-marker: #6E6C69;
+  --source-link: #526A7C;
+  --source-keyword: #625C76;
+  --source-string: #596F61;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 
-  --font-body: 'Source Serif 4', 'PingFang SC', 'Source Han Serif SC', 'Microsoft YaHei', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', 'Source Han Serif SC', 'Songti SC', SimSun, serif;
   --font-code: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
@@ -80,6 +85,10 @@
   --accent-soft: rgba(232, 113, 90, 0.15);
   --code-bg: #27272A;
   --selection: rgba(232, 113, 90, 0.18);
+  --source-marker: #99999F;
+  --source-link: #A3B7C8;
+  --source-keyword: #B8B0CC;
+  --source-string: #A3B9AA;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
 
@@ -93,5 +102,9 @@
   --accent-soft: rgba(139, 90, 43, 0.12);
   --code-bg: #EDE5D0;
   --selection: rgba(139, 90, 43, 0.15);
+  --source-marker: #7A6C59;
+  --source-link: #596B70;
+  --source-keyword: #716176;
+  --source-string: #626F53;
   --shadow: 0 4px 24px rgba(92, 75, 55, 0.10);
 }

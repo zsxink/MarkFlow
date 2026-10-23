@@ -206,7 +206,7 @@ describe('initDocumentTabs', () => {
     expect(key(document.activeElement!, 'End').defaultPrevented).toBe(true);
     expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('c');
     expect(key(document.activeElement!, 'Home').defaultPrevented).toBe(true);
-    expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('a');
+    expect(document.activeElement?.hasAttribute('data-close-all-tabs')).toBe(true);
     expect(key(document.activeElement!, 'ArrowUp').defaultPrevented).toBe(true);
     expect(document.activeElement?.getAttribute('data-activate-tab')).toBe('c');
 

@@ -29,6 +29,7 @@ import './styles/components.css';
 import type { FileChangeEvent } from './types/events';
 import type { Settings } from './types/settings';
 import { DEFAULT_SETTINGS } from './types/settings';
+import { showEditorContextMenu } from './components/editorContextMenu';
 
 let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -41,12 +42,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   logInfo('app.lifecycle', 'Application boot started');
   setToastReporter((msg) => showToast(msg));
 
-  // Block contextmenu outside sidebar (sidebar handles its own)
+  // Specialized editor/file-tree handlers stop propagation before this default menu.
   document.addEventListener('contextmenu', (e) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('#sidebar')) {
-      e.preventDefault();
-    }
+    e.preventDefault();
+    showEditorContextMenu(e);
   });
 
   initTheme();

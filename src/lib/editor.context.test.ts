@@ -7,7 +7,7 @@ vi.mock('./logger', () => ({ logDebug: vi.fn(), logWarn: vi.fn(), logException: 
 import { initEditor } from './editor.init';
 import { getMarkdown, getMarkdownResult, getSavePlan, markDocumentPersisted, setMarkdown, switchToSource, switchToWysiwyg } from './editor';
 import { getDocumentState, getEditor, setEditor, assetToOriginalMap, markExternalModification, getRevision, getSourceRevision } from './editor.state';
-import { attachEditorDocument, detachEditorDocument, resetEditorDocument, releaseEditorDocument } from './editor.context';
+import { attachEditorDocument, commitEditorDocumentDrafts, detachEditorDocument, resetEditorDocument, releaseEditorDocument } from './editor.context';
 import { createSourceEditor, getSourceView, getSourceContent, destroySourceEditor } from './editor.source.facade';
 import { getOpaqueRegistry, getOpaqueSession } from './editor.markdown.opaque.session';
 import { scheduler } from './taskScheduler';
@@ -28,6 +28,26 @@ afterEach(() => {
 });
 
 describe('document editor contexts', () => {
+  it('commits focused Frontmatter drafts through the save boundary after body NodeViews', () => {
+    const source = '---\ntitle: Original\n---\n\nBody\n';
+    setMarkdown(source);
+    const input = document.querySelector<HTMLInputElement>('[data-fm-value="title"]')!;
+    input.focus(); input.value = 'Pending property edit';
+    const order: string[] = [];
+    const nodeDraft = document.createElement('div'); nodeDraft.className = 'katex-source-editor';
+    nodeDraft.addEventListener('markflow:commit-draft', () => order.push('body'));
+    document.body.append(nodeDraft);
+    document.getElementById('frontmatter-region')!.addEventListener('markflow:commit-draft', () => order.push('properties'));
+
+    commitEditorDocumentDrafts();
+
+    expect(order).toEqual(['body', 'properties']);
+    expect(getMarkdown()).toBe(source.replace('title: Original', 'title: Pending property edit'));
+    expect(getDocumentState().lastPersistedMarkdown).toBe(source);
+    expect(store.getState().dirty).toBe(true);
+    expect(document.activeElement).toBe(input);
+  });
+
   it('synchronously clears only the outgoing editor caret after saving the exact PM state', () => {
     setMarkdown('first');
     const editor = getEditor()!;

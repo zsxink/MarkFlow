@@ -389,11 +389,19 @@ export function setMarkdown(content: string, options: MarkdownLoadOptions = {}) 
 export function applyFrontmatterMarkdown(content: string): void {
   if (store.getState().readOnly || content === getMarkdown()) return;
   const persistedBaseline = getDocumentState().lastPersistedMarkdown;
+  // `setMarkdown` also serves document loads and clears the remembered disk
+  // identity. A frontmatter edit is only a new in-memory representation of
+  // this same file, so keep the identity captured when it was read; otherwise
+  // verified saves reject the edit as an unknown/stale source.
+  const diskStats = hasLastReadStats()
+    ? { mtime: getLastReadMtime(), size: getLastReadSize() }
+    : null;
   // Advance the user revision before admission so the rebuilt opaque session
   // captures it as its baseline. Advancing it afterwards makes reconciliation
   // mistake this programmatic re-admission for an untracked WYSIWYG edit.
   bumpRevision();
   setMarkdown(content, { caret: 'preserve' });
+  if (diskStats) setLastReadStats(diskStats.mtime, diskStats.size);
   // `setMarkdown` is also the document-load path and therefore establishes a
   // clean baseline. A panel patch is a user edit, so retain the disk baseline.
   getDocumentState().lastPersistedMarkdown = persistedBaseline;

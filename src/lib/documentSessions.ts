@@ -175,6 +175,7 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
     const commit = await prepare();
     if (!commit) return false;
     await settleImageOperations();
+    if (!hasCapacity()) return false;
     const previous = current();
     const focusEditor = suspendCurrent();
     const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', context: null, pendingExternal: null, degradation: null };

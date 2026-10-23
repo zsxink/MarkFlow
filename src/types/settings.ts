@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
   version: 3,
   theme: 'light',
   fontSize: 18,
-  lineHeight: 1.7,
+  lineHeight: 1.6,
   autosave: true,
   autosaveInterval: 10000,
   spellcheck: true,

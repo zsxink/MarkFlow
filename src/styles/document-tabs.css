@@ -177,7 +177,7 @@
   z-index: 50;
   top: calc(100% + 2px);
   right: 0;
-  width: min(320px, 80vw);
+  width: min(256px, 80vw);
   max-height: min(420px, 70vh);
   overflow: auto;
   padding: 4px;
@@ -204,8 +204,18 @@
   font: inherit;
   font-size: 12px;
 }
-.document-tabs-menu-item:hover, .document-tabs-menu-item[aria-checked="true"] { background: var(--accent-soft); }
-.document-tabs-menu-dirty { color: var(--accent); font-size: 9px; }
+.document-tabs-menu-action { color: #dc2626; font-weight: 500; }
+.document-tabs-menu-divider {
+  height: 0;
+  margin: 4px 6px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.document-tabs-menu-item:hover { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.document-tabs-menu-item[aria-checked="true"] .document-tabs-menu-title { color: var(--accent); }
+.document-tabs-menu-item:disabled { color: var(--muted); cursor: default; }
+.document-tabs-menu-title { min-width: 0; line-height: 1.45; overflow-wrap: anywhere; white-space: normal; }
+.document-tabs-menu-dirty { flex: none; color: var(--accent); font-size: 9px; }
 
 .document-tabs-new:hover:not(:disabled) {
   background: var(--accent-soft);

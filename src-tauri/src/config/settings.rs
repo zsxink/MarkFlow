@@ -154,7 +154,7 @@ impl Default for Settings {
             version: 3,
             theme: "light".into(),
             font_size: 18,
-            line_height: 1.7,
+            line_height: 1.6,
             autosave: true,
             autosave_interval: 10000,
             spellcheck: true,

@@ -39,6 +39,8 @@ export function commitEditorDocumentDrafts(): void {
   document.querySelectorAll('.mermaid-popup-editor, .katex-source-editor').forEach(el => {
     el.dispatchEvent(new Event('markflow:commit-draft'));
   });
+  // A property patch can rebuild the body editor, so flush NodeViews first.
+  document.getElementById('frontmatter-region')?.dispatchEvent(new Event('markflow:commit-draft'));
 }
 
 /** Safari can keep painting a caret after its document DOM has been replaced. */

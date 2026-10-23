@@ -66,29 +66,25 @@ export function setSourceHighlight(enabled: boolean): void {
 // Higher precedence (100) ensures it overrides basicSetup's defaultHighlightStyle.
 
 const markdownHighlightStyle = HighlightStyle.define([
-  { tag: tags.heading1, color: 'var(--accent)', fontWeight: '700', fontSize: '1.4em' },
-  { tag: tags.heading2, color: 'var(--accent)', fontWeight: '700', fontSize: '1.25em' },
-  { tag: tags.heading3, color: 'var(--accent)', fontWeight: '700', fontSize: '1.1em' },
-  { tag: tags.heading4, color: 'var(--accent)', fontWeight: '700' },
-  { tag: tags.heading5, color: 'var(--accent)', fontWeight: '700' },
-  { tag: tags.heading6, color: 'var(--accent)', fontWeight: '700' },
-  { tag: tags.heading, color: 'var(--accent)', fontWeight: '700' },
-  { tag: tags.strong, fontWeight: '700' },
+  // Source keeps a uniform text grid; hierarchy comes from weight, not scale or color.
+  { tag: [tags.heading1, tags.heading2, tags.heading3, tags.heading4, tags.heading5, tags.heading6, tags.heading], color: 'var(--fg)', fontWeight: '600', fontSize: '1em' },
+  { tag: tags.strong, fontWeight: '600' },
   { tag: tags.emphasis, fontStyle: 'italic' },
-  { tag: tags.strikethrough, textDecoration: 'line-through', color: 'var(--muted)' },
-  { tag: tags.link, color: 'var(--accent)', textDecoration: 'underline' },
-  { tag: tags.url, color: 'var(--accent)', opacity: '0.7' },
-  { tag: tags.monospace, fontFamily: 'var(--font-code)', borderRadius: '3px', padding: '0 4px' },
-  { tag: tags.quote, color: 'var(--muted)', fontStyle: 'italic' },
-  { tag: tags.list, color: 'var(--accent)', fontWeight: '600' },
-  { tag: tags.comment, color: 'var(--muted)', fontStyle: 'italic' },
-  { tag: tags.keyword, color: 'var(--accent)' },
-  { tag: tags.atom, color: 'var(--accent)', opacity: '0.8' },
-  { tag: tags.escape, color: 'var(--accent)', fontWeight: '600' },
-  { tag: tags.inserted, color: '#2ecc71' },
-  { tag: tags.deleted, color: '#e74c3c' },
-  { tag: tags.changed, color: '#f39c12' },
-  { tag: tags.separator, color: 'var(--muted)' },
+  { tag: tags.strikethrough, textDecoration: 'line-through', color: 'var(--source-marker)' },
+  { tag: tags.link, color: 'var(--fg)', textDecoration: 'underline', textUnderlineOffset: '2px' },
+  { tag: tags.url, color: 'var(--source-link)' },
+  { tag: tags.monospace, fontFamily: 'var(--font-code)' },
+  { tag: tags.quote, color: 'var(--fg)' },
+  // List tags cover the entire item, so keep its prose at normal weight.
+  { tag: tags.list, color: 'var(--fg)', fontWeight: '400' },
+  { tag: tags.comment, color: 'var(--source-marker)', fontStyle: 'italic' },
+  { tag: [tags.keyword, tags.atom], color: 'var(--source-keyword)' },
+  { tag: tags.string, color: 'var(--source-string)' },
+  { tag: tags.escape, color: 'var(--fg)' },
+  { tag: tags.inserted, color: 'var(--source-string)' },
+  { tag: tags.deleted, color: 'var(--accent)' },
+  { tag: tags.changed, color: 'var(--source-keyword)' },
+  { tag: [tags.processingInstruction, tags.separator], color: 'var(--source-marker)', fontWeight: '400' },
 ]);
 
 const noHighlightStyle = HighlightStyle.define([

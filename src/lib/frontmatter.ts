@@ -1,4 +1,4 @@
-import { parseDocument } from 'yaml';
+import { isScalar, isSeq, parseDocument } from 'yaml';
 
 export type FrontmatterValue = string | number | boolean | null | string[] | number[] | boolean[];
 export type FrontmatterKind = 'text' | 'number' | 'boolean' | 'null' | 'date' | 'array';
@@ -21,6 +21,8 @@ export interface FrontmatterField {
   /** Absolute source range of the complete mapping entry, including its newline. */
   from: number;
   to: number;
+  /** End of the original YAML key token, before its separator colon. */
+  keyTo: number;
   /** Absolute source range of the value only. */
   valueFrom: number;
   valueTo: number;
@@ -106,6 +108,8 @@ function classifyScalar(raw: string): { kind: Exclude<FrontmatterKind, 'array'>;
  */
 function needsQuoting(value: string): boolean {
   if (!value) return true;
+  // Core YAML leaves dates as strings, but our UI infers bare ISO dates.
+  if (isDate(value)) return true;
   // Mirrors classifyScalar's rejection set: even though YAML itself tolerates
   // e.g. a plain "a, b" mapping value, this editor's safe subset does not, so
   // such values must be quoted to stay re-parseable by this very classifier.
@@ -123,27 +127,41 @@ function quoteText(value: string): string {
 
 export function serializeValue(value: FrontmatterValue, kind: FrontmatterKind, style?: 'flow' | 'block', eol = '\n', arrayElementKind?: Exclude<FrontmatterKind, 'array' | 'null'>): string {
   if (kind === 'array') {
+    if (!Array.isArray(value)) throw new Error('Expected an array');
     const values = value as Array<string | number | boolean>;
-    const encoded = values.map(item => arrayElementKind === 'date' ? String(item) : quoteText(String(item)));
+    if (values.some(item => item === '')) throw new Error('Array items must not be empty');
+    const elementKind = arrayElementKind ?? (values.length ? typeof values[0] : 'text');
+    if (!['text', 'string', 'number', 'boolean', 'date'].includes(elementKind)) throw new Error('Unsupported array item');
+    const scalarKind = elementKind === 'string' ? 'text' : elementKind as Exclude<FrontmatterKind, 'array' | 'null'>;
+    if (values.some(item => typeof item !== (scalarKind === 'text' || scalarKind === 'date' ? 'string' : scalarKind))) throw new Error('Array item types must match');
+    const encoded = values.map(item => serializeValue(item, scalarKind));
+    if (!encoded.length) return '[]';
     return style === 'block' ? encoded.map(item => `- ${item}`).join(eol) : `[${encoded.join(', ')}]`;
   }
-  if (kind === 'text' || kind === 'date') return kind === 'date' ? String(value) : quoteText(String(value));
-  if (kind === 'null') return 'null';
-  if (kind === 'boolean') return value ? 'true' : 'false';
-  if (kind === 'number' && typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (kind === 'text' && typeof value === 'string') return quoteText(value);
+  if (kind === 'date' && typeof value === 'string' && isDate(value)) return value;
+  if (kind === 'null' && value === null) return 'null';
+  if (kind === 'boolean' && typeof value === 'boolean') return value ? 'true' : 'false';
+  if (kind === 'number' && typeof value === 'number' && Number.isFinite(value)) return value.toLocaleString('en-US', { useGrouping: false, maximumSignificantDigits: 21 });
   throw new Error('Unsupported frontmatter value');
+}
+
+/** Property names are literal UI text; quote them when YAML requires it. */
+function serializeKey(key: string): string | null {
+  if (!key || key === '<<' || /[\r\n\0]/.test(key)) return null;
+  return parseKey(key) === key && !needsQuoting(key) ? key : JSON.stringify(key);
 }
 
 function parseKey(raw: string): string | null {
   const key = raw.trim();
   if (!key || key === '<<') return null;
-  if (/^[^\s:#\[\]{},][^:#\[\]{},]*$/.test(key)) return key;
   if (/^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')$/.test(key)) {
     const doc = parseDocument(`${key}: x`, { schema: 'core' });
     const value = doc.toJS();
     const parsed = Object.keys(value ?? {})[0];
     return typeof parsed === 'string' && parsed ? parsed : null;
   }
+  if (/^[^\s:#\[\]{},"'][^:#\[\]{},]*$/.test(key)) return key;
   return null;
 }
 
@@ -168,9 +186,13 @@ function valueStartOffset(line: Line, match: RegExpExecArray): number {
 function parseFlowArray(raw: string): { value: FrontmatterValue; elementKind: Exclude<FrontmatterKind, 'array' | 'null'> | undefined } | null {
   const doc = parseDocument(`v: ${raw}`, { schema: 'core' });
   if (doc.errors.length) return null;
+  const sequence = doc.get('v', true);
+  if (!isSeq(sequence) || sequence.comment || sequence.commentBefore || sequence.items.some(item =>
+    !isScalar(item) || item.anchor || item.tag || item.comment || item.commentBefore)) return null;
   const arr = (doc.toJS() as { v?: unknown }).v;
   if (!Array.isArray(arr)) return null;
-  if (!arr.every(x => (typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean') && !(typeof x === 'string' && x === ''))) return null;
+  if (!arr.every(x => (typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean')
+    && !(typeof x === 'string' && x === '') && !(typeof x === 'number' && !Number.isFinite(x)))) return null;
   const kinds: (Exclude<FrontmatterKind, 'array' | 'null'>)[] = arr.map(x => typeof x === 'boolean' ? 'boolean' : typeof x === 'number' ? 'number' : 'text');
   if (new Set(kinds).size > 1) return null;
   // Elements are provably homogeneous above, so the mixed tuple is a safe
@@ -194,19 +216,19 @@ export function analyzeFrontmatter(source: string): FrontmatterAnalysis {
     if (/^\s/.test(line.text)) return { supported: false, block, reason: '不支持嵌套 YAML 结构' };
     // Quoted keys may contain the colon separator themselves ("a:b": v), so
     // the key portion must accept a quoted form before falling back to plain.
-    const match = /^("[^"]*"|'[^']*'|[^:]+):(.*)$/.exec(line.text);
+    const match = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^:]+):(.*)$/.exec(line.text);
     if (!match) return { supported: false, block, reason: '仅支持顶层键值映射' };
     const key = parseKey(match[1]);
     if (!key) return { supported: false, block, reason: '键必须是非空字符串且不能使用合并键' };
     if (keys.has(key)) return { supported: false, block, reason: 'YAML 键不能重复' };
     keys.add(key);
     const raw = match[2].trim();
+    const keyTo = line.from + match[1].length;
     const valueStart = valueStartOffset(line, match);
     if (raw.startsWith('[') && raw.endsWith(']')) {
-      if (raw.includes('#')) return { supported: false, block, reason: '数组中不支持注释' };
       const flow = parseFlowArray(raw);
       if (!flow) return { supported: false, block, reason: '数组必须是无注释的同类型非空标量' };
-      fields.push({ key, value: flow.value, kind: 'array', from: line.from, to: line.to, valueFrom: valueStart, valueTo: line.from + line.text.length, arrayStyle: 'flow', arrayElementKind: flow.elementKind });
+      fields.push({ key, keyTo, value: flow.value, kind: 'array', from: line.from, to: line.to, valueFrom: valueStart, valueTo: line.from + line.text.length, arrayStyle: 'flow', arrayElementKind: flow.elementKind });
       continue;
     }
     if (!raw) {
@@ -215,15 +237,15 @@ export function analyzeFrontmatter(source: string): FrontmatterAnalysis {
       while (j < localLines.length && /^\s*-\s+/.test(localLines[j].text)) { arrayLines.push(localLines[j]); j += 1; }
       if (!arrayLines.length) return { supported: false, block, reason: '不支持空值或嵌套结构' };
       const items = arrayLines.map(l => classifyScalar(l.text.replace(/^\s*-\s+/, '')));
-      if (items.some(x => !x || x.kind === 'null') || new Set(items.map(x => x!.kind)).size > 1 || arrayLines.some(l => l.text.includes('#'))) return { supported: false, block, reason: '数组必须是无注释的同类型非空标量' };
+      if (items.some(x => !x || x.kind === 'null' || x.value === '') || new Set(items.map(x => x!.kind)).size > 1) return { supported: false, block, reason: '数组必须是无注释的同类型非空标量' };
       const lastArrayLine = arrayLines[arrayLines.length - 1];
-      fields.push({ key, value: items.map(x => x!.value) as FrontmatterValue, kind: 'array', from: line.from, to: lastArrayLine.to, valueFrom: arrayLines[0].from, valueTo: lastArrayLine.to, arrayStyle: 'block', arrayElementKind: items[0]?.kind as Exclude<FrontmatterKind, 'array' | 'null'> | undefined });
+      fields.push({ key, keyTo, value: items.map(x => x!.value) as FrontmatterValue, kind: 'array', from: line.from, to: lastArrayLine.to, valueFrom: arrayLines[0].from, valueTo: lastArrayLine.to, arrayStyle: 'block', arrayElementKind: items[0]?.kind as Exclude<FrontmatterKind, 'array' | 'null'> | undefined });
       i += arrayLines.length;
       continue;
     }
     const scalar = classifyScalar(raw);
     if (!scalar) return { supported: false, block, reason: '包含不支持的 YAML 值或标记' };
-    fields.push({ key, value: scalar.value, kind: scalar.kind, from: line.from, to: line.to, valueFrom: valueStart, valueTo: line.from + line.text.length });
+    fields.push({ key, keyTo, value: scalar.value, kind: scalar.kind, from: line.from, to: line.to, valueFrom: valueStart, valueTo: line.from + line.text.length });
   }
   return { supported: true, block, fields };
 }
@@ -234,37 +256,37 @@ function supported(source: string): Extract<FrontmatterAnalysis, { supported: tr
 export function patchFrontmatterField(source: string, key: string, value: FrontmatterValue, kind: FrontmatterKind): string | null {
   const result = supported(source); const field = result?.fields.find(x => x.key === key);
   if (!result || !field) return null;
+  const originalKey = source.slice(field.from, field.keyTo);
   if (kind === 'array') {
     // Array target keeps the field's historical presentation (block vs flow).
     const serialized = serializeValue(value, 'array', field.arrayStyle, result.block.eol, field.arrayElementKind);
-    if (field.arrayStyle === 'block') return replace(source, field.from, field.to, `${key}:${result.block.eol}${serialized}${result.block.eol}`);
-    return replace(source, field.from, field.to, `${key}: ${serialized}${source.slice(field.valueTo, field.to)}`);
+    if (field.arrayStyle === 'block' && Array.isArray(value) && value.length) return replace(source, field.from, field.to, `${originalKey}:${result.block.eol}${serialized}${result.block.eol}`);
+    return replace(source, field.from, field.to, `${originalKey}: ${serialized}${field.arrayStyle === 'block' ? result.block.eol : source.slice(field.valueTo, field.to)}`);
   }
   // Scalar target: emit a single "key: value" line regardless of historical
   // array style. The old block form spans multiple lines; replacing the whole
   // field range collapses it to one scalar line while keeping the trailing
   // newline so the following mapping entry is preserved.
   const serialized = serializeValue(value, kind, undefined, result.block.eol);
-  return replace(source, field.from, field.to, `${key}: ${serialized}${result.block.eol}`);
+  return replace(source, field.from, field.to, `${originalKey}: ${serialized}${result.block.eol}`);
 }
 
 export function renameFrontmatterField(source: string, key: string, nextKey: string): string | null {
   const result = supported(source);
   const field = result?.fields.find(item => item.key === key);
-  const rawKey = nextKey.trim();
-  const parsedKey = parseKey(rawKey);
-  if (!result || !field || !parsedKey || result.fields.some(item => item.key !== key && item.key === parsedKey)) return null;
-  if (parsedKey === key) return source;
-  const prefix = source.slice(field.from, field.valueFrom);
-  const separator = prefix.indexOf(':');
-  if (separator < 0) return null;
-  return replace(source, field.from, field.from + separator, rawKey);
+  const name = nextKey.trim();
+  const rawKey = serializeKey(name);
+  if (!result || !field || !rawKey || result.fields.some(item => item.key !== key && item.key === name)) return null;
+  if (name === key) return source;
+  return replace(source, field.from, field.keyTo, rawKey);
 }
 
 export function addFrontmatterField(source: string, key: string, value: FrontmatterValue, kind: FrontmatterKind): string | null {
   const result = supported(source);
-  if (!result || !parseKey(key) || result.fields.some(x => x.key === key)) return null;
-  const text = `${key}: ${serializeValue(value, kind, 'flow', result.block.eol)}${result.block.eol}`;
+  const name = key.trim();
+  const rawKey = serializeKey(name);
+  if (!result || !rawKey || result.fields.some(x => x.key === name)) return null;
+  const text = `${rawKey}: ${serializeValue(value, kind, 'flow', result.block.eol)}${result.block.eol}`;
   return replace(source, result.block.yamlTo, result.block.yamlTo, text);
 }
 

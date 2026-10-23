@@ -10,15 +10,13 @@ pub mod macos;
 
 use crate::commands::settings::load_settings_inner;
 use serde::Serialize;
-use std::path::PathBuf;
 use tauri::AppHandle;
 #[cfg(target_os = "macos")]
 use tauri::Manager;
-#[cfg(target_os = "macos")]
-use tauri::WebviewUrl;
-
-#[cfg(target_os = "macos")]
-use tauri::WebviewWindowBuilder;
+// `print_webview` is compiled on every desktop platform (the frontend only
+// calls it on macOS, but the command must exist in the handler list), so these
+// two imports stay ungated.
+use tauri::{WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(target_os = "macos")]
 use crate::commands::export::files::inject_pdf_ready_script;
@@ -30,6 +28,8 @@ use crate::commands::export::files::{
 use crate::commands::export::macos::{run_macos_pdf_job, unique_pdf_job_id};
 #[cfg(target_os = "macos")]
 use std::fs;
+#[cfg(target_os = "macos")]
+use std::path::PathBuf;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -11,6 +11,9 @@ e2e/.tmp-*/
 # Rust build artifacts
 src-tauri/target/
 
+# CI apt package cache
+.apt-archives/
+
 # Tauri generated
 src-tauri/gen/
 

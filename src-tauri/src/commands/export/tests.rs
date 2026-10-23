@@ -1,9 +1,12 @@
+#[cfg(target_os = "macos")]
+use crate::commands::export::files::cleanup_pdf_after_delays;
 use crate::commands::export::files::{
-    cleanup_pdf_after_delays, commit_pdf_file, inject_pdf_ready_script, remove_file_if_present,
-    temporary_pdf_path, validate_pdf_file,
+    commit_pdf_file, inject_pdf_ready_script, remove_file_if_present, temporary_pdf_path,
+    validate_pdf_file,
 };
 use std::fs;
 use std::path::PathBuf;
+#[cfg(target_os = "macos")]
 use std::time::Duration;
 
 fn test_dir(name: &str) -> PathBuf {

@@ -14,35 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  audit-and-test:
+  # Frontend, spec and structure gates. None of these need webkit/gtk, so they
+  # run without the apt step: a slow apt mirror can no longer delay the feedback
+  # most PRs actually wait for (issue #365).
+  web-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Tauri Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
 
       - name: Install dependencies
         run: npm ci
@@ -68,11 +54,86 @@ jobs:
       - name: Check source layering, file size and test separation
         run: node scripts/check-layering.mjs
 
+      # `npm run build` is `tsc && vite build`, and `tsc --noEmit` already ran
+      # above against the same config, so only the bundling step is needed here.
       - name: Build frontend
-        run: npm run build
+        run: npx vite build
 
       - name: Check bundle size
         run: bash scripts/check-bundle-size.sh
+
+  # Rust needs the Tauri Linux system libraries, so this job owns the apt step.
+  # `cargo test` / `clippy` build the dev profile, which does not embed
+  # `frontendDist`, so no frontend build is needed here.
+  rust-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Keep the downloaded .deb archives so a repeat run skips the ~64MB
+      # download entirely. The cache lives inside the workspace because
+      # /var/cache/apt/archives is root-owned and actions/cache restores as the
+      # runner user. The key rotates weekly so it cannot go stale forever, while
+      # `restore-keys` still lets a run pick up last week's archives.
+      - name: Resolve apt cache key
+        id: apt-key
+        run: echo "week=$(date -u +%Y-%W)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore apt archive cache
+        uses: actions/cache@v4
+        with:
+          path: .apt-archives
+          key: apt-${{ runner.os }}-${{ runner.arch }}-${{ steps.apt-key.outputs.week }}-tauri-linux-v1
+          restore-keys: |
+            apt-${{ runner.os }}-${{ runner.arch }}-
+
+      # Retries and per-connection timeouts bound the network long tail; the
+      # step timeout turns a pathological mirror into a fast, retryable failure
+      # instead of a 20+ minute hang (issue #365).
+      - name: Install Tauri Linux dependencies
+        timeout-minutes: 8
+        env:
+          APT_PACKAGES: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
+          APT_ARCHIVES: ${{ github.workspace }}/.apt-archives
+          APT_OPTS: >-
+            -o Acquire::Retries=5
+            -o Acquire::http::Timeout=30
+            -o Acquire::https::Timeout=30
+            -o Dir::Cache::archives=${{ github.workspace }}/.apt-archives/
+            -o APT::Keep-Downloaded-Packages=true
+        run: |
+          # apt drops privileges to `_apt` for downloads, so only the download
+          # staging directory needs to be writable by it. The archives directory
+          # itself stays runner-owned so the cache action can read it later.
+          mkdir -p "$APT_ARCHIVES/partial"
+          chmod 777 "$APT_ARCHIVES/partial"
+          # shellcheck disable=SC2086 # word splitting of the option lists is intended
+          sudo apt-get update $APT_OPTS
+          # Prefer the restored archives; fall back to the network when a cached
+          # package version no longer matches what the index asks for.
+          if sudo apt-get install -y --no-download $APT_OPTS $APT_PACKAGES; then
+            echo "installed from apt archive cache"
+          else
+            echo "::warning::apt archive cache incomplete, downloading from network"
+            sudo apt-get install -y $APT_OPTS $APT_PACKAGES
+          fi
+          # apt leaves root-owned `lock` and `partial/` behind; the cache action's
+          # post step runs as the runner user and cannot read them, which makes
+          # the save fail. Drop them and hand the archives back to the runner.
+          rm -rf "$APT_ARCHIVES/lock" "$APT_ARCHIVES/partial"
+          sudo chown -R "$(id -u):$(id -g)" "$APT_ARCHIVES"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
 
       - name: Run Rust tests
         working-directory: src-tauri

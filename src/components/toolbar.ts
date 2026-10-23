@@ -249,7 +249,8 @@ function setAriaPressed(id: string, pressed: boolean) {
   }
 }
 
-async function exportCurrentDocument(format: ExportFormat) {
+/** Export the active document by rendering it in WYSIWYG mode first. */
+export async function exportCurrentDocument(format: ExportFormat) {
   const mode = getMode();
   let restoredMode = false;
 

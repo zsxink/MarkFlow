@@ -105,6 +105,24 @@ export function getCachedSettings(): Settings {
 
 let settingsCache: Settings | null = null;
 
+const recentHistoryListeners = new Set<() => void>();
+
+/** Subscribe to recent-file/folder list changes (native menu state sync). */
+export function onRecentHistoryChanged(listener: () => void): () => void {
+  recentHistoryListeners.add(listener);
+  return () => recentHistoryListeners.delete(listener);
+}
+
+function notifyRecentHistoryChanged(): void {
+  for (const listener of recentHistoryListeners) {
+    try {
+      listener();
+    } catch {
+      /* isolate listener errors */
+    }
+  }
+}
+
 export async function readFileAsBase64(path: string): Promise<string> {
   return invoke<string>('read_file_as_base64', { path });
 }
@@ -259,6 +277,7 @@ export async function addRecentFile(path: string): Promise<void> {
   if (settingsCache) {
     settingsCache.recentFiles = [path, ...settingsCache.recentFiles.filter((item) => item !== path)].slice(0, 10);
   }
+  notifyRecentHistoryChanged();
 }
 
 export async function addRecentFolder(path: string): Promise<void> {
@@ -266,6 +285,7 @@ export async function addRecentFolder(path: string): Promise<void> {
   if (settingsCache) {
     settingsCache.recentFolders = [path, ...settingsCache.recentFolders.filter((item) => item !== path)].slice(0, 5);
   }
+  notifyRecentHistoryChanged();
 }
 
 export async function clearRecentHistory(): Promise<void> {
@@ -274,4 +294,5 @@ export async function clearRecentHistory(): Promise<void> {
     settingsCache.recentFiles = [];
     settingsCache.recentFolders = [];
   }
+  notifyRecentHistoryChanged();
 }

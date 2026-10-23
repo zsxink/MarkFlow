@@ -5,6 +5,7 @@ import { initSidebar } from './components/sidebar';
 import { initMenu } from './components/menu';
 import { initStatusBar } from './components/statusbar';
 import { initKeyboard } from './utils/keyboard';
+import { initNativeMenu } from './utils/nativeMenu';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './lib/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './components/fileTree';
@@ -61,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   initToolbar();
   initKeyboard();
+  await initNativeMenu();
 
   await listen<string>('file-open-requested', async (event) => { await openFileInEditor(event.payload); });
 

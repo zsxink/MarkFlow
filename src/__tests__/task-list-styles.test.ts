@@ -23,6 +23,7 @@ const CONTENT = '.ProseMirror ul[data-type="taskList"] li > div'
 const ITEM = '.ProseMirror ul[data-type="taskList"] li'
 const ITEM_PARAGRAPH = '.ProseMirror ul[data-type="taskList"] li > div > p'
 const ITEM_PARAGRAPH_FOLLOWING = '.ProseMirror ul[data-type="taskList"] li > div > p + p'
+const CHECKED_ITEM_PARAGRAPH = '.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p'
 const NESTED_LIST = '.ProseMirror ul[data-type="taskList"] li > div > ul[data-type="taskList"]'
 
 const readCss = () => readFileSync(resolve(process.cwd(), CSS_PATH), 'utf8')
@@ -129,6 +130,35 @@ describe('任务列表样式契约', () => {
   it('任务项内部段落不再叠加段落下边距，多段落保留 0.4em 间隔', () => {
     expect(declaration(ITEM_PARAGRAPH, 'margin')).toBe('0')
     expect(emValue(declaration(ITEM_PARAGRAPH_FOLLOWING, 'margin-top'), '任务项内 p + p margin-top')).toBeCloseTo(0.4)
+  })
+
+  it('已勾选任务项正文用弱化前景色，未勾选项保持正文色不变', () => {
+    // 已勾选正文命中 --muted（既有主题体系的弱化前景 token），与未勾选项拉开层次。
+    expect(declaration(CHECKED_ITEM_PARAGRAPH, 'color')).toBe('var(--muted)')
+
+    // 弱化必须由 data-checked="true" 显式收窄：任务列表范围内使用 --muted 的
+    // 选择器只允许这一条，否则未收窄的段落选择器会把未勾选项一起变淡。
+    const fadingSelectors = rules
+      .filter((rule) => Object.values(rule.declarations).includes('var(--muted)'))
+      .flatMap((rule) => rule.selectors)
+      .filter((selector) => selector.includes('data-type="taskList"'))
+    expect(fadingSelectors).toEqual([normalizeSelector(CHECKED_ITEM_PARAGRAPH)])
+
+    // 未勾选正文规则保持原样：不新增 color，排版契约（margin: 0）不被顺带改动，
+    // 正文色继续继承 .ProseMirror 根节点的 var(--fg)。
+    expect(declaration(ITEM_PARAGRAPH, 'color')).toBeUndefined()
+    expect(declaration(ITEM_PARAGRAPH, 'margin')).toBe('0')
+    expect(declaration('.ProseMirror', 'color')).toBe('var(--fg)')
+
+    // 任务列表范围内的颜色声明只允许主题 token：硬编码 hex/rgb 只在一套主题下
+    // 正确，明暗切换后层次即失效。
+    const colorProperty = /(?:^|-)color$/
+    const hardcoded = rules.flatMap((rule) => rule.selectors
+      .filter((selector) => selector.includes('data-type="taskList"'))
+      .flatMap((selector) => Object.entries(rule.declarations)
+        .filter(([property, value]) => colorProperty.test(property) && !value.startsWith('var('))
+        .map(([property, value]) => `${selector} { ${property}: ${value} }`)))
+    expect(hardcoded).toEqual([])
   })
 
   it('嵌套列表规则只命中嵌套的任务列表，不会外溢到任务项里的普通列表', () => {

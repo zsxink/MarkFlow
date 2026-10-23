@@ -31,7 +31,7 @@ main 上 `Run Rust tests` 已失败（run 39934417518），PR #366 把 `export.r
 - [x] 5.3 `npx vite build` + `bash scripts/check-bundle-size.sh` 通过
 - [x] 5.4 `npm test`、`npx tsc --noEmit`、`node scripts/check-layering.mjs`、`bash scripts/check-capabilities.sh`、`bash scripts/check-archive-synced.sh`、`npm run validate:openspec` 全部通过
 - [x] 5.5 `actionlint` 校验 `ci.yml` 无错误
-- [ ] 5.6 PR 首次运行后确认：`web-checks` 在 3 分钟内出结论；第二次运行 apt 步骤命中缓存
+- [x] 5.6 实测（PR #367，run 39942639781）：`web-checks` 68s、`rust-checks` 65s，两 job 全绿；apt 缓存命中后无任何网络下载（`installed from apt archive cache`），apt 步骤 26s
 
 ## Workflow follow-up
 

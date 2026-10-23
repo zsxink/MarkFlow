@@ -31,23 +31,30 @@ const RUST_SRC = join(ROOT, 'src-tauri', 'src');
 const MAX_LINES = 900;
 const DEEP_ASCENT_LIMIT = 3;
 
-/** Frontend layers, ordered from the bottom (most depended upon) to the top. */
+/**
+ * Frontend layers, ordered from the bottom (most depended upon) to the top.
+ * `engine` is a virtual band that groups ENGINE_DIRS for ranking only — it is
+ * NOT a directory name, so `src/engine/` is rejected as an unknown directory.
+ */
 const LAYERS = ['types', 'utils', 'infra', 'engine', 'ui', 'main'];
+/** Real layer directories (everything in LAYERS except the virtual band). */
+const DIR_LAYERS = ['types', 'utils', 'infra', 'ui'];
 /** Directories that all belong to the shared "engine" band. */
 const ENGINE_DIRS = ['editor', 'render', 'export'];
 /**
- * Pre-migration directory names, mapped onto their target layer so the gate
- * reports real violations while the batches are still in flight. Removed once
- * the migration lands (see tasks 5.x).
+ * Directories the migration removed. Any production file found here is a
+ * regression: the spec forbids `src/lib/` and `src/components/` outright, so the
+ * gate reports them instead of mapping them onto a layer.
  */
-const LEGACY_LAYER_MAP = { lib: 'engine', components: 'ui' };
-/** Modules that must expose a single barrel as their cross-layer entry. */
-const BARREL_MODULES = ['editor', 'render', 'export'];
-const TEST_SUFFIXES = ['.test.ts', '.test.tsx'];
-const TEST_SUPPORT_SUFFIXES = ['.fixtures.ts', '.helpers.ts'];
+const FORBIDDEN_DIRS = ['lib', 'components'];
 const TEST_SUPPORT_DIR = join(SRC, '__fixtures__');
 const TEST_DIR_NAME = '__tests__';
 
+/** Directories allowed at the top of `src/` (besides `main.ts`). */
+const ALLOWED_TOP_DIRS = [...DIR_LAYERS, ...ENGINE_DIRS, 'assets', 'styles',
+  TEST_DIR_NAME, '__fixtures__'];
+const TEST_SUFFIXES = ['.test.ts', '.test.tsx'];
+const TEST_SUPPORT_SUFFIXES = ['.fixtures.ts', '.helpers.ts'];
 const violations = [];
 const notes = [];
 
@@ -77,21 +84,13 @@ function isTestPath(file) {
   return file.split(sep).includes(TEST_DIR_NAME);
 }
 
-function isTsProdFile(file) {
-  if (!file.endsWith('.ts')) return false;
-  if (file.endsWith('.d.ts')) return false;
-  if (TEST_SUFFIXES.some((s) => file.endsWith(s))) return false;
-  return !isTestPath(file);
-}
-
 /** Resolve which layer a src-relative path belongs to. */
 function layerOf(file) {
   const parts = relative(SRC, file).split(sep);
   const top = parts[0];
   if (top === 'main.ts') return 'main';
   if (ENGINE_DIRS.includes(top)) return 'engine';
-  if (LAYERS.includes(top)) return top;
-  if (LEGACY_LAYER_MAP[top]) return LEGACY_LAYER_MAP[top];
+  if (DIR_LAYERS.includes(top)) return top;
   return null;
 }
 
@@ -141,6 +140,22 @@ function resolveSpecifier(fromFile, spec) {
 
 function checkFrontendStructure() {
   const { prod, tests } = collectTsFiles();
+
+  // Rule 0: production files must live in a known layer directory, and the
+  // directories the migration removed must stay gone.
+  for (const file of prod) {
+    const top = relative(SRC, file).split(sep)[0];
+    // `main.ts` is the entry and root `*.d.ts` are ambient declarations; neither
+    // belongs to a layer.
+    if (top === 'main.ts' || top.endsWith('.d.ts')) continue;
+    if (FORBIDDEN_DIRS.includes(top)) {
+      fail('forbidden-dir', file, `"${top}/" was removed by the layering migration; move this file into a layer directory`);
+      continue;
+    }
+    if (!ALLOWED_TOP_DIRS.includes(top)) {
+      fail('unknown-dir', file, `"${top}/" is not a declared layer (allowed: ${ALLOWED_TOP_DIRS.join(', ')})`);
+    }
+  }
 
   // Rule 5: test code must live in __tests__/ or __fixtures__/.
   for (const file of prod) {
@@ -271,11 +286,25 @@ function checkFrontendStructure() {
 
 const RUST_INLINE_TESTS_RE = /#\[cfg\(test\)\]\s*\n\s*mod\s+tests\s*\{/;
 
+/**
+ * Rust test code lives in `<module>/tests.rs` (see the source-layering spec) or
+ * in `src-tauri/tests/`. Neither is production code, so neither counts towards
+ * the production-file budget.
+ */
+function isRustTestFile(file) {
+  const parts = relative(RUST_SRC, file).split(sep);
+  return parts.includes('tests') || parts[parts.length - 1] === 'tests.rs';
+}
+
 function checkRustStructure() {
   let prodCount = 0;
+  let testCount = 0;
   walk(RUST_SRC, (file) => {
     if (!file.endsWith('.rs')) return;
-    if (file.split(sep).includes('tests')) return;
+    if (isRustTestFile(file)) {
+      testCount += 1;
+      return;
+    }
     prodCount += 1;
 
     const source = readFileSync(file, 'utf8');
@@ -288,7 +317,7 @@ function checkRustStructure() {
       fail('test-separation', file, 'inline `#[cfg(test)] mod tests { ... }` must move to a sibling tests/ module file');
     }
   });
-  notes.push(`rust: ${prodCount} production files scanned`);
+  notes.push(`rust: ${prodCount} production files, ${testCount} test files scanned`);
 }
 
 checkFrontendStructure();

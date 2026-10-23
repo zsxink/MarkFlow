@@ -26,6 +26,18 @@
 - **THEN** 每个文件 SHALL 位于上表列出的目录之一或其子目录
 - **AND** SHALL NOT 存在于已废弃的 `src/lib/`、`src/components/` 目录
 
+#### Scenario: 已废弃目录不得复活
+
+- **WHEN** 生产文件出现在 `src/lib/` 或 `src/components/`
+- **THEN** 校验脚本 SHALL 以 `forbidden-dir` 规则失败
+- **AND** 文件 SHALL 被移入对应的层目录，而不是让校验器把旧目录名映射成层
+
+#### Scenario: 顶层目录必须是已声明的层
+
+- **WHEN** `src/` 下出现规范未声明的顶层目录
+- **THEN** 校验脚本 SHALL 以 `unknown-dir` 规则失败并列出允许的目录
+- **AND** 虚拟层带名（如 `engine`）SHALL NOT 被当作真实目录接受
+
 #### Scenario: 入口之外的装配集中在 main
 
 - **WHEN** 检查应用启动装配（UI 端口注册、编辑器初始化、全局事件绑定）
@@ -125,6 +137,12 @@
 - **WHEN** 检查网络请求与路径安全实现
 - **THEN** URL 校验、DNS 解析、重定向校验、magic number 校验、日志脱敏 SHALL 位于 `net/` 下的独立模块
 - **AND** 路径解析与原子写 SHALL 位于 `fs/` 下的独立模块
+
+#### Scenario: 后端测试文件不计入生产预算
+
+- **WHEN** 校验 `src-tauri/src/` 的文件行数与测试分离
+- **THEN** `<module>/tests.rs` 与 `src-tauri/tests/` 下的文件 SHALL 按测试代码统计
+- **AND** SHALL NOT 计入生产文件数量，也 SHALL NOT 受生产文件行数上限约束
 
 #### Scenario: 后端生产文件不含测试模块
 

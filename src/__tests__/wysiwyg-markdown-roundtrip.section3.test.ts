@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor } from '@tiptap/core';
+import type { JSONContent } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, ListKeymap, OrderedList, TaskList } from '@tiptap/extension-list';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
@@ -430,6 +431,146 @@ describe('Section 3 dedicated syntax round-trip tests', () => {
       expect(hardBreakAttrs(quote.first).every((entry) => entry.soft === true)).toBe(true);
       expect(quote.output.trimEnd()).toBe('> quoted one\n> quoted two');
       expect(quote.reparsed).toEqual(quote.first);
+    });
+  });
+
+  // Issue #421: a paragraph continuation line that LOOKS like an interrupting
+  // block (blockquote / fence / Setext underline / HTML block) must serialize
+  // so that a re-parse keeps the same single paragraph instead of splitting
+  // the document (the split is what made such saves conflict and refuse to
+  // write). These tests drive the REAL parse → serialize → re-parse pipeline
+  // from the in-editor state (JSON), which is the only way a continuation line
+  // can start with a raw prefix — such sources from disk already parse as
+  // separate blocks per CommonMark.
+  describe('3.9 paragraph continuation block-prefix escape (#421)', () => {
+    /** In-editor paragraph with the given visual lines joined by breaks. */
+    function breakParagraph(lines: string[], hardBreak = false): JSONContent {
+      const content: JSONContent[] = [];
+      lines.forEach((line, index) => {
+        if (index > 0) {
+          content.push(hardBreak ? { type: 'hardBreak' } : { type: 'hardBreak', attrs: { soft: true } });
+        }
+        content.push({ type: 'text', text: line });
+      });
+      return { type: 'paragraph', content };
+    }
+
+    /** Round-trip an in-editor document through serialize → re-parse. */
+    function roundTripDoc(doc: JSONContent) {
+      const editor = createAppEditor();
+      try {
+        editor.commands.setContent(doc);
+        const first = editor.getJSON();
+        const output = editor.getMarkdown();
+        editor.commands.setContent(output, { contentType: 'markdown' });
+        const reparsed = editor.getJSON();
+        return { output, first, reparsed };
+      } finally {
+        editor.destroy();
+      }
+    }
+
+    /** Top-level block types of a parsed document. */
+    function topLevelTypes(json: unknown): string[] {
+      return ((json as { content?: Array<{ type?: string }> }).content ?? []).map((node) => node.type ?? '');
+    }
+
+    /** Visual lines of the first paragraph (breaks split, texts joined). */
+    function paragraphLines(json: unknown): string[] {
+      const para = (json as { content?: Array<Record<string, unknown>> }).content?.[0];
+      if (!para || para.type !== 'paragraph') return [`<${String(para?.type)}>`];
+      const lines: string[] = [];
+      let current = '';
+      for (const child of (para.content as Array<Record<string, unknown>>) ?? []) {
+        if (child.type === 'hardBreak') {
+          lines.push(current);
+          current = '';
+        } else if (child.type === 'text') {
+          current += child.text ?? '';
+        }
+      }
+      lines.push(current);
+      return lines;
+    }
+
+    // Continuation lines starting with `>` / `<` serialize via tiptap's text
+    // entity encoding (`&gt;` / `&lt;`), backtick/tilde runs via its backslash
+    // escaping — both upstream details this suite pins so a serializer change
+    // that re-opens the split cannot land silently. The `===` line is escaped
+    // by SafeParagraph's own Setext rule (`\===`).
+    it('keeps typed interrupting-looking continuation lines one paragraph on save and reload', () => {
+      const cases: Array<{ lines: string[]; output: string }> = [
+        { lines: ['正文', '> 引用'], output: '正文\n&gt; 引用' },
+        { lines: ['正文', '>foo'], output: '正文\n&gt;foo' },
+        { lines: ['正文', '``` x'], output: '正文\n\\`\\`\\` x' },
+        { lines: ['正文', '~~~'], output: '正文\n\\~\\~\\~' },
+        { lines: ['正文', '==='], output: '正文\n\\===' },
+        { lines: ['正文', '<div> x'], output: '正文\n&lt;div&gt; x' },
+        { lines: ['正文', '<!-- c -->'], output: '正文\n&lt;!-- c --&gt;' },
+      ];
+      for (const { lines, output } of cases) {
+        const doc = breakParagraph(lines);
+        const result = roundTripDoc(doc);
+        expect(result.output, JSON.stringify(lines)).toBe(output);
+        expect(topLevelTypes(result.reparsed), JSON.stringify(lines)).toEqual(['paragraph']);
+        expect(paragraphLines(result.reparsed), JSON.stringify(lines)).toEqual(lines);
+        expect(result.reparsed, JSON.stringify(lines)).toEqual(result.first);
+      }
+    });
+
+    it('keeps hard-break continuation lines one paragraph too', () => {
+      const cases: Array<{ lines: string[]; output: string }> = [
+        { lines: ['正文', '==='], output: '正文  \n\\===' },
+        { lines: ['正文', '> 引用'], output: '正文  \n&gt; 引用' },
+        { lines: ['正文', '``` x'], output: '正文  \n\\`\\`\\` x' },
+        { lines: ['正文', '<div> x'], output: '正文  \n&lt;div&gt; x' },
+      ];
+      for (const { lines, output } of cases) {
+        const result = roundTripDoc(breakParagraph(lines, true));
+        expect(result.output, JSON.stringify(lines)).toBe(output);
+        expect(topLevelTypes(result.reparsed), JSON.stringify(lines)).toEqual(['paragraph']);
+        expect(paragraphLines(result.reparsed), JSON.stringify(lines)).toEqual(lines);
+      }
+    });
+
+    it('leaves a first-line === unescaped (no preceding line to underline)', () => {
+      const result = roundTripDoc(breakParagraph(['===', 'text']));
+      expect(result.output).toBe('===\ntext');
+      expect(topLevelTypes(result.reparsed)).toEqual(['paragraph']);
+      expect(paragraphLines(result.reparsed)).toEqual(['===', 'text']);
+      expect(result.reparsed).toEqual(result.first);
+    });
+
+    it('keeps escaped setext-underline paragraphs byte-stable across reload', () => {
+      const single = roundTrip('正文\n\\===');
+      expect(single.output).toBe('正文\n\\===');
+      expect(topLevelTypes(single.reparsed)).toEqual(['paragraph']);
+      expect(single.reparsed).toEqual(single.first);
+
+      const followed = roundTrip('正文\n\\===\n\n下一段');
+      expect(followed.output).toBe('正文\n\\===\n\n下一段');
+      expect(topLevelTypes(followed.reparsed)).toEqual(['paragraph', 'paragraph']);
+      expect(followed.reparsed).toEqual(followed.first);
+    });
+
+    it('keeps escaped first-line quote/fence/html forms paragraph-shaped on reload', () => {
+      // The block-level escaper receives tiptap's already-encoded text, so
+      // `>`/`<` re-serialize as entities and backticks as per-char escapes;
+      // the load-bearing property is the paragraph shape after re-parse.
+      const quote = roundTrip('\\> foo');
+      expect(quote.output).toBe('&gt; foo');
+      expect(topLevelTypes(quote.reparsed)).toEqual(['paragraph']);
+      expect(quote.reparsed).toEqual(quote.first);
+
+      const fence = roundTrip('\\``` foo');
+      expect(fence.output).toBe('\\`\\`\\` foo');
+      expect(topLevelTypes(fence.reparsed)).toEqual(['paragraph']);
+      expect(fence.reparsed).toEqual(fence.first);
+
+      const html = roundTrip('\\<div> foo');
+      expect(html.output).toBe('&lt;div&gt; foo');
+      expect(topLevelTypes(html.reparsed)).toEqual(['paragraph']);
+      expect(html.reparsed).toEqual(html.first);
     });
   });
 });

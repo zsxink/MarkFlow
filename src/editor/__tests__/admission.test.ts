@@ -269,9 +269,89 @@ describe('admission verification (6.4)', () => {
       '\\+ foo\n',
       '\\### foo\n',
       '\\---\n',
+      // issue #421 first-line forms: blockquote / fence / tilde / HTML opener.
+      // (The HTML form stays eligibility-source-only — inline HTML is an
+      // unsupported construct there — but the round-trip itself is lossless.)
+      '\\> foo\n',
+      '\\``` foo\n',
+      '\\~~~ foo\n',
+      '\\<div> foo\n',
     ];
     for (const src of cases) {
       expect(verifyAdmission(editor, src), `${JSON.stringify(src)} should pass verification`).toEqual({ ok: true });
+    }
+  });
+
+  // issue #421: typing a setext-underline-looking continuation line ('===')
+  // used to serialize unescaped, so the save candidate re-parsed the paragraph
+  // as an H1 and the reconcile boundary refused to write (conflict). With the
+  // Setext rule the candidate carries '\===' and the save proceeds.
+  it('keeps a typed === continuation line saveable as one paragraph (#421)', () => {
+    const src = '正文第一行\n第二行\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    // Simulate typing a soft-break continuation line "===" at the paragraph end.
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, [
+      { type: 'hardBreak', attrs: { soft: true } },
+      { type: 'text', text: '===' },
+    ]);
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 1,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('safe-edit');
+    if (decision.kind === 'safe-edit') {
+      expect(decision.markdown).toBe('正文第一行\n第二行\n\\===');
+    }
+  });
+
+  // issue #421: a saved doc whose paragraph contains the escaped underline
+  // ('正文\n\===') must re-admit as a fully supported doc — a plain paragraph —
+  // instead of falling back to the block-local raw-text path.
+  it('re-admits a saved escaped setext-underline paragraph as supported (#421)', () => {
+    const src = '正文\n\\===\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    const serialized = serializeTipTapMarkdown(editor);
+    expect(serialized.ok ? serialized.markdown : null).toBe('正文\n\\===');
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 0,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('unchanged');
+  });
+
+  // issue #421 (design D2): the pipeline's actual saved spelling of an
+  // in-editor `>` / `<div>` / fence continuation is tiptap's entity/backslash
+  // encoding ('&gt;' / '&lt;' / '\`'), which no longer starts with a raw block
+  // prefix — so the saved doc must re-admit as a plain paragraph, never an
+  // opaque html-block/blockquote identification.
+  it('re-admits entity-encoded continuation spellings as plain paragraphs (#421)', () => {
+    for (const src of ['正文\n&lt;div&gt; x\n', '正文\n&gt; 引用\n', '正文\n\\`\\`\\` x\n']) {
+      expect(classifyEligibility(src), `${JSON.stringify(src)} eligibility`).toMatchObject({ verdict: 'eligible' });
+      expect(verifyAdmission(editor, src), `${JSON.stringify(src)} verification`).toEqual({ ok: true });
     }
   });
 

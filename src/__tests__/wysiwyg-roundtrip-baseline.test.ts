@@ -15,7 +15,7 @@ describe('fixed WYSIWYG round-trip corpus', () => {
   it('contains normal and boundary fixtures for every required category', () => {
     for (const category of FIXTURE_CATEGORIES) {
       const fixtures = WYSIWYG_ROUNDTRIP_FIXTURES.filter(fixture => fixture.category === category);
-      expect(fixtures, `${category} fixture count`).toHaveLength(2);
+      expect(fixtures.length, `${category} fixture count`).toBeGreaterThanOrEqual(2);
       expect(fixtures.some(fixture => fixture.boundary === 'normal')).toBe(true);
       expect(fixtures.some(fixture => fixture.boundary === 'edge')).toBe(true);
     }

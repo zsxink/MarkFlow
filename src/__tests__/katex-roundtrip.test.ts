@@ -7,7 +7,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
 import { createMarkdownExtension } from '../editor/init';
 import { OpaqueNode } from '../editor/markdown/opaque/extension';
 import { parseMarkdown, serializeMarkdown } from '../editor/markdown/bridge';
@@ -36,6 +36,7 @@ function makeEditor() {
       StarterKit.configure({
         paragraph: false,
         codeBlock: false,
+        hardBreak: false,
         link: false,
         bulletList: false,
         orderedList: false,
@@ -43,6 +44,7 @@ function makeEditor() {
         listKeymap: false,
       }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList,
       OrderedList,
       ListItem,

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { BlockImage } from '../extensions';
+import { BlockImage, SafeHardBreak } from '../extensions';
 import { imageSrcResolverPlugin } from '../image-resolver';
 import { createMarkdownExtension } from '../init';
 
@@ -39,7 +39,8 @@ describe('image resolver authored source retention', () => {
     const editor = new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit,
+        StarterKit.configure({ hardBreak: false }),
+        SafeHardBreak,
         BlockImage.configure({ allowBase64: true }),
         createMarkdownExtension(),
         imageSrcResolverPlugin(),

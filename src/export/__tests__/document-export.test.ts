@@ -112,6 +112,14 @@ describe('rendered document export', () => {
     expect(html).toContain('@media print {');
   });
 
+  it('keeps in-paragraph soft line breaks as <br> instead of collapsing them (#404)', async () => {
+    // A WYSIWYG paragraph with soft breaks renders <br> elements; the export
+    // snapshot must carry them through, not collapse the lines into spaces.
+    const html = await createHtmlExport('报告', '<div class="ProseMirror"><p>第一行<br>第二行</p></div>');
+    expect(html).toContain('<p>第一行<br>第二行</p>');
+    expect(html).not.toContain('第一行 第二行');
+  });
+
   it('does not write when the save dialog is cancelled', async () => {
     saveDocumentExportMock.mockResolvedValue(false);
     const container = document.createElement('div');

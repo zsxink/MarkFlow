@@ -4,14 +4,15 @@ import type { JSONContent } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from '../markdown/adapter';
 import { decideAdmission, verifyAdmission, admissionReasonLabel } from '../markdown/admission';
+import { runSaveBoundary } from '../save-reconcile';
+import { getOpaqueRegistry, endOpaqueSession } from '../markdown/opaque/session';
 import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from '../markdown/eligibility';
 import { RawMarkdown } from '../markdown/fallback';
 import { OpaqueNode } from '../markdown/opaque/extension';
-import { endOpaqueSession } from '../markdown/opaque/session';
 
 const mocks = vi.hoisted(() => ({
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(),
@@ -35,8 +36,9 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }),
@@ -167,6 +169,32 @@ describe('admission verification (6.4)', () => {
   // block prefix must round-trip as a paragraph. The v3 serializer used to
   // drop the leading backslash (`6\.` → `6.`), so the re-parse lexed it as a
   // list/heading/HR and `verifyAdmission` rejected the doc as source-only.
+  it('admits soft-break paragraphs and keeps an unedited save byte-identical (#404)', () => {
+    const src = '第一行\n第二行\n第三行\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    // The serialized bytes must not drift while the document sits unedited:
+    // bare soft newlines neither gain trailing spaces nor get merged.
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    const serialized = serializeTipTapMarkdown(editor);
+    expect(serialized.ok ? serialized.markdown : null).toBe('第一行\n第二行\n第三行');
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 0,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('unchanged');
+  });
+
   it('admits paragraphs whose first line starts with an escaped block prefix', () => {
     const cases = [
       '6\\. 这是一段以转义数字开头的正文\n',

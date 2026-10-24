@@ -11,7 +11,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { BulletList, ListKeymap, OrderedList, TaskList } from '@tiptap/extension-list';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { createMarkdownExtension } from '../editor/init';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
 import { VariantListItem, VariantTaskItem } from '../editor/extensions/list-marker-variants';
 import { RawMarkdown, rawMarkdownSources } from '../editor/markdown/fallback';
 import { OpaqueNode } from '../editor/markdown/opaque/extension';
@@ -49,8 +49,9 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList, OrderedList, VariantListItem, ListKeymap,
       TaskList, VariantTaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }),

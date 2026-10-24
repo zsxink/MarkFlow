@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { SafeParagraph } from '../../../extensions';
+import { SafeHardBreak, SafeParagraph } from '../../../extensions';
 import { OpaqueNode } from '../extension';
 import { admitOpaque, reconcileSave } from '../integration';
 import { getOpaqueRegistry, endOpaqueSession } from '../session';
@@ -21,8 +21,8 @@ describe('opaque admission + safe-edit reconcile (8.1, 8.4)', () => {
     return new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
-        SafeParagraph,
+        StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        SafeHardBreak, SafeParagraph,
         OpaqueNode,
         createMarkdownExtension(),
       ],

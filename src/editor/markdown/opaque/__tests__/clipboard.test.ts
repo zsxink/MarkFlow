@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { SafeParagraph } from '../../../extensions';
+import { SafeHardBreak, SafeParagraph } from '../../../extensions';
 import { handleOpaqueCopy, OpaqueNode, OPAQUE_NODE_NAME, setActiveOpaqueRegistry } from '../extension';
 import { OpaqueRegistry } from '../index';
 import { resolveClipboardOpaque, clipboardHasSentinel } from '../clipboard';
@@ -43,8 +43,8 @@ describe('opaque clipboard policy (7.5)', () => {
     const editor = new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
-        SafeParagraph,
+        StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        SafeHardBreak, SafeParagraph,
         OpaqueNode,
         createMarkdownExtension(),
       ],
@@ -65,8 +65,9 @@ describe('opaque clipboard policy (7.5)', () => {
     const editor = new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
         SafeParagraph,
+        SafeHardBreak,
         OpaqueNode,
         createMarkdownExtension(),
       ],

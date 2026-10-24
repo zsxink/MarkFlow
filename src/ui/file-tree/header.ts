@@ -22,6 +22,7 @@ const ICONS = {
   folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   chevronsDownUp: '<path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/>',
+  chevronsUpDown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
 } as const;
 
 function actionButton(label: string, icon: string, onClick: () => void): HTMLButtonElement {
@@ -67,9 +68,19 @@ export function hasCollapsedFolder(): boolean {
 
 /** Smart toggle shared with the old tab-row hover button (issue #418):
  * anything still folded → expand everything, otherwise fold the whole tree. */
-export function toggleAllFolders(): void {
-  if (hasCollapsedFolder()) void expandAllFolders();
-  else void collapseAllFolders();
+export async function toggleAllFolders(): Promise<void> {
+  await (hasCollapsedFolder() ? expandAllFolders() : collapseAllFolders());
+}
+
+/** The toggle button mirrors the action it would perform next (issue #429):
+ * folded folders → expanding icon/label, fully expanded → folding icon/label. */
+function updateToggleState(button: HTMLButtonElement): void {
+  const willExpand = hasCollapsedFolder();
+  const label = willExpand ? '展开所有文件夹' : '收起所有文件夹';
+  button.setAttribute('aria-label', label);
+  button.setAttribute('title', label);
+  const svg = button.querySelector('svg');
+  if (svg) svg.innerHTML = willExpand ? ICONS.chevronsUpDown : ICONS.chevronsDownUp;
 }
 
 function createInSelection(type: 'file' | 'folder'): void {
@@ -103,7 +114,12 @@ function buildTreeHeader(rootName: string, workspacePath: string): HTMLElement {
   actions.appendChild(actionButton('新建文件', ICONS.filePlus, () => createInSelection('file')));
   actions.appendChild(actionButton('新建文件夹', ICONS.folderPlus, () => createInSelection('folder')));
   actions.appendChild(actionButton('刷新', ICONS.refresh, () => { void refreshFileTree(); }));
-  actions.appendChild(actionButton('展开或收起所有文件夹', ICONS.chevronsDownUp, toggleAllFolders));
+  const toggle = actionButton('展开所有文件夹', ICONS.chevronsUpDown, () => {
+    void toggleAllFolders().then(() => updateToggleState(toggle));
+  });
+  toggle.classList.add('tree-header-toggle');
+  actions.appendChild(toggle);
+  updateToggleState(toggle);
   header.appendChild(actions);
   return header;
 }
@@ -127,6 +143,8 @@ export function mountTreeHeader(): void {
   if (existing) {
     const name = existing.querySelector(':scope > .tree-header-name');
     if (name && name.textContent !== rootName) name.textContent = rootName;
+    const toggle = existing.querySelector<HTMLButtonElement>(':scope > .tree-header-actions > .tree-header-toggle');
+    if (toggle) updateToggleState(toggle);
     if (container.firstElementChild !== existing) container.prepend(existing);
     return;
   }

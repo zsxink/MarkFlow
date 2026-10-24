@@ -65,8 +65,9 @@ function median(values: number[]): number {
  * Threshold contract (from task 1.4 evidence in `evidence/stage-1-validation.md`
  * and `tiptap-v3-benchmark.test.ts`):
  *   - medium (5.4KB) parse budget = 19.4ms (v2 baseline 15.5ms, ≤25% regression);
- *   - large (54KB) parse ~380ms is recorded as the SOURCE-ONLY threshold evidence,
- *     i.e. docs at/beyond that latency are downscaled to Source, not opened in WYSIWYG.
+ *   - large (54KB) parse ~380ms is the historical stage-one evidence; since
+ *     issue #395 the deterministic admission bound is 256KiB / 10k lines, and
+ *     docs beyond it are downscaled to Source, not opened in WYSIWYG.
  *
  * Task 9.4 asserts the stage-two boundary (admission + reconcile) does not push a
  * normal-tier document past that source-only threshold, so no supported doc is

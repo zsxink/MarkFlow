@@ -196,7 +196,7 @@ export function setMarkdown(content: string, options: MarkdownLoadOptions = {}) 
   );
   if (admission.mode === 'source-only') {
     setMarkdownPipelineMode('source-only');
-    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason)}`);
+    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size)}`);
     enterSourceMode(content);
     // Same baseline reset as the parse-failure branch: a document admitted to
     // source-only is loaded clean and must not inherit a prior document's dirty

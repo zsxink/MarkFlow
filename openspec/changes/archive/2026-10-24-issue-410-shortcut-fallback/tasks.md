@@ -37,7 +37,7 @@
 ## 6. 后续（不在本变更内）
 
 - [x] 6.1 `window-minimal.json` 补 `core:window:allow-set-title`（#410 附带项，closes #412）
-- [ ] 6.2 归档时同步 `keyboard-shortcuts` 与 `native-menu-bar` 主规范（含 `keyboard-shortcuts` 的 Agent Context 不变量表述）
+- [x] 6.2 归档时同步 `keyboard-shortcuts` 与 `native-menu-bar` 主规范（含 `keyboard-shortcuts` 的 Agent Context 不变量表述）
 
 ## 7. 快捷键提示与平台绑定（#406）
 

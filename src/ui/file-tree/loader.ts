@@ -107,6 +107,72 @@ export async function restoreExpandedState() {
   }
 }
 
+// ── Expand/collapse all ───────────────────────────────────────────────
+// Driven by the sidebar hover button (issue #418). Both go through the same
+// three DOM signals as a manual chevron click and finish in
+// saveExpandedState(), so refresh/watcher recovery can never disagree with
+// what the user sees.
+
+export async function collapseAllFolders(): Promise<void> {
+  document.querySelectorAll('#file-tree .tree-folder').forEach(folder => {
+    const chevron = folder.querySelector('.tree-chevron');
+    const children = folder.parentElement?.querySelector(':scope > .tree-children') as HTMLElement | null;
+    if (!chevron || !children) return;
+    chevron.classList.remove('expanded');
+    folder.setAttribute('aria-expanded', 'false');
+    children.hidden = true;
+  });
+  saveExpandedState();
+}
+
+export async function expandAllFolders(): Promise<void> {
+  const fileTree = document.getElementById('file-tree');
+  if (!fileTree) return;
+  // Same settings fallback as restoreExpandedState: the cap is shared so both
+  // automatic and one-click expansion stop at the same depth.
+  const maxDepth = store.getState().settings.fileTreeAutoLoadDepth
+    ?? DEFAULT_SETTINGS.fileTreeAutoLoadDepth ?? 8;
+
+  const isCollapsed = (folder: HTMLElement): boolean => {
+    const chevron = folder.querySelector('.tree-chevron');
+    const children = folder.parentElement?.querySelector(':scope > .tree-children');
+    return !!chevron && !!children && !chevron.classList.contains('expanded');
+  };
+  const directChildFolders = (container: Element): HTMLElement[] =>
+    Array.from(container.querySelectorAll<HTMLElement>(
+      ':scope > .tree-folder, :scope > .tree-folder-wrapper > .tree-folder',
+    ));
+
+  // Round 0 holds every collapsed folder already in the DOM — collapse-all
+  // keeps subtrees rendered (just hidden), so those re-expand without extra
+  // loads. Each later round lazy-loads one more level of sub-folders, one
+  // await at a time (pendingLoads dedupes repeats; no readDirPage stampede).
+  const scheduled = new Set<string>();
+  let frontier = Array.from(fileTree.querySelectorAll<HTMLElement>('.tree-folder'))
+    .filter(isCollapsed);
+  let depth = 0;
+  while (frontier.length > 0 && depth < maxDepth) {
+    const next: HTMLElement[] = [];
+    for (const folder of frontier) {
+      const path = folder.dataset.path || '';
+      if (path && scheduled.has(path)) continue;
+      if (path) scheduled.add(path);
+      const chevron = folder.querySelector('.tree-chevron');
+      const children = folder.parentElement?.querySelector(':scope > .tree-children') as HTMLElement | null;
+      if (!chevron || !children) continue;
+      chevron.classList.add('expanded');
+      folder.setAttribute('aria-expanded', 'true');
+      children.hidden = false;
+      await loadDirectory(path, false);
+      next.push(...directChildFolders(children).filter(child =>
+        isCollapsed(child) && !(child.dataset.path && scheduled.has(child.dataset.path))));
+    }
+    frontier = next;
+    depth++;
+  }
+  saveExpandedState();
+}
+
 export async function loadDirectory(path: string, append: boolean): Promise<void> {
   path = normalizeTreePath(path);
   const existing = pendingLoads.get(path);

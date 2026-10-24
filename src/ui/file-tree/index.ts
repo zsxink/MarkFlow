@@ -12,6 +12,8 @@ export {
   suppressAllDescendants,
   refreshFileTree,
   initTreeAria,
+  collapseAllFolders,
+  expandAllFolders,
   insertEntryIntoTree,
   removeEntryFromTree,
   applyFileTreeEvents,

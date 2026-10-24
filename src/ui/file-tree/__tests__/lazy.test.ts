@@ -17,12 +17,14 @@ vi.mock('../../../infra/logger', () => ({ logException: vi.fn(), logInfo: vi.fn(
 
 import {
   applyFileTreeEvents, createTreeNode, flushPendingMutations,
+  collapseAllFolders, expandAllFolders,
   loadDirectoryForTesting, refreshFileTree, resetFileTreeStateForTesting,
   restoreExpandedState,
 } from '../core';
 import { startInlineRename } from '../inline';
 import { setActiveFilePath } from '../../active-document';
 import { store } from '../../../infra/store';
+import { DEFAULT_SETTINGS } from '../../../types/settings';
 
 beforeEach(() => {
   document.body.innerHTML = '<div id="file-tree"></div>';
@@ -30,7 +32,14 @@ beforeEach(() => {
   mocks.readDirPage.mockReset();
   mocks.readPathEntry.mockReset();
   mocks.renamePath.mockReset();
-  store.setState({ workspacePath: '/ws', expandedPaths: [], activeFilePath: null });
+  // Settings live in the singleton store, so a depth override in one test would
+  // otherwise cap every later expand in this file.
+  store.setState({
+    workspacePath: '/ws',
+    expandedPaths: [],
+    activeFilePath: null,
+    settings: { ...DEFAULT_SETTINGS },
+  });
 });
 
 describe('lazy file tree loading', () => {
@@ -114,6 +123,111 @@ describe('lazy file tree loading', () => {
     const folder = document.querySelector('[data-path="c:/Notes/folder"]');
     expect(folder?.querySelector('.tree-chevron')?.classList.contains('expanded')).toBe(true);
     expect(document.querySelector('[data-path="c:/Notes/folder/a.md"]')).not.toBeNull();
+  });
+});
+
+describe('expand/collapse all folders', () => {
+  function expandFolderDom(folder: HTMLElement): void {
+    folder.querySelector('.tree-chevron')!.classList.add('expanded');
+    folder.setAttribute('aria-expanded', 'true');
+    (folder.parentElement!.querySelector(':scope > .tree-children') as HTMLElement).hidden = false;
+  }
+
+  function folderIsFolded(folder: HTMLElement): boolean {
+    const children = folder.parentElement!.querySelector(':scope > .tree-children') as HTMLElement;
+    return !folder.querySelector('.tree-chevron')!.classList.contains('expanded')
+      && folder.getAttribute('aria-expanded') === 'false'
+      && children.hidden;
+  }
+
+  function mockTwoLevelWorkspace(): void {
+    mocks.readDirPage.mockImplementation((path: string) => Promise.resolve(
+      path === '/ws/a'
+        ? { entries: [{ name: 'x.md', path: '/ws/a/x.md', isDir: false }], nextCursor: null, generation: '1', truncated: false }
+        : path === '/ws/b'
+          ? { entries: [{ name: 'sub', path: '/ws/b/sub', isDir: true }], nextCursor: null, generation: '2', truncated: false }
+          : { entries: [{ name: 'y.md', path: '/ws/b/sub/y.md', isDir: false }], nextCursor: null, generation: '3', truncated: false }));
+  }
+
+  it('collapseAllFolders folds every rendered folder and persists an empty list', async () => {
+    const root = document.getElementById('file-tree')!;
+    root.appendChild(createTreeNode({
+      name: 'folder', path: '/ws/folder', isDir: true,
+      children: [{ name: 'a.md', path: '/ws/folder/a.md', isDir: false }],
+    }, 0));
+    root.appendChild(createTreeNode({ name: 'other', path: '/ws/other', isDir: true }, 0));
+    root.querySelectorAll<HTMLElement>('.tree-folder').forEach(expandFolderDom);
+    store.setState({ expandedPaths: ['/ws/folder', '/ws/other'] });
+
+    await collapseAllFolders();
+
+    const folders = root.querySelectorAll<HTMLElement>('.tree-folder');
+    expect(folders.length).toBe(2);
+    folders.forEach(folder => expect(folderIsFolded(folder)).toBe(true));
+    expect(store.getState().expandedPaths).toEqual([]);
+  });
+
+  it('keeps the tree folded across a controlled root refresh after collapseAllFolders', async () => {
+    const root = document.getElementById('file-tree')!;
+    root.appendChild(createTreeNode({ name: 'folder', path: '/ws/folder', isDir: true }, 0));
+    expandFolderDom(root.querySelector<HTMLElement>('[data-path="/ws/folder"]')!);
+    mocks.readDirPage.mockImplementation((path: string) => Promise.resolve(
+      path === '/ws'
+        ? { entries: [{ name: 'folder', path: '/ws/folder', isDir: true }], nextCursor: null, generation: '1', truncated: false }
+        : { entries: [{ name: 'a.md', path: '/ws/folder/a.md', isDir: false }], nextCursor: null, generation: '2', truncated: false }));
+
+    await collapseAllFolders();
+    await refreshFileTree();
+
+    expect(folderIsFolded(document.querySelector<HTMLElement>('[data-path="/ws/folder"]')!)).toBe(true);
+    expect(document.querySelector('[data-path="/ws/folder/a.md"]')).toBeNull();
+    // Only the root page is read: the collapsed folder's directory is never loaded.
+    expect(mocks.readDirPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('expandAllFolders expands layer by layer and persists every expanded path', async () => {
+    const root = document.getElementById('file-tree')!;
+    root.appendChild(createTreeNode({ name: 'a', path: '/ws/a', isDir: true }, 0));
+    root.appendChild(createTreeNode({ name: 'b', path: '/ws/b', isDir: true }, 0));
+    mockTwoLevelWorkspace();
+
+    await expandAllFolders();
+
+    const folders = root.querySelectorAll<HTMLElement>('.tree-folder');
+    folders.forEach(folder => expect(folderIsFolded(folder)).toBe(false));
+    expect(document.querySelector('[data-path="/ws/a/x.md"]')).not.toBeNull();
+    expect(document.querySelector('[data-path="/ws/b/sub/y.md"]')).not.toBeNull();
+    expect(store.getState().expandedPaths).toEqual(['/ws/a', '/ws/b', '/ws/b/sub']);
+  });
+
+  it('expandAllFolders stops loading beyond the auto-load depth cap', async () => {
+    const root = document.getElementById('file-tree')!;
+    root.appendChild(createTreeNode({ name: 'a', path: '/ws/a', isDir: true }, 0));
+    root.appendChild(createTreeNode({ name: 'b', path: '/ws/b', isDir: true }, 0));
+    mockTwoLevelWorkspace();
+    store.setState({ settings: { ...store.getState().settings, fileTreeAutoLoadDepth: 1 } });
+
+    await expandAllFolders();
+
+    expect(document.querySelector('[data-path="/ws/a/x.md"]')).not.toBeNull();
+    expect(folderIsFolded(document.querySelector<HTMLElement>('[data-path="/ws/b/sub"]')!)).toBe(true);
+    expect(mocks.readDirPage).not.toHaveBeenCalledWith('/ws/b/sub', expect.anything());
+    expect(store.getState().expandedPaths).toEqual(['/ws/a', '/ws/b']);
+  });
+
+  it('expand and collapse cycle back to a fully folded tree', async () => {
+    const root = document.getElementById('file-tree')!;
+    root.appendChild(createTreeNode({ name: 'b', path: '/ws/b', isDir: true }, 0));
+    mockTwoLevelWorkspace();
+
+    await expandAllFolders();
+    expect(store.getState().expandedPaths).toEqual(['/ws/b', '/ws/b/sub']);
+
+    await collapseAllFolders();
+    root.querySelectorAll<HTMLElement>('.tree-folder').forEach(folder => {
+      expect(folderIsFolded(folder)).toBe(true);
+    });
+    expect(store.getState().expandedPaths).toEqual([]);
   });
 });
 

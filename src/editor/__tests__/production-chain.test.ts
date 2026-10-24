@@ -12,7 +12,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { OpaqueNode } from '../markdown/opaque/extension';
 import { admitOpaque, reconcileSave } from '../markdown/opaque/integration';
@@ -70,8 +70,8 @@ function makeEditor() {
       BlockImage.configure({ allowBase64: true }),
       mermaidCodeBlockExtension(),
       OpaqueNode,
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
 }
 

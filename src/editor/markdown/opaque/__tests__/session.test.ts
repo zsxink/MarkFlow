@@ -15,6 +15,7 @@ import {
 } from '../session';
 import { restoreOpaque } from '../bridge';
 import { createMarkdownExtension } from '../../../init';
+import { MathBlock } from '../../../extensions';
 
 /**
  * Task 7.6 — opaque registry lifecycle cleanup.
@@ -37,8 +38,8 @@ describe('opaque registry lifecycle (7.6)', () => {
         StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
         SafeHardBreak, SafeParagraph,
         OpaqueNode,
-        createMarkdownExtension(),
-      ],
+        MathBlock,
+        createMarkdownExtension(),      ],
       onDestroy: () => endOpaqueSession(),
     });
   }

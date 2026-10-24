@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { RawMarkdown } from '../markdown/fallback';
 import { OpaqueNode } from '../markdown/opaque/extension';
@@ -36,7 +36,7 @@ describe('raw markdown nodeview direct edit + upgrade', () => {
         MarkdownSafeTable.configure({ resizable: true }), TableRow, TableCell, TableHeader,
         CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
         BlockImage.configure({ allowBase64: true }), mermaidCodeBlockExtension(), OpaqueNode,
-        RawMarkdown, createMarkdownExtension(),
+        RawMarkdown, MathBlock, createMarkdownExtension(),
       ],
     });
   }

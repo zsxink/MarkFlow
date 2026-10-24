@@ -26,6 +26,7 @@ import {
   MarkdownSafeTable,
   SafeHardBreak,
   SafeParagraph,
+  MathBlock,
   mermaidCodeBlockExtension,
 } from './extensions';
 import { RawMarkdown } from './markdown/fallback';
@@ -138,6 +139,7 @@ export async function initEditor() {
       }),
       complexityLimitExtension(),
       mermaidCodeBlockExtension(),
+      MathBlock,
       katexPlugin(),
       OpaqueNode,
       RawMarkdown,

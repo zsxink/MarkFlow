@@ -172,6 +172,43 @@ const CASES: Case[] = [
     reason: 'supported',
   },
   {
+    // Issue #417: block-formula LaTeX is not markdown — HTML-looking tokens
+    // inside a line-leading $$ block must not trip the inline-HTML rule.
+    name: 'math-block-contains-html-looking-latex',
+    source: '$$\n<div> \\not\\mdown </div>\n$$\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    // A fence opener inside the formula content is formula content too.
+    name: 'math-block-contains-fence-line',
+    source: '$$\n```\na &= b\n```\n$$\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    // Comment syntax inside the formula must not open an opaque span.
+    name: 'math-block-contains-comment-syntax',
+    source: '$$\n<!-- still latex --> x\n$$\n\n<!-- real comment -->\n',
+    verdict: 'eligible-with-opaque',
+    reason: 'opaque-covered',
+  },
+  {
+    // $$ at line start INSIDE a fence stays fenced-code content: the math scan
+    // runs on the code-masked source so it never lifts a pair out of a fence.
+    name: 'math-pair-inside-fence-stays-code',
+    source: '```\n$$\n<div>\n$$\n```\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    // Formula content must not vote in table-consistency detection either.
+    name: 'math-block-contains-table-pipes',
+    source: '$$\na &|& b\n| --- |\n$$\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
     name: 'unclosed-fence',
     source: '```ts\nconst a = 1;\n',
     verdict: 'source-only',

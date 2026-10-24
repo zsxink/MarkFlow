@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { MarkdownSafeTable, SafeHardBreak, SafeParagraph } from '..';
 import { createMarkdownExtension } from '../../init';
+import { MathBlock } from '..';
 import { buildTableMenuItems, resolveTableScope, setColumnAlign, showTableContextMenu, TABLE_ALIGN_LABELS } from '../../../ui/table-context-menu';
 import { CellSelection, TableMap } from '@tiptap/pm/tables';
 
@@ -45,8 +46,8 @@ function makeEditor() {
       TableRow,
       TableCell,
       TableHeader,
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
   // 供 `showTableContextMenu` 的 posAtDOM 命中测试使用；真实 editor 本就挂载在文档流。
   (editor as any).__host = host;

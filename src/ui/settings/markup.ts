@@ -1,6 +1,7 @@
 // ── Settings panel markup ─────────────────────────────────────────────
 // The static HTML for the settings modal. Kept apart from the panel logic so
 // the markup can be diffed without wading through event wiring.
+import { shortcutLabel } from '../shortcut-hints';
 
 export function createSettingsContent(): string {
   return `
@@ -290,20 +291,20 @@ export function createSettingsContent(): string {
             <div class="settings-group">
               <div class="settings-group-title">格式化</div>
               <div class="shortcuts-grid">
-                <div class="shortcut-row"><span>粗体</span><span class="shortcut-key">Ctrl+B</span></div>
-                <div class="shortcut-row"><span>斜体</span><span class="shortcut-key">Ctrl+I</span></div>
-                <div class="shortcut-row"><span>删除线</span><span class="shortcut-key">Ctrl+Shift+S</span></div>
-                <div class="shortcut-row"><span>行内代码</span><span class="shortcut-key">Ctrl+&#96;</span></div>
-                <div class="shortcut-row"><span>链接</span><span class="shortcut-key">Ctrl+K</span></div>
-                <div class="shortcut-row"><span>保存</span><span class="shortcut-key">Ctrl+S</span></div>
+                <div class="shortcut-row"><span>粗体</span><span class="shortcut-key">${shortcutLabel('Mod+B')}</span></div>
+                <div class="shortcut-row"><span>斜体</span><span class="shortcut-key">${shortcutLabel('Mod+I')}</span></div>
+                <div class="shortcut-row"><span>删除线</span><span class="shortcut-key">${shortcutLabel('Shift+Mod+S')}</span></div>
+                <div class="shortcut-row"><span>行内代码</span><span class="shortcut-key">${shortcutLabel('Mod+`')}</span></div>
+                <div class="shortcut-row"><span>链接</span><span class="shortcut-key">${shortcutLabel('Mod+K')}</span></div>
+                <div class="shortcut-row"><span>保存</span><span class="shortcut-key">${shortcutLabel('Mod+S')}</span></div>
               </div>
             </div>
             <div class="settings-group">
               <div class="settings-group-title">视图</div>
               <div class="shortcuts-grid">
-                <div class="shortcut-row"><span>切换侧边栏</span><span class="shortcut-key">Ctrl+\\</span></div>
-                <div class="shortcut-row"><span>专注模式</span><span class="shortcut-key">Ctrl+Shift+F</span></div>
-                <div class="shortcut-row"><span>源码模式</span><span class="shortcut-key">Ctrl+/</span></div>
+                <div class="shortcut-row"><span>切换侧边栏</span><span class="shortcut-key">${shortcutLabel('Mod+\\')}</span></div>
+                <div class="shortcut-row"><span>专注模式</span><span class="shortcut-key">${shortcutLabel('Shift+Mod+F')}</span></div>
+                <div class="shortcut-row"><span>源码模式</span><span class="shortcut-key">${shortcutLabel('Mod+/')}</span></div>
               </div>
             </div>
             <div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">

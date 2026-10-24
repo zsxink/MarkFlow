@@ -37,7 +37,11 @@ pub fn update_menu_state(
 /// focused window's frontend dispatcher (the only Rust-side action is opening
 /// devtools).
 pub fn dispatch(app: &AppHandle, id: &str) {
-    tracing::debug!(target: "backend.menu", action = %id, "Native menu action");
+    // Info, not debug: release builds only keep info and above, and whether a
+    // menu activation arrived at all is the first question when a shortcut is
+    // reported dead (issue #410 could not be settled from debug-only logs).
+    // One line per user activation is cheap next to the frontend event log.
+    tracing::info!(target: "backend.menu", action = %id, "Native menu action");
     let Some(window) = target_window(app) else {
         tracing::warn!(target: "backend.menu", action = %id, "No window to dispatch the menu action to");
         return;

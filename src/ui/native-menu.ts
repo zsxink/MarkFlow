@@ -149,7 +149,10 @@ const actionHandlers: Record<string, MenuHandler> = {
   'open-file': openMarkdownFile,
   'open-folder': openWorkspaceFolder,
   'close-workspace': closeWorkspaceFolder,
-  save: () => saveActiveDocument(),
+  // Save needs a document: without one the command would offer to write the
+  // empty editor as a new file. The menu item is disabled in that state, but
+  // the DOM shortcut fallback bypasses the menu's enabled flag.
+  save: () => (getActiveTabId() ? saveActiveDocument() : undefined),
   'save-as': () => saveActiveDocumentAsNewFile(),
   'export-html': () => exportCurrentDocument('html'),
   'export-pdf': () => exportCurrentDocument('pdf'),
@@ -228,17 +231,77 @@ function isModalOpen(): boolean {
 }
 
 /**
+ * Window in which the two entry points are assumed to report the same physical
+ * key press: the native accelerator (`menu:action` event) and the DOM fallback
+ * in `src/utils/keyboard.ts`.
+ *
+ * Only a *cross-origin* repeat is de-duplicated — a user pressing the same
+ * chord twice, or clicking the menu item twice, must always run twice. The
+ * window only has to cover an IPC round-trip, so it stays far below a
+ * deliberate double press.
+ *
+ * Known failure mode: if one press reaches the two entry points further apart
+ * than this window (a stalled main thread queueing the IPC event), the command
+ * runs twice. Toggle commands would then look like "nothing happened", which is
+ * why the window is generous rather than tight; widening it further trades that
+ * risk for swallowing two genuine presses in different windows.
+ */
+const SAME_PRESS_WINDOW_MS = 120;
+
+/** Where a dispatch came from: the native menu, or the DOM shortcut fallback. */
+export type DispatchOrigin = 'native' | 'shortcut';
+
+/** Pruned past this size; `recent-file:<path>` keys are unbounded over time. */
+const MAX_TRACKED_ACTIONS = 128;
+
+const lastDispatch = new Map<string, { origin: DispatchOrigin; at: number }>();
+
+/**
+ * Claim one dispatch of `action`; false when the other entry point already ran
+ * the same physical press.
+ *
+ * Only the winning dispatch writes the record. A rejected duplicate must not
+ * move the window forward, otherwise a run of duplicates keeps re-arming it and
+ * the next genuine press of the same chord is swallowed too.
+ */
+function claimDispatch(action: string, origin: DispatchOrigin): boolean {
+  const now = performance.now();
+  const previous = lastDispatch.get(action);
+  if (previous && previous.origin !== origin && now - previous.at < SAME_PRESS_WINDOW_MS) {
+    return false;
+  }
+  if (lastDispatch.size >= MAX_TRACKED_ACTIONS && !lastDispatch.has(action)) {
+    for (const [key, entry] of lastDispatch) {
+      if (now - entry.at >= SAME_PRESS_WINDOW_MS) lastDispatch.delete(key);
+    }
+  }
+  lastDispatch.set(action, { origin, at: now });
+  return true;
+}
+
+/** @visibleForTesting — forget the de-duplication window between tests. */
+export function resetNativeMenuDispatchCache(): void {
+  lastDispatch.clear();
+}
+
+/**
  * Dispatch one native menu action id.
  * Returns `true` when the id is recognised (including recent-history ids and
  * ids that were suppressed because a modal is open).
  */
-export async function dispatchNativeMenuAction(action: string): Promise<boolean> {
+export async function dispatchNativeMenuAction(
+  action: string,
+  origin: DispatchOrigin = 'native',
+): Promise<boolean> {
   const recentFile = action.startsWith('recent-file:');
   const recentFolder = action.startsWith('recent-folder:');
   const handler = actionHandlers[action];
   if (!handler && !recentFile && !recentFolder) return false;
 
   if (isModalOpen() && !MODAL_SAFE_ACTIONS.has(action)) return true;
+
+  // Menu accelerator and DOM fallback may both fire for one key press.
+  if (!claimDispatch(action, origin)) return true;
 
   try {
     if (recentFile) await openFileInEditor(action.slice('recent-file:'.length));

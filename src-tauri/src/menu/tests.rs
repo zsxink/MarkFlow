@@ -380,11 +380,7 @@ fn labels_are_chinese() {
 fn enablement_follows_reported_state() {
     let empty = MenuState::default();
     assert!(enabled_for(Requires::Always, &empty));
-    for requires in [
-        Requires::Workspace,
-        Requires::Document,
-        Requires::WorkspaceAndDocument,
-    ] {
+    for requires in [Requires::Workspace, Requires::Document] {
         assert!(!enabled_for(requires, &empty));
     }
     // 开发者工具 only exists in debug builds; a release build must show it
@@ -409,10 +405,6 @@ fn enablement_follows_reported_state() {
     };
     assert!(enabled_for(Requires::Workspace, &workspace_only));
     assert!(!enabled_for(Requires::Document, &workspace_only));
-    assert!(!enabled_for(
-        Requires::WorkspaceAndDocument,
-        &workspace_only
-    ));
 
     let document_only = MenuState {
         has_document: true,
@@ -420,14 +412,15 @@ fn enablement_follows_reported_state() {
     };
     assert!(!enabled_for(Requires::Workspace, &document_only));
     assert!(enabled_for(Requires::Document, &document_only));
-    assert!(!enabled_for(Requires::WorkspaceAndDocument, &document_only));
 
     let full = MenuState {
         has_workspace: true,
         has_document: true,
         ..MenuState::default()
     };
-    assert!(enabled_for(Requires::WorkspaceAndDocument, &full));
+    // 一个工作区打开着文档时，工作区级与文档级都可用。
+    assert!(enabled_for(Requires::Workspace, &full));
+    assert!(enabled_for(Requires::Document, &full));
 }
 
 #[test]
@@ -450,11 +443,13 @@ fn workspace_document_and_recent_requirements_match_the_spec() {
             .find(|(candidate, _)| *candidate == id)
             .map(|(_, requires)| *requires)
     };
-    // No workspace -> new file/folder and close-workspace disabled.
-    assert_eq!(requires("new-file"), Some(Requires::Workspace));
+    // No workspace -> new folder and close-workspace disabled. Creating a file
+    // is workspace-independent: the dialog falls back to the system save panel.
+    assert_eq!(requires("new-file"), Some(Requires::Always));
     assert_eq!(requires("new-folder"), Some(Requires::Workspace));
     assert_eq!(requires("close-workspace"), Some(Requires::Workspace));
-    // No workspace and no document -> save / save-as / export disabled.
+    // Saving needs an open document only: without a workspace path the save
+    // dialog asks where to write, so a workspace is not a prerequisite.
     for id in [
         "save",
         "save-as",
@@ -462,7 +457,7 @@ fn workspace_document_and_recent_requirements_match_the_spec() {
         "export-pdf",
         "export-word",
     ] {
-        assert_eq!(requires(id), Some(Requires::WorkspaceAndDocument), "{id}");
+        assert_eq!(requires(id), Some(Requires::Document), "{id}");
     }
     // No document -> format, insert and close tab disabled.
     for id in [

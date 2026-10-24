@@ -6,6 +6,7 @@ import { showLinkDialog } from './link-dialog';
 import { showImageInsertDialog } from './toolbar';
 import { showToast } from './toast';
 import { showContextMenuStatic } from './context-menu';
+import { shortcutLabel } from './shortcut-hints';
 import type { ContextMenuItem } from './context-menu';
 
 type TextControl = HTMLInputElement | HTMLTextAreaElement;
@@ -62,12 +63,12 @@ function buildTextControlItems(control: TextControl): ContextMenuItem[] {
   const hasSelection = control.selectionStart !== control.selectionEnd;
   const editable = !control.readOnly;
   return [
-    { label: '剪切', shortcut: formatShortcut('⌘X'), disabled: !editable || !hasSelection, onClick: () => writeControlSelection(control, true) },
-    { label: '复制', shortcut: formatShortcut('⌘C'), disabled: !hasSelection, onClick: () => writeControlSelection(control, false) },
-    { label: '粘贴', shortcut: formatShortcut('⌘V'), disabled: !editable, onClick: () => pasteIntoControl(control) },
+    { label: '剪切', shortcut: shortcutLabel('Mod+X'), disabled: !editable || !hasSelection, onClick: () => writeControlSelection(control, true) },
+    { label: '复制', shortcut: shortcutLabel('Mod+C'), disabled: !hasSelection, onClick: () => writeControlSelection(control, false) },
+    { label: '粘贴', shortcut: shortcutLabel('Mod+V'), disabled: !editable, onClick: () => pasteIntoControl(control) },
     { label: '以纯文本形式粘贴', disabled: !editable, onClick: () => pasteIntoControl(control) },
     { divider: true },
-    { label: '全选', shortcut: formatShortcut('⌘A'), onClick: () => control.select() },
+    { label: '全选', shortcut: shortcutLabel('Mod+A'), onClick: () => control.select() },
   ];
 }
 
@@ -75,8 +76,8 @@ function buildEditorItems(): ContextMenuItem[] {
   const selection = getSelectionText();
   const editable = !store.getState().readOnly;
   const textFormat: ContextMenuItem[] = [
-    { label: '粗体', shortcut: '⌘B', disabled: !editable, onClick: () => formatText('bold') },
-    { label: '斜体', shortcut: '⌘I', disabled: !editable, onClick: () => formatText('italic') },
+    { label: '粗体', shortcut: shortcutLabel('Mod+B'), disabled: !editable, onClick: () => formatText('bold') },
+    { label: '斜体', shortcut: shortcutLabel('Mod+I'), disabled: !editable, onClick: () => formatText('italic') },
     { label: '删除线', disabled: !editable, onClick: () => formatText('strike') },
     { label: '行内代码', disabled: !editable, onClick: () => formatText('code') },
   ];
@@ -102,17 +103,12 @@ function buildEditorItems(): ContextMenuItem[] {
     { label: '段落设置', disabled: !editable, submenu: paragraphs },
     { label: '插入', disabled: !editable, submenu: insert },
     { divider: true },
-    { label: '剪切', shortcut: formatShortcut('⌘X'), disabled: !editable || !selection, onClick: () => writeEditorSelection(true) },
-    { label: '复制', shortcut: formatShortcut('⌘C'), disabled: !selection, onClick: () => writeEditorSelection(false) },
-    { label: '粘贴', shortcut: formatShortcut('⌘V'), disabled: !editable, onClick: () => pasteIntoEditor(false) },
+    { label: '剪切', shortcut: shortcutLabel('Mod+X'), disabled: !editable || !selection, onClick: () => writeEditorSelection(true) },
+    { label: '复制', shortcut: shortcutLabel('Mod+C'), disabled: !selection, onClick: () => writeEditorSelection(false) },
+    { label: '粘贴', shortcut: shortcutLabel('Mod+V'), disabled: !editable, onClick: () => pasteIntoEditor(false) },
     { label: '以纯文本形式粘贴', disabled: !editable, onClick: () => pasteIntoEditor(true) },
-    { label: '全选', shortcut: formatShortcut('⌘A'), onClick: selectAll },
+    { label: '全选', shortcut: shortcutLabel('Mod+A'), onClick: selectAll },
   ];
-}
-
-function formatShortcut(macShortcut: string): string {
-  if (/Mac|iPhone|iPad/.test(navigator.platform)) return macShortcut;
-  return macShortcut.replace('⌘', 'Ctrl+');
 }
 
 function getSelectionText(): string {

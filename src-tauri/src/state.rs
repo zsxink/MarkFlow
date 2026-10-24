@@ -1,4 +1,5 @@
 use crate::commands::settings::load_settings_inner;
+use crate::config::settings::Settings;
 use crate::error::{lock_mutex, AppError};
 use crate::fs::ignore::matcher_snapshot;
 use crate::fs::watcher::{FileChangeEvent, FileWatcher};
@@ -187,6 +188,35 @@ impl AppState {
             .and_then(|guard| guard.clone())
     }
 
+    /// Close the current workspace: stop the watcher and drop the session
+    /// root. The persisted `last_workspace` is cleared by the `clear_workspace`
+    /// command before this runs, so a failed settings write never leaves the
+    /// session half-closed (spec: workspace-close).
+    pub fn clear_workspace(&self) {
+        {
+            let mut watcher = match lock_mutex(&self.watcher) {
+                Ok(g) => g,
+                Err(e) => {
+                    warn!(target: "backend.watcher", error = %e, "Cannot stop watcher on workspace close: lock poisoned");
+                    return;
+                }
+            };
+            if let Some(mut active) = watcher.take() {
+                active.stop();
+                debug!(target: "backend.watcher", "Stopped workspace watcher on workspace close");
+            }
+        }
+
+        match lock_mutex(&self.workspace_root) {
+            Ok(mut root) => {
+                *root = None;
+            }
+            Err(e) => {
+                warn!(target: "backend.watcher", error = %e, "Cannot clear workspace root: lock poisoned");
+            }
+        }
+    }
+
     /// Stop all background tasks (watcher) so the process can exit cleanly.
     /// Safe to call multiple times.
     pub fn stop_all(&self) {
@@ -202,6 +232,16 @@ impl AppState {
             debug!(target: "backend.lifecycle", "Stopped workspace watcher on shutdown");
         }
     }
+}
+
+/// The settings to persist when a workspace is closed: `last_workspace` is
+/// removed so the next start does not restore the closed workspace (spec:
+/// workspace-close). Kept as a pure transform so tests can assert the
+/// persisted payload without writing the developer's real settings file.
+pub fn settings_without_last_workspace(current: &Settings) -> Settings {
+    let mut next = current.clone();
+    next.last_workspace = None;
+    next
 }
 
 #[cfg(test)]

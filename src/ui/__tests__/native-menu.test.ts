@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   setWorkspacePath: vi.fn(),
   refreshFileTree: vi.fn(),
   getWorkspacePath: vi.fn<() => string | null>(() => null),
+  closeWorkspaceFolder: vi.fn(),
   showNewFileDialog: vi.fn(),
   showLinkDialog: vi.fn(),
   showImageInsertDialog: vi.fn(),
@@ -67,6 +68,7 @@ vi.mock('../../infra/store', () => ({ store: { on: vi.fn() } }));
 vi.mock('../../infra/logger', () => ({ logException: mocks.logException }));
 vi.mock('../file-tree/index', () => ({
   getWorkspacePath: mocks.getWorkspacePath,
+  closeWorkspaceFolder: mocks.closeWorkspaceFolder,
 }));
 vi.mock('../sidebar/index', () => ({
   openFileInEditor: mocks.openFile,
@@ -286,6 +288,12 @@ describe('native menu dispatcher: open dialogs and editor commands', () => {
     expect(mocks.openWorkspaceFolderFlow).toHaveBeenCalledOnce();
   });
 
+  it('closes the workspace through the shared file-tree close flow', async () => {
+    mocks.closeWorkspaceFolder.mockResolvedValue(undefined);
+    await dispatchNativeMenuAction('close-workspace');
+    expect(mocks.closeWorkspaceFolder).toHaveBeenCalledOnce();
+  });
+
   it('ignores cancelled dialogs', async () => {
     mocks.dialogOpen.mockResolvedValue(null);
     await dispatchNativeMenuAction('open-file');
@@ -447,7 +455,7 @@ describe('native menu dispatcher: issue #362 action coverage', () => {
     mocks.confirmAll.mockResolvedValue(false);
     const implemented = [
       // 文件
-      'new-file', 'new-tab', 'new-folder', 'open-file', 'open-folder', 'save', 'save-as',
+      'new-file', 'new-tab', 'new-folder', 'open-file', 'open-folder', 'close-workspace', 'save', 'save-as',
       'export-html', 'export-pdf', 'export-word', 'clear-history', 'close-tab', 'close-window',
       'settings', 'quit',
       // 插入

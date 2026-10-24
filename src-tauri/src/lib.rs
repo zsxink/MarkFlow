@@ -351,6 +351,22 @@ fn get_workspace(state: tauri::State<AppState>) -> Result<Option<String>, AppErr
     Ok(state.get_workspace().map(|p| normalize_path(&p)))
 }
 
+#[tauri::command]
+fn clear_workspace(state: tauri::State<AppState>) -> Result<(), AppError> {
+    tracing::info!(target: "backend.workspace", "Closing workspace");
+
+    // Persist first: a failed settings write must leave the watcher and the
+    // session root untouched so the frontend keeps its workspace (failure
+    // symmetry with `set_workspace`, spec: workspace-close).
+    let closed = state::settings_without_last_workspace(&settings::load_settings_inner());
+    settings::save_settings_inner(&closed)?;
+
+    state.clear_workspace();
+
+    tracing::info!(target: "backend.workspace", "Workspace closed");
+    Ok(())
+}
+
 pub fn run() {
     if let Err(error) = logger::init_logging() {
         eprintln!("Failed to initialize logger: {}", error);
@@ -447,6 +463,7 @@ pub fn run() {
             clear_recent_history,
             set_workspace,
             get_workspace,
+            clear_workspace,
             menu::dispatch::update_menu_state,
             logger::get_log_dir,
             quit_app,

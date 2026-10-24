@@ -107,6 +107,7 @@ fn action_ids_are_unique_and_stable() {
             "new-folder",
             "open-file",
             "open-folder",
+            "close-workspace",
             "save",
             "save-as",
             "export-html",
@@ -315,6 +316,7 @@ fn labels_are_chinese() {
         "新建文件夹",
         "打开文件…",
         "打开文件夹…",
+        "关闭工作区",
         "保存",
         "另存为…",
         "最近打开的文件",
@@ -448,9 +450,10 @@ fn workspace_document_and_recent_requirements_match_the_spec() {
             .find(|(candidate, _)| *candidate == id)
             .map(|(_, requires)| *requires)
     };
-    // No workspace -> new file/folder disabled.
+    // No workspace -> new file/folder and close-workspace disabled.
     assert_eq!(requires("new-file"), Some(Requires::Workspace));
     assert_eq!(requires("new-folder"), Some(Requires::Workspace));
+    assert_eq!(requires("close-workspace"), Some(Requires::Workspace));
     // No workspace and no document -> save / save-as / export disabled.
     for id in [
         "save",

@@ -1,5 +1,5 @@
 import { deletePath, copyFile, readSingleDir } from '../infra/storage';
-import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree } from './file-tree/index';
+import { getWorkspacePath, removeEntryFromTree, insertEntryIntoTree, startInlineRename, startInlineCreate, setWorkspacePath, refreshFileTree, closeWorkspaceFolder } from './file-tree/index';
 import { showToast } from './toast';
 import { classifyError, reportUserActionError } from '../infra/error';
 import { getFileName, getParentDir } from '../utils/paths';
@@ -35,6 +35,7 @@ export function showContextMenu(x: number, y: number, path: string | null, type:
     if (workspacePath) {
       menuItems.push({ divider: true });
       menuItems.push({ label: '复制工作区路径', onClick: () => handleContextAction('copy-workspace', path, type) });
+      menuItems.push({ label: '关闭工作区', onClick: () => handleContextAction('close-workspace', path, type) });
     } else {
       menuItems.push({ label: '打开文件夹', onClick: () => handleContextAction('open-folder', path, type) });
       menuItems.push({ label: '打开文件', onClick: () => handleContextAction('open-file', path, type) });
@@ -152,6 +153,10 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
               await refreshFileTree();
           showToast('文件夹已打开');
         }
+        break;
+      }
+      case 'close-workspace': {
+        await closeWorkspaceFolder();
         break;
       }
       case 'open-file': {

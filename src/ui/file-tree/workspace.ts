@@ -3,11 +3,17 @@
 // list. Both are read by the loader, the renderer and the event applier, so
 // they live below them.
 
-import { setWorkspace as setWorkspaceIPC, addRecentFolder } from '../../infra/storage';
+import {
+  setWorkspace as setWorkspaceIPC,
+  clearWorkspace as clearWorkspaceIPC,
+  addRecentFolder,
+} from '../../infra/storage';
 import { logException, logInfo } from '../../infra/logger';
 import { store } from '../../infra/store';
 import { normalizeWorkspacePath } from '../../utils/paths';
-import { suppressPaths, SUPPRESS_DURATION_MS } from './context';
+import { setTreeState, suppressPaths, SUPPRESS_DURATION_MS } from './context';
+import { createFileTreeState } from './state';
+import { showToast } from '../toast';
 
 export function getWorkspacePath() {
   return store.getState().workspacePath;
@@ -30,7 +36,38 @@ export async function setWorkspacePath(path: string | null) {
     }
     return;
   }
-  store.setState({ workspacePath: null });
+  // Closing must also stop the backend watcher and drop the persisted
+  // last_workspace; on failure the state stays put so both sides cannot
+  // disagree about whether a workspace is open (mirrors the path branch).
+  try {
+    await clearWorkspaceIPC();
+    store.setState({ workspacePath: null });
+    logInfo('file-tree.workspace', 'Workspace closed');
+  } catch (e) {
+    logException('file-tree.workspace', 'Failed to clear workspace', e);
+  }
+}
+
+/** Restore the pristine "请先打开文件夹" DOM and an empty tree model. */
+export function resetFileTreeToEmptyState() {
+  const container = document.getElementById('file-tree');
+  if (container) container.innerHTML = '<div class="empty-state">请先打开文件夹</div>';
+  setTreeState(createFileTreeState());
+}
+
+/**
+ * Close the current workspace folder: clear backend + frontend workspace
+ * state, then reset the tree to its empty state. Open document tabs are
+ * deliberately untouched (spec: workspace-close).
+ */
+export async function closeWorkspaceFolder() {
+  await setWorkspacePath(null);
+  // setWorkspacePath logs and swallows backend failures; resetting the tree on
+  // top of a workspace that is still open would strand the user (guard
+  // philosophy shared with activateWorkspaceFolder).
+  if (getWorkspacePath()) return;
+  resetFileTreeToEmptyState();
+  showToast('工作区已关闭');
 }
 
 export function suppressNextWatcherRefresh(path: string) {

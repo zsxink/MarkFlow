@@ -74,12 +74,20 @@ export type EligibilityReason =
   | 'too-large'
   | 'manual';
 
+/** Measured document size, reported with `too-large` admission results. */
+export interface AdmissionSize {
+  bytes: number;
+  lines: number;
+}
+
 /** Bounded, content-free admission result. */
 export interface EligibilityResult {
   verdict: Eligibility;
   reason: EligibilityReason;
   /** Category of the first blocking construct, when known. */
   category?: string;
+  /** Measured size, attached to `too-large` verdicts for user-facing notices. */
+  size?: AdmissionSize;
 }
 
 /** Category of an opaque span (the initial allowlist, design Decision 4). */

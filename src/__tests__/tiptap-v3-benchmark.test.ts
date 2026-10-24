@@ -105,7 +105,8 @@ const LINES: Record<string, number> = { small: 3, medium: 400, large: 2800 };
  * The measured latency remains diagnostic evidence, not a parallel-worker
  * correctness assertion. CI wall-clock time includes unrelated workers and
  * cannot safely decide whether document bytes may be edited. The deterministic
- * 54KiB/2,500-line admission classifier is the enforceable protection.
+ * admission-size classifier (256KiB / 10k lines since issue #395, raised from
+ * the stage-one 54KiB/2,500-line bound) is the enforceable protection.
  *
  * Gate rule — the real per-open cost:
  *   - In the app the Editor is constructed once at startup; each file-open only
@@ -163,7 +164,7 @@ describe('stage-one performance gate (5.8) — tiered v3 engine vs v2 baseline',
     editor.destroy();
   });
 
-  it('records large-tier parse latency as source-only threshold evidence (stage-one, not a WYSIWYG gate)', () => {
+  it('records large-tier parse latency as admission-threshold evidence (stage-one, not a WYSIWYG gate)', () => {
     const editor = createAppEditor();
     editor.commands.setContent(documents.small, { contentType: 'markdown' } as never); // warm up
     const { parseMedianMs } = measureRoundTrip(editor, documents.large, 5);
@@ -171,8 +172,12 @@ describe('stage-one performance gate (5.8) — tiered v3 engine vs v2 baseline',
     // eslint-disable-next-line no-console
     console.log(`5.8 large (large tier): parse-median=${parseMedianMs.toFixed(1)}ms budget-degraded-to-source-only`);
     expect(Number.isFinite(parseMedianMs)).toBe(true);
-    // This is the non-flaky correctness gate: even if a loaded runner makes
-    // the microbenchmark slower, this known dense fixture cannot enter WYS.
-    expect(classifyEligibility(documents.large)).toMatchObject({ verdict: 'source-only', reason: 'too-large' });
+    // Since issue #395 the deterministic admission bound is 256KiB / 10k lines,
+    // so the historical dense ~54KB fixture is no longer blanket source-only:
+    // its safety rests on the per-document round-trip verification plus the
+    // runtime complexity caps (10k nodes / 500KB text).
+    expect(classifyEligibility(documents.large)).toMatchObject({ verdict: 'eligible' });
+    // Truly oversized documents are still routed to Source deterministically.
+    expect(classifyEligibility(documents.large.repeat(6))).toMatchObject({ verdict: 'source-only', reason: 'too-large' });
   });
 });

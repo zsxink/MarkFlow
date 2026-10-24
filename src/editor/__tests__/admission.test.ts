@@ -6,8 +6,8 @@ import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from '../markdown/adapter';
-import { decideAdmission, verifyAdmission } from '../markdown/admission';
-import { classifyEligibility } from '../markdown/eligibility';
+import { decideAdmission, verifyAdmission, admissionReasonLabel } from '../markdown/admission';
+import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from '../markdown/eligibility';
 import { RawMarkdown } from '../markdown/fallback';
 import { OpaqueNode } from '../markdown/opaque/extension';
 import { endOpaqueSession } from '../markdown/opaque/session';
@@ -216,5 +216,42 @@ describe('admission verification (6.4)', () => {
         if (serialized.ok) expect(serialized.markdown, `${JSON.stringify(src)} output`).toBe(expectedOutput);
       }
     }
+  });
+
+  // issue #395: undefined adjacent brackets (`[S1][S2]` traceability markers)
+  // are literal text per CommonMark — classification must admit them and the
+  // round-trip verification proves the losslessness (escapes added by the
+  // serializer re-parse to the same literal text).
+  it('admits PRD-style traceability markers without reference definitions', () => {
+    const src = [
+      '# 需求文档',
+      '',
+      '需求 A [S1][S2] 关联，[S3][S4] 与单标记 [S5] 并存。',
+      '',
+      '资料来源：`https://example.com/source`。',
+      '',
+    ].join('\n');
+    expect(classifyEligibility(src)).toEqual({ verdict: 'eligible', reason: 'supported' });
+    expect(verifyAdmission(editor, src)).toEqual({ ok: true });
+    expect(decideAdmission(editor, src)).toMatchObject({
+      mode: 'reconcile', verdict: 'eligible', reason: 'supported',
+    });
+  });
+
+  it('reports the measured size with the too-large admission decision', () => {
+    const oversized = 'a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES);
+    expect(decideAdmission(editor, oversized)).toMatchObject({
+      mode: 'source-only',
+      reason: 'too-large',
+      size: { bytes: WYSIWYG_MAX_ADMISSION_BYTES, lines: 1 },
+    });
+  });
+
+  it('names the exceeded limit in the too-large notice', () => {
+    expect(admissionReasonLabel('too-large', { bytes: 300 * 1024, lines: 500 }))
+      .toBe('文档过大（300KB，超过所见即所得准入上限 256KB）');
+    expect(admissionReasonLabel('too-large', { bytes: 1024, lines: WYSIWYG_MAX_ADMISSION_LINES + 1 }))
+      .toBe(`文档过大（${WYSIWYG_MAX_ADMISSION_LINES + 1} 行，超过所见即所得准入上限 ${WYSIWYG_MAX_ADMISSION_LINES} 行）`);
+    expect(admissionReasonLabel('too-large')).toBe('文档过大');
   });
 });

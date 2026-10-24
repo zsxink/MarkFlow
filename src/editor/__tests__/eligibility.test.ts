@@ -66,10 +66,24 @@ const CASES: Case[] = [
     reason: 'unknown-construct',
   },
   {
-    name: 'reference-link-use',
+    // No `[ref]: url` definition exists anywhere, so per CommonMark this is
+    // literal text (issue #395: traceability markers must not be misjudged).
+    name: 'reference-link-use-without-definition',
     source: '[text][ref]\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    name: 'reference-link-use-with-definition',
+    source: 'see [text][ref] here\n\n[ref]: /some/url\n',
     verdict: 'source-only',
     reason: 'unknown-construct',
+  },
+  {
+    name: 'traceability-adjacent-brackets',
+    source: '需求 A [S1][S2] 关联，[S3][S4] 与单标记 [S5] 并存。\n',
+    verdict: 'eligible',
+    reason: 'supported',
   },
   {
     name: 'footnote',
@@ -178,5 +192,16 @@ describe('eligibility classifier (6.2)', () => {
     expect(classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES - 1)).verdict).toBe('eligible');
     expect(classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES)).reason).toBe('too-large');
     expect(classifyEligibility(Array.from({ length: WYSIWYG_MAX_ADMISSION_LINES + 1 }, () => 'a').join('\n')).reason).toBe('too-large');
+  });
+
+  it('reports the measured size on too-large verdicts for actionable notices', () => {
+    const byBytes = classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES));
+    expect(byBytes.size).toEqual({ bytes: WYSIWYG_MAX_ADMISSION_BYTES, lines: 1 });
+
+    const byLines = Array.from({ length: WYSIWYG_MAX_ADMISSION_LINES + 1 }, () => 'a').join('\n');
+    expect(classifyEligibility(byLines).size).toEqual({
+      bytes: byLines.length,
+      lines: WYSIWYG_MAX_ADMISSION_LINES + 1,
+    });
   });
 });

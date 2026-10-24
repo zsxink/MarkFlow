@@ -15,8 +15,10 @@
 //   - YAML front matter at the start of the file
 //   - complete block HTML
 //   - complete HTML comments
-// Reference-style links, footnotes and inline HTML are `source-only` because
-// their meaning can cross span boundaries. Math delimiters (`$..$` / `$$..$$`)
+// Reference-style link DEFINITIONS, footnotes and inline HTML are
+// `source-only` because their meaning can cross span boundaries; adjacent
+// brackets without any definition (e.g. `[S1][S2]` traceability markers) are
+// literal text per CommonMark and eligible. Math delimiters (`$..$` / `$$..$$`)
 // are now supported: they pass through the markdown pipeline as plain text and
 // are rendered by the KaTeX plugin (`editor.katex.ts`), so they are `eligible`.
 // Generic fenced code blocks are supported (not opaque).
@@ -31,11 +33,14 @@ import {
 
 export type { OpaqueSpan } from './opaque/index';
 
-// Stage-one measured the pathological fixture at ~54KB / 2,800 lines around
-// 380ms. Admission must be deterministic: do not use wall-clock timing, which
-// turns CI contention into a correctness decision.
-export const WYSIWYG_MAX_ADMISSION_BYTES = 54 * 1024;
-export const WYSIWYG_MAX_ADMISSION_LINES = 2_500;
+// Admission stays deterministic (never wall-clock) but the bound must cover
+// ordinary real-world documents: the stage-one 54KiB measurement rejected a
+// plain 74KB PRD outright. 256KiB / 10k lines matches the runtime guards
+// instead — per-document safety comes from the admission round-trip
+// verification, and oversized-but-admitted docs are capped by the complexity
+// limit extension (10k nodes / 500KB text).
+export const WYSIWYG_MAX_ADMISSION_BYTES = 256 * 1024;
+export const WYSIWYG_MAX_ADMISSION_LINES = 10_000;
 
 type ProtectedRange = Pick<CodeRegion, 'from' | 'to'>;
 
@@ -180,9 +185,15 @@ function hasInconsistentGfmTable(source: string): boolean {
  */
 export function classifyEligibility(source: string): EligibilityResult {
   const src = source.replace(/\r\n/g, '\n');
-  if (new TextEncoder().encode(src).byteLength >= WYSIWYG_MAX_ADMISSION_BYTES
-    || src.split('\n').length > WYSIWYG_MAX_ADMISSION_LINES) {
-    return { verdict: 'source-only', reason: 'too-large', category: 'admission-threshold' };
+  const bytes = new TextEncoder().encode(src).byteLength;
+  const lines = src.split('\n').length;
+  if (bytes >= WYSIWYG_MAX_ADMISSION_BYTES || lines > WYSIWYG_MAX_ADMISSION_LINES) {
+    return {
+      verdict: 'source-only',
+      reason: 'too-large',
+      category: 'admission-threshold',
+      size: { bytes, lines },
+    };
   }
   if (src.trim().length === 0) {
     return { verdict: 'eligible', reason: 'supported' };
@@ -219,12 +230,13 @@ export function classifyEligibility(source: string): EligibilityResult {
     return { verdict: 'source-only', reason: 'malformed-table', category: 'malformed-table' };
   }
 
-  // Reference-style link definitions: `[label]: url`
+  // Reference-style link definitions: `[label]: url`. A definition makes link
+  // meaning document-wide (full/collapsed/shortcut forms resolve against it),
+  // so the document stays in Source. Adjacent brackets like `[S1][S2]` WITHOUT
+  // any definition are literal text per CommonMark: admit them and let the
+  // admission round-trip verification prove losslessness instead of rejecting
+  // here.
   if (/^\s*\[[^\]]+\]:\s*\S+/m.test(body)) {
-    return { verdict: 'source-only', reason: 'unknown-construct', category: 'reference-link' };
-  }
-  // Inline reference-style link usage: `[text][ref]`
-  if (/\[[^\]]*\]\s*\[[^\]]*\]/.test(body)) {
     return { verdict: 'source-only', reason: 'unknown-construct', category: 'reference-link' };
   }
   // Footnotes: `[^n]` or `[^label]`

@@ -12,9 +12,9 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from './adapter';
 import { semanticFingerprint } from './fingerprint';
-import { classifyEligibility } from './eligibility';
+import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from './eligibility';
 import { admitLocalized, admitOpaque } from './opaque/integration';
-import type { Eligibility, EligibilityReason, MarkdownSession } from './types';
+import type { AdmissionSize, Eligibility, EligibilityReason, MarkdownSession } from './types';
 
 export type AdmissionVerification =
   | { ok: true }
@@ -44,6 +44,7 @@ export function decideAdmission(
   reason: EligibilityReason;
   session?: MarkdownSession;
   renderedSource?: string;
+  size?: AdmissionSize;
 } {
   const c = classifyEligibility(source);
   const fallback = () => {
@@ -54,7 +55,7 @@ export function decideAdmission(
   };
   if (c.verdict === 'source-only') {
     return c.reason === 'too-large'
-      ? { mode: 'source-only', verdict: c.verdict, reason: c.reason }
+      ? { mode: 'source-only', verdict: c.verdict, reason: c.reason, size: c.size }
       : fallback();
   }
   if (c.verdict === 'eligible-with-opaque') {
@@ -110,8 +111,21 @@ const REASON_LABELS: Record<EligibilityReason, string> = {
   manual: '手动确认',
 };
 
-/** Stable, content-free, user-facing reason for why a doc is in Source. */
-export function admissionReasonLabel(reason: EligibilityReason): string {
+function kilobytes(bytes: number): number {
+  return Math.round(bytes / 1024);
+}
+
+/**
+ * Stable, content-free, user-facing reason for why a doc is in Source. For
+ * `too-large` the measured size makes the notice actionable ("文档 300KB，超过
+ * 所见即所得准入上限 256KB") — which limit tripped decides which one is shown.
+ */
+export function admissionReasonLabel(reason: EligibilityReason, size?: AdmissionSize): string {
+  if (reason === 'too-large' && size) {
+    return size.bytes >= WYSIWYG_MAX_ADMISSION_BYTES
+      ? `文档过大（${kilobytes(size.bytes)}KB，超过所见即所得准入上限 ${kilobytes(WYSIWYG_MAX_ADMISSION_BYTES)}KB）`
+      : `文档过大（${size.lines} 行，超过所见即所得准入上限 ${WYSIWYG_MAX_ADMISSION_LINES} 行）`;
+  }
   return REASON_LABELS[reason] ?? '当前文档暂不满足安全 WYSIWYG 条件';
 }
 

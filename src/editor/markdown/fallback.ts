@@ -1,10 +1,9 @@
 import { Node, type Editor, type JSONContent } from '@tiptap/core';
+import { TextSelection } from '@tiptap/pm/state';
 import { Marked } from 'marked';
-import { classifyEligibility } from './eligibility';
-import { semanticFingerprint } from './fingerprint';
 import { scanCodeRegions } from './opaque/index';
-import { parseTipTapMarkdownToDoc } from './adapter';
 import { annotateAdjacentListRuns } from './adjacent-list-runs';
+import { verifySingleBlockUpgrade } from './single-block-upgrade';
 
 export const RAW_MARKDOWN_NODE = 'markflowRawMarkdown';
 
@@ -29,49 +28,103 @@ export const RawMarkdown = Node.create({
     return ({ node, editor, getPos }) => {
       let current = node;
       const dom = document.createElement('div');
-      const pre = document.createElement('pre');
-      pre.dataset.markflowRaw = '';
-      pre.className = 'markflow-raw-markdown';
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.style.overflowWrap = 'anywhere';
-      pre.textContent = String(node.attrs.source);
-      pre.title = '双击编辑此保留片段';
+      // The editing surface IS the presentation: one always-live textarea in
+      // source-mode look (no code-frame chrome), focused by a single click.
       const input = document.createElement('textarea');
-      input.hidden = true;
+      input.dataset.markflowRaw = '';
+      input.className = 'markflow-raw-markdown-input';
       input.setAttribute('aria-label', '编辑保留的 Markdown 片段');
-      input.style.width = '100%';
-      dom.append(pre, input);
-      pre.addEventListener('dblclick', (event) => {
+      input.title = '直接编辑，符合语法后自动转换';
+      input.spellcheck = false;
+      input.value = String(node.attrs.source);
+      input.readOnly = !editor.isEditable;
+      dom.append(input);
+
+      let composing = false;
+      let upgradeTimer: ReturnType<typeof setTimeout> | undefined;
+      const syncHeight = () => {
+        input.style.height = 'auto';
+        // happy-dom reports scrollHeight 0; keep `auto` there.
+        if (input.scrollHeight > 0) input.style.height = `${input.scrollHeight}px`;
+      };
+      syncHeight();
+      const clearUpgradeTimer = () => {
+        if (upgradeTimer) { clearTimeout(upgradeTimer); upgradeTimer = undefined; }
+      };
+
+      // The proof covers these exact bytes; dispatch only while the document
+      // still holds this literal node holding them. One transaction keeps the
+      // upgrade a single undo step.
+      const runUpgrade = () => {
+        upgradeTimer = undefined;
+        if (composing || !editor.isEditable || input.value.length === 0) return;
+        const source = input.value;
+        const upgrade = verifySingleBlockUpgrade(editor, source);
+        if (!upgrade.upgradeable || upgrade.blocks.length === 0) return;
+        const pos = getPos();
+        if (typeof pos !== 'number') return;
+        const at = editor.state.doc.nodeAt(pos);
+        if (!at || at.type.name !== RAW_MARKDOWN_NODE || String(at.attrs.source) !== source) return;
+        try {
+          const blocks = upgrade.blocks.map((block) => editor.state.schema.nodeFromJSON(block));
+          const tr = editor.state.tr.replaceWith(pos, pos + at.nodeSize, blocks);
+          tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(pos, tr.doc.content.size))));
+          // Focus follows the upgrade only when this fragment held it; another
+          // fragment the user moved to keeps its own focus.
+          const hadFocus = document.activeElement === input;
+          editor.view.dispatch(tr);
+          if (hadFocus) editor.commands.focus();
+        } catch { /* A block the schema cannot hold stays literal. */ }
+      };
+      const scheduleUpgrade = () => {
+        clearUpgradeTimer();
         if (!editor.isEditable) return;
-        event.preventDefault();
-        input.value = String(current.attrs.source);
-        input.hidden = false;
-        pre.hidden = true;
-        input.focus();
+        upgradeTimer = setTimeout(runUpgrade, 500);
+      };
+
+      input.addEventListener('compositionstart', () => {
+        composing = true;
+        clearUpgradeTimer();
+      });
+      input.addEventListener('compositionend', () => {
+        composing = false;
+        if (input.value.length > 0) scheduleUpgrade();
       });
       input.addEventListener('input', () => {
+        syncHeight();
         if (!editor.isEditable) return;
         const pos = getPos();
         if (typeof pos !== 'number') return;
         if (input.value.length === 0) {
+          clearUpgradeTimer();
           editor.view.dispatch(editor.state.tr.delete(pos, pos + current.nodeSize));
           editor.commands.focus();
           return;
         }
         editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...current.attrs, source: input.value }));
+        scheduleUpgrade();
       });
-      input.addEventListener('blur', () => { input.hidden = true; pre.hidden = false; });
+      input.addEventListener('focus', () => {
+        // setEditable re-renders nothing here, so the fragment re-derives its
+        // editable state on focus — otherwise a read-only visit latches the
+        // textarea shut for the rest of the session.
+        input.readOnly = !editor.isEditable;
+        if (!editor.isEditable) input.blur();
+      });
       return {
         dom,
-        stopEvent: (event) => event.target === input || event.type === 'dblclick',
+        stopEvent: (event) => event.target === input,
         ignoreMutation: () => true,
         update(next) {
           if (next.type !== current.type) return false;
           current = next;
-          pre.textContent = String(next.attrs.source);
-          if (input.value !== String(next.attrs.source)) input.value = String(next.attrs.source);
+          const source = String(next.attrs.source);
+          if (input.value !== source) input.value = source;
+          input.readOnly = !editor.isEditable;
+          syncHeight();
           return true;
         },
+        destroy() { clearUpgradeTimer(); },
       };
     };
   },
@@ -207,9 +260,7 @@ export function parseLocalizedMarkdown(
   source: string,
   preserved: string[] = [],
 ): JSONContent {
-  const manager = (editor as unknown as { markdown: { serialize(doc: JSONContent): string } }).markdown;
   const content: JSONContent[] = [];
-
   function parseBlocks(part: string) {
     // Marked normalizes CRLF before lexing. Retain the mapping so literal
     // fallback payloads still contain the actual authored characters.
@@ -241,19 +292,9 @@ export function parseLocalizedMarkdown(
       if (token.type === 'space') { separators += (token.raw.match(/\n/g) ?? []).length; continue; }
       flushSeparators();
       const raw = part.slice(offsets[start], offsets[cursor]);
-      const eligibility = classifyEligibility(raw);
-      const parsed = eligibility.verdict === 'eligible'
-        ? parseTipTapMarkdownToDoc(editor, raw.replace(/(?:\r?\n)+$/, '')) : null;
-      let safe = false;
-      if (parsed?.ok) {
-        try {
-          const rendered = manager.serialize(parsed.doc);
-          const roundtrip = parseTipTapMarkdownToDoc(editor, rendered);
-          safe = roundtrip.ok && semanticFingerprint(roundtrip.doc) === semanticFingerprint(parsed.doc);
-        } catch { /* This block is retained literally below. */ }
-      }
-      if (safe && parsed?.ok) {
-        content.push(...(parsed.doc.content ?? []));
+      const upgrade = verifySingleBlockUpgrade(editor, raw);
+      if (upgrade.upgradeable) {
+        content.push(...upgrade.blocks);
         separators = (raw.match(/(?:\r?\n)+$/)?.[0].match(/\n/g) ?? []).length;
       } else content.push(rawNode(raw));
     }

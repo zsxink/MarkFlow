@@ -106,7 +106,7 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
     expect(getMarkdownPipelineMode()).toBe('reconcile');
     expect(getMode()).toBe('wysiwyg');
     expect(getEditor()!.isEditable).toBe(true);
-    expect(getEditor()!.view.dom.querySelector('[data-markflow-raw]')?.textContent).toContain(raw);
+    expect((getEditor()!.view.dom.querySelector('[data-markflow-raw]') as HTMLTextAreaElement | null)?.value).toContain(raw);
     expect(getEditor()!.view.dom.querySelector('h1')?.textContent).toBe('Body');
     expect(getSavePlan()).toEqual({ kind: 'unchanged', write: false });
     getEditor()!.commands.insertContentAt(3, 'edited');
@@ -174,8 +174,6 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
 
   it('edits a literal raw block locally and saves the changed characters', () => {
     setMarkdown('# Title\n\n[ref]: /url\n');
-    const pre = getEditor()!.view.dom.querySelector('[data-markflow-raw]')!;
-    pre.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     const input = getEditor()!.view.dom.querySelector('textarea')!;
     input.value = '[ref]: /changed\n';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -188,7 +186,6 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
 
   it('can save after all characters in a local raw editor are deleted', () => {
     setMarkdown('# Title\n\n[ref]: /url\n');
-    getEditor()!.view.dom.querySelector('[data-markflow-raw]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     const input = getEditor()!.view.dom.querySelector('textarea')!;
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -235,7 +232,6 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
 
   it('saves an edited malformed raw block beside supported frontmatter', () => {
     setMarkdown('---\ntitle: Document\n---\n\n# Title\n\n[ref]: /url');
-    getEditor()!.view.dom.querySelector('[data-markflow-raw]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     const input = getEditor()!.view.dom.querySelector('textarea')!;
     input.value = '```js\nconst value = 1;';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -251,7 +247,6 @@ describe('stage-two eligibility UI wiring (6.5)', () => {
 
   it('saves an unclosed literal fence before a normal code block without consuming that block', () => {
     setMarkdown('# Title\n\n[ref]: /url\n\n```js\nok();\n```');
-    getEditor()!.view.dom.querySelector('[data-markflow-raw]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     const input = getEditor()!.view.dom.querySelector('textarea')!;
     input.value = '```js\nbroken();\n\n';
     input.dispatchEvent(new Event('input', { bubbles: true }));

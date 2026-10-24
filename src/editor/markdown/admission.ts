@@ -101,7 +101,7 @@ export interface AdmissionRevisionsSpec {
 
 const REASON_LABELS: Record<EligibilityReason, string> = {
   supported: '文档语法完全受支持',
-  'opaque-covered': '包含保留的原文片段，其他内容可正常编辑',
+  'opaque-covered': '包含保留的原文片段，片段可直接编辑，符合语法后自动转换',
   'parse-verification-failed': '往返校验未通过，已保留源码',
   'ambiguous-boundary': '检测到未闭合/歧义语法边界',
   'construct-crosses-boundary': '存在跨越受支持与保留区域的语法',

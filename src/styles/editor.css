@@ -1076,6 +1076,44 @@
   background: var(--code-bg);
 }
 
+/* ── 保留片段（markflowRawMarkdown，issue #394）─────────────────
+   观感对齐源码模式：不呈现代码框（无背景/边框/padding/圆角），等宽展示原文。
+   选择器带类名，特异性压过上面的 `.ProseMirror pre` 代码块通用样式。 */
+.ProseMirror pre.markflow-raw-markdown {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 0.6em;
+  overflow-x: visible;
+  font-family: var(--font-code);
+  color: var(--fg);
+}
+
+/* 常驻编辑 textarea（NodeView）：与序列化输出的 pre 同一观感 */
+.ProseMirror textarea.markflow-raw-markdown-input {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0 0 0.6em;
+  color: var(--fg);
+  font-family: var(--font-code);
+  font-size: 1em;
+  line-height: inherit;
+  caret-color: var(--fg);
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ProseMirror textarea.markflow-raw-markdown-input:focus {
+  outline: none;
+}
+
 /* KaTeX math formulas */
 .ProseMirror .katex-inline {
   display: inline;

@@ -12,14 +12,16 @@ import { refreshFileTree, collapseAllFolders, expandAllFolders } from './loader'
 import { startInlineCreate } from './inline';
 import { getWorkspacePath } from './workspace';
 
-// Inline SVG icons, hand-drawn in the same stroke style as the tree node
-// icons in render.ts (no external icon library).
+// Inline SVG paths from Lucide v1.17.0 (ISC license) — the exact icon set the
+// approved #424 mockup renders, inlined verbatim so the app matches the
+// prototype without pulling in an icon library. Stroke 1.75 + round caps/joins
+// mirror the prototype rendering.
 const ICONS = {
-  chevron: '<polyline points="6 9 12 15 18 9"/>',
-  filePlus: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6"/><path d="M9 14h6"/>',
-  folderPlus: '<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><path d="M12 11v6"/><path d="M9 14h6"/>',
-  refresh: '<path d="M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16"/><path d="M8 16H3v5"/><path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8"/><path d="M16 8h5V3"/>',
-  chevronsDownUp: '<path d="M7 9l5 5 5-5"/><path d="M7 15l5-5 5 5"/>',
+  chevron: '<path d="m6 9 6 6 6-6"/>',
+  filePlus: '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M9 15h6"/><path d="M12 18v-6"/>',
+  folderPlus: '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  chevronsDownUp: '<path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/>',
 } as const;
 
 function actionButton(label: string, icon: string, onClick: () => void): HTMLButtonElement {
@@ -28,7 +30,7 @@ function actionButton(label: string, icon: string, onClick: () => void): HTMLBut
   button.className = 'tree-header-action';
   button.setAttribute('aria-label', label);
   button.setAttribute('title', label);
-  button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${icon}</svg>`;
+  button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`;
   button.addEventListener('click', (e) => {
     e.stopPropagation();
     onClick();
@@ -80,7 +82,7 @@ function buildTreeHeader(rootName: string, workspacePath: string): HTMLElement {
   header.className = 'tree-header';
   header.innerHTML = `
     <button class="tree-chevron-btn" type="button" aria-label="收起所有文件夹" title="收起所有文件夹">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${ICONS.chevron}</svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS.chevron}</svg>
     </button>
     <span class="tree-header-name" title="${escapeHtml(workspacePath)}">${escapeHtml(rootName)}</span>
   `;

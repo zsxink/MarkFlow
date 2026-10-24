@@ -195,28 +195,7 @@ export function insertEntryIntoTree(parentPath: string, entry: FileEntry): void 
 
   const depth = getDepth(container);
   const node = createTreeNode(entry, depth);
-
-  const children = Array.from(container.children);
-  let inserted = false;
-  for (const child of children) {
-    const isDir = child.classList.contains('tree-folder')
-      || child.querySelector(':scope > .tree-folder') !== null;
-    const nameEl = child.querySelector(':scope > span, :scope > .tree-folder > span');
-    const name = nameEl?.textContent || '';
-
-    if (entry.isDir && !isDir) continue;
-    if (!entry.isDir && isDir) {
-      container.insertBefore(node, child);
-      inserted = true;
-      break;
-    }
-    if (name.localeCompare(entry.name) >= 0) {
-      container.insertBefore(node, child);
-      inserted = true;
-      break;
-    }
-  }
-  if (!inserted) container.appendChild(node);
+  insertSorted(container, node, entry.isDir);
 
   if (parentPath !== workspacePath) {
     const folderEl = document.querySelector(
@@ -261,44 +240,4 @@ export function renamePathDom(oldPath: string, newPath: string): void {
   const container = findChildrenContainer(newParent, workspacePath);
   if (container) insertSorted(container, node, isDir);
   else node.remove();
-}
-
-/** Rename a single rendered node's label and re-sort it among siblings. */
-export function renameEntryInTree(oldPath: string, newName: string): void {
-  const el = document.querySelector(
-    `[data-path="${escapePathSelector(oldPath)}"]`,
-  ) as HTMLElement;
-  if (!el) return;
-
-  const span = el.querySelector(':scope > span') as HTMLElement;
-  if (span) span.textContent = newName;
-
-  const parentDir = oldPath.substring(0, Math.max(oldPath.lastIndexOf('/'), oldPath.lastIndexOf('\\')));
-  const newPath = `${parentDir}/${newName}`;
-  el.dataset.path = newPath;
-
-  const container = el.classList.contains('tree-file') ? el.parentElement : el.parentElement?.parentElement;
-  if (!container) return;
-
-  const isDir = el.classList.contains('tree-folder');
-  const siblings = Array.from(container.children).filter(c => c !== el && c !== el.parentElement);
-  let target: Element | null = null;
-  for (const sib of siblings) {
-    const sibIsDir = sib.classList.contains('tree-folder')
-      || sib.querySelector(':scope > .tree-folder') !== null;
-    const sibName = (sib.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement)?.textContent || '';
-    if (isDir && !sibIsDir) continue;
-    if (!isDir && sibIsDir) {
-      target = sib;
-      break;
-    }
-    if (sibName.localeCompare(newName) >= 0) {
-      target = sib;
-      break;
-    }
-  }
-
-  const node = el.classList.contains('tree-file') ? el : el.parentElement!;
-  if (target) container.insertBefore(node, target);
-  else container.appendChild(node);
 }

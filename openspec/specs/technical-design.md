@@ -284,13 +284,13 @@ await invoke('write_file', { path, content: markdown });
 
 采用**外科手术式 DOM 更新**策略，避免全量重建导致的文件夹折叠状态丢失。
 
-**四个核心函数：**
+**核心函数：**
 
 | 函数 | 用途 |
 | --- | --- |
-| `insertEntryIntoTree` | 创建/复制后插入节点 |
+| `insertEntryIntoTree` | 创建/复制后插入节点（定位经 `insertSorted`） |
 | `removeEntryFromTree` | 删除后移除节点 |
-| `renameEntryInTree` | 重命名后更新节点 |
+| `renamePathDom` | 重命名/移动后更新节点（定位经 `insertSorted`） |
 | `refreshFileTree` | 外部变更时全量重建（保留展开状态） |
 
 **鼠标拖拽移动：**

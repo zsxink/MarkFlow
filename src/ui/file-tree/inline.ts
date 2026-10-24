@@ -51,21 +51,8 @@ export function startInlineRename(path: string) {
       // Re-sort within parent container
       const container = el.classList.contains('tree-file') ? el.parentElement : el.parentElement?.parentElement;
       if (container) {
-        const siblings = Array.from(container.children).filter(c => c !== el && c !== el.parentElement);
-        let target: Element | null = null;
-        for (const sib of siblings) {
-          const sibIsDir = sib.classList.contains('tree-folder') || sib.querySelector(':scope > .tree-folder') !== null;
-          const sibName = (sib.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement)?.textContent || '';
-          if (isFolder && !sibIsDir) continue;
-          if (!isFolder && sibIsDir) { target = sib; break; }
-          if (sibName.localeCompare(newName) >= 0) { target = sib; break; }
-        }
         const node = el.classList.contains('tree-file') ? el : el.parentElement!;
-        if (target) {
-          container.insertBefore(node, target);
-        } else {
-          container.appendChild(node);
-        }
+        insertSorted(container, node, isFolder);
       }
 
       showToast('已重命名');

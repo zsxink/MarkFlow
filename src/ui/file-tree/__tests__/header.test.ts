@@ -92,7 +92,7 @@ describe('tree header rendering', () => {
     const buttons = header.querySelectorAll('.tree-header-action');
     expect(buttons.length).toBe(4);
     expect(Array.from(buttons).map(b => b.getAttribute('aria-label'))).toEqual([
-      '新建文件', '新建文件夹', '刷新', '展开或收起所有文件夹',
+      '新建文件', '新建文件夹', '刷新', '展开所有文件夹',
     ]);
   });
 
@@ -207,7 +207,7 @@ describe('tree header actions', () => {
   it('toggle expands everything while any rendered folder is still collapsed', () => {
     appendFolder('/ws/a', true);
     appendFolder('/ws/b', false);
-    clickAction('展开或收起所有文件夹');
+    clickAction('展开所有文件夹');
 
     expect(mocks.expandAllFolders).toHaveBeenCalledTimes(1);
     expect(mocks.collapseAllFolders).not.toHaveBeenCalled();
@@ -216,15 +216,43 @@ describe('tree header actions', () => {
   it('toggle collapses everything when every rendered folder is expanded', () => {
     appendFolder('/ws/a', true);
     appendFolder('/ws/b', true);
-    clickAction('展开或收起所有文件夹');
+    clickAction('收起所有文件夹');
 
     expect(mocks.collapseAllFolders).toHaveBeenCalledTimes(1);
     expect(mocks.expandAllFolders).not.toHaveBeenCalled();
   });
 
   it('toggle collapses on an empty tree as a no-op fold', () => {
-    clickAction('展开或收起所有文件夹');
+    // No folders at all → nothing to expand, so the button offers folding.
+    clickAction('收起所有文件夹');
     expect(mocks.collapseAllFolders).toHaveBeenCalledTimes(1);
+  });
+
+  it('the toggle button icon and label mirror the action it would perform next', async () => {
+    appendFolder('/ws/a', false);
+    mountTreeHeader();
+    const button = document.querySelector('.tree-header-toggle') as HTMLButtonElement;
+
+    expect(button.getAttribute('aria-label')).toBe('展开所有文件夹');
+    expect(button.querySelector('svg')!.innerHTML).toContain('m7 9 5-5 5 5');
+
+    // Fully expanded → folding icon/label; clicking flips back after the toggle.
+    appendFolder('/ws/b', true);
+    document.querySelector('[data-path="/ws/a"] .tree-chevron')!.classList.add('expanded');
+    mountTreeHeader();
+    expect(button.getAttribute('aria-label')).toBe('收起所有文件夹');
+    expect(button.querySelector('svg')!.innerHTML).toContain('m7 4 5 5 5-5');
+
+    // Click with a folded tree runs the expand action; the mocked loader
+    // leaves the DOM folded, so the post-toggle refresh still reads the
+    // expanding state (real expandAllFolders would flip it to folding).
+    document.querySelector('[data-path="/ws/a"] .tree-chevron')!.classList.remove('expanded');
+    mountTreeHeader();
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mocks.expandAllFolders).toHaveBeenCalledTimes(1);
+    expect(button.getAttribute('aria-label')).toBe('展开所有文件夹');
   });
 
   it('the collapse chevron and the folder name fold the whole tree', () => {

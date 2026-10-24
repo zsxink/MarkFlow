@@ -38,6 +38,9 @@ export async function refreshFileTree() {
     treeMetrics.rootRefreshCount++;
     await loadDirectory(wsPath, false);
     await restoreExpandedState();
+    // Restore re-folds/unfolds folders after the mount-time snapshot, so the
+    // header's toggle icon needs one more idempotent pass (issue #429).
+    mountTreeHeaderThroughHook();
     updateSelectedAria();
   } catch (e) {
     logException('file-tree.refresh', 'Failed to refresh file tree', e, { path: wsPath });

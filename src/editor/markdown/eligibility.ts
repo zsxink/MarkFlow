@@ -179,6 +179,20 @@ function hasInconsistentGfmTable(source: string): boolean {
 }
 
 /**
+ * A link-reference definition shape at any block position: optional container
+ * prefixes (blockquote markers, bullet/ordered list markers, indentation), a
+ * `[label]` whose brackets may be escaped, a colon, then a destination on the
+ * same or the next line. Non-global on purpose: `test()` stays stateless.
+ *
+ * Each prefix alternative absorbs ALL whitespace that may follow its marker
+ * (`>[ \t]*`) instead of sharing it with a trailing `[ \t]*` — two quantifiers
+ * with overlapping consumption per marker give 2^n backtracking on deep
+ * blockquote chains (a 30-level paste froze the UI for a minute). One slack
+ * quantifier per marker keeps matching linear.
+ */
+const REFERENCE_DEFINITION = /^[ \t]*(?:(?:>[ \t]*|[-*+][ \t]+|\d{1,9}[.)][ \t]+))*\[(?:\\.|[^\]\\])+\]:[ \t]*(?:\n[ \t]*)?\S+/m;
+
+/**
  * Deterministic eligibility classification. Returns `source-only` for any
  * unknown/unclosed/ambiguous construct or any construct that would cross an
  * opaque boundary; otherwise `eligible` or `eligible-with-opaque`.
@@ -230,13 +244,20 @@ export function classifyEligibility(source: string): EligibilityResult {
     return { verdict: 'source-only', reason: 'malformed-table', category: 'malformed-table' };
   }
 
-  // Reference-style link definitions: `[label]: url`. A definition makes link
-  // meaning document-wide (full/collapsed/shortcut forms resolve against it),
-  // so the document stays in Source. Adjacent brackets like `[S1][S2]` WITHOUT
-  // any definition are literal text per CommonMark: admit them and let the
-  // admission round-trip verification prove losslessness instead of rejecting
-  // here.
-  if (/^\s*\[[^\]]+\]:\s*\S+/m.test(body)) {
+  // Reference-style link definitions: `[label]: url` — including forms nested
+  // in containers (`> [ref]: /url`, `- [ref]: /url`, `1. [ref]: /url`, nested
+  // lists) and labels with escaped brackets (`[foo\]]: /url`). A definition
+  // makes link meaning document-wide (full/collapsed/shortcut forms resolve
+  // against it), and Marked drops the definition line itself on parse — a loss
+  // the round-trip fingerprints cannot detect because the first parse already
+  // dropped it. The match is deliberately conservative: ordered-list forms that
+  // Marked 17 happens to keep as literal text are rejected too, because that
+  // quirk is version-fragile and a missed definition silently deletes a line on
+  // save, while an over-reject only keeps the doc in Source. Adjacent brackets
+  // like `[S1][S2]` WITHOUT any definition are literal text per CommonMark:
+  // admit them and let the admission round-trip verification prove losslessness
+  // instead of rejecting here (issue #395).
+  if (REFERENCE_DEFINITION.test(body)) {
     return { verdict: 'source-only', reason: 'unknown-construct', category: 'reference-link' };
   }
   // Footnotes: `[^n]` or `[^label]`

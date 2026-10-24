@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Editor } from '@tiptap/core';
+import type { JSONContent } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
@@ -253,5 +254,73 @@ describe('admission verification (6.4)', () => {
     expect(admissionReasonLabel('too-large', { bytes: 1024, lines: WYSIWYG_MAX_ADMISSION_LINES + 1 }))
       .toBe(`文档过大（${WYSIWYG_MAX_ADMISSION_LINES + 1} 行，超过所见即所得准入上限 ${WYSIWYG_MAX_ADMISSION_LINES} 行）`);
     expect(admissionReasonLabel('too-large')).toBe('文档过大');
+  });
+
+  // issue #397: definitions nested in containers (or written with escaped
+  // label brackets) ARE registered by Marked — the usage resolves into a link
+  // and the definition line vanishes from the parsed doc. That silent save-time
+  // loss is invisible to the round-trip fingerprints (the first parse already
+  // dropped it), so the classifier must reject these forms up front. Each
+  // fixture pairs with the href Marked resolves, proving the rejection is
+  // justified rather than a false positive.
+  it('rejects container-nested and escaped-label definitions that Marked would drop', () => {
+    const forms: Array<[string, string]> = [
+      ['[text][ref]\n\n> [ref]: /url\n', '/url'],
+      ['[text][ref]\n\n>[ref]: /url\n', '/url'],
+      ['[text][ref]\n\n> > [ref]: /url\n', '/url'],
+      ['[text][ref]\n\n- [ref]: /url\n', '/url'],
+      ['[text][ref]\n\n- a\n  - [ref]: /url\n', '/url'],
+      ['see [ref] here\n\n> [ref]: /url\n', '/url'],
+      ['[text][foo\\]]\n\n[foo\\]]: /url\n', '/url'],
+      ['[text][a\\-b]\n\n[a\\-b]: /url\n', '/url'],
+      ['[text][ref]\n\n[ref]:\n/url\n', '/url'],
+      ['[text][WIP]\n\n[WIP]: 开发中\n', '开发中'],
+      ['[text][x]\n\n- [x]: note\n', 'note'],
+    ];
+    const hrefsOf = (doc: JSONContent): string[] => {
+      const hrefs: string[] = [];
+      const walk = (node: JSONContent): void => {
+        for (const mark of node.marks ?? []) {
+          if (mark.type === 'link') hrefs.push(String(mark.attrs?.href ?? ''));
+        }
+        for (const child of node.content ?? []) walk(child);
+      };
+      walk(doc);
+      return hrefs;
+    };
+    for (const [src, href] of forms) {
+      expect(classifyEligibility(src), `${JSON.stringify(src)} classifier`)
+        .toMatchObject({ verdict: 'source-only', category: 'reference-link' });
+      const parsed = parseTipTapMarkdown(editor, src);
+      expect(parsed.ok, `${JSON.stringify(src)} parses`).toBe(true);
+      if (parsed.ok) {
+        expect(hrefsOf(parsed.doc), `${JSON.stringify(src)} resolved links`).toContain(href);
+      }
+    }
+  });
+
+  // Conservative over-rejects: shapes Marked 17 keeps as literals but that are
+  // definitions under CommonMark — the classifier still refuses them (issue
+  // #397: a missed definition silently deletes a line on save).
+  it('conservatively rejects definition-shaped forms Marked 17 keeps literal', () => {
+    for (const src of ['1. [ref]: /url\n', '2) [ref]: /url\n', '- item\n  [ref]: /url\n', '    [ref]: /url\n']) {
+      expect(classifyEligibility(src), `${JSON.stringify(src)} classifier`)
+        .toMatchObject({ verdict: 'source-only', category: 'reference-link' });
+    }
+  });
+
+  // Non-regression: bracket usages that are NOT definitions stay admitted,
+  // including through round-trip verification.
+  it('keeps literal bracket usages without definitions admitted', () => {
+    for (const src of [
+      '- [ ] todo\n- [x] done\n',
+      '- [WIP] 还在开发\n',
+      '[text][a[b]]\n\n[a[b]]: /url\n',
+      '[foo]:\n\nplain paragraph\n',
+      '1.[ref]: /url\n',
+    ]) {
+      expect(classifyEligibility(src), `${JSON.stringify(src)} classifier`).toEqual({ verdict: 'eligible', reason: 'supported' });
+      expect(verifyAdmission(editor, src), `${JSON.stringify(src)} verification`).toEqual({ ok: true });
+    }
   });
 });

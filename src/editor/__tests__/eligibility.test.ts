@@ -80,6 +80,62 @@ const CASES: Case[] = [
     reason: 'unknown-construct',
   },
   {
+    // Marked registers definitions inside blockquotes and drops the line on
+    // parse (issue #397) — must not slip past the classifier.
+    name: 'reference-def-blockquote',
+    source: '[text][ref]\n\n> [ref]: /url\n',
+    verdict: 'source-only',
+    reason: 'unknown-construct',
+  },
+  {
+    name: 'reference-def-nested-list',
+    source: '[text][ref]\n\n- a\n  - [ref]: /url\n',
+    verdict: 'source-only',
+    reason: 'unknown-construct',
+  },
+  {
+    name: 'reference-def-escaped-label',
+    source: '[text][foo\\]]\n\n[foo\\]]: /url\n',
+    verdict: 'source-only',
+    reason: 'unknown-construct',
+  },
+  {
+    // Marked 17 keeps this literal, but CommonMark (and future Marked) treat it
+    // as a definition in the list item — reject conservatively, an over-reject
+    // only keeps the doc in Source while a miss deletes a line on save.
+    name: 'reference-def-ordered-list-conservative',
+    source: '1. [ref]: /url\n',
+    verdict: 'source-only',
+    reason: 'unknown-construct',
+  },
+  {
+    name: 'reference-def-indented-conservative',
+    source: '    [ref]: /url\n',
+    verdict: 'source-only',
+    reason: 'unknown-construct',
+  },
+  {
+    name: 'list-bracket-without-colon',
+    source: '- [WIP] 还在开发\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    // Unescaped nested brackets are not a CommonMark label; Marked keeps the
+    // line as literal text (verified), so it stays eligible.
+    name: 'nested-bracket-label-literal',
+    source: '[text][a[b]]\n\n[a[b]]: /url\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
+    // A blank line breaks the colon→destination link: `[foo]:` is prose.
+    name: 'blank-line-after-colon-literal',
+    source: '[foo]:\n\nplain paragraph\n',
+    verdict: 'eligible',
+    reason: 'supported',
+  },
+  {
     name: 'traceability-adjacent-brackets',
     source: '需求 A [S1][S2] 关联，[S3][S4] 与单标记 [S5] 并存。\n',
     verdict: 'eligible',
@@ -203,5 +259,18 @@ describe('eligibility classifier (6.2)', () => {
       bytes: byLines.length,
       lines: WYSIWYG_MAX_ADMISSION_LINES + 1,
     });
+  });
+
+  // The container-prefix group of REFERENCE_DEFINITION must stay linear: an
+  // ambiguous whitespace split per marker (two quantifiers sharing the space
+  // after `>`) used to give 2^n backtracking, and a deep blockquote chain of
+  // plain prose froze the synchronous admission path for minutes. The bound
+  // sits orders of magnitude above the fixed linear cost and far below the
+  // exponential curve, so it cannot flake on a loaded runner.
+  it('matches deep blockquote chains without exponential backtracking', () => {
+    const deepChain = `${'> '.repeat(40)}plain prose without any definition`;
+    const start = performance.now();
+    expect(classifyEligibility(deepChain).verdict).toBe('eligible');
+    expect(performance.now() - start).toBeLessThan(200);
   });
 });

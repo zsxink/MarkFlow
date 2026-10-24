@@ -7,7 +7,9 @@
 import { scheduler } from '../infra/task-scheduler';
 import { store } from '../infra/store';
 import { uiPorts } from '../infra/ui-ports';
+import { getCachedSettings } from '../infra/storage';
 import { decideAdmission, admissionReasonLabel } from './markdown/admission';
+import { admissionLimitsFromSettings } from './markdown/eligibility';
 import { endOpaqueSession, getOpaqueSession } from './markdown/opaque/session';
 import { normalizeImageMarkdown } from './serializer';
 import {
@@ -190,13 +192,15 @@ export function setMarkdown(content: string, options: MarkdownLoadOptions = {}) 
   // verified session; `source-only` documents stay in Source with a stable
   // reason, never destroying the CM6 editor or rewriting disk. The
   // verification re-parse is programmatic, so it must not register as a user
-  // edit, bump the revision, or mark the document dirty.
+  // edit, bump the revision, or mark the document dirty. Admission bounds are
+  // read per load so a settings change applies to the next opened document.
+  const admissionLimits = admissionLimitsFromSettings(getCachedSettings());
   const admission = withProgrammaticUpdate(() =>
-    decideAdmission(ed, content, { sourceRevision, userRevisionAtAdmission: getRevision() }),
+    decideAdmission(ed, content, { sourceRevision, userRevisionAtAdmission: getRevision() }, admissionLimits),
   );
   if (admission.mode === 'source-only') {
     setMarkdownPipelineMode('source-only');
-    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size)}`);
+    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size, admissionLimits)}`);
     enterSourceMode(content);
     // Same baseline reset as the parse-failure branch: a document admitted to
     // source-only is loaded clean and must not inherit a prior document's dirty

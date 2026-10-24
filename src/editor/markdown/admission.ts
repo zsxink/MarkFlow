@@ -12,7 +12,7 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from './adapter';
 import { semanticFingerprint } from './fingerprint';
-import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from './eligibility';
+import { classifyEligibility, DEFAULT_ADMISSION_LIMITS, type AdmissionLimits } from './eligibility';
 import { admitLocalized, admitOpaque } from './opaque/integration';
 import type { AdmissionSize, Eligibility, EligibilityReason, MarkdownSession } from './types';
 
@@ -38,6 +38,7 @@ export function decideAdmission(
   editor: Editor,
   source: string,
   revisions: AdmissionRevisionsSpec = { sourceRevision: 1, userRevisionAtAdmission: 0 },
+  limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
 ): {
   mode: 'gated' | 'opaque' | 'reconcile' | 'source-only';
   verdict: Eligibility;
@@ -46,7 +47,7 @@ export function decideAdmission(
   renderedSource?: string;
   size?: AdmissionSize;
 } {
-  const c = classifyEligibility(source);
+  const c = classifyEligibility(source, limits);
   const fallback = () => {
     const admitted = admitLocalized(editor, source, revisions);
     return admitted.ok
@@ -119,12 +120,18 @@ function kilobytes(bytes: number): number {
  * Stable, content-free, user-facing reason for why a doc is in Source. For
  * `too-large` the measured size makes the notice actionable ("文档 300KB，超过
  * 所见即所得准入上限 256KB") — which limit tripped decides which one is shown.
+ * The interpolated ceiling is the limit that was actually in effect, so custom
+ * settings are never misrepresented by hardcoded numbers.
  */
-export function admissionReasonLabel(reason: EligibilityReason, size?: AdmissionSize): string {
+export function admissionReasonLabel(
+  reason: EligibilityReason,
+  size?: AdmissionSize,
+  limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
+): string {
   if (reason === 'too-large' && size) {
-    return size.bytes >= WYSIWYG_MAX_ADMISSION_BYTES
-      ? `文档过大（${kilobytes(size.bytes)}KB，超过所见即所得准入上限 ${kilobytes(WYSIWYG_MAX_ADMISSION_BYTES)}KB）`
-      : `文档过大（${size.lines} 行，超过所见即所得准入上限 ${WYSIWYG_MAX_ADMISSION_LINES} 行）`;
+    return size.bytes >= limits.maxBytes
+      ? `文档过大（${kilobytes(size.bytes)}KB，超过所见即所得准入上限 ${kilobytes(limits.maxBytes)}KB）`
+      : `文档过大（${size.lines} 行，超过所见即所得准入上限 ${limits.maxLines} 行）`;
   }
   return REASON_LABELS[reason] ?? '当前文档暂不满足安全 WYSIWYG 条件';
 }

@@ -16,7 +16,10 @@ import { createSettingsContent } from './markup';
 import {
   applySettingsToUI,
   buildSettingsFromUI,
+  documentLimitsBaselineFromSettings,
+  readDocumentLimitsFromUI,
   setInputValue,
+  validateDocumentLimits,
   type Theme,
 } from './fields';
 
@@ -108,7 +111,13 @@ function bindSettingsEvents(hide: () => void) {
     await persistSettingsFromUI();
   });
   document.getElementById('setting-plantuml-server-url')?.addEventListener('change', () => void persistSettingsFromUI());
-  for (const id of ['setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth']) {
+  for (const id of [
+    'setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth',
+    'setting-wysiwyg-admission-kb', 'setting-wysiwyg-admission-lines',
+    'setting-wysiwyg-max-nodes', 'setting-wysiwyg-max-text-length',
+    'setting-large-file-kb', 'setting-huge-file-kb',
+    'setting-large-file-lines', 'setting-huge-file-lines',
+  ]) {
     document.getElementById(id)?.addEventListener('change', () => void persistSettingsFromUI());
   }
 }
@@ -158,6 +167,23 @@ function applyRuntimeSettings(settings: Settings) {
 }
 
 async function persistSettingsFromUI() {
+  // The document-limits group needs explicit cross-field validation (unlike
+  // the silently clamped numeric fields): an invalid group blocks persisting
+  // entirely, so the last valid values stay in effect until it is fixed.
+  const limitsError = validateDocumentLimits(
+    readDocumentLimitsFromUI(),
+    documentLimitsBaselineFromSettings(currentSettings),
+  );
+  const limitsErrorEl = document.getElementById('setting-document-limits-error');
+  if (limitsError) {
+    if (limitsErrorEl) {
+      limitsErrorEl.textContent = limitsError;
+      limitsErrorEl.hidden = false;
+    }
+    return;
+  }
+  if (limitsErrorEl && !limitsErrorEl.hidden) limitsErrorEl.hidden = true;
+
   const uiSettings = buildSettingsFromUI(currentSettings);
 
   try {

@@ -115,4 +115,90 @@ describe('settings panel', () => {
       imageCustomPath: '/Users/example/Pictures',
     }));
   });
+
+  it('hydrates document-limit fields with KB conversion, defaulting missing fields', async () => {
+    loadSettings.mockResolvedValue({
+      wysiwygAdmissionBytes: 524288,
+      wysiwygAdmissionLines: 2000,
+      wysiwygMaxNodes: 3000,
+      largeFileThreshold: 2097152,
+      largeFileLineThreshold: 4000,
+    });
+
+    await openSettingsPanel();
+
+    const valueOf = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+    expect(valueOf('setting-wysiwyg-admission-kb')).toBe('512');
+    expect(valueOf('setting-wysiwyg-admission-lines')).toBe('2000');
+    expect(valueOf('setting-wysiwyg-max-nodes')).toBe('3000');
+    // Missing fields (pre-upgrade settings) fall back to the documented defaults.
+    expect(valueOf('setting-wysiwyg-max-text-length')).toBe('500000');
+    expect(valueOf('setting-large-file-kb')).toBe('2048');
+    expect(valueOf('setting-huge-file-kb')).toBe('10240');
+    expect(valueOf('setting-large-file-lines')).toBe('4000');
+    expect(valueOf('setting-huge-file-lines')).toBe('50000');
+  });
+
+  it('persists valid document-limit edits with KB→bytes conversion', async () => {
+    await openSettingsPanel();
+
+    const admissionKb = document.getElementById('setting-wysiwyg-admission-kb') as HTMLInputElement;
+    admissionKb.value = '1024';
+    admissionKb.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygAdmissionBytes: 1048576 }));
+    expect(document.getElementById('setting-document-limits-error')!.hidden).toBe(true);
+  });
+
+  it('rejects large≥huge thresholds with an inline error and no write, then recovers', async () => {
+    await openSettingsPanel();
+
+    const largeKb = document.getElementById('setting-large-file-kb') as HTMLInputElement;
+    largeKb.value = '20480'; // ≥ huge threshold (10240 KB)
+    largeKb.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    const error = document.getElementById('setting-document-limits-error')!;
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toContain('大文件体积阈值');
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(store.emit).not.toHaveBeenCalled();
+
+    largeKb.value = '2048';
+    largeKb.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(error.hidden).toBe(true);
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ largeFileThreshold: 2097152 }));
+  });
+
+  it('rejects non-positive and out-of-tier admission values without writing', async () => {
+    await openSettingsPanel();
+
+    const lines = document.getElementById('setting-wysiwyg-admission-lines') as HTMLInputElement;
+    lines.value = '0';
+    lines.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    const error = document.getElementById('setting-document-limits-error')!;
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toContain('大于 0');
+    expect(saveSettings).not.toHaveBeenCalled();
+
+    lines.value = '4000';
+    const admissionKb = document.getElementById('setting-wysiwyg-admission-kb') as HTMLInputElement;
+    admissionKb.value = '4096'; // above the large-file tier (1024 KB)
+    admissionKb.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toContain('准入体积上限');
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
 });

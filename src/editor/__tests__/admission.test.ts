@@ -256,6 +256,26 @@ describe('admission verification (6.4)', () => {
     expect(admissionReasonLabel('too-large')).toBe('文档过大');
   });
 
+  it('admits a default-rejected document under raised custom limits', () => {
+    const oversized = 'a'.repeat(300 * 1024);
+    expect(decideAdmission(editor, oversized)).toMatchObject({ mode: 'source-only', reason: 'too-large' });
+    const raised = {
+      maxBytes: WYSIWYG_MAX_ADMISSION_BYTES * 4,
+      maxLines: WYSIWYG_MAX_ADMISSION_LINES,
+    };
+    expect(decideAdmission(editor, oversized, { sourceRevision: 1, userRevisionAtAdmission: 0 }, raised))
+      .toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+  });
+
+  it('interpolates the configured limits into the too-large notice', () => {
+    const raised = { maxBytes: 512 * 1024, maxLines: 2000 };
+    expect(admissionReasonLabel('too-large', { bytes: 600 * 1024, lines: 10 }, raised))
+      .toBe('文档过大（600KB，超过所见即所得准入上限 512KB）');
+    const lowered = { maxBytes: 512 * 1024, maxLines: 500 };
+    expect(admissionReasonLabel('too-large', { bytes: 1024, lines: 501 }, lowered))
+      .toBe('文档过大（501 行，超过所见即所得准入上限 500 行）');
+  });
+
   // issue #397: definitions nested in containers (or written with escaped
   // label brackets) ARE registered by Marked — the usage resolves into a link
   // and the definition line vanishes from the parsed doc. That silent save-time

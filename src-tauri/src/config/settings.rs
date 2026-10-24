@@ -71,6 +71,18 @@ pub struct Settings {
     pub large_file_line_threshold: u32,
     #[serde(default = "default_huge_file_line_threshold")]
     pub huge_file_line_threshold: u32,
+    /// Passthrough field consumed on the TS side: WYSIWYG admission byte ceiling.
+    #[serde(default = "default_wysiwyg_admission_bytes")]
+    pub wysiwyg_admission_bytes: u64,
+    /// Passthrough field consumed on the TS side: WYSIWYG admission line ceiling.
+    #[serde(default = "default_wysiwyg_admission_lines")]
+    pub wysiwyg_admission_lines: u32,
+    /// Passthrough field consumed on the TS side: ProseMirror node-count ceiling.
+    #[serde(default = "default_wysiwyg_max_nodes")]
+    pub wysiwyg_max_nodes: u32,
+    /// Passthrough field consumed on the TS side: ProseMirror text-length ceiling.
+    #[serde(default = "default_wysiwyg_max_text_length")]
+    pub wysiwyg_max_text_length: u64,
     #[serde(default = "default_file_tree_ignore_patterns")]
     pub file_tree_ignore_patterns: Vec<String>,
     #[serde(default = "default_file_tree_page_size")]
@@ -133,6 +145,18 @@ fn default_large_file_line_threshold() -> u32 {
 fn default_huge_file_line_threshold() -> u32 {
     50000
 }
+fn default_wysiwyg_admission_bytes() -> u64 {
+    262144
+}
+fn default_wysiwyg_admission_lines() -> u32 {
+    10000
+}
+fn default_wysiwyg_max_nodes() -> u32 {
+    10000
+}
+fn default_wysiwyg_max_text_length() -> u64 {
+    500000
+}
 pub fn default_file_tree_ignore_patterns() -> Vec<String> {
     vec![
         ".git".into(),
@@ -186,6 +210,10 @@ impl Default for Settings {
             huge_file_threshold: default_huge_file_threshold(),
             large_file_line_threshold: default_large_file_line_threshold(),
             huge_file_line_threshold: default_huge_file_line_threshold(),
+            wysiwyg_admission_bytes: default_wysiwyg_admission_bytes(),
+            wysiwyg_admission_lines: default_wysiwyg_admission_lines(),
+            wysiwyg_max_nodes: default_wysiwyg_max_nodes(),
+            wysiwyg_max_text_length: default_wysiwyg_max_text_length(),
             file_tree_ignore_patterns: default_file_tree_ignore_patterns(),
             file_tree_page_size: default_file_tree_page_size(),
             file_tree_auto_load_depth: default_file_tree_auto_load_depth(),

@@ -1,5 +1,6 @@
 import type { Editor, JSONContent } from '@tiptap/core';
-import { classifyEligibility } from './eligibility';
+import { getCachedSettings } from '../../infra/storage';
+import { admissionLimitsFromSettings, classifyEligibility } from './eligibility';
 import { semanticFingerprint } from './fingerprint';
 import { parseTipTapMarkdownToDoc } from './adapter';
 
@@ -18,7 +19,10 @@ export interface SingleBlockUpgrade {
  * upgraded while editing would degrade back to literal on the next admission.
  */
 export function verifySingleBlockUpgrade(editor: Editor, source: string): SingleBlockUpgrade {
-  if (classifyEligibility(source).verdict !== 'eligible') return { upgradeable: false, blocks: [] };
+  // Read the bounds per call so block-local upgrades follow the same
+  // user-configured admission limits as whole-document admission.
+  const limits = admissionLimitsFromSettings(getCachedSettings());
+  if (classifyEligibility(source, limits).verdict !== 'eligible') return { upgradeable: false, blocks: [] };
   const parsed = parseTipTapMarkdownToDoc(editor, source.replace(/(?:\r?\n)+$/, ''));
   if (!parsed.ok) return { upgradeable: false, blocks: [] };
   const manager = (editor as unknown as { markdown?: { serialize(doc: JSONContent): string } }).markdown;

@@ -55,6 +55,48 @@ export function createSettingsContent(): string {
                 <input class="newfile-input" type="number" min="1" max="32" id="setting-filetree-depth" style="width:100px" />
               </div>
             </div>
+            <div class="settings-group">
+              <div class="settings-group-title">文档大小/行数上限</div>
+              <div class="settings-subfield">
+                <div class="settings-label">所见即所得上限</div>
+                <div class="settings-row">
+                  <div><div class="settings-label">准入体积上限（KB）</div><div class="settings-desc">超过此体积的新文档保留在源码模式</div></div>
+                  <input class="newfile-input" type="number" min="1" id="setting-wysiwyg-admission-kb" style="width:100px" />
+                </div>
+                <div class="settings-row">
+                  <div class="settings-label">准入行数上限</div>
+                  <input class="newfile-input" type="number" min="1" id="setting-wysiwyg-admission-lines" style="width:100px" />
+                </div>
+                <div class="settings-row">
+                  <div><div class="settings-label">节点数上限</div><div class="settings-desc">超过后限制部分编辑功能</div></div>
+                  <input class="newfile-input" type="number" min="1" id="setting-wysiwyg-max-nodes" style="width:100px" />
+                </div>
+                <div class="settings-row">
+                  <div class="settings-label">文本长度上限（字符）</div>
+                  <input class="newfile-input" type="number" min="1" id="setting-wysiwyg-max-text-length" style="width:100px" />
+                </div>
+              </div>
+              <div class="settings-subfield">
+                <div class="settings-label">大文件档位</div>
+                <div class="settings-row">
+                  <div><div class="settings-label">大文件体积阈值（KB）</div><div class="settings-desc">修改仅对新打开的文档生效</div></div>
+                  <input class="newfile-input" type="number" min="1" id="setting-large-file-kb" style="width:100px" />
+                </div>
+                <div class="settings-row">
+                  <div class="settings-label">超大文件体积阈值（KB）</div>
+                  <input class="newfile-input" type="number" min="1" id="setting-huge-file-kb" style="width:100px" />
+                </div>
+                <div class="settings-row">
+                  <div class="settings-label">大文件行数阈值</div>
+                  <input class="newfile-input" type="number" min="1" id="setting-large-file-lines" style="width:100px" />
+                </div>
+                <div class="settings-row">
+                  <div class="settings-label">超大文件行数阈值</div>
+                  <input class="newfile-input" type="number" min="1" id="setting-huge-file-lines" style="width:100px" />
+                </div>
+              </div>
+              <div class="settings-limits-error" id="setting-document-limits-error" hidden></div>
+            </div>
           </div>
           <div id="panel-appearance" class="settings-panel" hidden>
             <div class="settings-group">

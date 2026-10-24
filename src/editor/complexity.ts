@@ -3,12 +3,8 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { uiPorts } from '../infra/ui-ports';
-
-/** Maximum nodes allowed in a ProseMirror document before edits are blocked */
-const MAX_NODES = 10_000;
-
-/** Maximum text content length before edits are blocked */
-const MAX_TEXT_LENGTH = 500_000; // ~500KB of text
+import { getCachedSettings } from '../infra/storage';
+import { DEFAULT_SETTINGS } from '../types/settings';
 
 const complexityKey = new PluginKey('complexity-limit');
 
@@ -24,6 +20,13 @@ export function complexityLimitExtension(): Extension {
             // Only check if the document actually changed
             const hasDocChange = transactions.some(t => t.docChanged);
             if (!hasDocChange) return;
+
+            // The extension is created once at init, so the bounds are read
+            // per transaction (same pattern as code-block.ts) — a settings
+            // change then applies to the very next edit without rebuilding.
+            const settings = getCachedSettings();
+            const maxNodes = settings.wysiwygMaxNodes ?? DEFAULT_SETTINGS.wysiwygMaxNodes;
+            const maxTextLength = settings.wysiwygMaxTextLength ?? DEFAULT_SETTINGS.wysiwygMaxTextLength;
 
             let nodeCount = 0;
             let textLength = 0;
@@ -42,10 +45,14 @@ export function complexityLimitExtension(): Extension {
             };
 
             // Block the transaction if limits are exceeded
-            if (nodeCount > MAX_NODES || textLength > MAX_TEXT_LENGTH) {
+            if (nodeCount > maxNodes || textLength > maxTextLength) {
               const prev = this.getState(newState) as typeof meta | undefined;
               if (!prev?.limited) {
-                uiPorts.notify('文档过大，部分编辑功能已限制');
+                // Name the bound that actually tripped so the numbers always
+                // match the effective configuration, never stale constants.
+                uiPorts.notify(nodeCount > maxNodes
+                  ? `文档过大（节点数 ${nodeCount}，超过上限 ${maxNodes}），部分编辑功能已限制`
+                  : `文档过大（文本长度 ${textLength} 字符，超过上限 ${maxTextLength}），部分编辑功能已限制`);
               }
               meta.limited = true;
               // Return the transaction, but mark it as exceeding limits

@@ -43,6 +43,14 @@ export interface Settings {
   hugeFileThreshold?: number;
   largeFileLineThreshold?: number;
   hugeFileLineThreshold?: number;
+  /** Documents at/above this byte count stay in Source (WYSIWYG admission). */
+  wysiwygAdmissionBytes?: number;
+  /** Documents above this line count stay in Source (WYSIWYG admission). */
+  wysiwygAdmissionLines?: number;
+  /** ProseMirror node-count ceiling before editing is restricted. */
+  wysiwygMaxNodes?: number;
+  /** ProseMirror text-length ceiling before editing is restricted. */
+  wysiwygMaxTextLength?: number;
   fileTreeIgnorePatterns?: string[];
   fileTreePageSize?: number;
   fileTreeAutoLoadDepth?: number;
@@ -54,7 +62,10 @@ export interface Settings {
   lastWindowY: number;
 }
 
-export const DEFAULT_SETTINGS: Settings = {
+// `satisfies` (instead of `: Settings`) keeps present-optional fields readable
+// as plain `number`, so downstream limit constants can derive from this single
+// source of truth without null-handling or duplicated literals.
+export const DEFAULT_SETTINGS = {
   version: 3,
   theme: 'light',
   fontSize: 18,
@@ -81,6 +92,10 @@ export const DEFAULT_SETTINGS: Settings = {
   hugeFileThreshold: 10485760,    // 10MB
   largeFileLineThreshold: 5000,
   hugeFileLineThreshold: 50000,
+  wysiwygAdmissionBytes: 262144,  // 256KB
+  wysiwygAdmissionLines: 10000,
+  wysiwygMaxNodes: 10000,
+  wysiwygMaxTextLength: 500000,
   fileTreeIgnorePatterns: ['.git', 'node_modules', 'target', 'dist'],
   fileTreePageSize: 500,
   fileTreeAutoLoadDepth: 8,
@@ -90,4 +105,4 @@ export const DEFAULT_SETTINGS: Settings = {
   lastWindowHeight: 800,
   lastWindowX: 0,
   lastWindowY: 0,
-};
+} satisfies Settings;

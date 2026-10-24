@@ -308,4 +308,64 @@ describe('editor extensions', () => {
       expect(escapeParagraphMarkdown('plain text')).toBe('plain text');
     });
   });
+
+  // issue #421: blockquote markers, fence openers, Setext `===` underlines and
+  // HTML block openers can also interrupt a paragraph's lazy continuation, so
+  // their line-leading spellings must be escaped like the #286 prefixes above.
+  describe('escapeParagraphMarkdown — quote/fence/setext/html prefixes (issue #421)', () => {
+    it('escapes line-leading blockquote markers including the spaceless form', () => {
+      expect(escapeParagraphMarkdown('> 引用')).toBe('\\> 引用');
+      expect(escapeParagraphMarkdown('>foo')).toBe('\\>foo');
+      expect(escapeParagraphMarkdown('正文\n> 引用')).toBe('正文\n\\> 引用');
+      // Mid-line '>' is prose, not a blockquote marker.
+      expect(escapeParagraphMarkdown('a > b')).toBe('a > b');
+    });
+
+    it('escapes fence openers (3+ backticks or tildes) but not shorter runs', () => {
+      expect(escapeParagraphMarkdown('```')).toBe('\\```');
+      expect(escapeParagraphMarkdown('```js')).toBe('\\```js');
+      expect(escapeParagraphMarkdown('~~~')).toBe('\\~~~');
+      expect(escapeParagraphMarkdown('正文\n``` x')).toBe('正文\n\\``` x');
+      expect(escapeParagraphMarkdown('正文\n~~~')).toBe('正文\n\\~~~');
+      // Two backticks open no fence and stay literal.
+      expect(escapeParagraphMarkdown('``code``')).toBe('``code``');
+      expect(escapeParagraphMarkdown('正文\n`` x')).toBe('正文\n`` x');
+    });
+
+    it('escapes a Setext underline line only on continuation lines', () => {
+      // A non-first full-line `===` underlines the preceding paragraph line.
+      expect(escapeParagraphMarkdown('正文\n===')).toBe('正文\n\\===');
+      expect(escapeParagraphMarkdown('正文\n======')).toBe('正文\n\\======');
+      // A first line has nothing to underline: `===` is plain text.
+      expect(escapeParagraphMarkdown('===')).toBe('===');
+      expect(escapeParagraphMarkdown('==')).toBe('==');
+      // `=` runs followed by content are not an underline.
+      expect(escapeParagraphMarkdown('正文\n== x')).toBe('正文\n== x');
+    });
+
+    it('escapes HTML block opener forms but leaves prose angle brackets alone', () => {
+      expect(escapeParagraphMarkdown('<div> x')).toBe('\\<div> x');
+      expect(escapeParagraphMarkdown('正文\n<div>看起来像 HTML')).toBe('正文\n\\<div>看起来像 HTML');
+      expect(escapeParagraphMarkdown('正文\n<!-- c -->')).toBe('正文\n\\<!-- c -->');
+      expect(escapeParagraphMarkdown('正文\n<script>x')).toBe('正文\n\\<script>x');
+      // Closing tags are type-6 openers too.
+      expect(escapeParagraphMarkdown('正文\n</div> x')).toBe('正文\n\\</div> x');
+      // Digits and processing instructions open no interrupting HTML block.
+      expect(escapeParagraphMarkdown('a < b')).toBe('a < b');
+      expect(escapeParagraphMarkdown('正文\n<3')).toBe('正文\n<3');
+      expect(escapeParagraphMarkdown('正文\n<?php echo;')).toBe('正文\n<?php echo;');
+    });
+
+    it('escapes every new prefix in one multi-line paragraph', () => {
+      expect(escapeParagraphMarkdown('正文\n1. x\n> y\n```\n===\n<div> z'))
+        .toBe('正文\n1\\. x\n\\> y\n\\```\n\\===\n\\<div> z');
+    });
+
+    it('leaves already-escaped spellings untouched (no double escape)', () => {
+      expect(escapeParagraphMarkdown('\\> foo')).toBe('\\> foo');
+      expect(escapeParagraphMarkdown('\\===')).toBe('\\===');
+      expect(escapeParagraphMarkdown('\\<div> x')).toBe('\\<div> x');
+      expect(escapeParagraphMarkdown('\\``` foo')).toBe('\\``` foo');
+    });
+  });
 });

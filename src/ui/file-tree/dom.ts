@@ -61,7 +61,9 @@ function treeNodeName(el: Element): string {
  * Mirrors `compareEntries` (folders above files, name localeCompare ascending):
  * a folder sorting after every folder lands before the first file instead of
  * below all files, and a node sorting last never lands after the
- * `.tree-load-more` pagination button (issue #419). Path tie-breaking is
+ * `.tree-load-more` pagination button (issue #419). The sticky `.tree-header`
+ * toolbar is skipped entirely — its name span must never act as a sort anchor
+ * or a newcomer could land above it (issue #424). Path tie-breaking is
  * state-layer-only; DOM ties keep the newcomer before its same-named sibling.
  */
 export function insertSorted(container: HTMLElement, node: HTMLElement, isDir: boolean): void {
@@ -70,6 +72,7 @@ export function insertSorted(container: HTMLElement, node: HTMLElement, isDir: b
   let loadMore: Element | null = null;
   for (const child of Array.from(container.children)) {
     if (child === node) continue;
+    if (child.classList.contains('tree-header')) continue;
     if (child.classList.contains('tree-load-more')) {
       if (!loadMore) loadMore = child;
       continue;

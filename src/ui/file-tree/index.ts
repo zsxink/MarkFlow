@@ -25,3 +25,10 @@ export {
   startInlineRename,
   startInlineCreate,
 } from './inline';
+
+export {
+  mountTreeHeader,
+  resolveCreateTargetDir,
+  hasCollapsedFolder,
+  toggleAllFolders,
+} from './header';

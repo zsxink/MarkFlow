@@ -10,6 +10,7 @@ import { store } from '../../infra/store';
 import { DEFAULT_SETTINGS } from '../../types/settings';
 import {
   getTreeState,
+  mountTreeHeaderThroughHook,
   pendingLoads,
   registerDirectoryLoader,
   setTreeState,
@@ -202,6 +203,9 @@ export async function loadDirectory(path: string, append: boolean): Promise<void
         append,
       }));
       renderDirectory(path, append ? page.entries : undefined);
+      // Every root render wipes #file-tree's children, so the sticky header
+      // (issue #424) has to be re-mounted right after it.
+      if (path === getWorkspacePath()) mountTreeHeaderThroughHook();
       logInfo('file-tree.metrics', 'Loaded shallow directory', {
         path,
         loadedNodes: getTreeState().nodes.size,

@@ -167,6 +167,24 @@ describe('insertSorted', () => {
     expect(node.nextElementSibling).toBe(existing);
     expect(childNames(root)).toEqual(['a.md', 'a.md', 'b.md']);
   });
+
+  it('never inserts above the sticky tree header, whatever the sort order', () => {
+    // Issue #424: the header's name span looks like a sortable label, so a
+    // root-level newcomer sorting before the workspace name used to land
+    // above the pinned row.
+    const root = mountTreeRoot();
+    const header = document.createElement('div');
+    header.className = 'tree-header';
+    header.innerHTML = '<span class="tree-header-name">Workspace</span>';
+    root.appendChild(header);
+    root.appendChild(fileNode('z.md'));
+
+    insertSorted(root, fileNode('a.md'), false);
+    insertSorted(root, folderWrapper('docs'), true);
+
+    expect(root.firstElementChild).toBe(header);
+    expect(childNames(root)).toEqual(['Workspace', 'docs', 'a.md', 'z.md']);
+  });
 });
 
 describe('insertEntryIntoTree', () => {

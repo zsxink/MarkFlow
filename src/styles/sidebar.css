@@ -160,7 +160,7 @@
 
 .sidebar-footer {
   display: flex;
-  padding: 8px 0;
+  padding: 4px 0;
   border-top: 1px solid var(--border);
   font-size: 13px;
 }
@@ -171,7 +171,7 @@
   justify-content: center;
   gap: 6px;
   flex: 1;
-  padding: 6px 8px;
+  padding: 4px 8px;
   background: none;
   border: none;
   color: var(--muted);

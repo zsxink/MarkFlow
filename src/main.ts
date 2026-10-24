@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Pull model: fetch CLI file path from backend (replaces event-based model)
   // macOS sends file via RunEvent::Opened which may arrive after DOMContentLoaded
-  const loadedSettings = await loadSettings().catch((e) => {
+  const loadedSettings: Settings = await loadSettings().catch((e) => {
     logException('app.settings', 'Failed to load settings during startup', e);
     return DEFAULT_SETTINGS;
   });

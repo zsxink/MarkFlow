@@ -23,6 +23,8 @@
 // are rendered by the KaTeX plugin (`editor.katex.ts`), so they are `eligible`.
 // Generic fenced code blocks are supported (not opaque).
 
+import { DEFAULT_SETTINGS } from '../../types/settings';
+import type { Settings } from '../../types/settings';
 import type { EligibilityResult } from './types';
 import {
   scanCodeRegions,
@@ -33,14 +35,38 @@ import {
 
 export type { OpaqueSpan } from './opaque/index';
 
+/** User-configurable admission bounds (bytes/lines), injected by callers. */
+export interface AdmissionLimits {
+  maxBytes: number;
+  maxLines: number;
+}
+
 // Admission stays deterministic (never wall-clock) but the bound must cover
 // ordinary real-world documents: the stage-one 54KiB measurement rejected a
 // plain 74KB PRD outright. 256KiB / 10k lines matches the runtime guards
 // instead — per-document safety comes from the admission round-trip
 // verification, and oversized-but-admitted docs are capped by the complexity
-// limit extension (10k nodes / 500KB text).
-export const WYSIWYG_MAX_ADMISSION_BYTES = 256 * 1024;
-export const WYSIWYG_MAX_ADMISSION_LINES = 10_000;
+// limit extension. The numbers live in DEFAULT_SETTINGS so every link reads
+// one source; this module stays pure (no store/infra imports).
+export const DEFAULT_ADMISSION_LIMITS: AdmissionLimits = {
+  maxBytes: DEFAULT_SETTINGS.wysiwygAdmissionBytes,
+  maxLines: DEFAULT_SETTINGS.wysiwygAdmissionLines,
+};
+
+/** Kept for existing test imports; value is unchanged (derived from settings). */
+export const WYSIWYG_MAX_ADMISSION_BYTES = DEFAULT_ADMISSION_LIMITS.maxBytes;
+export const WYSIWYG_MAX_ADMISSION_LINES = DEFAULT_ADMISSION_LIMITS.maxLines;
+
+/** Settings subset consumed by `admissionLimitsFromSettings`. */
+export type AdmissionSettings = Pick<Settings, 'wysiwygAdmissionBytes' | 'wysiwygAdmissionLines'>;
+
+/** Narrow mapping so callers pass settings, not hand-built limits. */
+export function admissionLimitsFromSettings(settings: AdmissionSettings): AdmissionLimits {
+  return {
+    maxBytes: settings.wysiwygAdmissionBytes ?? DEFAULT_ADMISSION_LIMITS.maxBytes,
+    maxLines: settings.wysiwygAdmissionLines ?? DEFAULT_ADMISSION_LIMITS.maxLines,
+  };
+}
 
 type ProtectedRange = Pick<CodeRegion, 'from' | 'to'>;
 
@@ -197,11 +223,14 @@ const REFERENCE_DEFINITION = /^[ \t]*(?:(?:>[ \t]*|[-*+][ \t]+|\d{1,9}[.)][ \t]+
  * unknown/unclosed/ambiguous construct or any construct that would cross an
  * opaque boundary; otherwise `eligible` or `eligible-with-opaque`.
  */
-export function classifyEligibility(source: string): EligibilityResult {
+export function classifyEligibility(
+  source: string,
+  limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
+): EligibilityResult {
   const src = source.replace(/\r\n/g, '\n');
   const bytes = new TextEncoder().encode(src).byteLength;
   const lines = src.split('\n').length;
-  if (bytes >= WYSIWYG_MAX_ADMISSION_BYTES || lines > WYSIWYG_MAX_ADMISSION_LINES) {
+  if (bytes >= limits.maxBytes || lines > limits.maxLines) {
     return {
       verdict: 'source-only',
       reason: 'too-large',

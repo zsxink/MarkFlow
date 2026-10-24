@@ -7,7 +7,9 @@ import { logException } from '../infra/logger';
 import { uiPorts } from '../infra/ui-ports';
 import { store } from '../infra/store';
 import { scheduler } from '../infra/task-scheduler';
+import { getCachedSettings } from '../infra/storage';
 import { decideAdmission, admissionReasonLabel } from './markdown/admission';
+import { admissionLimitsFromSettings } from './markdown/eligibility';
 import { endOpaqueSession } from './markdown/opaque/session';
 import { getMarkdownResult } from './serialize';
 import {
@@ -116,16 +118,19 @@ export function switchToWysiwyg() {
   // Re-admission replaces the whole document, so remember where the WYSIWYG
   // caret was before the switch in order not to land at the mapped end.
   const previousCaret = editor.state?.selection?.from ?? 1;
+  // Admission bounds come from the current settings so a raised limit admits
+  // the very next Source→WYSIWYG switch without a restart.
+  const admissionLimits = admissionLimitsFromSettings(getCachedSettings());
   const admission = withProgrammaticUpdate(() =>
     decideAdmission(editor, source, {
       sourceRevision: getSourceRevision(),
       userRevisionAtAdmission: getRevision(),
-    }),
+    }, admissionLimits),
   );
   if (admission.mode === 'source-only') {
     setMarkdownPipelineMode('source-only');
     store.setState({ reconcileError: null });
-    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size)}`);
+    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size, admissionLimits)}`);
     return;
   }
   setMarkdownPipelineMode(admission.mode);

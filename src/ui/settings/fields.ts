@@ -40,6 +40,13 @@ export function setInputValue(id: string, value: string) {
 
 /** Snapshot the whole modal into a Settings object. */
 export function buildSettingsFromUI(currentSettings: Settings): Settings {
+  // Document limits are validated by the panel before persisting; here the
+  // inputs are converted as-is (KB → bytes) so a valid UI state persists exactly.
+  const limits = readDocumentLimitsFromUI();
+  const kbToBytes = (kb: number, fallbackBytes: number) =>
+    Number.isFinite(kb) ? Math.round(kb * 1024) : fallbackBytes;
+  const count = (value: number, fallback: number) =>
+    Number.isFinite(value) ? Math.round(value) : fallback;
   return {
     ...currentSettings,
     version: 3,
@@ -66,7 +73,100 @@ export function buildSettingsFromUI(currentSettings: Settings): Settings {
     fileTreeIgnorePatterns: getInputValue('setting-filetree-ignore').split(',').map(value => value.trim()).filter(Boolean),
     fileTreePageSize: Math.min(5000, Math.max(50, Number(getInputValue('setting-filetree-page-size')) || 500)),
     fileTreeAutoLoadDepth: Math.min(32, Math.max(1, Number(getInputValue('setting-filetree-depth')) || 8)),
+    wysiwygAdmissionBytes: kbToBytes(limits.wysiwygAdmissionKb, currentSettings.wysiwygAdmissionBytes ?? DEFAULT_SETTINGS.wysiwygAdmissionBytes),
+    wysiwygAdmissionLines: count(limits.wysiwygAdmissionLines, currentSettings.wysiwygAdmissionLines ?? DEFAULT_SETTINGS.wysiwygAdmissionLines),
+    wysiwygMaxNodes: count(limits.wysiwygMaxNodes, currentSettings.wysiwygMaxNodes ?? DEFAULT_SETTINGS.wysiwygMaxNodes),
+    wysiwygMaxTextLength: count(limits.wysiwygMaxTextLength, currentSettings.wysiwygMaxTextLength ?? DEFAULT_SETTINGS.wysiwygMaxTextLength),
+    largeFileThreshold: kbToBytes(limits.largeFileKb, currentSettings.largeFileThreshold ?? DEFAULT_SETTINGS.largeFileThreshold),
+    hugeFileThreshold: kbToBytes(limits.hugeFileKb, currentSettings.hugeFileThreshold ?? DEFAULT_SETTINGS.hugeFileThreshold),
+    largeFileLineThreshold: count(limits.largeFileLines, currentSettings.largeFileLineThreshold ?? DEFAULT_SETTINGS.largeFileLineThreshold),
+    hugeFileLineThreshold: count(limits.hugeFileLines, currentSettings.hugeFileLineThreshold ?? DEFAULT_SETTINGS.hugeFileLineThreshold),
   };
+}
+
+/** Parsed document-limit inputs; NaN marks a non-numeric field. */
+export interface DocumentLimitsInput {
+  wysiwygAdmissionKb: number;
+  wysiwygAdmissionLines: number;
+  wysiwygMaxNodes: number;
+  wysiwygMaxTextLength: number;
+  largeFileKb: number;
+  hugeFileKb: number;
+  largeFileLines: number;
+  hugeFileLines: number;
+}
+
+/** Parse the document-limits group inputs (volume fields are entered in KB). */
+export function readDocumentLimitsFromUI(): DocumentLimitsInput {
+  const num = (id: string) => Number(getInputValue(id));
+  return {
+    wysiwygAdmissionKb: num('setting-wysiwyg-admission-kb'),
+    wysiwygAdmissionLines: num('setting-wysiwyg-admission-lines'),
+    wysiwygMaxNodes: num('setting-wysiwyg-max-nodes'),
+    wysiwygMaxTextLength: num('setting-wysiwyg-max-text-length'),
+    largeFileKb: num('setting-large-file-kb'),
+    hugeFileKb: num('setting-huge-file-kb'),
+    largeFileLines: num('setting-large-file-lines'),
+    hugeFileLines: num('setting-huge-file-lines'),
+  };
+}
+
+/** Persisted values in the same shape as `DocumentLimitsInput`. */
+export interface DocumentLimitsBaseline {
+  wysiwygAdmissionKb: number;
+  wysiwygAdmissionLines: number;
+  largeFileKb: number;
+  hugeFileKb: number;
+  largeFileLines: number;
+  hugeFileLines: number;
+}
+
+export function documentLimitsBaselineFromSettings(settings: Settings): DocumentLimitsBaseline {
+  const kbOf = (bytes: number | undefined, fallback: number) => Math.floor((bytes ?? fallback) / 1024);
+  return {
+    wysiwygAdmissionKb: kbOf(settings.wysiwygAdmissionBytes, DEFAULT_SETTINGS.wysiwygAdmissionBytes),
+    wysiwygAdmissionLines: settings.wysiwygAdmissionLines ?? DEFAULT_SETTINGS.wysiwygAdmissionLines,
+    largeFileKb: kbOf(settings.largeFileThreshold, DEFAULT_SETTINGS.largeFileThreshold),
+    hugeFileKb: kbOf(settings.hugeFileThreshold, DEFAULT_SETTINGS.hugeFileThreshold),
+    largeFileLines: settings.largeFileLineThreshold ?? DEFAULT_SETTINGS.largeFileLineThreshold,
+    hugeFileLines: settings.hugeFileLineThreshold ?? DEFAULT_SETTINGS.hugeFileLineThreshold,
+  };
+}
+
+/**
+ * Cross-field validation for the document-limits group; unlike other numeric
+ * fields these rules cannot be expressed by clamping. Returns a user-facing
+ * error message, or null when every value is valid.
+ *
+ * Pairwise ordering rules only bind pairs the user actually edited: the
+ * shipped defaults predate this validation (admission 10k lines exceeds the
+ * large-file 5k line tier), so an untouched legacy combination must keep
+ * saving unchanged instead of blocking every unrelated settings edit.
+ */
+export function validateDocumentLimits(raw: DocumentLimitsInput, baseline: DocumentLimitsBaseline): string | null {
+  const values: number[] = [
+    raw.wysiwygAdmissionKb, raw.wysiwygAdmissionLines, raw.wysiwygMaxNodes, raw.wysiwygMaxTextLength,
+    raw.largeFileKb, raw.hugeFileKb, raw.largeFileLines, raw.hugeFileLines,
+  ];
+  if (values.some(value => !(value > 0))) return '所有数值必须大于 0';
+  const pairEdited = (a: number, b: number, baseA: number, baseB: number) => a !== baseA || b !== baseB;
+  if (pairEdited(raw.largeFileKb, raw.hugeFileKb, baseline.largeFileKb, baseline.hugeFileKb)
+    && raw.largeFileKb >= raw.hugeFileKb) {
+    return '大文件体积阈值必须小于超大文件体积阈值';
+  }
+  if (pairEdited(raw.largeFileLines, raw.hugeFileLines, baseline.largeFileLines, baseline.hugeFileLines)
+    && raw.largeFileLines >= raw.hugeFileLines) {
+    return '大文件行数阈值必须小于超大文件行数阈值';
+  }
+  if (pairEdited(raw.wysiwygAdmissionKb, raw.largeFileKb, baseline.wysiwygAdmissionKb, baseline.largeFileKb)
+    && raw.wysiwygAdmissionKb > raw.largeFileKb) {
+    return '准入体积上限不能超过大文件体积阈值';
+  }
+  if (pairEdited(raw.wysiwygAdmissionLines, raw.largeFileLines, baseline.wysiwygAdmissionLines, baseline.largeFileLines)
+    && raw.wysiwygAdmissionLines > raw.largeFileLines) {
+    return '准入行数上限不能超过大文件行数阈值';
+  }
+  return null;
 }
 
 /** Push a Settings object into the modal controls. */
@@ -94,6 +194,20 @@ export function applySettingsToUI(settings: Settings) {
   setInputValue('setting-filetree-page-size', String(settings.fileTreePageSize ?? 500));
   setInputValue('setting-filetree-depth', String(settings.fileTreeAutoLoadDepth ?? 8));
   setInputValue('setting-plantuml-server-url', String(settings.plantumlServerUrl ?? ''));
+
+  // Volume fields are stored as bytes but entered/shown as whole KB.
+  const kbOf = (bytes: number | undefined, fallback: number) =>
+    String(Math.floor((bytes ?? fallback) / 1024));
+  const countOf = (value: number | undefined, fallback: number) =>
+    String(value ?? fallback);
+  setInputValue('setting-wysiwyg-admission-kb', kbOf(settings.wysiwygAdmissionBytes, DEFAULT_SETTINGS.wysiwygAdmissionBytes));
+  setInputValue('setting-wysiwyg-admission-lines', countOf(settings.wysiwygAdmissionLines, DEFAULT_SETTINGS.wysiwygAdmissionLines));
+  setInputValue('setting-wysiwyg-max-nodes', countOf(settings.wysiwygMaxNodes, DEFAULT_SETTINGS.wysiwygMaxNodes));
+  setInputValue('setting-wysiwyg-max-text-length', countOf(settings.wysiwygMaxTextLength, DEFAULT_SETTINGS.wysiwygMaxTextLength));
+  setInputValue('setting-large-file-kb', kbOf(settings.largeFileThreshold, DEFAULT_SETTINGS.largeFileThreshold));
+  setInputValue('setting-huge-file-kb', kbOf(settings.hugeFileThreshold, DEFAULT_SETTINGS.hugeFileThreshold));
+  setInputValue('setting-large-file-lines', countOf(settings.largeFileLineThreshold, DEFAULT_SETTINGS.largeFileLineThreshold));
+  setInputValue('setting-huge-file-lines', countOf(settings.hugeFileLineThreshold, DEFAULT_SETTINGS.hugeFileLineThreshold));
 
   const selectedTheme = String(settings.theme ?? 'light') as Theme;
   document.querySelectorAll('.theme-swatch').forEach(swatch => {

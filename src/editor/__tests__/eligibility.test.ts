@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from '../markdown/eligibility';
+import {
+  admissionLimitsFromSettings,
+  classifyEligibility,
+  DEFAULT_ADMISSION_LIMITS,
+  WYSIWYG_MAX_ADMISSION_BYTES,
+  WYSIWYG_MAX_ADMISSION_LINES,
+} from '../markdown/eligibility';
 import type { Eligibility, EligibilityReason } from '../markdown/types';
 
 /**
@@ -272,5 +278,30 @@ describe('eligibility classifier (6.2)', () => {
     const start = performance.now();
     expect(classifyEligibility(deepChain).verdict).toBe('eligible');
     expect(performance.now() - start).toBeLessThan(200);
+  });
+
+  it('admits default-rejected docs under raised custom limits', () => {
+    const oversized = 'a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES);
+    expect(classifyEligibility(oversized).reason).toBe('too-large');
+    const raised = {
+      maxBytes: WYSIWYG_MAX_ADMISSION_BYTES * 2,
+      maxLines: WYSIWYG_MAX_ADMISSION_LINES,
+    };
+    expect(classifyEligibility(oversized, raised).verdict).toBe('eligible');
+    // Boundary semantics are unchanged under custom limits: bytes inclusive, lines exclusive.
+    expect(classifyEligibility('a'.repeat(raised.maxBytes), raised).reason).toBe('too-large');
+    const manyLines = Array.from({ length: raised.maxLines + 1 }, () => 'a').join('\n');
+    expect(classifyEligibility(manyLines, raised).reason).toBe('too-large');
+  });
+
+  it('maps admission limits from settings, falling back to defaults for missing fields', () => {
+    expect(admissionLimitsFromSettings({ wysiwygAdmissionBytes: 512 * 1024, wysiwygAdmissionLines: 2000 }))
+      .toEqual({ maxBytes: 512 * 1024, maxLines: 2000 });
+    // Pre-upgrade settings files carry none of the new fields.
+    expect(admissionLimitsFromSettings({})).toEqual(DEFAULT_ADMISSION_LIMITS);
+    expect(DEFAULT_ADMISSION_LIMITS).toEqual({
+      maxBytes: WYSIWYG_MAX_ADMISSION_BYTES,
+      maxLines: WYSIWYG_MAX_ADMISSION_LINES,
+    });
   });
 });

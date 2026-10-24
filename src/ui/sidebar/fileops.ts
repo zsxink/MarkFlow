@@ -1,5 +1,5 @@
 import { normalizePathSegments } from '../../utils/paths';
-import { readFile, writeFile, writeFileIfUnchanged, addRecentFile, authorizeImageStorage, getFileMetadata } from '../../infra/storage';
+import { readFile, writeFile, writeFileIfUnchanged, addRecentFile, authorizeImageStorage, getFileMetadata, getCachedSettings } from '../../infra/storage';
 import { getMarkdownResult, getSavePlan, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getSourceRevision, getLastReadMtime, getLastReadSize, hasLastReadStats, clearLastReadStats, setLastReadStats, getEditor, getPipelineMode } from '../../editor';
 import { shouldUseReconcileBoundary } from '../../editor';
 import { setSourceReadOnly } from '../../editor';
@@ -10,7 +10,7 @@ import { logException, logInfo, logDebug } from '../../infra/logger';
 import { save } from '@tauri-apps/plugin-dialog';
 import { showDialog } from '../dialog';
 import { getActiveFilePath, setActiveFilePath } from '../active-document';
-import { determineTier, formatFileSize } from '../../utils/file-size-tier';
+import { determineTier, formatFileSize, tierConfigFromSettings } from '../../utils/file-size-tier';
 import { showDegradationBar, hideDegradationBar } from '../degradation-bar';
 import { refreshFrontmatterPanel } from '../frontmatter-panel';
 import { store } from '../../infra/store';
@@ -382,7 +382,9 @@ export async function openFileInEditor(path: string): Promise<boolean> {
   try {
     const opened = await openDocumentTab(path, async () => {
       const metadata = await getFileMetadata(path);
-      const tier = determineTier(metadata.size, metadata.lines);
+      // Tier thresholds come from the current settings so a change applies to
+      // the next opened document without a restart.
+      const tier = determineTier(metadata.size, metadata.lines, tierConfigFromSettings(getCachedSettings()));
       let readOnly = false;
       if (tier === 'huge') {
         const choice = await showDialog({

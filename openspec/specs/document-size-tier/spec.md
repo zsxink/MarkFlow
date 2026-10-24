@@ -12,7 +12,7 @@
 ## Requirements
 
 ### Requirement: 文档尺寸等级分类
-系统 MUST 在打开前根据文件大小和行数将文档分为大小级别。
+系统 MUST 在打开前根据文件大小和行数将文档分为大小级别，体积与行数阈值取自用户设置（见 `document-limits-settings`），未配置时使用以下默认值：
 
 - Normal: file size < 1MB AND line count < 5000
 - Large: file size 1MB–10MB OR line count 5000–50000
@@ -57,11 +57,16 @@
 - **THEN** 系统应显示有关元数据错误的非阻塞通知
 
 ### Requirement: 可配置阈值
-尺寸等级分类的阈值 MUST 可在设置中配置。
+尺寸等级分类的阈值 MUST 可在设置中配置，覆盖全部四个档位字段：`largeFileThreshold`、`hugeFileThreshold`、`largeFileLineThreshold`、`hugeFileLineThreshold`。输入校验规则见 `document-limits-settings`。
 
 #### Scenario: 用户更改阈值
 - **WHEN** 用户在设置中修改`largeFileThreshold`和`hugeFileThreshold`
 - **THEN** 新阈值适用于下一次文件打开操作
+- **THEN** 之前打开的文件不受影响
+
+#### Scenario: 用户更改行数阈值
+- **WHEN** 用户在设置中修改`largeFileLineThreshold`或`hugeFileLineThreshold`
+- **THEN** 新行数阈值适用于下一次文件打开操作
 - **THEN** 之前打开的文件不受影响
 
 ### Requirement: UI降级

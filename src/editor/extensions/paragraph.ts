@@ -29,6 +29,14 @@ import Paragraph from '@tiptap/extension-paragraph';
  * too means the paragraph layer's guarantee does not depend on that upstream
  * encoding detail.
  *
+ * #436 closes the remaining continuation gaps: the Setext H2 underline (a
+ * full `-`/`--` line, non-first-line-only for the same reason as `===` —
+ * upstream's escaper does not touch `-`, so this one is a real pipeline fix),
+ * space-separated thematic breaks (`* * *` / `_ _ _` / `- - -`; the upstream
+ * escaper already neuters `*`/`_` per character and the bullet rule catches
+ * `- `/`* ` spellings first — the rule here covers the rest), and the third
+ * CommonMark bullet character `*` joining `-`/`+` in the bullet rule.
+ *
  * Non-triggering lines (`6.x`, `-foo`, `a 6. x`, `a < b`, inline `6\.`) are
  * left intact.
  */
@@ -40,20 +48,30 @@ function escapeLineLeadingPrefix(line: string, isFirstLine: boolean): string {
   let escaped = line;
   // ordered-list marker: 1+ digits then '.' or ')' then space/tab/end
   escaped = escaped.replace(/^(\d+)([.)])(?=\s|$)/, '$1\\$2');
-  // bullet markers '- ' / '+ ' (space or tab only — '-foo' stays a paragraph)
-  escaped = escaped.replace(/^([-+])(?=\s)/, '\\$1');
+  // bullet markers '- ' / '+ ' / '* ' (space or tab only — '-foo'/'*foo' stay
+  // paragraphs; '*' joins as CommonMark's third bullet character, #436)
+  escaped = escaped.replace(/^([-+*])(?=\s)/, '\\$1');
   // ATX heading run: escape the first '#' when hashes are followed by space
   escaped = escaped.replace(/^(#{1,6})(?=\s)/, '\\$1');
   // HR-only line: '---' / '___' / '***' (may have trailing space)
   escaped = escaped.replace(/^(-{3,}|_{3,}|\*{3,})\s*$/, '\\$1');
+  // Space-separated thematic break: the SAME char repeated 3+ times with 1-3
+  // spaces between ('* * *' / '_ _ _' / '- - -', may have trailing space) is
+  // an HR too; escape the first char and keep the rest of the line (the
+  // backreference forces one character; trailing whitespace is consumed with
+  // the match like the contiguous HR rule). '-'/ '*'-led spellings are usually
+  // eaten by the bullet rule above — this covers the rest ('_ _ _'). Applied
+  // to the first line as well: the whole line IS the block marker (#436).
+  escaped = escaped.replace(/^([-*_])(( {1,3}\1){2,})\s*$/, '\\$1$2');
   // blockquote marker: any line-leading '>' (also covers the spaceless '>foo')
   escaped = escaped.replace(/^>/, '\\>');
   // fence opener: escape the first character of a 3+ backtick/tilde run
   escaped = escaped.replace(/^(`{3,}|~{3,})/, '\\$1');
-  // Setext H1 underline: only a non-first full-line '===' has a preceding line
-  // to underline; a first-line '===' is plain text and must stay unescaped
-  if (!isFirstLine && /^={1,}\s*$/.test(line)) {
-    escaped = escaped.replace(/^=/, '\\=');
+  // Setext underline (H1 '=' / H2 '-'): only a non-first full-line run of one
+  // character has a preceding line to underline; a first-line run is plain
+  // text and must stay unescaped ('=-=' mixed runs never match) (#421/#436)
+  if (!isFirstLine && /^(={1,}|-{1,})\s*$/.test(line)) {
+    escaped = escaped.replace(/^[-=]/, '\\$&');
   }
   // HTML block opener: escape just the '<' of '<tag' / '</tag' / '<!--' —
   // 'a < b' and '<3' open no interrupting HTML block

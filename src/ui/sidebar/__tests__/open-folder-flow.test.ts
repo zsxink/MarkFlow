@@ -58,7 +58,6 @@ function mountSidebar(options: { collapsed?: boolean } = {}): HTMLElement {
       <nav id="outline-tree"></nav>
       <div id="sidebar-footer" class="sidebar-footer" style="display:none">
         <button id="sidebar-open-btn"></button>
-        <button id="sidebar-newfolder-btn"></button>
       </div>
     </aside>
   `;

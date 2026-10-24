@@ -40,22 +40,30 @@
 .sidebar-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
-  position: relative;
 }
 
-/* Hover button on the tab row: expand/collapse every folder (issue #418).
- * Absolutely positioned so it never joins the tabs' flex split; the [hidden]
- * override is required because display:flex beats the UA's hidden rule. */
-.sidebar-tree-toggle {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
+/* Sticky header above the file tree list (issue #424): the workspace folder
+ * name and quick actions stay pinned while the tree scrolls. `.sidebar-content`
+ * is the real scroll container, so `top: 0` sticks against it. */
+.tree-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+  padding: 3px 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.tree-chevron-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 22px;
+  height: 22px;
   padding: 0;
   background: none;
   border: none;
@@ -64,16 +72,64 @@
   cursor: pointer;
 }
 
-.sidebar-tree-toggle[hidden] {
-  display: none;
-}
-
-.sidebar-tree-toggle:hover {
+.tree-chevron-btn:hover {
   color: var(--fg);
   background: var(--hover);
 }
 
-.sidebar-tree-toggle svg {
+.tree-chevron-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tree-header-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 140ms;
+}
+
+/* Hovering the file browser area fades the actions in; keyboard focus inside
+ * the header keeps them visible, so the buttons stay reachable by Tab. */
+#file-tree:hover .tree-header-actions,
+.tree-header:focus-within .tree-header-actions {
+  opacity: 1;
+}
+
+.tree-header-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tree-header-action:hover {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.tree-header-action svg {
   width: 14px;
   height: 14px;
 }

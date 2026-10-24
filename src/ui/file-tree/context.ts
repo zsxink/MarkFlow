@@ -102,3 +102,19 @@ export function registerDirectoryLoader(
 export function loadDirectoryThroughHook(path: string, append: boolean): Promise<void> {
   return loadDirectoryImpl(path, append);
 }
+
+// ── Tree header mount hook ────────────────────────────────────────────
+// `header.ts` (the sticky toolbar above the list) needs loader capabilities
+// (refresh / expand / collapse all), so it sits above the loader in the import
+// graph. The loader triggers its mount through this hook — the same trick as
+// the directory loader hook above — so the two modules stay acyclic.
+
+let treeHeaderMounter: (() => void) | null = null;
+
+export function registerTreeHeaderMounter(mounter: () => void): void {
+  treeHeaderMounter = mounter;
+}
+
+export function mountTreeHeaderThroughHook(): void {
+  treeHeaderMounter?.();
+}

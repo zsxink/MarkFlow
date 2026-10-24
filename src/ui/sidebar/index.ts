@@ -1,5 +1,5 @@
 import { showToast } from '../toast';
-import { refreshFileTree, initTreeAria, setWorkspacePath, getWorkspacePath, startInlineCreate, collapseAllFolders, expandAllFolders } from '../file-tree/index';
+import { refreshFileTree, initTreeAria, setWorkspacePath, getWorkspacePath } from '../file-tree/index';
 import { initMouseDrag } from '../file-tree/dragdrop';
 import { initOutline } from '../outline';
 import { showContextMenu } from '../file-tree-context-menu';
@@ -27,32 +27,10 @@ export function initSidebar() {
     showContextMenu(e.clientX, e.clientY, null, 'empty');
   });
 
-  // Sidebar footer buttons
+  // Sidebar footer buttons (only "open folder" remains; the create entries
+  // moved to the file-tree header, issue #424).
   document.getElementById('sidebar-open-btn')?.addEventListener('click', async () => {
     await openWorkspaceFolderFlow();
-  });
-
-  document.getElementById('sidebar-newfolder-btn')?.addEventListener('click', () => {
-    const workspacePath = getWorkspacePath();
-    if (!workspacePath) {
-      showToast('请先打开文件夹');
-      return;
-    }
-    startInlineCreate('folder', workspacePath);
-  });
-
-  // Expand/collapse-all toggle on the tab row (issue #418): any collapsed
-  // folder left → expand everything, otherwise fold the whole tree up.
-  document.getElementById('tree-toggle-all')?.addEventListener('click', () => {
-    const hasCollapsedFolder = Array.from(document.querySelectorAll<HTMLElement>('#file-tree .tree-folder'))
-      .some(folder => {
-        const chevron = folder.querySelector('.tree-chevron');
-        return !!chevron
-          && !!folder.parentElement?.querySelector(':scope > .tree-children')
-          && !chevron.classList.contains('expanded');
-      });
-    if (hasCollapsedFolder) void expandAllFolders();
-    else void collapseAllFolders();
   });
 
   // Tab switching + save preference
@@ -116,8 +94,6 @@ export function switchSidebarTab(tab: 'files' | 'outline') {
   }
   if (outlineTree) outlineTree.hidden = tab !== 'outline';
   if (footer) footer.style.display = tab === 'files' ? 'flex' : 'none';
-  const treeToggle = document.getElementById('tree-toggle-all');
-  if (treeToggle) treeToggle.hidden = tab !== 'files';
 }
 
 /**

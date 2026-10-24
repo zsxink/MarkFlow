@@ -33,6 +33,8 @@ export {
   loadDirectoryForTesting,
   saveExpandedState,
   restoreExpandedState,
+  collapseAllFolders,
+  expandAllFolders,
 } from './loader';
 
 export { applyFileTreeEvents } from './events';

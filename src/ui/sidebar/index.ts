@@ -1,5 +1,5 @@
 import { showToast } from '../toast';
-import { refreshFileTree, initTreeAria, setWorkspacePath, getWorkspacePath, startInlineCreate } from '../file-tree/index';
+import { refreshFileTree, initTreeAria, setWorkspacePath, getWorkspacePath, startInlineCreate, collapseAllFolders, expandAllFolders } from '../file-tree/index';
 import { initMouseDrag } from '../file-tree/dragdrop';
 import { initOutline } from '../outline';
 import { showContextMenu } from '../file-tree-context-menu';
@@ -39,6 +39,20 @@ export function initSidebar() {
       return;
     }
     startInlineCreate('folder', workspacePath);
+  });
+
+  // Expand/collapse-all toggle on the tab row (issue #418): any collapsed
+  // folder left → expand everything, otherwise fold the whole tree up.
+  document.getElementById('tree-toggle-all')?.addEventListener('click', () => {
+    const hasCollapsedFolder = Array.from(document.querySelectorAll<HTMLElement>('#file-tree .tree-folder'))
+      .some(folder => {
+        const chevron = folder.querySelector('.tree-chevron');
+        return !!chevron
+          && !!folder.parentElement?.querySelector(':scope > .tree-children')
+          && !chevron.classList.contains('expanded');
+      });
+    if (hasCollapsedFolder) void expandAllFolders();
+    else void collapseAllFolders();
   });
 
   // Tab switching + save preference
@@ -102,6 +116,8 @@ export function switchSidebarTab(tab: 'files' | 'outline') {
   }
   if (outlineTree) outlineTree.hidden = tab !== 'outline';
   if (footer) footer.style.display = tab === 'files' ? 'flex' : 'none';
+  const treeToggle = document.getElementById('tree-toggle-all');
+  if (treeToggle) treeToggle.hidden = tab !== 'files';
 }
 
 /**

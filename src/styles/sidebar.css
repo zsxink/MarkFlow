@@ -40,6 +40,42 @@
 .sidebar-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+/* Hover button on the tab row: expand/collapse every folder (issue #418).
+ * Absolutely positioned so it never joins the tabs' flex split; the [hidden]
+ * override is required because display:flex beats the UA's hidden rule. */
+.sidebar-tree-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sidebar-tree-toggle[hidden] {
+  display: none;
+}
+
+.sidebar-tree-toggle:hover {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.sidebar-tree-toggle svg {
+  width: 14px;
+  height: 14px;
 }
 
 .sidebar-tab {

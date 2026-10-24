@@ -37,7 +37,9 @@ function createFolderNode(entry: FileEntry, depth: number): HTMLElement {
   folder.dataset.testid = 'file-tree-item';
   folder.style.paddingLeft = `${16 + depth * 12}px`;
   folder.setAttribute('role', 'treeitem');
-  folder.setAttribute('aria-expanded', 'true');
+  // Folders are created folded (children hidden below), so aria must say so —
+  // an initial 'true' announced collapsed folders as expanded to screen readers.
+  folder.setAttribute('aria-expanded', 'false');
   folder.setAttribute('tabindex', '-1');
   folder.innerHTML = `
     <svg class="tree-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>

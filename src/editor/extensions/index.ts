@@ -10,3 +10,4 @@ export {
 } from './table';
 export { BlockImage } from './image';
 export { mermaidCodeBlockExtension, renderFencedCodeBlock } from './code-block';
+export { MathBlock, MATH_BLOCK_NODE_NAME, MATH_BLOCK_TOKEN_NAME } from './math-block';

@@ -8,7 +8,7 @@ const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings,
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(), isBlankPlantUmlSource: vi.fn(() => false), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
 vi.mock('../../../render/mermaid', () => ({ renderMermaid })); vi.mock('../../../render/plantuml', () => ({ renderPlantUml })); vi.mock('../../../render/plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('../../../infra/storage', () => ({ getCachedSettings })); vi.mock('../../../infra/store', () => ({ store })); vi.mock('../../../ui/mermaid-context-menu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('../../state', () => ({ getMermaidExportBaseName: vi.fn(), getActiveDocPath: vi.fn(() => null), assetToOriginalMap: new Map() }));
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, escapeParagraphMarkdown, mermaidCodeBlockExtension, renderFencedCodeBlock } from '..';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, escapeParagraphMarkdown, MathBlock, mermaidCodeBlockExtension, renderFencedCodeBlock } from '..';
 import { createMarkdownExtension, markflowMarked } from '../../init';
 
 /**
@@ -45,8 +45,8 @@ function createV3MarkdownEditor() {
       TableHeader,
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       mermaidCodeBlockExtension(),
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
 }
 
@@ -272,6 +272,15 @@ describe('editor extensions', () => {
       // (trailing whitespace is trimmed with the match).
       expect(escapeParagraphMarkdown('---  ')).toBe('\\---');
       expect(escapeParagraphMarkdown('___ \t')).toBe('\\___');
+    });
+
+    // #417: `$$` lines that stay paragraph text (mid-line formula, or an empty
+    // `$$` pair the mathBlock tokenizer handed back) must not gain escapes.
+    it('leaves $$ formula lines untouched', () => {
+      expect(escapeParagraphMarkdown('$$\n\\begin{align}\n  a &= b \\\\\n\\end{align}\n$$'))
+        .toBe('$$\n\\begin{align}\n  a &= b \\\\\n\\end{align}\n$$');
+      expect(escapeParagraphMarkdown('text $$a$$ tail')).toBe('text $$a$$ tail');
+      expect(escapeParagraphMarkdown('$$\n$$')).toBe('$$\n$$');
     });
 
     it('escapes block prefixes on every line — continuation lines included (#404)', () => {

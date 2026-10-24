@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { MarkdownSafeTable, SafeHardBreak, SafeParagraph } from '../extensions';
 import { createMarkdownExtension } from '../init';
+import { MathBlock } from '../extensions';
 import { TableHandleView, TABLE_HANDLE_HOST_CLASS } from '../table-handles';
 
 const mocks = vi.hoisted(() => ({
@@ -40,8 +41,8 @@ function makeEditor() {
       TableRow,
       TableCell,
       TableHeader,
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
   (editor as any).__host = host;
   return editor;

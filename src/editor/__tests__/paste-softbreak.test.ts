@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Fragment, Slice } from '@tiptap/pm/model';
 import type { Slice as SliceType } from '@tiptap/pm/model';
-import { SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { softBreakPasteKey, softBreakPastePlugin } from '../paste-softbreak';
 
@@ -21,8 +21,8 @@ describe('softBreakPastePlugin (#404)', () => {
         SafeHardBreak, SafeParagraph,
         mermaidCodeBlockExtension(),
         softBreakPastePlugin(),
-        createMarkdownExtension(),
-      ],
+        MathBlock,
+        createMarkdownExtension(),      ],
     });
     const plugin = softBreakPasteKey.get(editor.state);
     if (!plugin) throw new Error('softBreakPastePlugin not registered');

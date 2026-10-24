@@ -6,6 +6,7 @@ import { OpaqueNode } from '../extension';
 import { admitOpaque, reconcileSave } from '../integration';
 import { getOpaqueRegistry, endOpaqueSession } from '../session';
 import { createMarkdownExtension } from '../../../init';
+import { MathBlock } from '../../../extensions';
 
 /**
  * Task 8.1 + 8.4 — opaque admission captures baselines; the `safe-edit` path
@@ -24,8 +25,8 @@ describe('opaque admission + safe-edit reconcile (8.1, 8.4)', () => {
         StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
         SafeHardBreak, SafeParagraph,
         OpaqueNode,
-        createMarkdownExtension(),
-      ],
+        MathBlock,
+        createMarkdownExtension(),      ],
     });
   }
 

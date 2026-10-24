@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { MarkdownSafeTable, SafeHardBreak, SafeParagraph } from '..';
 import { createMarkdownExtension } from '../../init';
+import { MathBlock } from '..';
 
 /**
  * WYSIWYG 表格输入规则单测（task 1.1）。
@@ -23,8 +24,8 @@ function makeEditor() {
       TableRow,
       TableCell,
       TableHeader,
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
 }
 

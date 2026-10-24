@@ -4,7 +4,7 @@ import type { JSONContent } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from '../markdown/adapter';
 import { decideAdmission, verifyAdmission, admissionReasonLabel } from '../markdown/admission';
@@ -46,6 +46,7 @@ function createAppEditor() {
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       BlockImage.configure({ allowBase64: true }),
       mermaidCodeBlockExtension(),
+      MathBlock,
       OpaqueNode,
       RawMarkdown,
       createMarkdownExtension(),
@@ -193,6 +194,68 @@ describe('admission verification (6.4)', () => {
       pipelineMode: admission.mode,
     });
     expect(decision.kind).toBe('unchanged');
+  });
+
+  // issue #417: a line-leading cross-line $$ block is an atom node whose
+  // latex attr survives the round-trip verbatim, so admission admits the doc
+  // and an unedited save boundary reports unchanged (no dirty false positive).
+  it('admits a cross-line block formula and keeps an unedited save unchanged (#417)', () => {
+    const src = '$$\n\\begin{align}\n  a &= b + c \\\\\n  d &= e + f\n\\end{align}\n$$\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    const serialized = serializeTipTapMarkdown(editor);
+    expect(serialized.ok ? serialized.markdown : null).toBe('$$\n\\begin{align}\n  a &= b + c \\\\\n  d &= e + f\n\\end{align}\n$$\n\n');
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 0,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('unchanged');
+  });
+
+  // issue #417: editing content OUTSIDE the formula keeps the latex bytes
+  // verbatim in the write candidate, and canonical delimiter-spelling drift
+  // (`$$ x $$` → `$$x$$`) classifies safe-edit instead of a conflict.
+  it('keeps block-formula latex intact across an unrelated edit and canonical spelling drift', () => {
+    const src = '$$ x $$\n\n前文段落\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    // Edit only the trailing paragraph, never the formula node.
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, 'X');
+    const serialized = serializeTipTapMarkdown(editor);
+    expect(serialized.ok).toBe(true);
+    if (serialized.ok) {
+      expect(serialized.markdown).not.toContain('&amp;');
+    }
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 1,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('safe-edit');
+    if (decision.kind === 'safe-edit') {
+      expect(decision.markdown).toBe('$$x$$\n\n前文段落X');
+    }
   });
 
   it('admits paragraphs whose first line starts with an escaped block prefix', () => {

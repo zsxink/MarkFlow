@@ -6,7 +6,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../editor/extensions';
 import { createMarkdownExtension } from '../editor/init';
 
 // ── Stage-one gate 5.6: read-only field scan ────────────────────────────
@@ -53,8 +53,8 @@ function createAppEditor() {
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       BlockImage.configure({ allowBase64: true }),
       mermaidCodeBlockExtension(),
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
 }
 

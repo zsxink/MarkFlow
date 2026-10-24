@@ -7,7 +7,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../editor/extensions';
 import { createMarkdownExtension } from '../editor/init';
 import { OpaqueNode } from '../editor/markdown/opaque/extension';
 import { parseMarkdown, serializeMarkdown } from '../editor/markdown/bridge';
@@ -58,6 +58,7 @@ function makeEditor() {
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       BlockImage.configure({ allowBase64: true }),
       mermaidCodeBlockExtension(),
+      MathBlock,
       OpaqueNode,
       createMarkdownExtension(),
     ],
@@ -142,6 +143,65 @@ describe('KaTeX markdown round-trip', () => {
       expect(result.markdown).toContain('$E=mc^2$');
       expect(result.markdown).toContain('$x^2$');
     }
+    editor.destroy();
+  });
+});
+
+describe('cross-line block formula round-trip (#417)', () => {
+  const ALIGN_LATEX = '\\begin{align}\n  a &= b + c \\\\\n  d &= e + f\n\\end{align}';
+  const ALIGN_DOC = `$$\n${ALIGN_LATEX}\n$$`;
+
+  it('parses a line-leading cross-line $$ block into a mathBlock node with verbatim latex', () => {
+    const editor = makeEditor();
+    const parsed = parseMarkdown(editor, ALIGN_DOC);
+    expect(parsed.ok).toBe(true);
+    const json = editor.getJSON();
+    const block = (json.content ?? []).find((node) => node.type === 'mathBlock');
+    expect(block).toBeDefined();
+    // Byte-level: `\\` stays double, `&` stays bare, indent and newlines intact.
+    expect(block?.attrs?.latex).toBe(ALIGN_LATEX);
+    editor.destroy();
+  });
+
+  it('serializes byte-identically and is idempotent on a second parse', () => {
+    const editor = makeEditor();
+    parseMarkdown(editor, ALIGN_DOC);
+    const first = serializeMarkdown(editor);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    // The editor path appends the same trailing blank line every block node
+    // gets (cf. '# hi\\n' → '# hi\\n\\n'); the latex itself is byte-exact.
+    expect(first.markdown).toBe(`${ALIGN_DOC}\n\n`);
+    parseMarkdown(editor, first.markdown);
+    const second = serializeMarkdown(editor);
+    expect(second.ok).toBe(true);
+    if (second.ok) expect(second.markdown).toBe(`${ALIGN_DOC}\n\n`);
+    editor.destroy();
+  });
+
+  it('keeps latex verbatim when unrelated neighbouring content is serialized', () => {
+    const editor = makeEditor();
+    const source = `${ALIGN_DOC}\n\n前文段落\n`;
+    parseMarkdown(editor, source);
+    const result = serializeMarkdown(editor);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.markdown).toBe(`${ALIGN_DOC}\n\n前文段落`);
+    expect(result.markdown).not.toContain('&amp;');
+    expect(result.markdown).not.toContain('\\\\begin');
+    editor.destroy();
+  });
+
+  it('normalizes delimiter spelling once to the canonical form', () => {
+    const editor = makeEditor();
+    parseMarkdown(editor, '$$ x $$\n');
+    const once = serializeMarkdown(editor);
+    expect(once.ok).toBe(true);
+    if (!once.ok) return;
+    expect(once.markdown).toBe('$$x$$\n\n');
+    parseMarkdown(editor, once.markdown);
+    const twice = serializeMarkdown(editor);
+    expect(twice.ok && twice.markdown).toBe('$$x$$\n\n');
     editor.destroy();
   });
 });

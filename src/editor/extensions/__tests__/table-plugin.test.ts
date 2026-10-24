@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { MarkdownSafeTable, SafeHardBreak, SafeParagraph } from '..';
 import { createMarkdownExtension } from '../../init';
+import { MathBlock } from '..';
 import { tablePlugin } from '../../table';
 import { TableHandleView } from '../../table-handles';
 
@@ -44,8 +45,8 @@ function makeEditor() {
       TableCell,
       TableHeader,
       tablePlugin(),
-      createMarkdownExtension(),
-    ],
+      MathBlock,
+      createMarkdownExtension(),    ],
   });
 }
 

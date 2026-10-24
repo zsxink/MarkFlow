@@ -18,13 +18,15 @@
 // Reference-style link DEFINITIONS, footnotes and inline HTML are
 // `source-only` because their meaning can cross span boundaries; adjacent
 // brackets without any definition (e.g. `[S1][S2]` traceability markers) are
-// literal text per CommonMark and eligible. Math delimiters (`$..$` / `$$..$$`)
-// are now supported: they pass through the markdown pipeline as plain text and
-// are rendered by the KaTeX plugin (`editor.katex.ts`), so they are `eligible`.
+// literal text per CommonMark and eligible. Line-leading `$$..$$` blocks are
+// admitted as `mathBlock` atom nodes (latex never flows through the markdown
+// pipeline), inline `$..$` / mid-line `$$..$$` pass through as plain text and
+// are rendered by the KaTeX plugin (`editor.katex.ts`).
 // Generic fenced code blocks are supported (not opaque).
 
 import { DEFAULT_SETTINGS } from '../../types/settings';
 import type { Settings } from '../../types/settings';
+import { scanMathBlockRegions } from '../../utils/katex-scan';
 import type { EligibilityResult } from './types';
 import {
   scanCodeRegions,
@@ -249,7 +251,16 @@ export function classifyEligibility(
   if (codeRegions.unclosed) {
     return { verdict: 'source-only', reason: 'ambiguous-boundary', category: 'code-fence' };
   }
-  const scan = scanOpaqueSpans(src, { codeRegions: codeRegions.regions });
+  // Line-leading `$$..$$` blocks (#417) become atom nodes whose LaTeX content
+  // is not markdown, so it must not vote in opaque/inline-HTML/fence detection
+  // (`<div>`, ```` ``` ```` or `<!--` inside a formula are formula content).
+  // Fenced code is masked BEFORE the math scan so a `$$` pair inside a fence is
+  // never lifted out of it — blanking a fence boundary could flip a closed
+  // fence to unclosed. maskRanges preserves offsets, so regions found on a
+  // masked copy point at the original bytes.
+  const codeMasked = maskRanges(src, codeRegions.regions);
+  const mathRegions = scanMathBlockRegions(codeMasked);
+  const scan = scanOpaqueSpans(maskRanges(src, [...codeRegions.regions, ...mathRegions]), { codeRegions: codeRegions.regions });
   if (!scan.ok) {
     return {
       verdict: 'source-only',
@@ -260,9 +271,10 @@ export function classifyEligibility(
   const opaque: OpaqueSpan[] = scan.spans;
 
   // ── 2. Disqualify unsupported / source-only syntax ──────────────────
-  // These run only on prose. Opaque payloads, fenced code and complete inline
-  // code spans may legitimately contain HTML/math/reference-looking literals.
-  const blockProtected: ProtectedRange[] = [...opaque, ...codeRegions.regions];
+  // These run only on prose. Opaque payloads, fenced code, complete inline
+  // code spans and block-formula LaTeX may legitimately contain
+  // HTML/math/reference-looking literals.
+  const blockProtected: ProtectedRange[] = [...mathRegions, ...opaque, ...codeRegions.regions];
   const inlineCode = scanInlineCodeRegions(src, blockProtected);
   const body = maskRanges(src, [...blockProtected, ...inlineCode]);
 
@@ -297,9 +309,10 @@ export function classifyEligibility(
   if (/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^>]*)?>/.test(body)) {
     return { verdict: 'source-only', reason: 'unknown-construct', category: 'inline-html' };
   }
-  // Math delimiters (`$..$` / `$$..$$`) are now supported via the KaTeX plugin
-  // (editor.katex.ts). Formulas pass through Marked as plain text and are
-  // rendered as decorations in WYSIWYG mode. No rejection needed.
+  // Math delimiters are supported: line-leading `$$..$$` blocks were already
+  // masked out above (mathBlock atoms), while inline `$..$` and mid-line
+  // `$$..$$` pass through Marked as plain text and are rendered as decorations
+  // in WYSIWYG mode. No rejection needed.
   // Unclosed fenced code is already rejected in section 1 by `scanCodeRegions`
   // (which also handles `~~~` fences), so no separate parity check is needed.
 

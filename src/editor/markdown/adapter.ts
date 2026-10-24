@@ -45,6 +45,8 @@ export const MARKFLOW_SERIALIZABLE_TYPES: ReadonlySet<string> = new Set([
   // opaque atom (sentinel-serialized by its own markdownTokenName)
   'markflowOpaque',
   'markflowRawMarkdown',
+  // block math atom (latex attr serialized by its own markdownTokenName, #417)
+  'mathBlock',
   // inline nodes
   'hardBreak',
   'text',

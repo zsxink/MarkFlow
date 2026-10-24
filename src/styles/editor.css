@@ -1120,6 +1120,18 @@
   vertical-align: middle;
 }
 
+/* Block-level math atom node (#417): the NodeView renders the KaTeX output
+   into a .katex-block child; .math-block is the selectable atom wrapper. */
+.ProseMirror .math-block {
+  display: block;
+  margin: 1em 0;
+}
+
+.ProseMirror .math-block .katex-loading {
+  display: block;
+  text-align: center;
+}
+
 .ProseMirror .katex-block {
   display: block;
   text-align: center;

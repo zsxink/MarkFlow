@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scanFormulas } from '../katex-scan';
+import { scanFormulas, scanMathBlockRegions } from '../katex-scan';
 
 describe('scanFormulas', () => {
   it('identifies inline $..$', () => {
@@ -102,5 +102,51 @@ describe('scanFormulas', () => {
     expect(result).toHaveLength(2);
     expect(input.slice(result[0].from, result[0].to)).toBe('$a$');
     expect(input.slice(result[1].from, result[1].to)).toBe('$$b$$');
+  });
+});
+
+describe('scanMathBlockRegions (#417)', () => {
+  it('finds a line-leading multi-line block with exact offsets', () => {
+    const source = '$$\n\\begin{align}\n  a &= b \\\\\n\\end{align}\n$$';
+    const regions = scanMathBlockRegions(source);
+    expect(regions).toHaveLength(1);
+    expect(regions[0].from).toBe(0);
+    expect(regions[0].to).toBe(source.length);
+    expect(regions[0].latex).toBe('\\begin{align}\n  a &= b \\\\\n\\end{align}');
+    expect(source.slice(regions[0].from, regions[0].to)).toBe(source);
+  });
+
+  it('allows up to 3 leading spaces and trims the latex', () => {
+    expect(scanMathBlockRegions('  $$x$$').map((r) => r.latex)).toEqual(['x']);
+    expect(scanMathBlockRegions('   $$ x $$').map((r) => r.latex)).toEqual(['x']);
+  });
+
+  it('does not match mid-line delimiters', () => {
+    expect(scanMathBlockRegions('text $$a$$ tail')).toEqual([]);
+  });
+
+  it('skips empty content between delimiters', () => {
+    expect(scanMathBlockRegions('$$\n$$')).toEqual([]);
+    expect(scanMathBlockRegions('$$   $$')).toEqual([]);
+  });
+
+  it('finds nothing when the block is unclosed', () => {
+    expect(scanMathBlockRegions('$$\nx\ny')).toEqual([]);
+  });
+
+  it('finds consecutive blocks without overlap', () => {
+    const source = '$$a$$\n$$\nb\n$$';
+    const regions = scanMathBlockRegions(source);
+    expect(regions).toHaveLength(2);
+    expect(source.slice(regions[0].from, regions[0].to)).toBe('$$a$$');
+    expect(source.slice(regions[1].from, regions[1].to)).toBe('$$\nb\n$$');
+  });
+
+  it('matches blocks after a preceding paragraph line', () => {
+    const source = 'para line\n$$\na &= b\n$$';
+    const regions = scanMathBlockRegions(source);
+    expect(regions).toHaveLength(1);
+    expect(regions[0].from).toBe(10);
+    expect(regions[0].latex).toBe('a &= b');
   });
 });

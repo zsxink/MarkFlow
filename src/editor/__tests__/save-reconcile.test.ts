@@ -12,6 +12,7 @@ import {
   shouldUseReconcileBoundary,
 } from '../save-reconcile';
 import { createMarkdownExtension } from '../init';
+import { MathBlock } from '../extensions';
 import { assetToOriginalMap } from '../state';
 
 /**
@@ -32,8 +33,8 @@ describe('save-boundary reconcile (8.5, 8.6)', () => {
         SafeHardBreak, SafeParagraph,
         OpaqueNode,
         BlockImage.configure({ allowBase64: true }),
-        createMarkdownExtension(),
-      ],
+        MathBlock,
+        createMarkdownExtension(),      ],
     });
   }
 

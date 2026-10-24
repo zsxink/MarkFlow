@@ -17,6 +17,34 @@ export interface FormulaMatch {
   content: string;
 }
 
+/** A complete line-leading `$$..$$` block region in a source string. */
+export interface MathBlockRegion {
+  /** [from, to) span of the whole block, including both `$$` delimiters. */
+  from: number;
+  to: number;
+  /** Trimmed LaTeX content between the delimiters. */
+  latex: string;
+}
+
+/**
+ * Locate line-leading `$$..$$` block regions with the exact rule the mathBlock
+ * node tokenizer applies (issue #417): `$$` at a line start with at most 3
+ * leading spaces/tabs, matched non-greedily to the nearest closing `$$`, empty
+ * content skipped. Callers mask these regions so LaTeX content never votes in
+ * markdown-construct detection — the formula content is not markdown syntax.
+ */
+export function scanMathBlockRegions(source: string): MathBlockRegion[] {
+  const regions: MathBlockRegion[] = [];
+  const re = /^[ \t]{0,3}\$\$((?:[^$]|\$(?!\$))*?)\$\$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(source)) !== null) {
+    const latex = m[1].trim();
+    if (!latex) continue;
+    regions.push({ from: m.index, to: m.index + m[0].length, latex });
+  }
+  return regions;
+}
+
 /**
  * Scan source string for KaTeX formula syntax.
  * Returns matches sorted by position, with block formulas prioritized over

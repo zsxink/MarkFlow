@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '../../extensions';
 import { createMarkdownExtension } from '../../init';
 import { OpaqueNode } from '../opaque/extension';
 import { RawMarkdown } from '../fallback';
@@ -19,7 +19,7 @@ function makeEditor() {
       MarkdownSafeTable.configure({ resizable: true }), TableRow, TableCell, TableHeader,
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
       BlockImage.configure({ allowBase64: true }), mermaidCodeBlockExtension(), OpaqueNode,
-      RawMarkdown, createMarkdownExtension(),
+      RawMarkdown, MathBlock, createMarkdownExtension(),
     ],
   });
 }
@@ -81,6 +81,17 @@ describe('verifySingleBlockUpgrade', () => {
     // stays visually multi-line after leaving the raw textarea.
     expect(breaks).toHaveLength(2);
     expect(breaks.every((node) => node.attrs?.soft === true)).toBe(true);
+    editor.destroy();
+  });
+
+  it('upgrades a line-leading $$ block into a mathBlock node (#417)', () => {
+    const editor = makeEditor();
+    const latex = '\\begin{align}\n  a &= b + c \\\\\n\\end{align}';
+    const result = verifySingleBlockUpgrade(editor, `$$\n${latex}\n$$`);
+    expect(result.upgradeable).toBe(true);
+    expect(result.blocks).toEqual([
+      expect.objectContaining({ type: 'mathBlock', attrs: { latex } }),
+    ]);
     editor.destroy();
   });
 });

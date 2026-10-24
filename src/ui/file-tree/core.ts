@@ -21,7 +21,6 @@ export {
   createTreeNode,
   insertEntryIntoTree,
   removeEntryFromTree,
-  renameEntryInTree,
   renamePathDom,
   renderDirectory,
   insertSorted,

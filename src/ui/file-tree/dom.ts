@@ -50,27 +50,49 @@ export function getDepth(container: HTMLElement): number {
   return depth;
 }
 
-/** Insert `node` among `container`'s children keeping folders-first + name order. */
+/** Read the visible label of a tree node, bare or wrapped in a folder wrapper. */
+function treeNodeName(el: Element): string {
+  const span = el.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement | null;
+  return span?.textContent || '';
+}
+
+/** Insert `node` among `container`'s children keeping folders-first + name order.
+ *
+ * Mirrors `compareEntries` (folders above files, name localeCompare ascending):
+ * a folder sorting after every folder lands before the first file instead of
+ * below all files, and a node sorting last never lands after the
+ * `.tree-load-more` pagination button (issue #419). Path tie-breaking is
+ * state-layer-only; DOM ties keep the newcomer before its same-named sibling.
+ */
 export function insertSorted(container: HTMLElement, node: HTMLElement, isDir: boolean): void {
-  const children = Array.from(container.children);
-  const newName = (node.querySelector(':scope > span') as HTMLElement)?.textContent || '';
-  let inserted = false;
-  for (const child of children) {
+  const newName = treeNodeName(node);
+  let firstFile: Element | null = null;
+  let loadMore: Element | null = null;
+  for (const child of Array.from(container.children)) {
     if (child === node) continue;
+    if (child.classList.contains('tree-load-more')) {
+      if (!loadMore) loadMore = child;
+      continue;
+    }
     const childIsDir = child.classList.contains('tree-folder')
       || child.querySelector(':scope > .tree-folder') !== null;
-    if (isDir && !childIsDir) continue;
-    if (!isDir && childIsDir) {
-      container.insertBefore(node, child);
-      inserted = true;
-      break;
+    if (childIsDir) {
+      if (isDir && newName.localeCompare(treeNodeName(child)) <= 0) {
+        container.insertBefore(node, child);
+        return;
+      }
+      continue;
     }
-    const childName = (child.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement)?.textContent || '';
-    if (newName.localeCompare(childName) < 0) {
+    if (!firstFile) firstFile = child;
+    if (!isDir && newName.localeCompare(treeNodeName(child)) <= 0) {
       container.insertBefore(node, child);
-      inserted = true;
-      break;
+      return;
     }
   }
-  if (!inserted) container.appendChild(node);
+  if (isDir && firstFile) {
+    container.insertBefore(node, firstFile);
+    return;
+  }
+  if (loadMore) container.insertBefore(node, loadMore);
+  else container.appendChild(node);
 }

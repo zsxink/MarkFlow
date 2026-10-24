@@ -14,7 +14,6 @@ export {
   initTreeAria,
   insertEntryIntoTree,
   removeEntryFromTree,
-  renameEntryInTree,
   applyFileTreeEvents,
   cleanup,
   flushPendingMutations,

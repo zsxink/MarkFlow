@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   readDirPage: vi.fn(),
   readPathEntry: vi.fn(),
+  renamePath: vi.fn(),
 }));
 
 vi.mock('../../../infra/storage', () => ({
   readDirPage: mocks.readDirPage,
   readPathEntry: mocks.readPathEntry,
+  renamePath: mocks.renamePath,
   setWorkspace: vi.fn(),
   openFileInNewWindow: vi.fn(),
 }));
@@ -18,6 +20,7 @@ import {
   loadDirectoryForTesting, refreshFileTree, resetFileTreeStateForTesting,
   restoreExpandedState,
 } from '../core';
+import { startInlineRename } from '../inline';
 import { setActiveFilePath } from '../../active-document';
 import { store } from '../../../infra/store';
 
@@ -26,6 +29,7 @@ beforeEach(() => {
   resetFileTreeStateForTesting();
   mocks.readDirPage.mockReset();
   mocks.readPathEntry.mockReset();
+  mocks.renamePath.mockReset();
   store.setState({ workspacePath: '/ws', expandedPaths: [], activeFilePath: null });
 });
 
@@ -127,5 +131,40 @@ describe('incremental rename state', () => {
     expect(document.querySelector('[data-path="/ws/new/active.md"]')).not.toBeNull();
     expect(store.getState().activeFilePath).toBe('/ws/new/active.md');
     expect(store.getState().expandedPaths).toEqual(['/ws/new']);
+  });
+});
+
+describe('inline rename re-sort', () => {
+  it('moves a file renamed to a last-sorting name above the load-more button', async () => {
+    // Issue #419: the re-sort used to appendChild the node, landing a
+    // last-sorting rename behind the pagination button / out of order.
+    const root = document.getElementById('file-tree')!;
+    root.appendChild(createTreeNode({ name: 'archive', path: '/ws/archive', isDir: true }, 0));
+    root.appendChild(createTreeNode({ name: 'a.md', path: '/ws/a.md', isDir: false }, 0));
+    root.appendChild(createTreeNode({ name: 'b.md', path: '/ws/b.md', isDir: false }, 0));
+    const more = document.createElement('button');
+    more.className = 'tree-load-more';
+    more.textContent = '继续加载';
+    root.appendChild(more);
+    mocks.renamePath.mockResolvedValue(undefined);
+
+    startInlineRename('/ws/b.md');
+    const input = document.querySelector('.tree-inline-input') as HTMLInputElement;
+    input.value = 'zz.md';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-path="/ws/zz.md"]')).not.toBeNull();
+    });
+    expect(mocks.renamePath).toHaveBeenCalledWith('/ws/b.md', '/ws/zz.md');
+
+    const labels = Array.from(root.children).map(child => {
+      if (child.classList.contains('tree-load-more')) return '(load-more)';
+      const span = child.querySelector(':scope > span, :scope > .tree-folder > span') as HTMLElement | null;
+      return span?.textContent || '';
+    });
+    // Matches a full refresh ordered by compareEntries: folders first, then
+    // files by name, pagination button always last.
+    expect(labels).toEqual(['archive', 'a.md', 'zz.md', '(load-more)']);
   });
 });

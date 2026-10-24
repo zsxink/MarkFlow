@@ -355,6 +355,78 @@ describe('admission verification (6.4)', () => {
     }
   });
 
+  // issue #436: typing a Setext H2 underline-looking continuation line ('--')
+  // mirrors #421's '===' — unescaped, the save candidate re-parses the
+  // paragraph as an H2 and the reconcile boundary refuses to write. With the
+  // Setext H2 rule the candidate carries '\--' and the save proceeds.
+  it('keeps a typed -- continuation line saveable as one paragraph (#436)', () => {
+    const src = '正文第一行\n第二行\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    // Simulate typing a soft-break continuation line "--" at the paragraph end.
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, [
+      { type: 'hardBreak', attrs: { soft: true } },
+      { type: 'text', text: '--' },
+    ]);
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 1,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('safe-edit');
+    if (decision.kind === 'safe-edit') {
+      expect(decision.markdown).toBe('正文第一行\n第二行\n\\--');
+    }
+  });
+
+  // issue #436: a saved doc whose paragraph contains the escaped H2 underline
+  // ('正文\n\--') must re-admit as a fully supported doc — a plain paragraph —
+  // and an unedited save boundary reports unchanged.
+  it('re-admits a saved escaped setext-h2-underline paragraph as supported (#436)', () => {
+    const src = '正文\n\\--\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    const serialized = serializeTipTapMarkdown(editor);
+    expect(serialized.ok ? serialized.markdown : null).toBe('正文\n\\--');
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 0,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('unchanged');
+  });
+
+  // issue #436: the pipeline's actual saved spelling of a spaced-hr-looking
+  // continuation is tiptap's per-character escape for '*'/'_' ('\* \* \*')
+  // and the bullet escape for '-' ('\- - -') — none of them starts with a raw
+  // block prefix, so the saved doc must re-admit as a plain paragraph.
+  it('re-admits spaced-hr continuation spellings as plain paragraphs (#436)', () => {
+    for (const src of ['正文\n\\* \\* \\*\n', '正文\n\\_ \\_ \\_\n', '正文\n\\- - -\n']) {
+      expect(classifyEligibility(src), `${JSON.stringify(src)} eligibility`).toEqual({ verdict: 'eligible', reason: 'supported' });
+      expect(verifyAdmission(editor, src), `${JSON.stringify(src)} verification`).toEqual({ ok: true });
+    }
+  });
+
   // Negative / non-regression: real block structures still serialize exactly
   // as before (the paragraph renderer must not rewrite typed list/heading/HR
   // nodes), and plain paragraph text is not over-escaped.

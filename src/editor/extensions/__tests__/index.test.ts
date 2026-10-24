@@ -368,4 +368,77 @@ describe('editor extensions', () => {
       expect(escapeParagraphMarkdown('\\``` foo')).toBe('\\``` foo');
     });
   });
+
+  // issue #436: the Setext H2 underline ('-'/'--' whole line) and the
+  // space-separated thematic break ('* * *' / '_ _ _' / '- - -') are two more
+  // continuation shapes that re-parse into different blocks, and the bullet
+  // rule must cover CommonMark's third marker character '*'. Same escape
+  // guarantee as the #286/#421 prefixes above.
+  describe('escapeParagraphMarkdown — setext-h2/spaced-hr/bullet-* prefixes (issue #436)', () => {
+    it('escapes a Setext H2 underline line only on continuation lines', () => {
+      // A non-first full-line '-'/'--' underlines the preceding line as an H2.
+      expect(escapeParagraphMarkdown('正文\n--')).toBe('正文\n\\--');
+      expect(escapeParagraphMarkdown('正文\n-')).toBe('正文\n\\-');
+      // Trailing whitespace still forms an underline; '-' + space hits the
+      // bullet rule first, which keeps the trailing spaces.
+      expect(escapeParagraphMarkdown('正文\n-  ')).toBe('正文\n\\-  ');
+      // Longer '-' runs are underlines too ('---' itself is pinned by the HR
+      // rule above — same '\---' spelling either way).
+      expect(escapeParagraphMarkdown('正文\n------')).toBe('正文\n\\------');
+      // Hard-break continuation lines share the fix.
+      expect(escapeParagraphMarkdown('正文  \n--')).toBe('正文  \n\\--');
+      // A first line has nothing to underline: '-'/'--' stay plain text.
+      expect(escapeParagraphMarkdown('--')).toBe('--');
+      expect(escapeParagraphMarkdown('-')).toBe('-');
+      // Mixed '=-' runs are not an underline (the alternation keeps runs
+      // same-character); '=' runs followed by content stay untouched (#421).
+      expect(escapeParagraphMarkdown('正文\n=-=')).toBe('正文\n=-=');
+      expect(escapeParagraphMarkdown('正文\n== x')).toBe('正文\n== x');
+    });
+
+    it('escapes space-separated thematic break forms (first char only)', () => {
+      // The same char repeated 3+ times, separated by 1-3 spaces, forms a
+      // thematic break even though it is not a contiguous run.
+      expect(escapeParagraphMarkdown('* * *')).toBe('\\* * *');
+      expect(escapeParagraphMarkdown('_ _ _')).toBe('\\_ _ _');
+      expect(escapeParagraphMarkdown('正文\n*  *  *')).toBe('正文\n\\*  *  *');
+      // Trailing whitespace is part of the marker line; the rule's replacement
+      // consumes it (same as the contiguous HR rule).
+      expect(escapeParagraphMarkdown('正文\n_ _ _  ')).toBe('正文\n\\_ _ _');
+      // First line also applies: the whole line IS the block marker.
+      expect(escapeParagraphMarkdown('_ _ _')).toBe('\\_ _ _');
+      // The '-'-led form is pinned by the bullet rule, which runs first.
+      expect(escapeParagraphMarkdown('正文\n- - -')).toBe('正文\n\\- - -');
+      // Mixed-character and two-char runs are not thematic breaks: '_' forms
+      // stay literal (no rule hits them); '*' forms are list markers under
+      // CommonMark and take the bullet escape instead.
+      expect(escapeParagraphMarkdown('_ - _')).toBe('_ - _');
+      expect(escapeParagraphMarkdown('_ _')).toBe('_ _');
+      expect(escapeParagraphMarkdown('_ _ x')).toBe('_ _ x');
+      expect(escapeParagraphMarkdown('* - *')).toBe('\\* - *');
+      expect(escapeParagraphMarkdown('* *')).toBe('\\* *');
+      expect(escapeParagraphMarkdown('* * x')).toBe('\\* * x');
+    });
+
+    it('escapes the CommonMark third bullet character (*) like - and +', () => {
+      expect(escapeParagraphMarkdown('* foo')).toBe('\\* foo');
+      expect(escapeParagraphMarkdown('正文\n* x')).toBe('正文\n\\* x');
+      // No space after '*' — '*foo' is plain text, not a bullet.
+      expect(escapeParagraphMarkdown('*foo')).toBe('*foo');
+      expect(escapeParagraphMarkdown('正文\n*foo')).toBe('正文\n*foo');
+    });
+
+    it('escapes every #436 prefix in one multi-line paragraph', () => {
+      expect(escapeParagraphMarkdown('正文\n--\n* * *\n_ _ _\n* foo'))
+        .toBe('正文\n\\--\n\\* * *\n\\_ _ _\n\\* foo');
+    });
+
+    it('leaves already-escaped spellings untouched (no double escape)', () => {
+      expect(escapeParagraphMarkdown('\\--')).toBe('\\--');
+      expect(escapeParagraphMarkdown('正文\n\\-')).toBe('正文\n\\-');
+      expect(escapeParagraphMarkdown('\\* * *')).toBe('\\* * *');
+      expect(escapeParagraphMarkdown('\\_ _ _')).toBe('\\_ _ _');
+      expect(escapeParagraphMarkdown('\\- - -')).toBe('\\- - -');
+    });
+  });
 });

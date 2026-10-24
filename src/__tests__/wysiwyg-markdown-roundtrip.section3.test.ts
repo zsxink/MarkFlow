@@ -573,4 +573,127 @@ describe('Section 3 dedicated syntax round-trip tests', () => {
       expect(html.reparsed).toEqual(html.first);
     });
   });
+
+  // Issue #436: the Setext H2 underline ('-'/ '--' whole line) and the
+  // space-separated thematic break ('* * *' / '_ _ _' / '- - -') are two more
+  // continuation shapes that would split the paragraph on save. '-'/ '--' is
+  // escaped by SafeParagraph's own Setext rule ('\--'); '*'/ '_' forms ride
+  // the upstream per-character escapes ('\* \* \*'); '- - -' rides the bullet
+  // rule. Each spelling is pinned so a serializer change that re-opens the
+  // split cannot land silently.
+  describe('3.10 paragraph continuation setext-h2 / spaced-hr escape (#436)', () => {
+    /** In-editor paragraph with the given visual lines joined by breaks. */
+    function breakParagraph(lines: string[], hardBreak = false): JSONContent {
+      const content: JSONContent[] = [];
+      lines.forEach((line, index) => {
+        if (index > 0) {
+          content.push(hardBreak ? { type: 'hardBreak' } : { type: 'hardBreak', attrs: { soft: true } });
+        }
+        content.push({ type: 'text', text: line });
+      });
+      return { type: 'paragraph', content };
+    }
+
+    /** Round-trip an in-editor document through serialize → re-parse. */
+    function roundTripDoc(doc: JSONContent) {
+      const editor = createAppEditor();
+      try {
+        editor.commands.setContent(doc);
+        const first = editor.getJSON();
+        const output = editor.getMarkdown();
+        editor.commands.setContent(output, { contentType: 'markdown' });
+        const reparsed = editor.getJSON();
+        return { output, first, reparsed };
+      } finally {
+        editor.destroy();
+      }
+    }
+
+    /** Top-level block types of a parsed document. */
+    function topLevelTypes(json: unknown): string[] {
+      return ((json as { content?: Array<{ type?: string }> }).content ?? []).map((node) => node.type ?? '');
+    }
+
+    /** Visual lines of the first paragraph (breaks split, texts joined). */
+    function paragraphLines(json: unknown): string[] {
+      const para = (json as { content?: Array<Record<string, unknown>> }).content?.[0];
+      if (!para || para.type !== 'paragraph') return [`<${String(para?.type)}>`];
+      const lines: string[] = [];
+      let current = '';
+      for (const child of (para.content as Array<Record<string, unknown>>) ?? []) {
+        if (child.type === 'hardBreak') {
+          lines.push(current);
+          current = '';
+        } else if (child.type === 'text') {
+          current += child.text ?? '';
+        }
+      }
+      lines.push(current);
+      return lines;
+    }
+
+    it('keeps typed --/- - -/* * * continuation lines one paragraph on save and reload', () => {
+      const cases: Array<{ lines: string[]; output: string }> = [
+        { lines: ['正文', '--'], output: '正文\n\\--' },
+        { lines: ['正文', '-'], output: '正文\n\\-' },
+        { lines: ['正文', '- - -'], output: '正文\n\\- - -' },
+        { lines: ['正文', '* * *'], output: '正文\n\\* \\* \\*' },
+        { lines: ['正文', '_ _ _'], output: '正文\n\\_ \\_ \\_' },
+      ];
+      for (const { lines, output } of cases) {
+        const doc = breakParagraph(lines);
+        const result = roundTripDoc(doc);
+        expect(result.output, JSON.stringify(lines)).toBe(output);
+        expect(topLevelTypes(result.reparsed), JSON.stringify(lines)).toEqual(['paragraph']);
+        expect(paragraphLines(result.reparsed), JSON.stringify(lines)).toEqual(lines);
+        expect(result.reparsed, JSON.stringify(lines)).toEqual(result.first);
+      }
+    });
+
+    it('keeps hard-break -- continuation lines one paragraph too', () => {
+      const cases: Array<{ lines: string[]; output: string }> = [
+        { lines: ['正文', '--'], output: '正文  \n\\--' },
+        { lines: ['正文', '* * *'], output: '正文  \n\\* \\* \\*' },
+      ];
+      for (const { lines, output } of cases) {
+        const result = roundTripDoc(breakParagraph(lines, true));
+        expect(result.output, JSON.stringify(lines)).toBe(output);
+        expect(topLevelTypes(result.reparsed), JSON.stringify(lines)).toEqual(['paragraph']);
+        expect(paragraphLines(result.reparsed), JSON.stringify(lines)).toEqual(lines);
+      }
+    });
+
+    it('leaves a first-line -- unescaped (no preceding line to underline)', () => {
+      const result = roundTripDoc(breakParagraph(['--', 'text']));
+      expect(result.output).toBe('--\ntext');
+      expect(topLevelTypes(result.reparsed)).toEqual(['paragraph']);
+      expect(paragraphLines(result.reparsed)).toEqual(['--', 'text']);
+      expect(result.reparsed).toEqual(result.first);
+    });
+
+    it('keeps escaped setext-h2/spaced-hr paragraphs byte-stable across reload', () => {
+      // The Setext H2 underline relies on SafeParagraph's own rule ('\--').
+      const single = roundTrip('正文\n\\--');
+      expect(single.output).toBe('正文\n\\--');
+      expect(topLevelTypes(single.reparsed)).toEqual(['paragraph']);
+      expect(single.reparsed).toEqual(single.first);
+
+      const followed = roundTrip('正文\n\\--\n\n下一段');
+      expect(followed.output).toBe('正文\n\\--\n\n下一段');
+      expect(topLevelTypes(followed.reparsed)).toEqual(['paragraph', 'paragraph']);
+      expect(followed.reparsed).toEqual(followed.first);
+
+      // The '*'/'_' spaced-hr spellings ride the upstream per-char escapes and
+      // must stay byte-stable too; '-' rides the bullet rule.
+      const star = roundTrip('正文\n\\* \\* \\*');
+      expect(star.output).toBe('正文\n\\* \\* \\*');
+      expect(topLevelTypes(star.reparsed)).toEqual(['paragraph']);
+      expect(star.reparsed).toEqual(star.first);
+
+      const dash = roundTrip('正文\n\\- - -');
+      expect(dash.output).toBe('正文\n\\- - -');
+      expect(topLevelTypes(dash.reparsed)).toEqual(['paragraph']);
+      expect(dash.reparsed).toEqual(dash.first);
+    });
+  });
 });

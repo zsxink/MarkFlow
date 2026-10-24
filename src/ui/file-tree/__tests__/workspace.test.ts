@@ -70,7 +70,7 @@ describe('closeWorkspaceFolder', () => {
     expect(store.getState().workspacePath).toBeNull();
     expect(tree.innerHTML).toBe('<div class="empty-state">请先打开文件夹</div>');
     expect(getTreeState().nodes.size).toBe(0);
-    expect(showToast).toHaveBeenCalledWith('工作区已关闭');
+    expect(showToast).toHaveBeenCalledWith('文件夹已关闭');
   });
 
   it('does not touch the hidden attribute owned by the sidebar tab logic', async () => {

@@ -67,7 +67,7 @@ export async function closeWorkspaceFolder() {
   // philosophy shared with activateWorkspaceFolder).
   if (getWorkspacePath()) return;
   resetFileTreeToEmptyState();
-  showToast('工作区已关闭');
+  showToast('文件夹已关闭');
 }
 
 export function suppressNextWatcherRefresh(path: string) {

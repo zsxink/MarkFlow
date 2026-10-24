@@ -92,7 +92,7 @@ async function handleCreateNoWorkspace(type: 'file' | 'folder') {
 async function handleCreateInWorkspace(name: string, workspacePath: string | null) {
   if (!name.trim()) return;
   if (!workspacePath) {
-    showToast('请先打开工作区');
+    showToast('请先打开文件夹');
     return;
   }
 

@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../../extensions';
 import { createMarkdownExtension } from '../../init';
 import { semanticFingerprint, canonicalize, isSemanticallyEquivalent } from '../fingerprint';
 
@@ -31,8 +31,9 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }),
@@ -95,16 +96,19 @@ describe('named canonicalization behavior (9.3)', () => {
     editor.destroy();
   });
 
-  it('soft-break-normalization: a bare paragraph newline is preserved as a literal character', () => {
+  it('soft-break-normalization: a bare paragraph newline becomes a soft break node (#404)', () => {
     const editor = createAppEditor();
     const source = 'line one\nline two';
-    // The paragraph text node holds the literal `\n`; this is the accepted
-    // serialization for a CommonMark soft break (breaks:false), not a fork into
-    // two paragraphs.
+    // With breaks:true the soft break is an explicit hardBreak{soft:true} node
+    // — still one paragraph (not a fork into two), and it serializes back to
+    // the bare newline instead of a two-space hard break.
     const json = editor.commands.setContent(source, { contentType: 'markdown' } as never) && editor.getJSON();
-    expect(JSON.stringify(json)).toContain('line one\\nline two');
+    expect(JSON.stringify(json)).toContain('"soft":true');
+    expect(JSON.stringify(json)).not.toContain('line one\\nline two');
     const firstFingerprint = fpOf(editor, source);
     const serialized = editor.getMarkdown();
+    expect(serialized as string).toContain('line one\nline two');
+    expect(serialized as string).not.toContain('line one  \nline two');
     expect(fpOf(editor, serialized)).toBe(firstFingerprint);
     editor.destroy();
   });

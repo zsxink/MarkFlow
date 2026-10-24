@@ -8,7 +8,7 @@ const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings,
   renderMermaid: vi.fn(), renderPlantUml: vi.fn(), isBlankPlantUmlSource: vi.fn(() => false), getCachedSettings: vi.fn(), store: { on: vi.fn(), off: vi.fn() },
 }));
 vi.mock('../../../render/mermaid', () => ({ renderMermaid })); vi.mock('../../../render/plantuml', () => ({ renderPlantUml })); vi.mock('../../../render/plantuml-lazy', () => ({ isBlankPlantUmlSource })); vi.mock('../../../infra/storage', () => ({ getCachedSettings })); vi.mock('../../../infra/store', () => ({ store })); vi.mock('../../../ui/mermaid-context-menu', () => ({ showMermaidContextMenu: vi.fn() })); vi.mock('../../state', () => ({ getMermaidExportBaseName: vi.fn(), getActiveDocPath: vi.fn(() => null), assetToOriginalMap: new Map() }));
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, escapeParagraphMarkdown, mermaidCodeBlockExtension, renderFencedCodeBlock } from '..';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, escapeParagraphMarkdown, mermaidCodeBlockExtension, renderFencedCodeBlock } from '..';
 import { createMarkdownExtension, markflowMarked } from '../../init';
 
 /**
@@ -24,6 +24,7 @@ function createV3MarkdownEditor() {
       StarterKit.configure({
         paragraph: false,
         codeBlock: false,
+        hardBreak: false,
         link: false,
         bulletList: false,
         orderedList: false,
@@ -31,6 +32,7 @@ function createV3MarkdownEditor() {
         listKeymap: false,
       }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList,
       OrderedList,
       ListItem,
@@ -80,6 +82,19 @@ describe('editor extensions', () => {
       attrs: { href: 'https://a.test', title: 'title' },
     });
     expect(CustomLink.config.addInputRules!.call({} as never)).toHaveLength(1);
+  });
+
+  it('maps soft and hard br tokens to distinct hardBreak representations', () => {
+    const parse = SafeHardBreak.config.parseMarkdown!;
+    expect(parse({ type: 'br', raw: '\n' } as never, {} as never)).toEqual({ type: 'hardBreak', attrs: { soft: true } });
+    expect(parse({ type: 'br', raw: '  \n' } as never, {} as never)).toEqual({ type: 'hardBreak' });
+    expect(parse({ type: 'br', raw: '\\\n' } as never, {} as never)).toEqual({ type: 'hardBreak' });
+    expect(parse({ type: 'br', raw: '\n\n' } as never, {} as never)).toEqual({ type: 'hardBreak' });
+
+    const render = SafeHardBreak.config.renderMarkdown!;
+    expect(render({ attrs: { soft: true } } as never, {} as never, {} as never)).toBe('\n');
+    expect(render({ attrs: {} } as never, {} as never, {} as never)).toBe('  \n');
+    expect(render({ attrs: { soft: null } } as never, {} as never, {} as never)).toBe('  \n');
   });
 
   describe('codeBlock serialize trailing newline preservation', () => {
@@ -240,7 +255,7 @@ describe('editor extensions', () => {
   });
 
   describe('escapeParagraphMarkdown (issue #286)', () => {
-    it('escapes line-leading block prefixes only on the first line', () => {
+    it('escapes line-leading block prefixes on single-line paragraphs', () => {
       expect(escapeParagraphMarkdown('6. 正文')).toBe('6\\. 正文');
       expect(escapeParagraphMarkdown('1. 另一段')).toBe('1\\. 另一段');
       expect(escapeParagraphMarkdown('10. 第三段')).toBe('10\\. 第三段');
@@ -259,8 +274,19 @@ describe('editor extensions', () => {
       expect(escapeParagraphMarkdown('___ \t')).toBe('\\___');
     });
 
-    it('escapes only the first line — later lines are left untouched', () => {
-      expect(escapeParagraphMarkdown('6. first\n- second\n# third')).toBe('6\\. first\n- second\n# third');
+    it('escapes block prefixes on every line — continuation lines included (#404)', () => {
+      expect(escapeParagraphMarkdown('6. first\n- second\n# third')).toBe('6\\. first\n\\- second\n\\# third');
+      // Soft-break continuation lines typed as block prefixes must survive
+      // re-parse as paragraph text, not become list/heading/HR blocks.
+      expect(escapeParagraphMarkdown('正文\n1. x')).toBe('正文\n1\\. x');
+      expect(escapeParagraphMarkdown('正文\n# x')).toBe('正文\n\\# x');
+      expect(escapeParagraphMarkdown('正文\n- x')).toBe('正文\n\\- x');
+      expect(escapeParagraphMarkdown('正文\n---')).toBe('正文\n\\---');
+      // Hard-break (`  \n`) continuation lines share the same gap and fix.
+      expect(escapeParagraphMarkdown('正文  \n1. x')).toBe('正文  \n1\\. x');
+      // Non-triggering continuation lines stay intact.
+      expect(escapeParagraphMarkdown('正文\nplain')).toBe('正文\nplain');
+      expect(escapeParagraphMarkdown('正文\n6.x')).toBe('正文\n6.x');
     });
 
     it('keeps ordinary leading text and non-ambiguous prefixes untouched', () => {

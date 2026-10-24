@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { BlockImage, SafeParagraph } from '../extensions';
+import { BlockImage, SafeHardBreak, SafeParagraph } from '../extensions';
 import { OpaqueNode } from '../markdown/opaque/extension';
 import { admitOpaque } from '../markdown/opaque/integration';
 import { getOpaqueRegistry, endOpaqueSession } from '../markdown/opaque/session';
@@ -28,8 +28,8 @@ describe('save-boundary reconcile (8.5, 8.6)', () => {
     return new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
-        SafeParagraph,
+        StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        SafeHardBreak, SafeParagraph,
         OpaqueNode,
         BlockImage.configure({ allowBase64: true }),
         createMarkdownExtension(),

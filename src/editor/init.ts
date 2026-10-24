@@ -14,6 +14,7 @@ import { syncCodeLineNumberGutters } from './line-numbers';
 import { logException } from '../infra/logger';
 import { createUrlDecorationPlugin } from './url-decoration';
 import { imageSrcResolverPlugin } from './image-resolver';
+import { softBreakPastePlugin } from './paste-softbreak';
 import { imageBubblePlugin } from './image-bubble';
 import { tablePlugin } from './table';
 import { TableHandleView } from './table-handles';
@@ -23,6 +24,7 @@ import {
   CustomLink,
   BlockImage,
   MarkdownSafeTable,
+  SafeHardBreak,
   SafeParagraph,
   mermaidCodeBlockExtension,
 } from './extensions';
@@ -59,7 +61,9 @@ import { runDocumentOperation } from '../infra/document-operations';
  */
 export const markflowMarked = new Marked({
   gfm: true,
-  breaks: false,
+  // Soft in-paragraph newlines must tokenize as `br` tokens so the editor can
+  // represent them as explicit break nodes instead of collapsing them.
+  breaks: true,
 });
 
 /** Kept as a factory so each editor receives a v3 Markdown extension. */
@@ -70,7 +74,7 @@ export function createMarkdownExtension() {
     marked: markflowMarked as unknown as typeof MarkedFunction,
     markedOptions: {
       gfm: true,
-      breaks: false,
+      breaks: true,
     },
   });
 }
@@ -94,6 +98,7 @@ export async function initEditor() {
       StarterKit.configure({
         paragraph: false,
         codeBlock: false,
+        hardBreak: false,
         link: false,
         bulletList: false,
         orderedList: false,
@@ -101,6 +106,7 @@ export async function initEditor() {
         listKeymap: false,
       }),
       SafeParagraph,
+      SafeHardBreak,
       Placeholder.configure({
         placeholder: '开始写作 — 输入即所得',
       }),
@@ -136,6 +142,7 @@ export async function initEditor() {
       OpaqueNode,
       RawMarkdown,
       createMarkdownExtension(),
+      softBreakPastePlugin(),
       imageSrcResolverPlugin(),
       imageBubblePlugin(),
       tablePlugin(),

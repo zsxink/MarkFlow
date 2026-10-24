@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { SafeParagraph } from '../../../extensions';
+import { SafeHardBreak, SafeParagraph } from '../../../extensions';
 import { OpaqueNode, OPAQUE_NODE_NAME, setActiveOpaqueRegistry } from '../extension';
 import { OpaqueRegistry } from '../index';
 import { createMarkdownExtension } from '../../../init';
@@ -17,10 +17,10 @@ function createEditor() {
     element: document.createElement('div'),
     extensions: [
       StarterKit.configure({
-        paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false,
+        paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false,
         listItem: false, listKeymap: false,
       }),
-      SafeParagraph,
+      SafeHardBreak, SafeParagraph,
       OpaqueNode,
       createMarkdownExtension(),
     ],

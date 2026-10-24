@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
-import { MarkdownSafeTable, SafeParagraph } from '../extensions';
+import { MarkdownSafeTable, SafeHardBreak, SafeParagraph } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { TableHandleView, TABLE_HANDLE_HOST_CLASS } from '../table-handles';
 
@@ -34,8 +34,8 @@ function makeEditor() {
   const editor = new Editor({
     element: host,
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
-      SafeParagraph,
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      SafeHardBreak, SafeParagraph,
       MarkdownSafeTable.configure({ resizable: true, View: TableHandleView }),
       TableRow,
       TableCell,

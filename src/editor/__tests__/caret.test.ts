@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { parseTipTapMarkdown } from '../markdown/adapter';
 import { placeCaretAfterContentLoad } from '../session';
@@ -46,8 +46,9 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }),

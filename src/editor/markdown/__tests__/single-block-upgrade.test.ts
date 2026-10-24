@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../../extensions';
 import { createMarkdownExtension } from '../../init';
 import { OpaqueNode } from '../opaque/extension';
 import { RawMarkdown } from '../fallback';
@@ -13,8 +13,8 @@ function makeEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
-      SafeParagraph, BulletList, OrderedList, ListItem, ListKeymap,
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      SafeHardBreak, SafeParagraph, BulletList, OrderedList, ListItem, ListKeymap,
       TaskList, TaskItem.configure({ nested: true }),
       MarkdownSafeTable.configure({ resizable: true }), TableRow, TableCell, TableHeader,
       CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
@@ -67,6 +67,20 @@ describe('verifySingleBlockUpgrade', () => {
     const result = verifySingleBlockUpgrade(editor, 'just text');
     expect(result.upgradeable).toBe(true);
     expect(result.blocks).toEqual([expect.objectContaining({ type: 'paragraph' })]);
+    editor.destroy();
+  });
+
+  it('upgrades a multi-line paragraph block into soft break nodes (#404)', () => {
+    const editor = makeEditor();
+    const result = verifySingleBlockUpgrade(editor, '第一行\n第二行\n第三行');
+    expect(result.upgradeable).toBe(true);
+    const para = result.blocks.find((block) => block.type === 'paragraph');
+    expect(para).toBeDefined();
+    const breaks = para?.content?.filter((node) => node.type === 'hardBreak') ?? [];
+    // Every in-paragraph newline upgrades to a soft hardBreak, so the block
+    // stays visually multi-line after leaving the raw textarea.
+    expect(breaks).toHaveLength(2);
+    expect(breaks.every((node) => node.attrs?.soft === true)).toBe(true);
     editor.destroy();
   });
 });

@@ -5,7 +5,7 @@ import { BulletList, ListKeymap, OrderedList, TaskList } from '@tiptap/extension
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { CellSelection, TableMap } from '@tiptap/pm/tables';
 import { createMarkdownExtension } from '../editor/init';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../editor/extensions';
 import { VariantListItem, VariantTaskItem } from '../editor/extensions/list-marker-variants';
 import { RawMarkdown, rawMarkdownSources } from '../editor/markdown/fallback';
 import { OpaqueNode } from '../editor/markdown/opaque/extension';
@@ -46,8 +46,9 @@ function createAppEditor() {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
-      StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+      StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
       SafeParagraph,
+      SafeHardBreak,
       BulletList, OrderedList, VariantListItem, ListKeymap,
       TaskList, VariantTaskItem.configure({ nested: true }),
       OpaqueNode,
@@ -370,15 +371,65 @@ describe('Section 3 dedicated syntax round-trip tests', () => {
   });
 
   describe('3.8 soft/hard break semantics', () => {
-    it('distinguishes a hard break (two trailing spaces) from a soft break', () => {
-      // Soft break: no hardBreak node in ProseMirror.
-      const soft = roundTrip('line one\nline two');
-      expect(JSON.stringify(soft.reparsed)).not.toContain('hardBreak');
+    /** All hardBreak node attrs in document order. */
+    function hardBreakAttrs(json: unknown): Array<Record<string, unknown>> {
+      const found: Array<Record<string, unknown>> = [];
+      const walk = (node: any) => {
+        if (node?.type === 'hardBreak') found.push(node.attrs ?? {});
+        node?.content?.forEach(walk);
+      };
+      walk(json);
+      return found;
+    }
 
-      // Hard break: a genuine hardBreak node.
-      const hard = roundTrip('line one  \nline two\n\nnext');
-      expect(JSON.stringify(hard.reparsed)).toContain('hardBreak');
-      expect(hard.output).toContain('  ');
+    /** Text nodes still carrying an embedded newline (should be none). */
+    function textNodesWithNewline(json: unknown): string[] {
+      const found: string[] = [];
+      const walk = (node: any) => {
+        if (node?.type === 'text' && typeof node.text === 'string' && node.text.includes('\n')) found.push(node.text);
+        node?.content?.forEach(walk);
+      };
+      walk(json);
+      return found;
+    }
+
+    it('represents a soft break as a soft hardBreak node and round-trips to a bare newline', () => {
+      const soft = roundTrip('line one\nline two\nline three');
+      const attrs = hardBreakAttrs(soft.first);
+      expect(attrs).toHaveLength(2);
+      expect(attrs.every((entry) => entry.soft === true)).toBe(true);
+      expect(textNodesWithNewline(soft.first)).toEqual([]);
+      // Serialized spelling is the bare newline: no trailing spaces anywhere.
+      expect(soft.output).toBe('line one\nline two\nline three');
+      expect(soft.output).not.toMatch(/ {2,}\n/);
+      expect(soft.reparsed).toEqual(soft.first);
+    });
+
+    it('keeps soft/hard/backslash break spellings from swapping on round trip', () => {
+      const source = 'soft one\nsoft two\n\nhard one  \nhard two\n\nescaped one\\\nescaped two';
+      const mixed = roundTrip(source);
+      const paragraphs = mixed.first.content ?? [];
+      expect(paragraphs).toHaveLength(3);
+      const [softPara, hardPara, escapedPara] = paragraphs;
+      expect(hardBreakAttrs(softPara).every((entry) => entry.soft === true)).toBe(true);
+      expect(hardBreakAttrs(hardPara).every((entry) => entry.soft !== true)).toBe(true);
+      expect(hardBreakAttrs(escapedPara).every((entry) => entry.soft !== true)).toBe(true);
+      // Soft stays bare; two-space hard stays two-space (upstream spelling for
+      // the backslash variant is the two-space form, still a hard break).
+      expect(mixed.output).toBe('soft one\nsoft two\n\nhard one  \nhard two\n\nescaped one  \nescaped two');
+      expect(mixed.reparsed).toEqual(mixed.first);
+    });
+
+    it('keeps soft breaks consistent inside list items and blockquotes', () => {
+      const list = roundTrip('- item one\ncontinued line\n- item two');
+      expect(hardBreakAttrs(list.first).every((entry) => entry.soft === true)).toBe(true);
+      expect(list.output.trimEnd()).toBe('- item one\ncontinued line\n- item two');
+      expect(list.reparsed).toEqual(list.first);
+
+      const quote = roundTrip('> quoted one\n> quoted two');
+      expect(hardBreakAttrs(quote.first).every((entry) => entry.soft === true)).toBe(true);
+      expect(quote.output.trimEnd()).toBe('> quoted one\n> quoted two');
+      expect(quote.reparsed).toEqual(quote.first);
     });
   });
 });

@@ -2,6 +2,7 @@
 // here; the individual extension modules stay internal.
 export { CustomLink } from './link';
 export { SafeParagraph, escapeParagraphMarkdown } from './paragraph';
+export { SafeHardBreak } from './hard-break';
 export {
   MarkdownSafeTable,
   parseTableInput,

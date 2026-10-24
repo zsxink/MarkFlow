@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, OrderedList, ListItem, ListKeymap, TaskList, TaskItem } from '@tiptap/extension-list';
 import { TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-import { BlockImage, CustomLink, MarkdownSafeTable, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
+import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph, mermaidCodeBlockExtension } from '../extensions';
 import { createMarkdownExtension } from '../init';
 import { RawMarkdown, verifyRawMarkdownSplice } from '../markdown/fallback';
 import { OpaqueNode } from '../markdown/opaque/extension';
@@ -29,8 +29,8 @@ describe('localized fallback save proof (issue #291)', () => {
     return new Editor({
       element: document.createElement('div'),
       extensions: [
-        StarterKit.configure({ paragraph: false, codeBlock: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
-        SafeParagraph, BulletList, OrderedList, ListItem, ListKeymap,
+        StarterKit.configure({ paragraph: false, codeBlock: false, hardBreak: false, link: false, bulletList: false, orderedList: false, listItem: false, listKeymap: false }),
+        SafeHardBreak, SafeParagraph, BulletList, OrderedList, ListItem, ListKeymap,
         TaskList, TaskItem.configure({ nested: true }),
         MarkdownSafeTable.configure({ resizable: true }), TableRow, TableCell, TableHeader,
         CustomLink.configure({ openOnClick: false, autolink: false, linkOnPaste: false }),
@@ -96,6 +96,20 @@ describe('localized fallback save proof (issue #291)', () => {
     const result = saveAndReopen('[a]: /1\n[b]: /2\n\n\npara\n');
     if (!result) return;
     expect(result.reopenedFingerprint).toBe(result.editorFingerprint);
+  });
+
+  it('soft-break paragraphs around a raw literal reopen byte-identically (#404)', () => {
+    // The fallback lexer (breaks: false) only looks at block boundaries, so
+    // soft newlines must not disturb where the raw literal is located or how
+    // many bytes it keeps.
+    const result = saveAndReopen('第一行\n第二行\n\n[ref]: /u\n\n第三行\n第四行\n');
+    if (!result) return;
+    expect(result.reopenedRaw).toEqual(['[ref]: /u\n\n']);
+    expect(result.reopenedFingerprint).toBe(result.editorFingerprint);
+    // The soft-break spelling survives the save round-trip: bare newlines,
+    // never upgraded to two-space hard breaks.
+    expect(result.markdown).toContain('第一行\n第二行');
+    expect(result.markdown).not.toContain('  \n');
   });
 
   // The boundary the guard measures, stated on bytes alone. Any future change

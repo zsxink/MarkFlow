@@ -1,9 +1,9 @@
 vi.mock('../documents/session', () => ({ closeDocumentTabsMatchingPath: vi.fn(async () => true) }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { showContextMenuStatic, getWorkspacePath, invoke, showToast } = vi.hoisted(() => ({ showContextMenuStatic: vi.fn(), getWorkspacePath: vi.fn(), invoke: vi.fn(), showToast: vi.fn() }));
+const { showContextMenuStatic, getWorkspacePath, invoke, showToast, closeWorkspaceFolder } = vi.hoisted(() => ({ showContextMenuStatic: vi.fn(), getWorkspacePath: vi.fn(), invoke: vi.fn(), showToast: vi.fn(), closeWorkspaceFolder: vi.fn() }));
 vi.mock('../context-menu', () => ({ showContextMenuStatic }));
-vi.mock('../file-tree/index', () => ({ getWorkspacePath, removeEntryFromTree: vi.fn(), insertEntryIntoTree: vi.fn(), startInlineRename: vi.fn(), startInlineCreate: vi.fn(), setWorkspacePath: vi.fn(), refreshFileTree: vi.fn() }));
+vi.mock('../file-tree/index', () => ({ getWorkspacePath, removeEntryFromTree: vi.fn(), insertEntryIntoTree: vi.fn(), startInlineRename: vi.fn(), startInlineCreate: vi.fn(), setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), closeWorkspaceFolder }));
 vi.mock('../../infra/storage', () => ({ deletePath: vi.fn(), copyFile: vi.fn(), readSingleDir: vi.fn(), addRecentFile: vi.fn() }));
 vi.mock('../toast', () => ({ showToast }));
 vi.mock('../../infra/error', () => ({ reportUserActionError: vi.fn(), classifyError: (e: { message?: string } | string) => ({ message: typeof e === 'string' ? e : (e.message ?? String(e)) }) }));
@@ -13,7 +13,7 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), ask: vi.fn() }));
 
 import { showContextMenu } from '../file-tree-context-menu';
 
-beforeEach(() => { showContextMenuStatic.mockReset(); getWorkspacePath.mockReset(); invoke.mockReset(); showToast.mockReset(); });
+beforeEach(() => { showContextMenuStatic.mockReset(); getWorkspacePath.mockReset(); invoke.mockReset(); showToast.mockReset(); closeWorkspaceFolder.mockReset(); });
 
 function findMenuItem(label: string, callIndex = 0) {
   return showContextMenuStatic.mock.calls[callIndex][0].find((item: { label?: string }) => item.label === label);
@@ -31,10 +31,23 @@ describe('file context menu', () => {
   it('offers open actions without a workspace and workspace copy with one', () => {
     getWorkspacePath.mockReturnValue(null);
     showContextMenu(0, 0, null, 'empty');
-    expect(showContextMenuStatic.mock.calls[0][0].map((item: { label?: string }) => item.label)).toEqual(expect.arrayContaining(['打开文件夹', '打开文件']));
+    const withoutWorkspace = showContextMenuStatic.mock.calls[0][0].map((item: { label?: string }) => item.label);
+    expect(withoutWorkspace).toEqual(expect.arrayContaining(['打开文件夹', '打开文件']));
+    // 关闭工作区 only makes sense while a workspace is open (spec: workspace-close).
+    expect(withoutWorkspace).not.toContain('关闭工作区');
     getWorkspacePath.mockReturnValue('/work');
     showContextMenu(0, 0, null, 'empty');
-    expect(showContextMenuStatic.mock.calls[1][0].map((item: { label?: string }) => item.label)).toEqual(expect.arrayContaining(['复制工作区路径', '在文件资源管理器中显示']));
+    expect(showContextMenuStatic.mock.calls[1][0].map((item: { label?: string }) => item.label)).toEqual(expect.arrayContaining(['复制工作区路径', '关闭工作区', '在文件资源管理器中显示']));
+  });
+
+  it('closes the workspace through the shared close flow', async () => {
+    closeWorkspaceFolder.mockResolvedValue(undefined);
+    getWorkspacePath.mockReturnValue('/work');
+    showContextMenu(0, 0, null, 'empty');
+
+    await findMenuItem('关闭工作区').onClick();
+
+    expect(closeWorkspaceFolder).toHaveBeenCalledOnce();
   });
 
   it('reveals a path through the backend file-manager command', async () => {

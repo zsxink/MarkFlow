@@ -28,7 +28,7 @@ import { getEditor, getMode } from '../editor';
 import { getSourceView } from '../editor';
 import { cycleTheme } from '../infra/theme';
 import { store } from '../infra/store';
-import { getWorkspacePath } from './file-tree/index';
+import { getWorkspacePath, closeWorkspaceFolder } from './file-tree/index';
 import { activateWorkspaceFolder, openFileInEditor, openWorkspaceFolderFlow, saveActiveDocument, switchSidebarTab } from './sidebar/index';
 import { saveActiveDocumentAsNewFile } from './sidebar/fileops';
 import { showNewFileDialog } from './new-file-dialog';
@@ -148,6 +148,7 @@ const actionHandlers: Record<string, MenuHandler> = {
   'new-tab': () => newDocumentTab(),
   'open-file': openMarkdownFile,
   'open-folder': openWorkspaceFolder,
+  'close-workspace': closeWorkspaceFolder,
   save: () => saveActiveDocument(),
   'save-as': () => saveActiveDocumentAsNewFile(),
   'export-html': () => exportCurrentDocument('html'),

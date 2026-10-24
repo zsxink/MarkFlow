@@ -77,6 +77,10 @@ export async function setWorkspace(path: string): Promise<void> {
   return invoke('set_workspace', { path });
 }
 
+export async function clearWorkspace(): Promise<void> {
+  return invoke('clear_workspace');
+}
+
 export async function getWorkspace(): Promise<string | null> {
   return invoke<string | null>('get_workspace');
 }

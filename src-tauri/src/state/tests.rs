@@ -28,6 +28,33 @@ fn stop_all_is_safe_to_call_repeatedly() {
 }
 
 #[test]
+fn clear_workspace_drops_the_session_root_and_is_safe_to_repeat() {
+    let state = AppState::new().unwrap();
+    let dir = std::env::temp_dir().join(format!("markflow-ws-clear-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+
+    state.set_workspace(dir.clone(), |_event| {});
+    assert!(state.get_workspace().is_some());
+
+    state.clear_workspace();
+    // Closing again without a workspace must be a no-op, not a panic.
+    state.clear_workspace();
+
+    assert_eq!(state.get_workspace(), None);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn closed_workspace_settings_no_longer_restore_a_last_workspace() {
+    let current = crate::config::settings::Settings {
+        last_workspace: Some("/tmp/markflow-ws".into()),
+        ..crate::config::settings::Settings::default()
+    };
+    let persisted = settings_without_last_workspace(&current);
+    assert_eq!(persisted.last_workspace, None);
+}
+
+#[test]
 fn opened_paths_wait_for_a_live_ready_frontend_and_drain_in_order() {
     let state = AppState::new().unwrap();
     state

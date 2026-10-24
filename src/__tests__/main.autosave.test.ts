@@ -35,7 +35,7 @@ vi.mock('../ui/sidebar/index', () => ({
   saveActiveDocument: mocks.saveActiveDocument,
   switchSidebarTab: vi.fn(),
 }));
-vi.mock('../ui/file-tree/index', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), isSuppressedPath: vi.fn(), getWorkspacePath: vi.fn(), applyFileTreeEvents: vi.fn() }));
+vi.mock('../ui/file-tree/index', () => ({ setWorkspacePath: vi.fn(), refreshFileTree: vi.fn(), isSuppressedPath: vi.fn(), getWorkspacePath: vi.fn(), applyFileTreeEvents: vi.fn(), closeWorkspaceFolder: vi.fn() }));
 vi.mock('../ui/sidebar/conflict', () => ({ handleActiveDocumentExternalModification: vi.fn(), handleExternalDeletion: vi.fn() }));
 vi.mock('../ui/status-bar', () => ({ initStatusBar: vi.fn() }));
 vi.mock('../ui/toolbar', () => ({ initToolbar: vi.fn() }));

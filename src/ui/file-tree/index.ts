@@ -4,6 +4,8 @@
 export {
   getWorkspacePath,
   setWorkspacePath,
+  closeWorkspaceFolder,
+  resetFileTreeToEmptyState,
   suppressNextWatcherRefresh,
   cancelSuppressedWatcherRefresh,
   isSuppressedPath,

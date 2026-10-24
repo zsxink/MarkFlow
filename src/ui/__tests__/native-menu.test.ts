@@ -92,6 +92,7 @@ const {
   syncNativeMenuState,
   initNativeMenu,
   resetNativeMenuStateCache,
+  resetNativeMenuDispatchCache,
 } = await import('../native-menu');
 
 beforeEach(() => {
@@ -102,6 +103,7 @@ beforeEach(() => {
   mocks.loadSettings.mockResolvedValue({ recentFiles: [], recentFolders: [] });
   mocks.invoke.mockResolvedValue(undefined);
   resetNativeMenuStateCache();
+  resetNativeMenuDispatchCache();
 });
 
 function addButton(id: string): HTMLElement {
@@ -164,6 +166,15 @@ describe('native menu dispatcher: document and view commands', () => {
 
     await dispatchNativeMenuAction('toggle-theme');
     expect(mocks.cycleTheme).toHaveBeenCalledOnce();
+  });
+
+  it('does not offer to save when no document is open', async () => {
+    // The DOM shortcut fallback runs save even while the menu item is disabled,
+    // so the handler itself must refuse when there is nothing to save.
+    mocks.getWorkspacePath.mockReturnValue(null);
+    mocks.active.mockReturnValue(null);
+    expect(await dispatchNativeMenuAction('save', 'shortcut')).toBe(true);
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 
   it('clicks existing toolbar buttons for simple view actions', async () => {
@@ -591,5 +602,61 @@ describe('native menu state sync', () => {
     );
     // Nothing half-wired: no state sync when the event bridge never attached.
     expect(mocks.invoke).not.toHaveBeenCalledWith('update_menu_state', expect.any(Object));
+  });
+});
+
+describe('native menu dispatcher: one press runs one command', () => {
+  it('de-duplicates the menu accelerator and the DOM fallback for one press', async () => {
+    // A physical key press can reach both the native accelerator and the DOM
+    // fallback in `src/utils/keyboard.ts`; the command must still run once.
+    mocks.getWorkspacePath.mockReturnValue('/workspace');
+    expect(await dispatchNativeMenuAction('save')).toBe(true);
+    expect(await dispatchNativeMenuAction('save', 'shortcut')).toBe(true);
+    expect(mocks.save).toHaveBeenCalledOnce();
+  });
+
+  it('de-duplicates whichever entry point reports first', async () => {
+    mocks.getWorkspacePath.mockReturnValue('/workspace');
+    expect(await dispatchNativeMenuAction('save', 'shortcut')).toBe(true);
+    expect(await dispatchNativeMenuAction('save')).toBe(true);
+    expect(mocks.save).toHaveBeenCalledOnce();
+  });
+
+  it('a rejected duplicate does not extend the window for the next press', async () => {
+    // Regression: recording the duplicate itself re-armed the window, so a run
+    // of duplicates kept pushing it forward and swallowed the next real press.
+    mocks.getWorkspacePath.mockReturnValue('/workspace');
+    let now = 1000;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      expect(await dispatchNativeMenuAction('save', 'shortcut')).toBe(true);
+      now += 30;
+      // Same physical press reported again by the menu accelerator.
+      expect(await dispatchNativeMenuAction('save')).toBe(true);
+      expect(mocks.save).toHaveBeenCalledOnce();
+
+      // Second genuine press, 110ms after the first: still inside the first
+      // press' window, and a cascade would have pushed the window to +30.
+      now += 80;
+      expect(await dispatchNativeMenuAction('save', 'shortcut')).toBe(true);
+      expect(mocks.save).toHaveBeenCalledTimes(2);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('never swallows a deliberate repeat from the same entry point', async () => {
+    mocks.getWorkspacePath.mockReturnValue('/workspace');
+    expect(await dispatchNativeMenuAction('save')).toBe(true);
+    expect(await dispatchNativeMenuAction('save')).toBe(true);
+    expect(mocks.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('suppresses every command while a modal dialog is open', async () => {
+    document.body.innerHTML = '<div role="dialog" aria-modal="true"></div>';
+    expect(await dispatchNativeMenuAction('new-tab')).toBe(true);
+    expect(await dispatchNativeMenuAction('save', 'shortcut')).toBe(true);
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 });

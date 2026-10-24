@@ -8,6 +8,7 @@ import {
   newDocumentTab,
   onDocumentTabsChanged,
 } from './documents/session';
+import { shortcutLabel } from './shortcut-hints';
 
 type DocumentTab = ReturnType<typeof getDocumentTabs>[number];
 
@@ -165,7 +166,7 @@ export function initDocumentTabs() {
       list.replaceChildren(listFragment);
     }
     newButton.disabled = tabs.length >= MAX_DOCUMENT_TABS;
-    newButton.title = newButton.disabled ? `文件已达上限（${MAX_DOCUMENT_TABS}）` : '新建标签 (Ctrl+T)';
+    newButton.title = newButton.disabled ? `文件已达上限（${MAX_DOCUMENT_TABS}）` : `新建标签 (${shortcutLabel('Mod+T')})`;
     const focusId = focusActiveTab ? activeId : focusedTabId;
     if (focusId) {
       Array.from(scroll.querySelectorAll<HTMLElement>('[role="tab"][data-tab-id]'))

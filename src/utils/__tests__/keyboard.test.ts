@@ -1,49 +1,19 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  create: vi.fn(),
-  close: vi.fn(),
-  reopen: vi.fn(),
-  cycle: vi.fn(),
-  save: vi.fn(),
-  openFile: vi.fn(),
-  newFile: vi.fn(),
-  getEditor: vi.fn<() => unknown>(() => null),
-  openDialog: vi.fn(),
-}));
+import { initKeyboard, resolveNativeMenuShortcut, NATIVE_MENU_SHORTCUTS } from '../keyboard';
 
-vi.mock('../../ui/documents/session', () => ({
-  newDocumentTab: mocks.create,
-  closeDocumentTab: mocks.close,
-  getActiveTabId: () => 'active',
-  reopenClosedDocumentTab: mocks.reopen,
-  cycleDocumentTab: mocks.cycle,
-}));
-vi.mock('../../editor/session', () => ({
-  getEditor: mocks.getEditor,
-  getMode: () => 'wysiwyg',
-  switchToSource: vi.fn(),
-  switchToWysiwyg: vi.fn(),
-}));
-vi.mock('../../ui/sidebar/index', () => ({
-  saveActiveDocument: mocks.save,
-  openFileInEditor: mocks.openFile,
-  confirmDocumentTransition: vi.fn(),
-}));
-vi.mock('../../ui/new-file-dialog', () => ({ showNewFileDialog: mocks.newFile }));
-vi.mock('../../ui/file-tree/index', () => ({ getWorkspacePath: () => '/workspace' }));
-vi.mock('../../ui/toast', () => ({ showToast: vi.fn() }));
-vi.mock('@tauri-apps/plugin-dialog', () => ({ open: mocks.openDialog }));
+const onShortcut = vi.fn();
 
-const { initKeyboard, resolveNativeMenuShortcut, NATIVE_MENU_SHORTCUTS } = await import('../keyboard');
-
-beforeAll(() => initKeyboard());
+beforeAll(() => initKeyboard({ onShortcut }));
 beforeEach(() => {
   vi.clearAllMocks();
   document.body.innerHTML = '';
 });
 
-function key(key: string, modifiers: { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = { ctrlKey: true }) {
+function key(
+  key: string,
+  modifiers: { metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; repeat?: boolean } = { ctrlKey: true },
+) {
   const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers });
   document.dispatchEvent(event);
   return event;
@@ -120,6 +90,7 @@ describe('native menu shortcut ownership', () => {
       expect(resolveNativeMenuShortcut(event)).toBeNull();
       expect(event.defaultPrevented).toBe(false);
     }
+    expect(onShortcut).not.toHaveBeenCalled();
   });
 
   it('ignores keys without a primary modifier', () => {
@@ -128,38 +99,41 @@ describe('native menu shortcut ownership', () => {
   });
 });
 
-describe('DOM keyboard handler does not duplicate native menu commands', () => {
-  it('prevents browser defaults for native accelerators without executing commands', () => {
-    for (const event of [
-      key('s'),
-      key('n'),
-      key('o'),
-      key('t'),
-      key('w'),
-      key('T', { ctrlKey: true, shiftKey: true }),
-      key('b'),
-      key('i'),
-      key('k'),
-      key('/'),
-      key('\\'),
-      key('F', { ctrlKey: true, shiftKey: true }),
-      key('S', { ctrlKey: true, shiftKey: true }),
-      key('Tab'),
-      key('Tab', { ctrlKey: true, shiftKey: true }),
-      key('1', { metaKey: true }),
-    ]) {
+describe('DOM keyboard handler', () => {
+  it('suppresses the browser default and hands the action to the runner', () => {
+    // The menu claims the chord when it can; a keydown that still reaches the
+    // DOM means it could not (disabled item, or the webview kept the key), so
+    // the fallback must run the command instead of leaving the key dead (#410).
+    const cases: Array<[Parameters<typeof key>, string]> = [
+      [[ 's' ], 'save'],
+      [['n'], 'new-file'],
+      [['o'], 'open-file'],
+      [['t'], 'new-tab'],
+      [['w'], 'close-tab'],
+      [['T', { ctrlKey: true, shiftKey: true }], 'reopen-tab'],
+      [['b'], 'bold'],
+      [['i'], 'italic'],
+      [['k'], 'insert-link'],
+      [['/', { metaKey: true }], 'toggle-mode'],
+      [['\\'], 'toggle-sidebar'],
+      [['F', { ctrlKey: true, shiftKey: true }], 'focus-mode'],
+      [['S', { ctrlKey: true, shiftKey: true }], 'strike'],
+      [['Tab'], 'next-tab'],
+      [['Tab', { ctrlKey: true, shiftKey: true }], 'previous-tab'],
+      [['1', { metaKey: true }], 'heading-1'],
+      [['l'], 'insert-task-list'],
+      [['q'], 'quit'],
+      [[',', { metaKey: true }], 'settings'],
+      [['W', { ctrlKey: true, shiftKey: true }], 'close-window'],
+    ];
+    for (const [args, action] of cases) {
+      onShortcut.mockClear();
+      const event = key(...args);
       expect(event.defaultPrevented).toBe(true);
+      // Exactly once: a single press must not queue the command twice.
+      expect(onShortcut).toHaveBeenCalledTimes(1);
+      expect(onShortcut).toHaveBeenCalledWith(action);
     }
-
-    // The native menu (and its frontend dispatcher) owns the commands.
-    expect(mocks.save).not.toHaveBeenCalled();
-    expect(mocks.newFile).not.toHaveBeenCalled();
-    expect(mocks.openFile).not.toHaveBeenCalled();
-    expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.close).not.toHaveBeenCalled();
-    expect(mocks.reopen).not.toHaveBeenCalled();
-    expect(mocks.cycle).not.toHaveBeenCalled();
-    expect(mocks.openDialog).not.toHaveBeenCalled();
   });
 
   it('leaves non-native keys untouched', () => {
@@ -173,18 +147,14 @@ describe('DOM keyboard handler does not duplicate native menu commands', () => {
     ]) {
       expect(event.defaultPrevented).toBe(false);
     }
-    expect(mocks.save).not.toHaveBeenCalled();
+    expect(onShortcut).not.toHaveBeenCalled();
   });
 
-  it('does not run menu commands even while a modal is open', () => {
-    document.body.innerHTML = '<div role="dialog" aria-modal="true"></div>';
-    key('t');
-    key('w');
-    key('Tab');
-    key('s');
-    expect(mocks.create).not.toHaveBeenCalled();
-    expect(mocks.close).not.toHaveBeenCalled();
-    expect(mocks.cycle).not.toHaveBeenCalled();
-    expect(mocks.save).not.toHaveBeenCalled();
+  it('runs once per press, not once per auto-repeat event', () => {
+    const event = key('s', { ctrlKey: true, repeat: true });
+    // The default is still suppressed so the webview never adds its own
+    // save-page behaviour, but the command must not queue up while held.
+    expect(event.defaultPrevented).toBe(true);
+    expect(onShortcut).not.toHaveBeenCalled();
   });
 });

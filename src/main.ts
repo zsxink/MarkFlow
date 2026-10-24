@@ -6,7 +6,8 @@ import { initSidebar } from './ui/sidebar/index';
 import { initMenu } from './ui/menu';
 import { initStatusBar } from './ui/status-bar';
 import { initKeyboard } from './utils/keyboard';
-import { initNativeMenu } from './ui/native-menu';
+import { initNativeMenu, dispatchNativeMenuAction } from './ui/native-menu';
+import { applyShortcutHints } from './ui/shortcut-hints';
 import { invoke } from '@tauri-apps/api/core';
 import { getWorkspace, loadSettings, addRecentFile } from './infra/storage';
 import { setWorkspacePath, refreshFileTree, isSuppressedPath, getWorkspacePath, applyFileTreeEvents } from './ui/file-tree/index';
@@ -95,8 +96,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     void getCurrentWebviewWindow().setTitle(document.title).catch(error => logDebug('document.tabs', 'Failed to update window title', { error: String(error) }));
   });
   initToolbar();
+  // Toolbar tooltips and other static markup declare a neutral accelerator
+  // (`data-shortcut`); render the chord for this platform once the DOM exists.
+  applyShortcutHints();
   initWindowControls();
-  initKeyboard();
+  // Shortcuts the native menu did not claim fall back to the same dispatcher,
+  // so a disabled/ignored accelerator can never leave a chord dead (#410).
+  initKeyboard({ onShortcut: (action) => { void dispatchNativeMenuAction(action, 'shortcut'); } });
   await initNativeMenu();
 
   await listen<string>('file-open-requested', async (event) => { await openFileInEditor(event.payload); });

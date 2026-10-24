@@ -46,8 +46,6 @@ pub enum Requires {
     Workspace,
     /// Needs an active document tab.
     Document,
-    /// Needs an open workspace folder and an active document tab.
-    WorkspaceAndDocument,
     /// Only available in debug builds: the webview inspector is compiled out of
     /// release builds, so the item must look disabled rather than silently do
     /// nothing (spec: an unavailable capability stays visible but disabled).
@@ -144,7 +142,6 @@ pub fn enabled_for(requires: Requires, state: &MenuState) -> bool {
         Requires::Always => true,
         Requires::Workspace => state.has_workspace,
         Requires::Document => state.has_document,
-        Requires::WorkspaceAndDocument => state.has_workspace && state.has_document,
         Requires::DebugOnly => cfg!(debug_assertions),
         Requires::Placeholder => false,
     }
@@ -205,12 +202,10 @@ fn app_menu() -> MenuSpec {
 
 fn file_menu(platform: Platform) -> MenuSpec {
     let mut entries = vec![
-        item(
-            "new-file",
-            "新建文件",
-            Some("CmdOrCtrl+N"),
-            Requires::Workspace,
-        ),
+        // No workspace is fine: the dialog falls back to a system save dialog
+        // (src/ui/new-file-dialog.ts), so gating it on a workspace hid a
+        // capability the app actually has (issue #410).
+        item("new-file", "新建文件", Some("CmdOrCtrl+N"), Requires::Always),
         item(
             "new-tab",
             "新建标签页",
@@ -239,25 +234,22 @@ fn file_menu(platform: Platform) -> MenuSpec {
             Requires::Placeholder,
         ),
         Entry::Separator,
-        item(
-            "save",
-            "保存",
-            Some("CmdOrCtrl+S"),
-            Requires::WorkspaceAndDocument,
-        ),
+        // Document only: without a path the save dialog asks where to write
+        // (src/ui/sidebar/fileops.ts), so a workspace is not a prerequisite.
+        item("save", "保存", Some("CmdOrCtrl+S"), Requires::Document),
         // The issue table lists Shift+Cmd+S for 另存为 as well, but 删除线 owns
         // that accelerator today (documented in 设置 → 快捷键, and required by the
         // keyboard-shortcuts spec). Two menu items cannot share one native
         // accelerator, so 另存为 keeps the menu item without a shortcut.
-        item("save-as", "另存为…", None, Requires::WorkspaceAndDocument),
+        item("save-as", "另存为…", None, Requires::Document),
         Entry::Separator,
         Entry::Submenu {
             title: EXPORT_SUBMENU_TITLE,
-            requires: Requires::WorkspaceAndDocument,
+            requires: Requires::Document,
             entries: vec![
-                item("export-html", "HTML", None, Requires::WorkspaceAndDocument),
-                item("export-pdf", "PDF", None, Requires::WorkspaceAndDocument),
-                item("export-word", "Word", None, Requires::WorkspaceAndDocument),
+                item("export-html", "HTML", None, Requires::Document),
+                item("export-pdf", "PDF", None, Requires::Document),
+                item("export-word", "Word", None, Requires::Document),
             ],
         },
         Entry::Separator,

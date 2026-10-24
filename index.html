@@ -8,7 +8,7 @@
   <body>
     <div id="app">
       <div id="toolbar" class="toolbar">
-        <button class="toolbar-btn" id="sidebar-toggle" data-tooltip="切换侧边栏 (Ctrl+\)">
+        <button class="toolbar-btn" id="sidebar-toggle" data-tooltip="切换侧边栏" data-shortcut="Mod+\">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
         </button>
         <div class="toolbar-brand" id="toolbar-menu-btn">Mark<span>Flow</span> ▾
@@ -28,13 +28,13 @@
         <button class="toolbar-btn" id="sidebar-open-folder" data-tooltip="打开文件夹">
           <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
         </button>
-        <button class="toolbar-btn" id="toolbar-open-file" data-tooltip="打开文件 (Ctrl+O)">
+        <button class="toolbar-btn" id="toolbar-open-file" data-tooltip="打开文件" data-shortcut="Mod+O">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-new" data-tooltip="新建文件 (Ctrl+N)">
+        <button class="toolbar-btn" id="btn-new" data-tooltip="新建文件" data-shortcut="Mod+N">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-save" aria-label="保存" data-tooltip="保存 (Ctrl+S)">
+        <button class="toolbar-btn" id="btn-save" aria-label="保存" data-tooltip="保存" data-shortcut="Mod+S">
           <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         </button>
         <button class="toolbar-btn" id="btn-export" type="button" aria-label="导出" aria-haspopup="menu" data-tooltip="导出">
@@ -44,16 +44,16 @@
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         </button>
         <span class="toolbar-separator"></span>
-        <button class="toolbar-btn" id="btn-bold" aria-label="粗体" data-tooltip="粗体 (Ctrl+B)">
+        <button class="toolbar-btn" id="btn-bold" aria-label="粗体" data-tooltip="粗体" data-shortcut="Mod+B">
           <svg viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z"/><path d="M6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-italic" data-tooltip="斜体 (Ctrl+I)">
+        <button class="toolbar-btn" id="btn-italic" data-tooltip="斜体" data-shortcut="Mod+I">
           <svg viewBox="0 0 24 24"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
         </button>
         <button class="toolbar-btn" id="btn-strike" data-tooltip="删除线">
           <svg viewBox="0 0 24 24"><path d="M16 4H9a3 3 0 00-3 3v0a3 3 0 003 3h6"/><line x1="4" y1="12" x2="20" y2="12"/><path d="M8 20h7a3 3 0 003-3v0a3 3 0 00-3-3h-1"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-code" data-tooltip="行内代码 (Ctrl+&#96;)">
+        <button class="toolbar-btn" id="btn-code" data-tooltip="行内代码" data-shortcut="Mod+`">
           <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         </button>
         <span class="toolbar-separator"></span>
@@ -66,7 +66,7 @@
         <button class="toolbar-btn" id="btn-quote" data-tooltip="引用">
           <svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-link" data-tooltip="链接 (Ctrl+K)">
+        <button class="toolbar-btn" id="btn-link" data-tooltip="链接" data-shortcut="Mod+K">
           <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
         </button>
         <button class="toolbar-btn" id="btn-ul" data-tooltip="无序列表">
@@ -91,10 +91,10 @@
         <button class="toolbar-btn active" id="btn-wysiwyg" aria-label="所见即所得" data-tooltip="所见即所得">
           <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-source" aria-label="源码模式" data-tooltip="源码模式 (Ctrl+/)">
+        <button class="toolbar-btn" id="btn-source" aria-label="源码模式" data-tooltip="源码模式" data-shortcut="Mod+/">
           <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         </button>
-        <button class="toolbar-btn" id="btn-focus" data-tooltip="专注模式 (Ctrl+Shift+F)">
+        <button class="toolbar-btn" id="btn-focus" data-tooltip="专注模式" data-shortcut="Shift+Mod+F">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
         </button>
         <span class="toolbar-spacer"></span>
@@ -113,7 +113,7 @@
       </div>
       <div id="document-tabs" class="document-tabs" role="tablist" aria-label="打开的文档">
         <div class="document-tabs-scroll" data-tabs-scroll></div>
-        <button class="document-tabs-new" type="button" data-tabs-new aria-label="新建标签" title="新建标签 (Ctrl+T)">
+        <button class="document-tabs-new" type="button" data-tabs-new aria-label="新建标签" title="新建标签">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         </button>
         <div class="document-tabs-list-wrap">

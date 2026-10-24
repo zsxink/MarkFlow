@@ -35,7 +35,7 @@ export function initSidebar() {
   document.getElementById('sidebar-newfolder-btn')?.addEventListener('click', () => {
     const workspacePath = getWorkspacePath();
     if (!workspacePath) {
-      showToast('请先打开一个工作区文件夹');
+      showToast('请先打开文件夹');
       return;
     }
     startInlineCreate('folder', workspacePath);

@@ -33,11 +33,11 @@ describe('file context menu', () => {
     showContextMenu(0, 0, null, 'empty');
     const withoutWorkspace = showContextMenuStatic.mock.calls[0][0].map((item: { label?: string }) => item.label);
     expect(withoutWorkspace).toEqual(expect.arrayContaining(['打开文件夹', '打开文件']));
-    // 关闭工作区 only makes sense while a workspace is open (spec: workspace-close).
-    expect(withoutWorkspace).not.toContain('关闭工作区');
+    // 关闭文件夹 only makes sense while a workspace is open (spec: workspace-close).
+    expect(withoutWorkspace).not.toContain('关闭文件夹');
     getWorkspacePath.mockReturnValue('/work');
     showContextMenu(0, 0, null, 'empty');
-    expect(showContextMenuStatic.mock.calls[1][0].map((item: { label?: string }) => item.label)).toEqual(expect.arrayContaining(['复制工作区路径', '关闭工作区', '在文件资源管理器中显示']));
+    expect(showContextMenuStatic.mock.calls[1][0].map((item: { label?: string }) => item.label)).toEqual(expect.arrayContaining(['复制文件夹路径', '关闭文件夹', '在文件资源管理器中显示']));
   });
 
   it('closes the workspace through the shared close flow', async () => {
@@ -45,9 +45,37 @@ describe('file context menu', () => {
     getWorkspacePath.mockReturnValue('/work');
     showContextMenu(0, 0, null, 'empty');
 
-    await findMenuItem('关闭工作区').onClick();
+    await findMenuItem('关闭文件夹').onClick();
 
     expect(closeWorkspaceFolder).toHaveBeenCalledOnce();
+  });
+
+  it('offers the close-folder entry on file and folder nodes with a workspace', async () => {
+    closeWorkspaceFolder.mockResolvedValue(undefined);
+    getWorkspacePath.mockReturnValue('/work');
+    showContextMenu(0, 0, '/work/note.md', 'file');
+    showContextMenu(0, 0, '/work/sub', 'folder');
+
+    const fileLabels = showContextMenuStatic.mock.calls[0][0].map((item: { label?: string }) => item.label);
+    const folderLabels = showContextMenuStatic.mock.calls[1][0].map((item: { label?: string }) => item.label);
+    expect(fileLabels).toContain('关闭文件夹');
+    expect(folderLabels).toContain('关闭文件夹');
+
+    await findMenuItem('关闭文件夹', 0).onClick();
+    await findMenuItem('关闭文件夹', 1).onClick();
+
+    expect(closeWorkspaceFolder).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not offer the close-folder entry on nodes without a workspace', () => {
+    getWorkspacePath.mockReturnValue(null);
+    showContextMenu(0, 0, '/work/note.md', 'file');
+    showContextMenu(0, 0, '/work/sub', 'folder');
+
+    const fileLabels = showContextMenuStatic.mock.calls[0][0].map((item: { label?: string }) => item.label);
+    const folderLabels = showContextMenuStatic.mock.calls[1][0].map((item: { label?: string }) => item.label);
+    expect(fileLabels).not.toContain('关闭文件夹');
+    expect(folderLabels).not.toContain('关闭文件夹');
   });
 
   it('reveals a path through the backend file-manager command', async () => {

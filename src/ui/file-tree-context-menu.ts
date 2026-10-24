@@ -31,11 +31,17 @@ export function showContextMenu(x: number, y: number, path: string | null, type:
     menuItems.push({ divider: true });
     menuItems.push({ label: '复制文件路径', onClick: () => handleContextAction('copy-relative', path, type) });
     menuItems.push({ label: '复制绝对路径', onClick: () => handleContextAction('copy-absolute', path, type) });
+    // Same close entry as the empty-area menu, next to where users actually
+    // right-click (issue #407); reuses the shared 'close-workspace' action.
+    if (workspacePath) {
+      menuItems.push({ divider: true });
+      menuItems.push({ label: '关闭文件夹', onClick: () => handleContextAction('close-workspace', path, type) });
+    }
   } else {
     if (workspacePath) {
       menuItems.push({ divider: true });
-      menuItems.push({ label: '复制工作区路径', onClick: () => handleContextAction('copy-workspace', path, type) });
-      menuItems.push({ label: '关闭工作区', onClick: () => handleContextAction('close-workspace', path, type) });
+      menuItems.push({ label: '复制文件夹路径', onClick: () => handleContextAction('copy-workspace', path, type) });
+      menuItems.push({ label: '关闭文件夹', onClick: () => handleContextAction('close-workspace', path, type) });
     } else {
       menuItems.push({ label: '打开文件夹', onClick: () => handleContextAction('open-folder', path, type) });
       menuItems.push({ label: '打开文件', onClick: () => handleContextAction('open-file', path, type) });
@@ -142,7 +148,7 @@ async function handleAction(action: string, path: string | null, type: TargetTyp
         const workspace = getWorkspacePath();
         if (workspace) {
           await navigator.clipboard.writeText(workspace);
-          showToast('已复制工作区路径');
+          showToast('已复制文件夹路径');
         }
         break;
       }

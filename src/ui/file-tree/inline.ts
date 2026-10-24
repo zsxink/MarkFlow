@@ -73,7 +73,7 @@ export function startInlineRename(path: string) {
 
 export function startInlineCreate(type: 'file' | 'folder', targetDir: string) {
   if (!getWorkspacePath()) {
-    showToast('请先打开工作区');
+    showToast('请先打开文件夹');
     return;
   }
 

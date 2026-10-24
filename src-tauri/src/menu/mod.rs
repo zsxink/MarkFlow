@@ -231,7 +231,7 @@ fn file_menu(platform: Platform) -> MenuSpec {
             Requires::Always,
         ),
         item("open-folder", "打开文件夹…", None, Requires::Always),
-        item("close-workspace", "关闭工作区", None, Requires::Workspace),
+        item("close-workspace", "关闭文件夹", None, Requires::Workspace),
         item(
             "quick-switch",
             "快速切换…（按名称跳文件）",

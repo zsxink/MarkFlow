@@ -205,7 +205,12 @@ fn file_menu(platform: Platform) -> MenuSpec {
         // No workspace is fine: the dialog falls back to a system save dialog
         // (src/ui/new-file-dialog.ts), so gating it on a workspace hid a
         // capability the app actually has (issue #410).
-        item("new-file", "新建文件", Some("CmdOrCtrl+N"), Requires::Always),
+        item(
+            "new-file",
+            "新建文件",
+            Some("CmdOrCtrl+N"),
+            Requires::Always,
+        ),
         item(
             "new-tab",
             "新建标签页",

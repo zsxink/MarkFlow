@@ -1,14 +1,18 @@
 use crate::paths::{app_config_dir, normalize_path};
+use chrono::{Local, NaiveDate};
 use serde::Deserialize;
 use serde_json::Value;
-use std::fs;
+use std::fs::{self, File};
+use std::io::{self, Write as IoWrite};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::fmt::time::ChronoLocal;
 
 const LOG_RETENTION_DAYS: u64 = 7;
+const LOG_FILE_NAME: &str = "markflow.log";
 static LOGGER_GUARD: OnceLock<WorkerGuard> = OnceLock::new();
 
 fn log_dir() -> PathBuf {
@@ -162,6 +166,66 @@ fn cleanup_old_logs(dir: &Path) -> Result<usize, String> {
     Ok(removed)
 }
 
+/// Log writer that rolls `markflow.log.YYYY-MM-DD` on the LOCAL date. Each
+/// write checks the current local date (via the injectable `today` provider)
+/// and switches files when it crosses local midnight. The writer is used
+/// behind `tracing_appender::non_blocking`, so it runs on a single worker
+/// thread and needs no locking.
+struct LocalDateRollingWriter {
+    dir: PathBuf,
+    today: Box<dyn Fn() -> NaiveDate + Send>,
+    current_date: Option<NaiveDate>,
+    file: Option<File>,
+}
+
+impl LocalDateRollingWriter {
+    fn new(dir: PathBuf) -> Self {
+        Self {
+            dir,
+            today: Box::new(|| Local::now().date_naive()),
+            current_date: None,
+            file: None,
+        }
+    }
+
+    /// Open `markflow.log.<date>`. On failure the writer degrades to dropping
+    /// writes (with a stderr note) instead of panicking — logging must never
+    /// take the app down.
+    fn open_file(&mut self, date: NaiveDate) {
+        let path = self.dir.join(format!("{LOG_FILE_NAME}.{date}"));
+        match File::options().append(true).create(true).open(&path) {
+            Ok(file) => self.file = Some(file),
+            Err(e) => {
+                self.file = None;
+                eprintln!("Failed to open log file {}: {}", path.display(), e);
+            }
+        }
+    }
+}
+
+impl IoWrite for LocalDateRollingWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let today = (self.today)();
+        if self.current_date != Some(today) {
+            self.open_file(today);
+            self.current_date = Some(today);
+        }
+        match self.file.as_mut() {
+            // Write through the active file; a failed open above drops the
+            // record silently (the stderr note already reported the cause).
+            Some(file) => file.write(buf),
+            None => Ok(buf.len()),
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        match self.file.as_mut() {
+            Some(file) => file.flush(),
+            None => Ok(()),
+        }
+    }
+}
+
 pub fn init_logging() -> Result<PathBuf, String> {
     install_panic_hook();
 
@@ -169,8 +233,8 @@ pub fn init_logging() -> Result<PathBuf, String> {
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create log dir: {}", e))?;
     let removed = cleanup_old_logs(&dir)?;
 
-    let file_appender = tracing_appender::rolling::daily(&dir, "markflow.log");
-    let (writer, guard) = tracing_appender::non_blocking(file_appender);
+    let rolling_writer = LocalDateRollingWriter::new(dir.clone());
+    let (writer, guard) = tracing_appender::non_blocking(rolling_writer);
     let max_level = if cfg!(debug_assertions) {
         Level::DEBUG
     } else {
@@ -178,6 +242,7 @@ pub fn init_logging() -> Result<PathBuf, String> {
     };
 
     let subscriber = tracing_subscriber::fmt()
+        .with_timer(ChronoLocal::rfc_3339())
         .with_writer(writer)
         .with_target(true)
         .with_ansi(false)

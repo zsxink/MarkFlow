@@ -72,12 +72,18 @@ export type EligibilityReason =
   | 'malformed-table'
   | 'unknown-construct'
   | 'too-large'
+  | 'too-complex'
   | 'manual';
 
 /** Measured document size, reported with `too-large` admission results. */
 export interface AdmissionSize {
   bytes: number;
   lines: number;
+}
+
+/** Non-blank line count, reported with `too-complex` admission results. */
+export interface AdmissionComplexity {
+  nonBlankLines: number;
 }
 
 /** Bounded, content-free admission result. */
@@ -88,6 +94,8 @@ export interface EligibilityResult {
   category?: string;
   /** Measured size, attached to `too-large` verdicts for user-facing notices. */
   size?: AdmissionSize;
+  /** Measured structure density, attached to `too-complex` verdicts. */
+  complexity?: AdmissionComplexity;
 }
 
 /** Category of an opaque span (the initial allowlist, design Decision 4). */

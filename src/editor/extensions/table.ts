@@ -1,4 +1,4 @@
-import type { JSONContent, MarkdownRendererHelpers } from '@tiptap/core';
+import type { JSONContent, MarkdownRendererHelpers, MarkdownTokenizer } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { InputRule } from '@tiptap/core';
@@ -114,8 +114,35 @@ function buildTableNode(schema: { nodes: Record<string, any> }, parsed: { column
  * TipTap 3.30.5 serializes a literal pipe in a table cell without escaping it.
  * On the next parse Marked treats that pipe as a column separator. Keep the
  * upstream table schema and commands, but make its Markdown renderer lossless.
+ *
+ * The upstream `markdownTokenizer.start` (`extension-table` src) inspects only
+ * the first two lines yet implements that with `src.split('\n')` over the
+ * WHOLE remaining source. Marked calls every block tokenizer's `start` at each
+ * block boundary, so that split is an O(remaining) allocation per block — the
+ * dominant O(n²) term on fragmented documents (#411; measured 22s for 1.9MB
+ * with all other tokenizers already bounded). The override below reuses the
+ * upstream `tokenize` (pipe preprocessing) verbatim and only replaces `start`
+ * with a scan that stops at the second newline — same header/separator
+ * verdict, linear total cost.
  */
+const upstreamTableTokenizer = (Table as unknown as {
+  config: { markdownTokenizer: MarkdownTokenizer };
+}).config.markdownTokenizer;
+
+function tableStart(src: string): number {
+  const firstNl = src.indexOf('\n');
+  if (firstNl === -1) return -1;
+  const secondNl = src.indexOf('\n', firstNl + 1);
+  const separator = src.slice(firstNl + 1, secondNl === -1 ? src.length : secondNl);
+  if (!/^[ \t|:]*-[ \t|:-]*$/.test(separator) || !separator.includes('|')) return -1;
+  return src.slice(0, firstNl).includes('|') ? 0 : -1;
+}
+
 export const MarkdownSafeTable = Table.extend({
+  markdownTokenizer: {
+    ...upstreamTableTokenizer,
+    start: tableStart,
+  },
   addInputRules() {
     return [
       new InputRule({

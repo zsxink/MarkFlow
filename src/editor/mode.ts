@@ -130,7 +130,7 @@ export function switchToWysiwyg() {
   if (admission.mode === 'source-only') {
     setMarkdownPipelineMode('source-only');
     store.setState({ reconcileError: null });
-    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size, admissionLimits)}`);
+    uiPorts.notify(`已保留源码模式：${admissionReasonLabel(admission.reason, admission.size, admissionLimits, admission.complexity)}`);
     return;
   }
   setMarkdownPipelineMode(admission.mode);

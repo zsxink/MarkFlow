@@ -9,7 +9,9 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { BulletList, ListItem, ListKeymap, OrderedList } from '@tiptap/extension-list';
 import { SafeHardBreak, SafeParagraph, MathBlock, mermaidCodeBlockExtension } from '..';
+import { findMathBlockStart } from '../math-block';
 import { createMarkdownExtension } from '../../init';
+import { TOKENIZER_START_WINDOW } from '../../markdown/tokenizer-window';
 
 const mocks = vi.hoisted(() => ({
   renderKatex: vi.fn(),
@@ -173,6 +175,59 @@ describe('mathBlock canonical serialization', () => {
     expect(out).not.toContain('&amp;');
     expect(out).not.toContain('\\\\begin');
     editor.destroy();
+  });
+});
+
+describe('mathBlock bounded `start` lookahead (#411)', () => {
+  // The old `start` ran `/^[ \t]{0,3}\$\$/m` over the WHOLE remaining source
+  // at every block boundary — O(n²) on fragmented documents (1.9MB lexed in
+  // 25.6s). The bounded scan must reproduce the anchored-regex semantics
+  // inside the 64KB window and never report a hit outside it.
+  it('returns the line-start index for hits with 0/1/3 indent', () => {
+    expect(findMathBlockStart('$$x$$')).toBe(0);
+    expect(findMathBlockStart(' $$x$$')).toBe(0);
+    expect(findMathBlockStart('   $$x$$')).toBe(0);
+    expect(findMathBlockStart('\t$$x$$')).toBe(0);
+    expect(findMathBlockStart('\t \t$$x$$')).toBe(0);
+  });
+
+  it('returns the line start (not the `$$`) so the offset includes indent', () => {
+    const src = 'para\n\n  $$a$$';
+    expect(findMathBlockStart(src)).toBe(src.indexOf('  $$a$$'));
+  });
+
+  it('skips mid-line `$$` and 4+ indent, finding the next valid opener', () => {
+    const src = 'text $$mid$$ tail\n    $$four$$\n$$real$$\n';
+    expect(findMathBlockStart(src)).toBe(src.indexOf('$$real$$'));
+  });
+
+  it('treats string position 0 as a line start (regex `^` parity)', () => {
+    expect(findMathBlockStart('$$')).toBe(0);
+    expect(findMathBlockStart(' $$$')).toBe(0);
+  });
+
+  it('returns -1 when no opener exists anywhere', () => {
+    expect(findMathBlockStart('plain text\nmore text\n')).toBe(-1);
+    expect(findMathBlockStart('')).toBe(-1);
+  });
+
+  it('finds an opener that sits just inside the window edge', () => {
+    const pad = 'a'.repeat(TOKENIZER_START_WINDOW - 4);
+    const src = `${pad}\n$$x$$`;
+    // `$$` at TOKENIZER_START_WINDOW - 3: inside the 64KB prefix.
+    expect(findMathBlockStart(src)).toBe(TOKENIZER_START_WINDOW - 3);
+  });
+
+  it('returns -1 when the opener lies beyond the window (no false positive)', () => {
+    const src = `${'a'.repeat(TOKENIZER_START_WINDOW)}\n$$x$$`;
+    expect(findMathBlockStart(src)).toBe(-1);
+  });
+
+  it('does not misreport a `$$` pair straddling the window edge', () => {
+    // Only the first `$` of the opener is inside the window; a reported pair
+    // needs both code units inside it.
+    const src = `${'a'.repeat(TOKENIZER_START_WINDOW - 1)}$$x$$`;
+    expect(findMathBlockStart(src)).toBe(-1);
   });
 });
 

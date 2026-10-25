@@ -120,9 +120,9 @@ export function mermaidCodeBlockExtension() {
                 if (pos === null || pos === undefined) return;
                 const next = value === '' ? null : value;
                 if ((currentNode.attrs.language ?? null) === next) return;
-                // setNodeMarkup 产生带 from/to 的 ReplaceAroundStep；attr 级 step 无法被
-                // 装饰层按位置检测，切语言必须走节点级替换以触发重新高亮。
-                editor.view.dispatch(editor.view.state.tr.setNodeMarkup(pos, undefined, { language: next }));
+                // 节点级替换确保语言变化必触发 NodeView 重建与装饰重算
+                // （与 math-block 的 setNodeMarkup 模式一致）。
+                editor.view.dispatch(editor.view.state.tr.setNodeMarkup(pos, undefined, { ...currentNode.attrs, language: next }));
               },
             });
           }

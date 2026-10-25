@@ -44,6 +44,7 @@
 
 `math-block.ts` 与 `opaque/extension.ts` 的 `start` 改为：`src.substring(0, LIMIT)` 窗口内用 `indexOf` 探测（math：找 `$$` 后回看行首与 ≤3 缩进；opaque：找 sentinel 前缀首种子子串），窗口内无命中返回 -1。`LIMIT = 64 * 1024`。
 
+- 实施补充（火焰图定位后的完整修复面）：仅修自家 math/opaque `start` 后碎块 lexer 仍 22s——逐 starter 禁用、整体禁用扩展数组、Lexer 方法插桩、CPU profile 四层探针最终定位剩余两个 O(n²) 源：`extension-table` 上游 `start` 的 `src.split('\n')` 全扫剩余文本，与 `extension-list` 上游 orderedList/taskList `tokenize` 的全量入口（profile：11.2s `parseIndentedBlocks` + 10.9s `split`）。修法为项目侧运行时合成覆盖——`table.ts` 的 `tableStart`（只扫到第二个换行，与上游首两行判定逐条件等价）与 `list-fast-tokenizer.ts` 的 512 字符首行 guard（宽松于上游接受条件，guard false ⇒ 上游必 false）。全部落地后 1.9MB 碎块真实管线 lexer 22.7s→172ms。
 - 收益依据：PoC 118ms ≈ 裸 82ms；substring 复制 + SIMD indexOf 每次微秒级，块边界调用量 × 64KB 复制在 10MB 碎块外推 ~0.2-0.5s，线性。
 - **语义正确性**：`start` 返回 -1 只意味着「本轮不截断」，内建 tokenizer 照常消费下一个块；下一块边界 `start` 再次被调，匹配进入窗口后仍会被发现。唯一风险是单个内建块一次消费超过 64KB 且把真实 `$$`/sentinel 行吞进段落（连续无空行 >64KB 的段落/列表）——该场景由既有往返指纹校验兜底为局部字面量保留，**无损性不变**（这是 admission 管线的既有安全网，不是新豁免）。
 - 备选否决：按剩余全文手写扫描（仍 O(n²) 常数小一点）；升级 marked（`start` 契约未变，问题在注册侧使用方式）；为 start 加跨调用缓存（src 每次是新 string，无恒等性）。

@@ -352,6 +352,198 @@
   white-space: pre;
 }
 
+/* ── 代码块幽灵工具条（#415）：语言下拉 + 一键复制，悬停块淡入，不占块高 ── */
+
+.ProseMirror .code-block-view {
+  position: relative;
+}
+
+.ProseMirror .code-block-toolbar {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.ProseMirror .code-block-view:hover .code-block-toolbar,
+.ProseMirror .code-block-toolbar.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ProseMirror .code-block-lang-btn,
+.ProseMirror .code-block-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-code);
+  font-size: 12px;
+}
+
+.ProseMirror .code-block-lang-btn:hover,
+.ProseMirror .code-block-copy-btn:hover {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.ProseMirror .code-block-lang-btn:focus-visible,
+.ProseMirror .code-block-copy-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ProseMirror .code-block-lang-btn {
+  padding: 0 8px;
+}
+
+.ProseMirror .code-block-lang-chevron svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.8;
+}
+
+.ProseMirror .code-block-copy-btn {
+  width: 26px;
+}
+
+.ProseMirror .code-block-copy-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ProseMirror .code-block-copy-btn.is-copied {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.ProseMirror .code-block-lang-anchor {
+  position: relative;
+}
+
+.ProseMirror .code-block-lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.ProseMirror .code-block-lang-search {
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.ProseMirror .code-block-lang-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.ProseMirror .code-block-lang-search-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ProseMirror .code-block-lang-search input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 8px 0 28px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.ProseMirror .code-block-lang-search input::placeholder {
+  color: var(--muted);
+}
+
+.ProseMirror .code-block-lang-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ProseMirror .code-block-lang-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 218px;
+  overflow-y: auto;
+}
+
+.ProseMirror .code-block-lang-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  font-family: var(--font-code);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ProseMirror .code-block-lang-list button:hover {
+  background: var(--hover);
+}
+
+.ProseMirror .code-block-lang-list button[aria-selected="true"] {
+  color: var(--accent);
+}
+
+.ProseMirror .code-block-lang-check {
+  display: flex;
+  color: var(--accent);
+}
+
+.ProseMirror .code-block-lang-check svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ProseMirror .code-block-lang-hint {
+  padding: 6px 10px 3px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  font-family: var(--font-body);
+}
+
 .ProseMirror pre code .hljs-comment,
 .ProseMirror pre code .hljs-quote {
   color: #6b7280;

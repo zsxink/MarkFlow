@@ -202,9 +202,8 @@
 }
 
 .tree-file.active {
-  background: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg));
   color: var(--accent);
-  border-left: 2px solid var(--accent);
 }
 
 .tree-chevron {

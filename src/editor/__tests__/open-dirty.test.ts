@@ -58,6 +58,16 @@ describe('opening without editing (production editor)', () => {
     expect(store.getState().dirty).toBe(true);
   });
 
+  it('shows the unsaved marker after the 400ms dirty-check debounce', async () => {
+    setMarkdown('body');
+    getEditor()!.commands.insertContentAt(2, 'X');
+    expect(store.getState().dirty).toBe(false);
+    await vi.advanceTimersByTimeAsync(399);
+    expect(store.getState().dirty).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(store.getState().dirty).toBe(true);
+  });
+
   it('switching documents cancels a previous document edit check', async () => {
     setMarkdown('first');
     getEditor()!.commands.insertContentAt(2, 'X');

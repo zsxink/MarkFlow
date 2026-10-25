@@ -29,12 +29,20 @@ const MATH_BLOCK_RE = /^[ \t]{0,3}\$\$((?:[^$]|\$(?!\$))*?)\$\$/;
 /**
  * Bounded lookahead for the block-math tokenizer (#411): the first
  * line-leading `$$` opener inside the `TOKENIZER_START_WINDOW` prefix,
- * returned as the index of its line start (including up to 3 indent chars),
- * replicating the old `/^[ \t]{0,3}\$\$/m` search without scanning the whole
- * remaining source at every block boundary. Exported for unit tests.
+ * returned as the index of its line start (including up to 3 indent chars).
+ * When that prefix has no blank-line boundary, scan the continuous paragraph
+ * once so a later formula is not swallowed as prose. Exported for unit tests.
  */
 export function findMathBlockStart(src: string): number {
-  const window = src.length <= TOKENIZER_START_WINDOW ? src : src.substring(0, TOKENIZER_START_WINDOW);
+  const boundedWindow = src.length <= TOKENIZER_START_WINDOW ? src : src.substring(0, TOKENIZER_START_WINDOW);
+  // Marked will re-enter `start` after consuming a paragraph boundary. If the
+  // bounded prefix contains no blank-line boundary, however, it is one
+  // continuous paragraph and an opener just beyond 64KB would otherwise be
+  // swallowed by that paragraph tokenizer. Scan that single unbroken region
+  // once so long prose does not change the math-block parse result.
+  const window = src.length > TOKENIZER_START_WINDOW && !/\n[ \t]*\n/.test(boundedWindow)
+    ? src
+    : boundedWindow;
   let hit = window.indexOf('$$');
   while (hit !== -1) {
     // Walk back over at most 3 spaces/tabs; the opener is valid only when

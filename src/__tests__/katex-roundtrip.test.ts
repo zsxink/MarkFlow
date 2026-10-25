@@ -145,6 +145,22 @@ describe('KaTeX markdown round-trip', () => {
     }
     editor.destroy();
   });
+
+  it('keeps double-dollar math inline inside task list text across round-trip', () => {
+    const editor = makeEditor();
+    const source = '- [ ] 含 $$a=c$$ 数学公式\n';
+    parseMarkdown(editor, source);
+    const first = serializeMarkdown(editor);
+    expect(first.ok).toBe(true);
+    if (first.ok) {
+      expect(first.markdown).toContain('$$a=c$$');
+      parseMarkdown(editor, first.markdown);
+      const second = serializeMarkdown(editor);
+      expect(second.ok).toBe(true);
+      if (second.ok) expect(second.markdown).toBe(first.markdown);
+    }
+    editor.destroy();
+  });
 });
 
 describe('cross-line block formula round-trip (#417)', () => {

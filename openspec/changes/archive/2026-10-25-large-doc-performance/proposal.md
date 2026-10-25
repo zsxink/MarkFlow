@@ -7,6 +7,7 @@
 ## What Changes
 
 - **tokenizer `start` 有界扫描（根因修复）**：`math-block` 与 `opaque` 两个 block 级 markdown tokenizer 的 `start` 回调改为 64KB 有界窗口扫描（substring + indexOf 手写探测，无回溯正则）。PoC 实测：慢 start 使碎块 lexer 82ms→1.4s（真实管线放大至 25.6s），有界版 118ms≈裸跑，收益约两个数量级。
+- **table start 有界化与列表 tokenize 入口 guard（实施中发现的同根因修复点，见 design D1）**：`extension-table` 上游 `start` 以 `src.split('\n')` 全扫剩余文本、`extension-list` 上游 ordered/task `tokenize` 以 `split`/递归缩进解析全量入口——Marked 在每个块边界调用它们造成 O(n²)；项目侧以运行时合成覆盖（`tableStart` 只看前两行；`FastOrderedList`/`FastTaskList` 以 512 字符首行宽松 guard 拒绝上游必然拒绝的输入），语义等价。
 - **结构复杂度预算闸门（准入预扫）**：WYSIWYG 准入新增内部结构块数预算（O(n) 单遍行扫描，非用户设置），超预算的文档留在源码模式并给出「结构过于复杂」提示（新稳定原因 `too-complex`）。预算值由修复后的实测块数-耗时曲线定档，保证预算内最坏准入耗时在秒级内。10MB 长文本型（~70 块）不受影响。
 - **每按键路径削减**：onUpdate 不再同步执行全量 serialize（WYSIWYG）/ normalizeImageMarkdown（源码模式，50MB 实测 51.4ms 贴线），序列化与规范化挪入既有 400ms dirty-check 防抖回调。dirty 标记语义不变，仅延迟至防抖窗口内。
 - **性能基准固化**：临时 bisect 基准整理为正式回归测试（大文档 parse/serialize/准入链、源码模式按键路径、50MB 用例），修复后数据作为回归基线；50MB 用例控制 CI 超时。

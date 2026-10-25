@@ -552,6 +552,10 @@ describe('startup blank tab auto-close', () => {
 });
 
 describe('image preview tabs', () => {
+  // 工具栏全部图标化后，按钮以 aria-label 寻址（与 title 一致）。
+  const byLabel = (root: HTMLElement, label: string) =>
+    root.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+
   it('opens a preview tab, dedupes by path, and reports kind without dirty', async () => {
     await openFileInEditor('/a.md');
     expect(await openImagePreviewTab('/img/photo.PNG')).toBe(true);
@@ -622,22 +626,153 @@ describe('image preview tabs', () => {
     expect(mocks.dialog).not.toHaveBeenCalled();
   });
 
+  it('renders an accessible four-button icon toolbar with the initial fit state', async () => {
+    await openImagePreviewTab('/img/photo.PNG');
+    const preview = document.getElementById('image-preview')!;
+    for (const label of ['缩小', '放大', '适应窗口', '原始尺寸 (1:1)']) {
+      const button = byLabel(preview, label);
+      expect(button, label).not.toBeNull();
+      expect(button!.getAttribute('title')).toBe(label);
+    }
+    // 未加载完成时适配比例退化为 1，高亮落在「适应窗口」。
+    expect(preview.querySelector('.image-preview-pct')!.textContent).toBe('100%');
+    expect(byLabel(preview, '适应窗口')!.getAttribute('aria-pressed')).toBe('true');
+    expect(byLabel(preview, '原始尺寸 (1:1)')!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('steps zoom ×1.25 from the fit ratio with a live readout and highlight handover', async () => {
+    await openImagePreviewTab('/img/square.png');
+    const preview = document.getElementById('image-preview')!;
+    const viewport = preview.querySelector<HTMLElement>('.image-preview-viewport')!;
+    const img = preview.querySelector<HTMLImageElement>('img')!;
+    const pct = preview.querySelector<HTMLElement>('.image-preview-pct')!;
+    // 视口 728×728、图片 1000×1000（留白 48）→ 适配比例恰为 68%（规格场景）。
+    Object.defineProperty(viewport, 'clientWidth', { value: 728, configurable: true });
+    Object.defineProperty(viewport, 'clientHeight', { value: 728, configurable: true });
+    Object.defineProperty(img, 'naturalWidth', { value: 1000, configurable: true });
+    Object.defineProperty(img, 'naturalHeight', { value: 1000, configurable: true });
+    img.dispatchEvent(new Event('load'));
+    expect(pct.textContent).toBe('68%');
+
+    byLabel(preview, '放大')!.click();
+    expect(pct.textContent).toBe('85%');
+    expect(byLabel(preview, '适应窗口')!.getAttribute('aria-pressed')).toBe('false');
+    expect(img.classList.contains('manual')).toBe(true);
+
+    byLabel(preview, '缩小')!.click();
+    expect(pct.textContent).toBe('68%');
+
+    // 1:1 = 精确 100% 像素：高亮迁移，内联宽度等于天然宽度。
+    byLabel(preview, '原始尺寸 (1:1)')!.click();
+    expect(pct.textContent).toBe('100%');
+    expect(byLabel(preview, '原始尺寸 (1:1)')!.getAttribute('aria-pressed')).toBe('true');
+    expect(img.style.width).toBe('1000px');
+    // 回到适应窗口：高亮恢复，内联尺寸清除、类切回 fit。
+    byLabel(preview, '适应窗口')!.click();
+    expect(byLabel(preview, '适应窗口')!.getAttribute('aria-pressed')).toBe('true');
+    expect(img.classList.contains('fit')).toBe(true);
+    expect(img.style.width).toBe('');
+  });
+
+  it('clamps stepped zoom exactly at the 10% and 800% band edges', async () => {
+    await openImagePreviewTab('/img/band.png');
+    const preview = document.getElementById('image-preview')!;
+    const pct = preview.querySelector<HTMLElement>('.image-preview-pct')!;
+    // 无布局环境下 fit 基数退化为 1，从 100% 起步。
+    byLabel(preview, '缩小')!.click();
+    expect(pct.textContent).toBe('80%');
+    for (let index = 0; index < 40; index++) byLabel(preview, '放大')!.click();
+    expect(pct.textContent).toBe('800%');
+    for (let index = 0; index < 60; index++) byLabel(preview, '缩小')!.click();
+    expect(pct.textContent).toBe('10%');
+  });
+
+  it('drives the failure placeholder purely through the .failed container class', async () => {
+    await openImagePreviewTab('/img/gone.png');
+    const preview = document.getElementById('image-preview')!;
+    const img = preview.querySelector<HTMLImageElement>('img')!;
+    // 成功路径初始无 .failed：修复「占位符常显」的误报回归。
+    expect(preview.classList.contains('failed')).toBe(false);
+    img.dispatchEvent(new Event('error'));
+    expect(preview.classList.contains('failed')).toBe(true);
+    img.dispatchEvent(new Event('load'));
+    expect(preview.classList.contains('failed')).toBe(false);
+  });
+
+  it('pans an overflowing preview by mouse drag and ignores other pointer types', async () => {
+    await openImagePreviewTab('/img/huge.png');
+    const preview = document.getElementById('image-preview')!;
+    const viewport = preview.querySelector<HTMLElement>('.image-preview-viewport')!;
+    const img = preview.querySelector<HTMLImageElement>('img')!;
+    // 原生图片拖拽幽灵会吃掉平移手势，必须禁用。
+    expect(img.draggable).toBe(false);
+    // happy-dom 无真实布局：视口度量用 Object.defineProperty 覆写模拟溢出。
+    Object.defineProperty(viewport, 'scrollWidth', { value: 600, configurable: true });
+    Object.defineProperty(viewport, 'clientWidth', { value: 200, configurable: true });
+    Object.defineProperty(viewport, 'scrollHeight', { value: 400, configurable: true });
+    Object.defineProperty(viewport, 'clientHeight', { value: 300, configurable: true });
+    Object.defineProperty(viewport, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(viewport, 'scrollTop', { value: 0, writable: true, configurable: true });
+    // load 触发一次渲染，重算 .can-pan。
+    img.dispatchEvent(new Event('load'));
+    expect(viewport.classList.contains('can-pan')).toBe(true);
+
+    viewport.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 7, pointerType: 'mouse', clientX: 100, clientY: 100 }));
+    expect(viewport.classList.contains('panning')).toBe(true);
+    viewport.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, pointerType: 'mouse', clientX: 70, clientY: 90 }));
+    // 位移取反映射到滚动偏移：向左拖 30px → scrollLeft +30。
+    expect(viewport.scrollLeft).toBe(30);
+    expect(viewport.scrollTop).toBe(10);
+    viewport.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, pointerType: 'mouse' }));
+    expect(viewport.classList.contains('panning')).toBe(false);
+
+    // 触摸/触控板指针不进入拖拽平移，原生滚动不受影响。
+    viewport.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 8, pointerType: 'touch', clientX: 100, clientY: 100 }));
+    viewport.dispatchEvent(new PointerEvent('pointermove', { pointerId: 8, pointerType: 'touch', clientX: 40, clientY: 40 }));
+    viewport.dispatchEvent(new PointerEvent('pointerup', { pointerId: 8, pointerType: 'touch' }));
+    expect(viewport.scrollLeft).toBe(30);
+    expect(viewport.classList.contains('panning')).toBe(false);
+  });
+
+  it('does not pan when the image fits inside the viewport', async () => {
+    await openImagePreviewTab('/img/small.png');
+    const preview = document.getElementById('image-preview')!;
+    const viewport = preview.querySelector<HTMLElement>('.image-preview-viewport')!;
+    Object.defineProperty(viewport, 'scrollWidth', { value: 200, configurable: true });
+    Object.defineProperty(viewport, 'clientWidth', { value: 200, configurable: true });
+    Object.defineProperty(viewport, 'scrollHeight', { value: 300, configurable: true });
+    Object.defineProperty(viewport, 'clientHeight', { value: 300, configurable: true });
+    Object.defineProperty(viewport, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    Object.defineProperty(viewport, 'scrollTop', { value: 0, writable: true, configurable: true });
+    preview.querySelector('img')!.dispatchEvent(new Event('load'));
+    expect(viewport.classList.contains('can-pan')).toBe(false);
+    viewport.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 50, clientY: 50 }));
+    viewport.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', clientX: 10, clientY: 10 }));
+    viewport.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, pointerType: 'mouse' }));
+    expect(viewport.classList.contains('panning')).toBe(false);
+    expect(viewport.scrollLeft).toBe(0);
+  });
+
   it('resets the zoom mode and alt text when switching directly between image tabs', async () => {
     await openImagePreviewTab('/img/one.png');
     await openImagePreviewTab('/img/two.png');
     const preview = document.getElementById('image-preview')!;
     const img = preview.querySelector('img')!;
-    const toggle = preview.querySelector<HTMLButtonElement>('.image-preview-toggle')!;
+    const fit = byLabel(preview, '适应窗口')!;
+    const actual = byLabel(preview, '原始尺寸 (1:1)')!;
     expect(img.alt).toBe('two.png');
-    toggle.click();
-    expect(toggle.textContent).toBe('适应窗口');
-    expect(preview.classList.contains('original-size')).toBe(true);
+    actual.click();
+    expect(actual.getAttribute('aria-pressed')).toBe('true');
+    expect(img.classList.contains('manual')).toBe(true);
     // 图片→图片直接切换复用预览容器，缩放态与 alt 必须随之复位。
     await activateDocumentTab(id('/img/one.png'));
     expect(img.alt).toBe('one.png');
     expect(img.getAttribute('src')).toBe('asset:///img/one.png');
-    expect(toggle.textContent).toBe('原始尺寸');
-    expect(preview.classList.contains('original-size')).toBe(false);
+    expect(fit.getAttribute('aria-pressed')).toBe('true');
+    expect(actual.getAttribute('aria-pressed')).toBe('false');
+    expect(img.classList.contains('fit')).toBe(true);
+    expect(img.classList.contains('manual')).toBe(false);
+    expect(preview.querySelector('.image-preview-pct')!.textContent).toBe('100%');
   });
 
   it('rewrites image tab paths with the workspace and refreshes the preview source', async () => {

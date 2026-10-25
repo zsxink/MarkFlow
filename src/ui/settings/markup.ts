@@ -1,316 +1,54 @@
-// ── Settings panel markup ─────────────────────────────────────────────
-// The static HTML for the settings modal. Kept apart from the panel logic so
-// the markup can be diffed without wading through event wiring.
+import { appIcon } from '../assets';
+import { MAX_AUTOSAVE_INTERVAL_SECONDS, type Settings } from '../../types/settings';
+import { NATIVE_MENU_SHORTCUTS } from '../../utils/keyboard';
 import { shortcutLabel } from '../shortcut-hints';
 
+export const SETTINGS_CATEGORIES = [
+  ['general', '通用', '<path d="M4 7h16M4 17h16M8 4v6m8 4v6"/>'],
+  ['appearance', '外观', '<circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16Z"/>'],
+  ['editor', '编辑器', '<path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/>'],
+  ['image', '图片', '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><path d="m3 17 5-5 4 4 3-3 6 6"/>'],
+  ['advanced', '高级', '<path d="M5 4v16M12 4v16M19 4v16"/><path d="M2 8h6m1 9h6m1-9h6"/>'],
+  ['shortcuts', '快捷键', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h1m4 0h1m4 0h1M6 12h1m4 0h1m4 0h1M7 16h10"/>'],
+  ['about', '关于', '<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/>'],
+] as const;
+export const SETTINGS_GROUP_KEYS: Record<string, (keyof Settings)[]> = {
+  files: ['autosave', 'autosaveInterval', 'fileBrowserShowUnsupportedFiles'],
+  startup: ['restoreWorkspace'], theme: ['theme', 'followSystemTheme'], typography: ['fontSize', 'lineHeight'],
+  interface: ['showSidebar', 'showTooltips'], editor: ['spellcheck', 'softWrap'],
+  code: ['codeHighlight', 'codeLineNumbers', 'codeWordWrap'],
+  storage: ['imageStorageMode', 'imageCustomPath', 'imageApplyToLocal', 'imageApplyToNetwork'],
+  reference: ['imageReferenceStyle'], naming: ['imageClipboardNameTemplate'],
+  tree: ['fileTreeIgnorePatterns', 'fileTreePageSize', 'fileTreeAutoLoadDepth'],
+  limits: ['wysiwygMaxBytes', 'sourceMaxBytes', 'maxLines'], plantuml: ['plantumlServerUrl'],
+};
+const svg = (path: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+const row = (name: string, description: string, control: string) => `<div class="settings-row"><div><div class="settings-label">${name}</div>${description ? `<div class="settings-desc">${description}</div>` : ''}</div>${control}</div>`;
+const toggle = (id: string, label: string, description = '') => row(label, description, `<button type="button" class="toggle" role="switch" aria-label="${label}" aria-checked="false" id="setting-${id}"></button>`);
+const select = (id: string, options: [string, string][], label: string, full = false) => `<select id="setting-${id}" aria-label="${label}" class="settings-select${full ? ' settings-control-full' : ''}">${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select>`;
+const numeric = (id: string, label: string, desc: string, unit: string, value: number, min = 1, max = 999999999) => row(label, `${desc} <span class="settings-default">默认 ${value} ${unit === 'size' ? 'MB' : unit} · 范围 ${unit === 'size' ? '>0' : min}–${max}</span>`, `<div class="settings-number-control"><input class="newfile-input settings-number" type="number" min="${unit === 'size' ? 0.000001 : min}" max="${max}" step="${unit === 'size' ? 'any' : 1}" id="setting-${id}" aria-label="${label}" />${unit === 'size' ? select(`${id}-unit`, [['KB', 'KB'], ['MB', 'MB']], `${label}单位`) : `<span class="settings-unit">${unit}</span>`}</div>`);
+const group = (key: string, label: string, contents: string) => `<section class="settings-group" data-group="${key}"><div class="settings-group-heading"><h3 class="settings-group-title">${label}</h3><button type="button" class="settings-reset" data-reset="${key}">恢复默认</button></div>${contents}</section>`;
+const panel = (id: string, title: string, desc: string, body: string) => `<section id="panel-${id}" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-${id}" tabindex="0"${id === 'general' ? '' : ' hidden'}><h2>${title}</h2><p class="settings-intro">${desc}</p>${body}</section>`;
+const actions: Record<string, string> = {
+  settings: '设置', 'new-file': '新建文件', 'new-folder': '新建文件夹', 'new-tab': '新建标签', 'reopen-tab': '重新打开已关闭标签', 'open-file': '打开文件', save: '保存', 'close-tab': '关闭标签', 'close-window': '关闭窗口', quit: '退出', 'insert-link': '插入链接', 'insert-task-list': '任务列表', 'heading-1': '一级标题', 'heading-2': '二级标题', 'heading-3': '三级标题', paragraph: '正文', bold: '粗体', italic: '斜体', 'inline-code': '行内代码', strike: '删除线', 'toggle-mode': '切换编辑模式', 'toggle-sidebar': '切换侧边栏', 'focus-mode': '专注模式', devtools: '开发者工具', 'next-tab': '下一个标签', 'previous-tab': '上一个标签',
+};
+function shortcuts(): string {
+  const groups = new Map<string, string[]>();
+  for (const item of NATIVE_MENU_SHORTCUTS.filter(item => !item.placeholder)) {
+    const domain = ['heading-1', 'heading-2', 'heading-3', 'paragraph', 'bold', 'italic', 'inline-code', 'strike', 'insert-link', 'insert-task-list'].includes(item.action) ? '格式与插入' : ['toggle-mode', 'toggle-sidebar', 'focus-mode', 'devtools', 'next-tab', 'previous-tab'].includes(item.action) ? '视图与标签' : '文件与应用';
+    const accelerator = [item.controlOnly ? 'Ctrl' : 'Mod', item.shift ? 'Shift' : '', item.alt ? 'Alt' : '', item.key === 'tab' ? 'Tab' : item.key.toUpperCase()].filter(Boolean).join('+');
+    const rows = groups.get(domain) ?? [];
+    rows.push(`<div class="shortcut-row"><span>${actions[item.action] ?? item.action}</span><kbd class="shortcut-key">${shortcutLabel(accelerator)}</kbd></div>`);
+    groups.set(domain, rows);
+  }
+  return Array.from(groups, ([name, rows]) => `<section class="settings-group"><h3 class="settings-group-title">${name}</h3><div class="shortcuts-grid">${rows.join('')}</div></section>`).join('');
+}
 export function createSettingsContent(): string {
-  return `
-    <div class="modal-settings">
-      <div class="modal-header">
-        <span>设置</span>
-        <button class="modal-close" id="settings-close">✕</button>
-      </div>
-      <div class="settings-body">
-        <div class="settings-tabs">
-          <button class="settings-tab active" data-panel="general">通用</button>
-          <button class="settings-tab" data-panel="appearance">外观</button>
-          <button class="settings-tab" data-panel="editor">编辑器</button>
-          <button class="settings-tab" data-panel="image">图片</button>
-          <button class="settings-tab" data-panel="shortcuts">快捷键</button>
-        </div>
-        <div class="settings-panels">
-          <div id="panel-general" class="settings-panel">
-            <div class="settings-group">
-              <div class="settings-group-title">文件</div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">自动保存</div>
-                  <div class="settings-desc">编辑时自动保存到文件系统</div>
-                </div>
-                <button class="toggle active" id="setting-autosave"></button>
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">自动保存间隔</div>
-                </div>
-                <select class="settings-select" id="setting-autosave-interval">
-                  <option value="5000">5 秒</option>
-                  <option value="10000" selected>10 秒</option>
-                  <option value="30000">30 秒</option>
-                  <option value="60000">60 秒</option>
-                </select>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">文件树性能</div>
-              <div class="settings-row">
-                <div><div class="settings-label">忽略目录</div><div class="settings-desc">逗号分隔，支持 * 和 ?</div></div>
-                <input class="newfile-input" id="setting-filetree-ignore" style="width:240px" />
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">单次加载条目</div>
-                <input class="newfile-input" type="number" min="50" max="5000" id="setting-filetree-page-size" style="width:100px" />
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">自动恢复展开深度</div>
-                <input class="newfile-input" type="number" min="1" max="32" id="setting-filetree-depth" style="width:100px" />
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">显示不支持格式的文件</div>
-                  <div class="settings-desc">关闭时文件树仅列出 Markdown 与图片文件</div>
-                </div>
-                <button class="toggle" id="setting-filetree-show-unsupported"></button>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">文档大小/行数上限</div>
-              <div class="settings-subfield">
-                <div class="settings-row">
-                  <div><div class="settings-label">所见即所得文档大小</div><div class="settings-desc">超过此大小的新文档保留在源码模式</div></div>
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <input class="newfile-input" type="number" min="1" id="setting-wysiwyg-max-size" style="width:100px" />
-                    <select class="settings-select" id="setting-wysiwyg-max-size-unit" aria-label="所见即所得文档大小单位">
-                      <option value="KB">KB</option>
-                      <option value="MB">MB</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="settings-row">
-                  <div><div class="settings-label">源码文档大小</div><div class="settings-desc">超过此大小打开时提示只读或强制打开</div></div>
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <input class="newfile-input" type="number" min="1" id="setting-source-max-size" style="width:100px" />
-                    <select class="settings-select" id="setting-source-max-size-unit" aria-label="源码文档大小单位">
-                      <option value="KB">KB</option>
-                      <option value="MB">MB</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="settings-row">
-                  <div><div class="settings-label">最大行数</div><div class="settings-desc">超过此行数的文档按超大文件处理</div></div>
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <input class="newfile-input" type="number" min="1" id="setting-max-lines" style="width:120px" />
-                    <span class="settings-desc">行</span>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-limits-error" id="setting-document-limits-error" hidden></div>
-            </div>
-          </div>
-          <div id="panel-appearance" class="settings-panel" hidden>
-            <div class="settings-group">
-              <div class="settings-group-title">主题</div>
-              <div class="theme-swatches">
-                <div class="theme-swatch selected" data-theme="light" id="theme-light-preview">
-                  <div class="theme-swatch-colors">
-                    <div class="theme-swatch-color" style="background:#FAFAF8"></div>
-                    <div class="theme-swatch-color" style="background:#FFFFFF"></div>
-                    <div class="theme-swatch-color" style="background:#B5472A"></div>
-                  </div>
-                  <span class="theme-swatch-label">浅色</span>
-                </div>
-                <div class="theme-swatch" data-theme="dark" id="theme-dark-preview">
-                  <div class="theme-swatch-colors">
-                    <div class="theme-swatch-color" style="background:#18181B"></div>
-                    <div class="theme-swatch-color" style="background:#1F1F23"></div>
-                    <div class="theme-swatch-color" style="background:#E8715A"></div>
-                  </div>
-                  <span class="theme-swatch-label">深色</span>
-                </div>
-                <div class="theme-swatch" data-theme="sepia" id="theme-sepia-preview">
-                  <div class="theme-swatch-colors">
-                    <div class="theme-swatch-color" style="background:#F4ECD8"></div>
-                    <div class="theme-swatch-color" style="background:#FAF6ED"></div>
-                    <div class="theme-swatch-color" style="background:#8B6914"></div>
-                  </div>
-                  <span class="theme-swatch-label">护眼</span>
-                </div>
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">跟随系统主题</div>
-                <button class="toggle" id="setting-follow-system"></button>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">字体与排版</div>
-              <div class="settings-row">
-                <div class="settings-label">正文字号</div>
-                <select class="settings-select" id="setting-fontsize">
-                  <option value="14">14px</option>
-                  <option value="16">16px</option>
-                  <option value="18" selected>18px</option>
-                  <option value="20">20px</option>
-                  <option value="22">22px</option>
-                </select>
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">行高</div>
-                <select class="settings-select" id="setting-lineheight">
-                  <option value="1.5">1.5（紧凑）</option>
-                  <option value="1.6" selected>1.6（标准）</option>
-                  <option value="1.7">1.7（舒展）</option>
-                  <option value="1.8">1.8（宽松）</option>
-                  <option value="2.0">2.0（双倍）</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div id="panel-editor" class="settings-panel" hidden>
-            <div class="settings-group">
-              <div class="settings-group-title">编辑器</div>
-              <div class="settings-row">
-                <div class="settings-label">拼写检查</div>
-                <button class="toggle active" id="setting-spellcheck"></button>
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">自动换行</div>
-                  <div class="settings-desc">长行在所见即所得与源码模式中自动折行；关闭后横向滚动</div>
-                </div>
-                <button class="toggle active" id="setting-softwrap"></button>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">代码块</div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">代码高亮</div>
-                  <div class="settings-desc">在所见即所得和源码模式中高亮代码语法</div>
-                </div>
-                <button class="toggle active" id="setting-codehighlight"></button>
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">代码块行号</div>
-                  <div class="settings-desc">在代码块左侧显示行号</div>
-                </div>
-                <button class="toggle" id="setting-code-linenumbers"></button>
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">代码块自动换行</div>
-                <button class="toggle active" id="setting-code-wordwrap"></button>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">PlantUML</div>
-              <div class="settings-field">
-                <label class="settings-label" for="setting-plantuml-server-url">PlantUML 服务器地址</label>
-                <div class="settings-warning">
-                  ⚠ 使用外部 PlantUML 服务器会将图表文本发送给第三方，存在隐私与数据外泄风险；敏感内容请使用自建服务器。
-                  <span class="settings-copy-hint">默认服务器（请自行复制）：<code>https://www.plantuml.com/plantuml</code></span>
-                </div>
-                <input class="newfile-input settings-input-full" id="setting-plantuml-server-url" placeholder="粘贴 PlantUML 服务器地址" />
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">界面</div>
-              <div class="settings-row">
-                <div class="settings-label">默认展开侧边栏</div>
-                <button class="toggle active" id="setting-sidebar"></button>
-              </div>
-              <div class="settings-row">
-                <div class="settings-label">工具栏提示</div>
-                <button class="toggle active" id="setting-tooltips"></button>
-              </div>
-            </div>
-          </div>
-          <div id="panel-image" class="settings-panel" hidden>
-            <div class="settings-group">
-              <div class="settings-group-title">存储</div>
-              <div class="settings-field">
-                <div>
-                  <label class="settings-label" for="setting-image-storage">插入图片时</label>
-                  <div class="settings-desc">剪贴板图片始终保存到这里；本地和网络图片可分别选择是否保存</div>
-                </div>
-                <select class="settings-select settings-control-full" id="setting-image-storage">
-                  <option value="custom" selected>复制到指定路径（默认）</option>
-                  <option value="document-dir">复制到当前文件夹 ./（和文档同级）</option>
-                  <option value="document-named-dir">复制到 ./\${filename}-images</option>
-                </select>
-              </div>
-              <div class="settings-field settings-subfield" id="setting-image-custom-row">
-                <div>
-                  <label class="settings-label" for="setting-image-custom-path">指定路径</label>
-                  <div class="settings-desc">支持相对路径（相对于文档）、绝对路径、Windows 盘符路径和 UNC 路径</div>
-                </div>
-                <div class="settings-path-control">
-                  <input class="newfile-input" id="setting-image-custom-path" placeholder="./images, ../assets, /absolute/path, D:&#92;Pictures" />
-                  <button class="settings-button" id="setting-image-choose-folder" type="button" aria-label="选择图片存储文件夹">选择文件夹…</button>
-                </div>
-              </div>
-              <div class="settings-desc settings-rule-example" id="setting-image-named-dir-help" hidden><code>\${filename}</code> 不含 <code>.md</code> 扩展名，例如 <code>guide.md → ./guide-images/</code></div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">应用范围</div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">对本地图片应用</div>
-                  <div class="settings-desc">开启后将本地图片复制到上述位置；关闭则保留原始路径</div>
-                </div>
-                <button class="toggle active" id="setting-image-apply-local" type="button"></button>
-              </div>
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">对网络图片应用</div>
-                  <div class="settings-desc">开启后将网络图片下载到上述位置；关闭则保留原始 URL</div>
-                </div>
-                <button class="toggle active" id="setting-image-apply-network" type="button"></button>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">引用路径</div>
-              <div class="settings-field">
-                <div>
-                  <div class="settings-label">Markdown 引用样式</div>
-                  <div class="settings-desc">图片在 Markdown 中的路径引用格式</div>
-                </div>
-                <select class="settings-select settings-control-full" id="setting-image-reference-style">
-                  <option value="relative" selected>相对路径（推荐）</option>
-                  <option value="absolute">绝对路径</option>
-                </select>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">剪贴板图片命名</div>
-              <div class="settings-field">
-                <div>
-                  <label class="settings-label" for="setting-image-clipboard-template">文件名模板</label>
-                  <div class="settings-desc">仅用于剪贴板图片；扩展名自动保留原始格式，只有重名时才追加序号</div>
-                </div>
-                <input class="newfile-input settings-input-full" id="setting-image-clipboard-template" value="img-\${date:yyyyMMdd}\${time:HHmmss}" />
-                <div class="settings-template-help">
-                  可用变量：<code>\${filename}</code> 当前文档文件名（不含扩展名），<code>\${date:yyyyMMdd}</code> 日期，<code>\${time:HHmmss}</code> 时间。
-                  未保存文档的 <code>\${filename}</code> 为 <code>untitled</code>。
-                </div>
-              </div>
-            </div>
-          </div>
-          <div id="panel-shortcuts" class="settings-panel" hidden>
-            <div class="settings-group">
-              <div class="settings-group-title">格式化</div>
-              <div class="shortcuts-grid">
-                <div class="shortcut-row"><span>粗体</span><span class="shortcut-key">${shortcutLabel('Mod+B')}</span></div>
-                <div class="shortcut-row"><span>斜体</span><span class="shortcut-key">${shortcutLabel('Mod+I')}</span></div>
-                <div class="shortcut-row"><span>删除线</span><span class="shortcut-key">${shortcutLabel('Shift+Mod+S')}</span></div>
-                <div class="shortcut-row"><span>行内代码</span><span class="shortcut-key">${shortcutLabel('Mod+`')}</span></div>
-                <div class="shortcut-row"><span>链接</span><span class="shortcut-key">${shortcutLabel('Mod+K')}</span></div>
-                <div class="shortcut-row"><span>保存</span><span class="shortcut-key">${shortcutLabel('Mod+S')}</span></div>
-              </div>
-            </div>
-            <div class="settings-group">
-              <div class="settings-group-title">视图</div>
-              <div class="shortcuts-grid">
-                <div class="shortcut-row"><span>切换侧边栏</span><span class="shortcut-key">${shortcutLabel('Mod+\\')}</span></div>
-                <div class="shortcut-row"><span>专注模式</span><span class="shortcut-key">${shortcutLabel('Shift+Mod+F')}</span></div>
-                <div class="shortcut-row"><span>源码模式</span><span class="shortcut-key">${shortcutLabel('Mod+/')}</span></div>
-              </div>
-            </div>
-            <div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">
-              MarkFlow v1.0.0 · 所见即所得 Markdown 编辑器
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  const general = group('files', '文件', toggle('autosave', '自动保存', '编辑时自动保存到文件系统') + numeric('autosave-interval', '自动保存间隔', '文件有修改时才会执行保存', '秒', 30, 1, MAX_AUTOSAVE_INTERVAL_SECONDS) + toggle('filetree-show-unsupported', '显示不支持格式的文件', '关闭后文件树仅显示 Markdown 与图片')) + group('startup', '启动', toggle('restore-workspace', '恢复上次工作区', '启动时打开上次使用的文件夹'));
+  const theme = ['light', 'dark', 'sepia'].map((id, index) => `<button type="button" class="theme-swatch" id="theme-${id}-preview" data-theme="${id}" aria-label="${['浅色', '深色', '护眼'][index]}"><span class="theme-swatch-colors theme-preview-${id}"><span></span><span></span><span></span></span><span class="theme-swatch-label">${['浅色', '深色', '护眼'][index]}</span></button>`).join('');
+  const appearance = group('theme', '主题', `<div class="theme-swatches">${theme}</div>` + toggle('follow-system', '跟随系统主题')) + group('typography', '字体与排版', row('正文字号', '', select('fontsize', [14,16,18,20,22].map(n => [String(n), `${n} px`]), '正文字号')) + row('行高', '', select('lineheight', [['1.5','1.5 · 紧凑'],['1.6','1.6 · 标准'],['1.7','1.7 · 舒展'],['1.8','1.8 · 宽松'],['2','2.0 · 双倍']], '行高'))) + group('interface', '界面', toggle('sidebar', '默认展开侧边栏') + toggle('tooltips', '工具栏提示'));
+  const editor = group('editor', '编辑行为', toggle('spellcheck', '拼写检查') + toggle('softwrap', '自动换行', '长行在所见即所得与源码模式中自动折行')) + group('code', '代码块', toggle('codehighlight', '代码高亮', '在所见即所得和源码模式中高亮代码语法') + toggle('code-linenumbers', '代码块行号', '在代码块左侧显示行号') + toggle('code-wordwrap', '代码块自动换行'));
+  const images = group('storage', '存储位置与应用范围', `<div class="settings-field"><label class="settings-label" for="setting-image-storage">插入图片时</label><div class="settings-desc">剪贴板图片始终保存到这里；本地和网络图片可分别选择是否保存</div>${select('image-storage', [['custom','复制到指定路径（默认）'],['document-dir','复制到当前文件夹 ./（和文档同级）'],['document-named-dir','复制到 ./\${filename}-images']], '图片存储位置', true)}</div><div class="settings-field" id="setting-image-custom-row"><label class="settings-label" for="setting-image-custom-path">指定路径</label><div class="settings-desc">支持相对路径（相对于文档）、绝对路径、Windows 盘符路径和 UNC 路径</div><div class="settings-path-control"><input class="newfile-input" id="setting-image-custom-path" /><button class="settings-button" type="button" id="setting-image-choose-folder">选择文件夹…</button></div></div><div id="setting-image-named-dir-help" class="settings-desc" hidden>例如 guide.md → ./guide-images/</div>` + toggle('image-apply-local', '对本地图片应用', '复制到上述位置并更新引用路径') + toggle('image-apply-network', '对网络图片应用', '下载到上述位置并更新引用路径')) + group('reference', '引用路径', row('Markdown 引用样式', '插入图片时使用的路径格式', select('image-reference-style', [['relative','相对路径（推荐）'],['absolute','绝对路径']], 'Markdown 引用样式'))) + group('naming', '剪贴板图片命名', `<div class="settings-field"><label class="settings-label" for="setting-image-clipboard-template">文件名模板</label><div class="settings-desc">扩展名自动保留原始格式，重名时追加序号。</div><input class="newfile-input settings-input-full" id="setting-image-clipboard-template" /><div class="settings-template-help">变量：\${filename} 当前文档名 · \${date:yyyyMMdd} 日期 · \${time:HHmmss} 时间</div></div>`);
+  const advanced = group('tree', '文件树性能', row('忽略目录', '逗号分隔，支持 * 和 ?', '<input class="newfile-input settings-text-medium" id="setting-filetree-ignore" aria-label="忽略目录" />') + numeric('filetree-page-size', '单次加载条目', '', '项', 500, 50, 5000) + numeric('filetree-depth', '自动恢复展开深度', '', '层', 8, 1, 32)) + group('limits', '文档处理', '<p class="settings-desc">通过文件大小与行数决定默认编辑模式，仍可手动切换到所见即所得。</p><div class="settings-subfield">' + numeric('wysiwyg-max-size', '所见即所得文档大小', '超过此大小的新文档使用源码模式', 'size', 1) + numeric('source-max-size', '源码文档大小', '超过此大小时询问是否仍然打开', 'size', 10) + numeric('max-lines', '最大行数', '超过此行数时默认使用源码模式', '行', 1000000) + '</div><div id="setting-document-limits-error" class="settings-limits-error" role="alert" hidden></div>') + group('plantuml', 'PlantUML', `<div class="settings-field"><label class="settings-label" for="setting-plantuml-server-url">服务器地址</label><div class="settings-warning">使用外部服务器会将图表文本发送给第三方。敏感内容建议使用自建服务器。<span class="settings-copy-hint">公共服务器 <code>https://www.plantuml.com/plantuml</code><button type="button" class="settings-copy" id="setting-copy-plantuml" aria-label="复制公共服务器地址" title="复制公共服务器地址">${svg('<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>')}</button></span></div><input class="newfile-input settings-input-full" id="setting-plantuml-server-url" placeholder="输入 PlantUML 服务器地址" /></div>`);
+  return `<div class="settings-layout"><aside class="settings-sidebar"><div class="settings-brand"><img src="${appIcon}" alt=""/>MarkFlow</div><label class="settings-search-label"><input id="settings-search" type="search" placeholder="搜索设置" aria-label="搜索设置" /></label><div class="settings-tabs" role="tablist" aria-label="设置分类" aria-orientation="vertical">${SETTINGS_CATEGORIES.map(([id, label, icon]) => `<button type="button" id="settings-tab-${id}" class="settings-tab${id === 'general' ? ' active' : ''}" role="tab" data-panel="${id}" aria-controls="panel-${id}" aria-selected="${id === 'general'}" tabindex="${id === 'general' ? 0 : -1}">${svg(icon)}${label}</button>`).join('')}</div></aside><div class="settings-main"><header class="settings-header"><span>设置 <span aria-hidden="true">›</span> <strong id="settings-current-category">通用</strong></span><span class="settings-header-note">更改会自动保存</span><button type="button" class="modal-close" id="settings-close" aria-label="关闭设置">×</button></header><div class="settings-panels">${panel('general','通用','管理文件行为与启动方式。',general)}${panel('appearance','外观','选择适合你的主题与排版。',appearance)}${panel('editor','编辑器','调整写作与代码编辑体验。',editor)}${panel('image','图片','统一图片保存位置、引用方式与命名。',images)}${panel('advanced','高级','调整文件树、文档处理与图表服务。',advanced)}${panel('shortcuts','快捷键','当前系统的可用快捷键。',shortcuts())}${panel('about','关于','',`<div class="settings-about"><img src="${appIcon}" alt="MarkFlow 应用图标"/><h2>MarkFlow</h2><p>简洁、专注的 Markdown 编辑器</p><p>所见即所得与源码自由切换，让想法自然成文。</p><p>版本 ${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : ''}</p><a href="https://github.com/zsxink/MarkFlow" target="_blank" rel="noreferrer">项目主页 ↗</a></div>`)}</div><p id="settings-search-empty" hidden>没有找到匹配的设置</p></div></div>`;
 }

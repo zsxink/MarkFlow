@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../../types/settings';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
@@ -70,4 +71,14 @@ describe('storage IPC facade', () => {
     expect(storage.getCachedSettings().recentFiles).toEqual([]);
     expect(storage.getCachedSettings().recentFolders).toEqual([]);
   });
+});
+
+it('preserves active optional fields while stripping removed limit fields', async () => {
+  invoke.mockResolvedValue({ ...DEFAULT_SETTINGS, lastSidebarTab: 'outline', nodeCountLimit: 100, textLengthLimit: 500000, wysiwygMaxBytes: 2048, sourceMaxBytes: 4096, maxLines: 100 });
+  await storage.loadSettings();
+  await storage.saveSettings({ theme: 'dark' });
+  const saved = invoke.mock.calls.find(call => call[0] === 'save_settings')![1].settings;
+  expect(saved).not.toHaveProperty('nodeCountLimit');
+  expect(saved).not.toHaveProperty('textLengthLimit');
+  expect(saved).toMatchObject({ lastSidebarTab: 'outline', wysiwygMaxBytes: 2048, sourceMaxBytes: 4096, maxLines: 100 });
 });

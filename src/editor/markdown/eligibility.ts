@@ -37,49 +37,16 @@ import {
 
 export type { OpaqueSpan } from './opaque/index';
 
-/** User-configurable admission bounds (bytes/lines), injected by callers. */
+/** Legacy diagnostics shape; automatic thresholds are enforced only at open time. */
 export interface AdmissionLimits {
   maxBytes: number;
   maxLines: number;
 }
 
-// Admission stays deterministic (never wall-clock) but the bound must cover
-// ordinary real-world documents; the capacity (1MiB / 1M lines) matches the
-// WYSIWYG document-size setting — per-document safety comes from the admission
-// round-trip verification. The numbers live in DEFAULT_SETTINGS so every link
-// reads one source; this module stays pure (no store/infra imports).
 export const DEFAULT_ADMISSION_LIMITS: AdmissionLimits = {
   maxBytes: DEFAULT_SETTINGS.wysiwygMaxBytes,
   maxLines: DEFAULT_SETTINGS.maxLines,
 };
-
-// ── Structure budget (#411) ────────────────────────────────────────────────
-// Byte/line caps say nothing about how many ProseMirror nodes a document
-// parses into: a 1.9MB heading/list/short-paragraph document holds ~116k PM
-// nodes (measured), which overwhelms the WYSIWYG view no matter how fast
-// admission itself becomes. Non-blank line count is a cheap, monotone proxy
-// strongly correlated with node count (every non-blank line contributes at
-// least one block-level node or text+break children), scanned in one pass
-// with no regex backtracking. The budget is deliberately NOT a user setting
-// (#405 direction): it is the WYSIWYG capacity ceiling, calibrated so a
-// budget-bound document stays under ~50k PM nodes — measured 10MB prose has
-// 69 non-blank lines (admission 0.22s), while 10k non-blank lines ≈ 45k PM
-// nodes with admission well under a second.
-export const WYSIWYG_STRUCTURE_BUDGET = 10_000;
-
-function countNonBlankLines(src: string): number {
-  let count = 0;
-  let inBlank = true;
-  for (let i = 0; i < src.length; i += 1) {
-    const ch = src.charCodeAt(i);
-    if (ch === 10) inBlank = true;
-    else if (inBlank && ch !== 32 && ch !== 9 && ch !== 13) {
-      count += 1;
-      inBlank = false;
-    }
-  }
-  return count;
-}
 
 /** Settings subset consumed by `admissionLimitsFromSettings`. */
 export type AdmissionSettings = Pick<Settings, 'wysiwygMaxBytes' | 'maxLines'>;
@@ -249,33 +216,9 @@ const REFERENCE_DEFINITION = /^[ \t]*(?:(?:>[ \t]*|[-*+][ \t]+|\d{1,9}[.)][ \t]+
  */
 export function classifyEligibility(
   source: string,
-  limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
+  _limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
 ): EligibilityResult {
   const src = source.replace(/\r\n/g, '\n');
-  const bytes = new TextEncoder().encode(src).byteLength;
-  const lines = src.split('\n').length;
-  // Strict `>` on both axes (same comparison as file-size tier): "a 1MB cap"
-  // means a document of exactly 1MB is still admitted.
-  if (bytes > limits.maxBytes || lines > limits.maxLines) {
-    return {
-      verdict: 'source-only',
-      reason: 'too-large',
-      category: 'admission-threshold',
-      size: { bytes, lines },
-    };
-  }
-  // Structure budget (#411): before any parse, one linear pass rejects
-  // documents whose density would overwhelm the WYSIWYG view. This runs after
-  // the size check so the user-configured cap stays the first answer.
-  const nonBlankLines = countNonBlankLines(src);
-  if (nonBlankLines > WYSIWYG_STRUCTURE_BUDGET) {
-    return {
-      verdict: 'source-only',
-      reason: 'too-complex',
-      category: 'admission-threshold',
-      complexity: { nonBlankLines },
-    };
-  }
   if (src.trim().length === 0) {
     return { verdict: 'eligible', reason: 'supported' };
   }

@@ -301,6 +301,6 @@ PDF、DOCX 与 HTML 导出已实现，详见第 2.1 节及对应导出规范。
 ### 5.2 参考资料
 
 - UI 设计稿：`openspec/ui-design/SPEC.md`
-- HTML 原型：`openspec/ui-design/index.html`
+- HTML 原型：`openspec/ui-design/原型.html`
 - 技术架构：`openspec/specs/technical-design.md`
 - 架构概览：`openspec/specs/architecture.md`

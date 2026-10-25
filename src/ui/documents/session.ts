@@ -54,7 +54,7 @@ export function onDocumentTabsChanged(listener: () => void): () => void {
 }
 function notify() {
   const tab = current();
-  document.title = tab ? `${store.getState().dirty ? '● ' : ''}${tab.path ? getFileName(tab.path) : tab.title} — MarkFlow` : 'MarkFlow';
+  document.title = tab ? `${tab.path ? getFileName(tab.path) : tab.title}${store.getState().dirty ? '*' : ''}` : 'MarkFlow';
   for (const listener of listeners) listener();
 }
 function current() { return sessions.find(tab => tab.id === activeId); }
@@ -141,6 +141,7 @@ function restore(tab: DocumentSession, focusEditor = false) {
     // 切换来源可能是源码模式（editor-area overflow: hidden）；预览接管滚动。
     document.getElementById('editor-area')?.classList.toggle('source-mode', false);
   } else if (tab.degradation) {
+    tab.degradation.hidden = store.getState().mode !== 'source';
     document.getElementById('editor-area')?.prepend(tab.degradation);
   }
   project();
@@ -483,3 +484,8 @@ export async function destroyDocumentSessions() {
     emptyInternal();
   });
 }
+
+store.on('editor:mode', event => {
+  const notice = document.getElementById('degradation-bar');
+  if (notice) notice.hidden = event.mode !== 'source';
+});

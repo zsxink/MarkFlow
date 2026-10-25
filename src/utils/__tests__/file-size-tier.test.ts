@@ -16,11 +16,11 @@ describe('determineTier', () => {
     expect(determineTier(DEFAULT_TIER_CONFIG.wysiwygMaxBytes + 1, 10)).toBe('large');
   });
 
-  it('never returns large by line count alone (lines only gate huge)', () => {
+  it('returns large for line overflow without requiring source-size confirmation', () => {
     // A million-line file below both byte bounds stays normal until it crosses
     // maxLines, where it becomes huge — there is no line-based large tier.
     expect(determineTier(1024, DEFAULT_TIER_CONFIG.maxLines - 1)).toBe('normal');
-    expect(determineTier(1024, DEFAULT_TIER_CONFIG.maxLines + 1)).toBe('huge');
+    expect(determineTier(1024, DEFAULT_TIER_CONFIG.maxLines + 1)).toBe('large');
   });
 
   it('returns huge for files exceeding the source capacity', () => {
@@ -44,7 +44,7 @@ describe('determineTier', () => {
     expect(determineTier(50, 5, config)).toBe('normal');
     expect(determineTier(500, 5, config)).toBe('large');
     expect(determineTier(5000, 5, config)).toBe('huge');
-    expect(determineTier(50, 101, config)).toBe('huge');
+    expect(determineTier(50, 101, config)).toBe('large');
   });
 
   it('returns normal for empty file', () => {

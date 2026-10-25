@@ -23,6 +23,13 @@ use tauri::RunEvent;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_single_instance::init as single_instance_init;
 
+fn workspace_to_restore(settings: &crate::config::settings::Settings) -> Option<&str> {
+    settings
+        .restore_workspace
+        .then_some(settings.last_workspace.as_deref())
+        .flatten()
+}
+
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
     // The frontend has already confirmed unsaved documents before asking to quit.
@@ -492,7 +499,7 @@ pub fn run() {
                 let state = app.state::<AppState>();
                 let mut cli_files_lock = error::lock_mutex(&state.cli_files)?;
                 cli_files_lock.extend(cli_files.into_iter().map(|path| path.to_string_lossy().to_string()));
-            } else if let Some(last_ws) = settings.last_workspace {
+            } else if let Some(last_ws) = workspace_to_restore(&settings) {
                 let path = PathBuf::from(&last_ws);
                 if path.is_dir() {
                     let state = app.state::<AppState>();
@@ -547,3 +554,6 @@ pub fn run() {
         }
     });
 }
+
+#[cfg(test)]
+mod tests;

@@ -22,6 +22,8 @@ pub struct Settings {
     pub show_sidebar: bool,
     pub show_tooltips: bool,
     pub follow_system_theme: bool,
+    #[serde(default = "default_restore_workspace")]
+    pub restore_workspace: bool,
     pub last_workspace: Option<String>,
     /// Storage location mode: "custom" | "document-dir" | "document-named-dir"
     #[serde(default = "default_image_storage_mode")]
@@ -161,7 +163,7 @@ impl Default for Settings {
             font_size: 18,
             line_height: 1.6,
             autosave: true,
-            autosave_interval: 10000,
+            autosave_interval: 30000,
             spellcheck: true,
             soft_wrap: true,
             live_preview: None,
@@ -171,6 +173,7 @@ impl Default for Settings {
             show_sidebar: true,
             show_tooltips: true,
             follow_system_theme: false,
+            restore_workspace: true,
             last_workspace: None,
             image_storage_mode: default_image_storage_mode(),
             image_custom_path: default_image_custom_path(),
@@ -202,4 +205,8 @@ impl Default for Settings {
             last_window_y: 0.0,
         }
     }
+}
+
+fn default_restore_workspace() -> bool {
+    true
 }

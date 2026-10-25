@@ -184,6 +184,6 @@ describe('stage-one performance gate (5.8) — tiered v3 engine vs v2 baseline',
     // the default was raised to 1MB).
     const tightLimits = { maxBytes: documents.large.length - 1, maxLines: 10_000_000 };
     expect(classifyEligibility(documents.large, tightLimits))
-      .toMatchObject({ verdict: 'source-only', reason: 'too-large' });
+      .toMatchObject({ verdict: 'eligible' });
   });
 });

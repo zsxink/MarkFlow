@@ -191,3 +191,34 @@ fn version_two_custom_path_is_preserved() {
     assert_eq!(parsed.image_storage_mode, "custom");
     assert_eq!(parsed.image_custom_path.as_deref(), Some("../pictures"));
 }
+
+#[test]
+fn legacy_limit_fields_are_ignored_and_stripped_on_save() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["nodeCountLimit"] = 10000.into();
+    value["textLengthLimit"] = 500000.into();
+    value.as_object_mut().unwrap().remove("restoreWorkspace");
+    let parsed = parse_settings(&value.to_string()).unwrap();
+    assert!(parsed.restore_workspace);
+    assert_eq!(parsed.autosave_interval, 30000);
+    let saved = serde_json::to_value(parsed).unwrap();
+    assert!(saved.get("nodeCountLimit").is_none());
+    assert!(saved.get("textLengthLimit").is_none());
+}
+
+#[test]
+fn invalid_legacy_thresholds_recover_and_invalid_saves_are_rejected() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["wysiwygMaxBytes"] = 0.into();
+    value["sourceMaxBytes"] = 1.into();
+    value["maxLines"] = 0.into();
+    let parsed = parse_settings(&value.to_string()).unwrap();
+    assert_eq!(parsed.wysiwyg_max_bytes, 1048576);
+    assert_eq!(parsed.source_max_bytes, 1048576);
+    assert_eq!(parsed.max_lines, 1000000);
+    let invalid = Settings {
+        source_max_bytes: 1,
+        ..Settings::default()
+    };
+    assert!(save_settings_inner(&invalid).is_err());
+}

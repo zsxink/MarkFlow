@@ -21,7 +21,7 @@ async function openSettingsPanel() {
 beforeEach(() => {
   document.body.innerHTML = '<div id="sidebar"></div><textarea id="source-editor"></textarea>';
   vi.clearAllMocks();
-  loadSettings.mockResolvedValue({ theme: 'dark', fontSize: 20, autosave: false, fileTreePageSize: 10, fileTreeAutoLoadDepth: 99 });
+  loadSettings.mockResolvedValue({ theme: 'dark', fontSize: 20, autosave: false, fileTreePageSize: 500, fileTreeAutoLoadDepth: 8 });
   showModal.mockImplementation(({ content }: { content: string }) => { document.body.insertAdjacentHTML('beforeend', content); return { hide: vi.fn() }; });
 });
 
@@ -46,7 +46,7 @@ describe('settings panel', () => {
     expect(document.querySelector('.settings-template-help')?.textContent).toContain('${filename}');
   });
 
-  it('switches tabs and persists validated file-tree bounds', async () => {
+  it('switches tabs and rejects invalid file-tree bounds', async () => {
     await openSettingsPanel();
     (document.querySelector('[data-panel="appearance"]') as HTMLElement).click();
     expect(document.getElementById('panel-appearance')!.hidden).toBe(false);
@@ -54,8 +54,11 @@ describe('settings panel', () => {
     const pageSize = document.getElementById('setting-filetree-page-size') as HTMLInputElement;
     pageSize.value = '10'; pageSize.dispatchEvent(new Event('change'));
     await flush(); await flush();
-    expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ fileTreePageSize: 50, fileTreeAutoLoadDepth: 32 }));
-    expect(store.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'settings:changed' }));
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(pageSize.getAttribute('aria-invalid')).toBe('true');
+    pageSize.value = '50'; pageSize.dispatchEvent(new Event('change'));
+    await flush(); await flush();
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ fileTreePageSize: 50 }));
   });
 
   it('hydrates the unsupported-files toggle off by default and persists toggling it on', async () => {
@@ -238,6 +241,24 @@ describe('settings panel', () => {
     expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 2097152 }));
   });
 
+  it('rejects positive size values that round down below one persisted byte', async () => {
+    await openSettingsPanel();
+    const wysiwygSize = document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement;
+    const unit = document.getElementById('setting-wysiwyg-max-size-unit') as HTMLSelectElement;
+    unit.value = 'KB';
+    unit.dispatchEvent(new Event('change'));
+    await flush(); await flush();
+    vi.clearAllMocks();
+    wysiwygSize.value = '0.000001';
+    wysiwygSize.dispatchEvent(new Event('change'));
+    await flush(); await flush();
+
+    expect(document.getElementById('setting-document-limits-error')?.textContent).toContain('至少为 1 字节');
+    expect(wysiwygSize.getAttribute('aria-invalid')).toBe('true');
+    expect((document.getElementById('setting-source-max-size') as HTMLInputElement).getAttribute('aria-invalid')).toBeNull();
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
   it('accepts equal wysiwyg and source sizes (empty large band is a legal choice)', async () => {
     await openSettingsPanel();
 
@@ -308,4 +329,99 @@ describe('settings panel', () => {
     expect(saved.sourceMaxBytes).toBe(10485760);
     expect(saved.maxLines).toBe(500000);
   });
+});
+
+it('exposes seven accessible categories and supports keyboard navigation', async () => {
+  await openSettingsPanel();
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+  expect(tabs.map(tab => tab.textContent)).toEqual(['通用','外观','编辑器','图片','高级','快捷键','关于']);
+  tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+  expect(document.activeElement).toBe(tabs[1]);
+  expect(document.getElementById('panel-appearance')?.getAttribute('aria-labelledby')).toBe(tabs[1].id);
+  expect(document.getElementById('setting-plantuml-server-url')?.closest('[role="tabpanel"]')?.id).toBe('panel-advanced');
+});
+it('disables autosave interval when off and stores entered seconds as milliseconds', async () => {
+  await openSettingsPanel();
+  const interval = document.getElementById('setting-autosave-interval') as HTMLInputElement;
+  expect(interval.disabled).toBe(true);
+  expect(interval.value).toBe('30');
+  document.getElementById('setting-autosave')!.click();
+  expect(interval.disabled).toBe(false);
+  expect(document.getElementById('setting-autosave')!.getAttribute('aria-checked')).toBe('true');
+  interval.value = '45'; interval.dispatchEvent(new Event('change'));
+  await flush(); await flush();
+  expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ autosaveInterval: 45000 }));
+});
+it('rejects autosave intervals above the safe timer limit', async () => {
+  await openSettingsPanel();
+  const interval = document.getElementById('setting-autosave-interval') as HTMLInputElement;
+  document.getElementById('setting-autosave')!.click();
+  await flush(); await flush();
+  vi.clearAllMocks();
+  interval.value = '2147484'; interval.dispatchEvent(new Event('change'));
+  await flush(); await flush();
+  expect(interval.getAttribute('aria-invalid')).toBe('true');
+  expect(saveSettings).not.toHaveBeenCalled();
+});
+it('searches descriptions across categories and highlights matches', async () => {
+  await openSettingsPanel();
+  const search = document.getElementById('settings-search') as HTMLInputElement;
+  search.value = '源码模式'; search.dispatchEvent(new Event('input'));
+  expect(document.getElementById('panel-general')!.hidden).toBe(true);
+  expect(document.getElementById('panel-editor')!.hidden).toBe(false);
+  expect(document.querySelector('mark')?.textContent).toBe('源码模式');
+  search.value = '不存在的配置'; search.dispatchEvent(new Event('input'));
+  expect(document.getElementById('settings-search-empty')!.hidden).toBe(false);
+  search.value = ''; search.dispatchEvent(new Event('input'));
+  expect(document.querySelectorAll('.settings-tab:not([hidden])')).toHaveLength(7);
+});
+it('resets only the selected settings group and persists the defaults', async () => {
+  loadSettings.mockResolvedValue({ fontSize: 22, imageCustomPath: '/pictures', wysiwygMaxBytes: 2097152, sourceMaxBytes: 10485760 });
+  await openSettingsPanel();
+  (document.querySelector('[data-reset="limits"]') as HTMLButtonElement).click();
+  await flush(); await flush();
+  expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 1048576, fontSize: 22, imageCustomPath: '/pictures' }));
+});
+it('copies the public server URL and shows an inline check mark', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  await openSettingsPanel();
+  const button = document.getElementById('setting-copy-plantuml')!;
+  button.click(); await flush();
+  expect(writeText).toHaveBeenCalledWith('https://www.plantuml.com/plantuml');
+  expect(button.textContent).toBe('✓');
+  expect(button.closest('.settings-warning')).not.toBeNull();
+});
+it('projects dropdown option text and selection through one native value', async () => {
+  await openSettingsPanel();
+  const native = document.getElementById('setting-fontsize') as HTMLSelectElement;
+  const wrapper = native.closest('.settings-select-control')!;
+  const trigger = wrapper.querySelector<HTMLButtonElement>('.settings-select-trigger')!;
+  expect(trigger.textContent).toContain('20 px');
+  trigger.click();
+  expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  (wrapper.querySelector('[data-value="22"]') as HTMLButtonElement).click();
+  await flush(); await flush();
+  expect(native.value).toBe('22');
+  expect(wrapper.querySelector('[data-value="22"]')!.getAttribute('aria-selected')).toBe('true');
+  expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ fontSize: 22 }));
+});
+
+it('keeps fractional units valid when re-expressing KB as MB', async () => {
+  loadSettings.mockResolvedValue({ wysiwygMaxBytes: 524288 });
+  await openSettingsPanel();
+  const unit = document.getElementById('setting-wysiwyg-max-size-unit') as HTMLSelectElement;
+  unit.value = 'MB'; unit.dispatchEvent(new Event('change'));
+  await flush(); await flush();
+  expect((document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement).value).toBe('0.5');
+  expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 524288 }));
+});
+it('shows the build version and only shortcuts from the active registry', async () => {
+  vi.stubGlobal('__APP_VERSION__', '9.8.7-test');
+  await openSettingsPanel();
+  expect(document.querySelector('.settings-about')?.textContent).toContain('9.8.7-test');
+  const { NATIVE_MENU_SHORTCUTS } = await import('../../../utils/keyboard');
+  expect(document.querySelectorAll('#panel-shortcuts .shortcut-row')).toHaveLength(NATIVE_MENU_SHORTCUTS.filter(shortcut => !shortcut.placeholder).length);
+  vi.unstubAllGlobals();
 });

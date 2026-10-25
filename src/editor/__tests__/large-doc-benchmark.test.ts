@@ -37,7 +37,7 @@ import { OpaqueNode } from '../markdown/opaque/extension';
 import { RawMarkdown } from '../markdown/fallback';
 import { VariantListItem, VariantTaskItem } from '../extensions/list-marker-variants';
 import { decideAdmission } from '../markdown/admission';
-import { classifyEligibility, WYSIWYG_STRUCTURE_BUDGET, DEFAULT_ADMISSION_LIMITS } from '../markdown/eligibility';
+import { classifyEligibility } from '../markdown/eligibility';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from '../markdown/adapter';
 import { endOpaqueSession } from '../markdown/opaque/session';
 
@@ -146,24 +146,9 @@ function timed(label: string, rounds: number, fn: () => void): number {
 
 // eslint-disable-next-line vitest/valid-describe-callback
 describe('#411 large-document benchmark', () => {
-  it('structure budget refuses dense documents before parsing', () => {
-    // 2500 fragmented units ≈ 15k non-blank lines — over the 10k budget.
-    const dense = genFragmented(2500);
-    const refused = classifyEligibility(dense, HUGE);
-    expect(refused.verdict).toBe('source-only');
-    expect(refused.reason).toBe('too-complex');
-    expect(refused.complexity?.nonBlankLines).toBeGreaterThan(WYSIWYG_STRUCTURE_BUDGET);
-
-    // A document with exactly the budget must not be refused by complexity.
-    const lines: string[] = [];
-    for (let i = 0; i < WYSIWYG_STRUCTURE_BUDGET; i += 1) lines.push(filler(i));
-    const atBudget = lines.join('\n');
-    const verdict = classifyEligibility(atBudget, HUGE);
-    expect(verdict.reason).not.toBe('too-complex');
-
-    // Size limits keep precedence over the structure answer.
-    const overBytes = classifyEligibility(genProse(2 * MB), { maxBytes: MB, maxLines: 1_000_000 });
-    expect(overBytes.reason).toBe('too-large');
+  it('admits dense documents without a structure or size budget', () => {
+    expect(classifyEligibility(genFragmented(2500), HUGE).verdict).toBe('eligible');
+    expect(classifyEligibility(genProse(2 * MB), { maxBytes: MB, maxLines: 1 }).verdict).toBe('eligible');
   }, 60_000);
 
   it('fragmented lexer stays linear with all block tokenizers registered', () => {
@@ -217,11 +202,4 @@ describe('#411 large-document benchmark', () => {
     expect(ms).toBeLessThan(3000);
   }, 300_000);
 
-  it('admission reason label quotes the structure budget', async () => {
-    const { admissionReasonLabel } = await import('../markdown/admission');
-    const dense = classifyEligibility(genFragmented(2500), HUGE);
-    const label = admissionReasonLabel(dense.reason, dense.size, DEFAULT_ADMISSION_LIMITS, dense.complexity);
-    expect(label).toContain(`${WYSIWYG_STRUCTURE_BUDGET}`);
-    expect(label).toContain('结构过于复杂');
-  }, 60_000);
 });

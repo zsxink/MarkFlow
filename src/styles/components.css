@@ -719,24 +719,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: #fff3cd;
-  border-bottom: 1px solid #ffc107;
+  padding: 4px 14px;
+  min-height: 30px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--warning) 6%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 18%, var(--border));
   font-size: 13px;
-  color: #856404;
+  color: var(--muted);
   z-index: 10;
 }
 
 body.dark .degradation-bar {
-  background: #433800;
-  border-bottom-color: #665500;
-  color: #ffd54f;
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  border-bottom-color: color-mix(in srgb, var(--warning) 20%, var(--border));
+  color: var(--muted);
 }
 
 body.sepia .degradation-bar {
-  background: #f5e6c8;
-  border-bottom-color: #d4a84b;
-  color: #7a6200;
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  border-bottom-color: var(--border);
+  color: var(--muted);
 }
 
 .degradation-icon {
@@ -756,7 +758,10 @@ body.sepia .degradation-bar {
 }
 
 .degradation-btn {
-  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 2px 6px;
   font-size: 12px;
   border-radius: 4px;
   cursor: pointer;
@@ -777,3 +782,8 @@ body.sepia .degradation-bar {
 .degradation-close:hover {
   opacity: 1;
 }
+
+.degradation-bar[hidden] { display: none; }
+.editor-area:has(> .degradation-bar:not([hidden])) { flex-direction: column; justify-content: flex-start; }
+.editor-area:has(> .degradation-bar:not([hidden])) > .editor-container { align-self: center; flex: 1; min-height: 0; }
+.editor-area.source-mode:has(> .degradation-bar:not([hidden])) > .editor-container { height: auto; }

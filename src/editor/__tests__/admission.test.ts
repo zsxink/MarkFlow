@@ -541,14 +541,8 @@ describe('admission verification (6.4)', () => {
     });
   });
 
-  it('reports the measured size with the too-large admission decision', () => {
-    const limits = { maxBytes: 4096, maxLines: 300 };
-    const oversized = 'a'.repeat(limits.maxBytes + 1);
-    expect(decideAdmission(editor, oversized, { sourceRevision: 1, userRevisionAtAdmission: 0 }, limits)).toMatchObject({
-      mode: 'source-only',
-      reason: 'too-large',
-      size: { bytes: limits.maxBytes + 1, lines: 1 },
-    });
+  it('admission proceeds through normal safety checks above automatic mode thresholds', () => {
+    expect(decideAdmission(editor, '# Supported', undefined, { maxBytes: 1, maxLines: 1 }).mode).not.toBe('source-only');
   });
 
   it('names the exceeded limit in the too-large notice', () => {
@@ -568,7 +562,7 @@ describe('admission verification (6.4)', () => {
     const limits = { maxBytes: 256 * 1024, maxLines: 10000 };
     const oversized = 'a'.repeat(300 * 1024);
     expect(decideAdmission(editor, oversized, { sourceRevision: 1, userRevisionAtAdmission: 0 }, limits))
-      .toMatchObject({ mode: 'source-only', reason: 'too-large' });
+      .toMatchObject({ verdict: 'eligible' });
     const raised = {
       maxBytes: 1024 * 1024,
       maxLines: 10000,

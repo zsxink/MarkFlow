@@ -285,24 +285,12 @@ describe('eligibility classifier (6.2)', () => {
     }
   });
 
-  it('uses deterministic measured size and line thresholds for source-only admission', () => {
+  it('does not use size or line thresholds as safety admission gates', () => {
     const limits = { maxBytes: 4096, maxLines: 300 };
     // Both bounds are strict `>`: a document of exactly the cap is admitted.
     expect(classifyEligibility('a'.repeat(limits.maxBytes), limits).verdict).toBe('eligible');
-    expect(classifyEligibility('a'.repeat(limits.maxBytes + 1), limits).reason).toBe('too-large');
-    expect(classifyEligibility(Array.from({ length: limits.maxLines + 1 }, () => 'a').join('\n'), limits).reason).toBe('too-large');
-  });
-
-  it('reports the measured size on too-large verdicts for actionable notices', () => {
-    const limits = { maxBytes: 4096, maxLines: 300 };
-    const byBytes = classifyEligibility('a'.repeat(limits.maxBytes + 1), limits);
-    expect(byBytes.size).toEqual({ bytes: limits.maxBytes + 1, lines: 1 });
-
-    const byLines = Array.from({ length: limits.maxLines + 1 }, () => 'a').join('\n');
-    expect(classifyEligibility(byLines, limits).size).toEqual({
-      bytes: byLines.length,
-      lines: limits.maxLines + 1,
-    });
+    expect(classifyEligibility('a'.repeat(limits.maxBytes + 1), limits).verdict).toBe('eligible');
+    expect(classifyEligibility(Array.from({ length: limits.maxLines + 1 }, () => 'a').join('\n'), limits).verdict).toBe('eligible');
   });
 
   // The container-prefix group of REFERENCE_DEFINITION must stay linear: an
@@ -318,10 +306,10 @@ describe('eligibility classifier (6.2)', () => {
     expect(performance.now() - start).toBeLessThan(200);
   });
 
-  it('admits limited-rejected docs under raised custom limits', () => {
+  it('admits safe documents independently of configured thresholds', () => {
     const limits = { maxBytes: 4096, maxLines: 300 };
     const oversized = 'a'.repeat(limits.maxBytes + 1);
-    expect(classifyEligibility(oversized, limits).reason).toBe('too-large');
+    expect(classifyEligibility(oversized, limits).verdict).toBe('eligible');
     const raised = {
       maxBytes: limits.maxBytes * 2,
       maxLines: limits.maxLines,
@@ -329,9 +317,9 @@ describe('eligibility classifier (6.2)', () => {
     expect(classifyEligibility(oversized, raised).verdict).toBe('eligible');
     // Boundary semantics are unchanged under custom limits: strict `>` on both axes.
     expect(classifyEligibility('a'.repeat(raised.maxBytes), raised).verdict).toBe('eligible');
-    expect(classifyEligibility('a'.repeat(raised.maxBytes + 1), raised).reason).toBe('too-large');
+    expect(classifyEligibility('a'.repeat(raised.maxBytes + 1), raised).verdict).toBe('eligible');
     const manyLines = Array.from({ length: raised.maxLines + 1 }, () => 'a').join('\n');
-    expect(classifyEligibility(manyLines, raised).reason).toBe('too-large');
+    expect(classifyEligibility(manyLines, raised).verdict).toBe('eligible');
   });
 
   it('maps admission limits from settings, falling back to defaults for missing fields', () => {

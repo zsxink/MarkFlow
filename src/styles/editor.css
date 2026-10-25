@@ -220,6 +220,7 @@
 .ProseMirror h4,
 .ProseMirror h5,
 .ProseMirror h6 {
+  position: relative;
   font-weight: 600;
   line-height: 1.35;
   margin-top: 1.25em;
@@ -243,6 +244,49 @@
 .ProseMirror h4 { font-size: 1.1em; }
 .ProseMirror h5 { font-size: 1em; }
 .ProseMirror h6 { font-size: 0.95em; }
+
+/* 标题级别标记（issue #409）：绝对定位到标题左侧留白，与标题行垂直居中，不占正文版式宽度。
+   标记为伪元素，不进入文档模型、选区、剪贴板与导出产物；编辑器容器左右 padding 48px 提供空间。
+   只作用于顶层标题（ProseMirror 文档直接子级）：引用块/列表项内的嵌套标题左侧没有留白，
+   固定 10px 的偏移会压在引用边线或项目符号上。 */
+.ProseMirror > h1::before,
+.ProseMirror > h2::before,
+.ProseMirror > h3::before,
+.ProseMirror > h4::before,
+.ProseMirror > h5::before,
+.ProseMirror > h6::before {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  font: 400 12px/1 var(--font-body);
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ProseMirror > h1::before { content: "H1"; top: calc(50% - 5px); }
+.ProseMirror > h2::before { content: "H2"; }
+.ProseMirror > h3::before { content: "H3"; }
+.ProseMirror > h4::before { content: "H4"; }
+.ProseMirror > h5::before { content: "H5"; }
+.ProseMirror > h6::before { content: "H6"; }
+
+/* 空标题占位符复位：文档首个块为空标题时（打开仅含 `# ` 的文件，或输入 `# ` 触发
+   heading input rule），Tiptap Placeholder 输出 `<h1 class="is-editor-empty" ...>`，
+   它会同时命中上面的标记规则，被绝对定位搬到标题左侧留白并被容器裁切。
+   这里把标记泄漏的定位/字体属性复位，使占位符渲染与无标记时逐像素一致。
+   本规则 specificity（0,3,1）高于标记规则（0,1,2），位置在前也能覆盖。 */
+.ProseMirror .is-editor-empty:first-child::before {
+  position: static;
+  right: auto;
+  top: auto;
+  transform: none;
+  font: inherit;
+  letter-spacing: normal;
+}
 
 /* Keep the opening block aligned with the editor's top inset. */
 .ProseMirror > :first-child {

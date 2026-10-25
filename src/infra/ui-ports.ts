@@ -62,16 +62,6 @@ export type RefreshFrontmatterPort = (markdown?: string) => void;
 
 export type MountFrontmatterPort = (container: HTMLElement) => void;
 
-export interface DegradationInfo {
-  tier: 'large' | 'huge';
-  size: string;
-  lines: number;
-  readOnly?: boolean;
-}
-
-export type ShowDegradationPort = (info: DegradationInfo) => void;
-export type HideDegradationPort = () => void;
-
 /** Save-or-discard confirmation before leaving a dirty document. */
 export type ConfirmTransitionPort = () => Promise<boolean>;
 
@@ -94,8 +84,6 @@ interface UiPorts {
   showImageContextMenu: ImageContextMenuPort;
   refreshFrontmatter: RefreshFrontmatterPort;
   mountFrontmatter: MountFrontmatterPort;
-  showDegradationBar: ShowDegradationPort;
-  hideDegradationBar: HideDegradationPort;
   confirmDocumentTransition: ConfirmTransitionPort;
   handleExternalModification: ExternalModificationPort;
   handleExternalDeletion: ExternalDeletionPort;
@@ -122,8 +110,6 @@ const defaults: UiPorts = {
   },
   refreshFrontmatter: () => logWarn('ui-ports', 'frontmatter refresh port not registered', {}),
   mountFrontmatter: () => logWarn('ui-ports', 'frontmatter mount port not registered', {}),
-  showDegradationBar: (info) => logWarn('ui-ports', 'degradation bar port not registered', { tier: info.tier }),
-  hideDegradationBar: () => logWarn('ui-ports', 'degradation bar port not registered', {}),
   confirmDocumentTransition: async () => {
     logWarn('ui-ports', 'document transition port not registered', {});
     return true;
@@ -162,8 +148,6 @@ export const uiPorts = {
     ports.showImageContextMenu(x, y, state),
   refreshFrontmatter: (markdown?: string) => ports.refreshFrontmatter(markdown),
   mountFrontmatter: (container: HTMLElement) => ports.mountFrontmatter(container),
-  showDegradationBar: (info: DegradationInfo) => ports.showDegradationBar(info),
-  hideDegradationBar: () => ports.hideDegradationBar(),
   confirmDocumentTransition: () => ports.confirmDocumentTransition(),
   handleExternalModification: () => ports.handleExternalModification(),
   handleExternalDeletion: (path: string) => ports.handleExternalDeletion(path),

@@ -30,6 +30,38 @@ if [ ! -d "$ARCHIVE_DIR" ]; then
   exit 0
 fi
 
+# Pre-scan: collect requirements explicitly REMOVED by archived changes, per capability.
+# A requirement name missing from the main spec is legitimate spec evolution when a
+# LATER archived change removed it (via its REMOVED delta section) — not an unsynced
+# archive. Temp file rows: "<capability>|<req name>|<earliest removal archive date>"
+# (plain file instead of declare -A: macOS ships bash 3.2 without associative arrays).
+REMOVED_DB="$(mktemp)"
+trap 'rm -f "$REMOVED_DB"' EXIT
+while IFS= read -r -d '' delta; do
+  archive_name="$(basename "$(dirname "$(dirname "$(dirname "$delta")")")")"
+  archive_date="${archive_name:0:10}"
+  [[ "$archive_date" < "$CUTOFF_DATE" ]] && continue
+  capability="$(basename "$(dirname "$delta")")"
+  in_removed=0
+  while IFS= read -r line; do
+    trimmed="$(echo "$line" | sed 's/^[[:space:]]*//')"
+    case "$trimmed" in
+      "## REMOVED Requirements"*) in_removed=1; continue ;;
+      "## Requirements"|"## Purpose"|"## Agent Context"|"## ADDED Requirements"|"## MODIFIED Requirements") in_removed=0 ;;
+    esac
+    [ "$in_removed" -eq 1 ] || continue
+    if [[ "$trimmed" =~ ^###\ Requirement:\ (.+)$ ]]; then
+      row="$capability|${BASH_REMATCH[1]}"
+      earliest="$(grep -F "$row|" "$REMOVED_DB" | head -1 | cut -d'|' -f3 || true)"
+      if [ -z "$earliest" ] || [[ "$archive_date" < "$earliest" ]]; then
+        grep -vF "$row|" "$REMOVED_DB" > "$REMOVED_DB.tmp" 2>/dev/null || true
+        mv "$REMOVED_DB.tmp" "$REMOVED_DB"
+        printf '%s|%s\n' "$row" "$archive_date" >> "$REMOVED_DB"
+      fi
+    fi
+  done < "$delta"
+done < <(find "$ARCHIVE_DIR" -path '*/specs/*/spec.md' -print0)
+
 # Find all archived delta specs: archive/<change>/specs/<capability>/spec.md
 while IFS= read -r -d '' delta; do
   archive_name="$(basename "$(dirname "$(dirname "$(dirname "$delta")")")")"
@@ -69,6 +101,11 @@ while IFS= read -r -d '' delta; do
       req_name="${BASH_REMATCH[1]}"
       # Check if this requirement name exists in the main spec
       if ! grep -qF "### Requirement: $req_name" "$main_spec"; then
+        removed_at="$(grep -F "$capability|$req_name|" "$REMOVED_DB" | head -1 | cut -d'|' -f3 || true)"
+        if [ -n "$removed_at" ] && [[ "$removed_at" > "$archive_date" ]]; then
+          # Removed by a later archived change — legitimate rename/removal, not unsynced.
+          continue
+        fi
         missing=$((missing + 1))
         echo "   missing requirement in main specs/$capability/spec.md: $req_name"
       fi

@@ -39,18 +39,12 @@ export interface Settings {
   codeLineNumbers?: boolean;
   codeWordWrap?: boolean;
   lastSidebarTab?: string;
-  largeFileThreshold?: number;
-  hugeFileThreshold?: number;
-  largeFileLineThreshold?: number;
-  hugeFileLineThreshold?: number;
-  /** Documents at/above this byte count stay in Source (WYSIWYG admission). */
-  wysiwygAdmissionBytes?: number;
-  /** Documents above this line count stay in Source (WYSIWYG admission). */
-  wysiwygAdmissionLines?: number;
-  /** ProseMirror node-count ceiling before editing is restricted. */
-  wysiwygMaxNodes?: number;
-  /** ProseMirror text-length ceiling before editing is restricted. */
-  wysiwygMaxTextLength?: number;
+  /** Documents larger than this (bytes) stay in Source / tier as Large. */
+  wysiwygMaxBytes?: number;
+  /** Documents larger than this (bytes) are tiered Huge (confirm dialog). */
+  sourceMaxBytes?: number;
+  /** Documents with more lines than this are tiered Huge and stay in Source. */
+  maxLines?: number;
   fileTreeIgnorePatterns?: string[];
   fileTreePageSize?: number;
   fileTreeAutoLoadDepth?: number;
@@ -90,14 +84,9 @@ export const DEFAULT_SETTINGS = {
   imageReferenceStyle: 'relative',
   codeLineNumbers: false,
   codeWordWrap: true,
-  largeFileThreshold: 1048576,    // 1MB
-  hugeFileThreshold: 10485760,    // 10MB
-  largeFileLineThreshold: 5000,
-  hugeFileLineThreshold: 50000,
-  wysiwygAdmissionBytes: 262144,  // 256KB
-  wysiwygAdmissionLines: 10000,
-  wysiwygMaxNodes: 10000,
-  wysiwygMaxTextLength: 500000,
+  wysiwygMaxBytes: 1048576,          // 1MB
+  sourceMaxBytes: 10485760,          // 10MB
+  maxLines: 1000000,
   fileTreeIgnorePatterns: ['.git', 'node_modules', 'target', 'dist'],
   fileTreePageSize: 500,
   fileTreeAutoLoadDepth: 8,

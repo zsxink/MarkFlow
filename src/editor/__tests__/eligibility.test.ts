@@ -3,8 +3,6 @@ import {
   admissionLimitsFromSettings,
   classifyEligibility,
   DEFAULT_ADMISSION_LIMITS,
-  WYSIWYG_MAX_ADMISSION_BYTES,
-  WYSIWYG_MAX_ADMISSION_LINES,
 } from '../markdown/eligibility';
 import type { Eligibility, EligibilityReason } from '../markdown/types';
 
@@ -288,19 +286,22 @@ describe('eligibility classifier (6.2)', () => {
   });
 
   it('uses deterministic measured size and line thresholds for source-only admission', () => {
-    expect(classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES - 1)).verdict).toBe('eligible');
-    expect(classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES)).reason).toBe('too-large');
-    expect(classifyEligibility(Array.from({ length: WYSIWYG_MAX_ADMISSION_LINES + 1 }, () => 'a').join('\n')).reason).toBe('too-large');
+    const limits = { maxBytes: 4096, maxLines: 300 };
+    // Both bounds are strict `>`: a document of exactly the cap is admitted.
+    expect(classifyEligibility('a'.repeat(limits.maxBytes), limits).verdict).toBe('eligible');
+    expect(classifyEligibility('a'.repeat(limits.maxBytes + 1), limits).reason).toBe('too-large');
+    expect(classifyEligibility(Array.from({ length: limits.maxLines + 1 }, () => 'a').join('\n'), limits).reason).toBe('too-large');
   });
 
   it('reports the measured size on too-large verdicts for actionable notices', () => {
-    const byBytes = classifyEligibility('a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES));
-    expect(byBytes.size).toEqual({ bytes: WYSIWYG_MAX_ADMISSION_BYTES, lines: 1 });
+    const limits = { maxBytes: 4096, maxLines: 300 };
+    const byBytes = classifyEligibility('a'.repeat(limits.maxBytes + 1), limits);
+    expect(byBytes.size).toEqual({ bytes: limits.maxBytes + 1, lines: 1 });
 
-    const byLines = Array.from({ length: WYSIWYG_MAX_ADMISSION_LINES + 1 }, () => 'a').join('\n');
-    expect(classifyEligibility(byLines).size).toEqual({
+    const byLines = Array.from({ length: limits.maxLines + 1 }, () => 'a').join('\n');
+    expect(classifyEligibility(byLines, limits).size).toEqual({
       bytes: byLines.length,
-      lines: WYSIWYG_MAX_ADMISSION_LINES + 1,
+      lines: limits.maxLines + 1,
     });
   });
 
@@ -317,28 +318,30 @@ describe('eligibility classifier (6.2)', () => {
     expect(performance.now() - start).toBeLessThan(200);
   });
 
-  it('admits default-rejected docs under raised custom limits', () => {
-    const oversized = 'a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES);
-    expect(classifyEligibility(oversized).reason).toBe('too-large');
+  it('admits limited-rejected docs under raised custom limits', () => {
+    const limits = { maxBytes: 4096, maxLines: 300 };
+    const oversized = 'a'.repeat(limits.maxBytes + 1);
+    expect(classifyEligibility(oversized, limits).reason).toBe('too-large');
     const raised = {
-      maxBytes: WYSIWYG_MAX_ADMISSION_BYTES * 2,
-      maxLines: WYSIWYG_MAX_ADMISSION_LINES,
+      maxBytes: limits.maxBytes * 2,
+      maxLines: limits.maxLines,
     };
     expect(classifyEligibility(oversized, raised).verdict).toBe('eligible');
-    // Boundary semantics are unchanged under custom limits: bytes inclusive, lines exclusive.
-    expect(classifyEligibility('a'.repeat(raised.maxBytes), raised).reason).toBe('too-large');
+    // Boundary semantics are unchanged under custom limits: strict `>` on both axes.
+    expect(classifyEligibility('a'.repeat(raised.maxBytes), raised).verdict).toBe('eligible');
+    expect(classifyEligibility('a'.repeat(raised.maxBytes + 1), raised).reason).toBe('too-large');
     const manyLines = Array.from({ length: raised.maxLines + 1 }, () => 'a').join('\n');
     expect(classifyEligibility(manyLines, raised).reason).toBe('too-large');
   });
 
   it('maps admission limits from settings, falling back to defaults for missing fields', () => {
-    expect(admissionLimitsFromSettings({ wysiwygAdmissionBytes: 512 * 1024, wysiwygAdmissionLines: 2000 }))
+    expect(admissionLimitsFromSettings({ wysiwygMaxBytes: 512 * 1024, maxLines: 2000 }))
       .toEqual({ maxBytes: 512 * 1024, maxLines: 2000 });
     // Pre-upgrade settings files carry none of the new fields.
     expect(admissionLimitsFromSettings({})).toEqual(DEFAULT_ADMISSION_LIMITS);
     expect(DEFAULT_ADMISSION_LIMITS).toEqual({
-      maxBytes: WYSIWYG_MAX_ADMISSION_BYTES,
-      maxLines: WYSIWYG_MAX_ADMISSION_LINES,
+      maxBytes: 1048576,
+      maxLines: 1000000,
     });
   });
 });

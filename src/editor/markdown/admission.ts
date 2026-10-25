@@ -129,7 +129,10 @@ export function admissionReasonLabel(
   limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
 ): string {
   if (reason === 'too-large' && size) {
-    return size.bytes >= limits.maxBytes
+    // Same strict `>` as classifyEligibility: a document at exactly the byte
+    // cap was not rejected by bytes, so an over-limit line count is the
+    // binding dimension and must be the one named.
+    return size.bytes > limits.maxBytes
       ? `文档过大（${kilobytes(size.bytes)}KB，超过所见即所得准入上限 ${kilobytes(limits.maxBytes)}KB）`
       : `文档过大（${size.lines} 行，超过所见即所得准入上限 ${limits.maxLines} 行）`;
   }

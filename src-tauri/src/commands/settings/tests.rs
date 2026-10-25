@@ -30,49 +30,44 @@ fn invalid_settings_fall_back_to_defaults() {
 }
 
 #[test]
-fn wysiwyg_limit_defaults_match_the_frontend_contract() {
+fn document_limit_defaults_match_the_frontend_contract() {
     let settings = Settings::default();
-    assert_eq!(settings.wysiwyg_admission_bytes, 262144);
-    assert_eq!(settings.wysiwyg_admission_lines, 10000);
-    assert_eq!(settings.wysiwyg_max_nodes, 10000);
-    assert_eq!(settings.wysiwyg_max_text_length, 500000);
+    assert_eq!(settings.wysiwyg_max_bytes, 1048576);
+    assert_eq!(settings.source_max_bytes, 10485760);
+    assert_eq!(settings.max_lines, 1000000);
 }
 
 #[test]
-fn legacy_settings_receive_wysiwyg_limit_defaults() {
+fn legacy_settings_receive_document_limit_defaults() {
     let mut value = serde_json::to_value(Settings::default()).unwrap();
     let object = value.as_object_mut().unwrap();
-    object.remove("wysiwygAdmissionBytes");
-    object.remove("wysiwygAdmissionLines");
-    object.remove("wysiwygMaxNodes");
-    object.remove("wysiwygMaxTextLength");
+    object.remove("wysiwygMaxBytes");
+    object.remove("sourceMaxBytes");
+    object.remove("maxLines");
     let parsed = parse_settings(&serde_json::to_string(&value).unwrap()).unwrap();
-    assert_eq!(parsed.wysiwyg_admission_bytes, 262144);
-    assert_eq!(parsed.wysiwyg_admission_lines, 10000);
-    assert_eq!(parsed.wysiwyg_max_nodes, 10000);
-    assert_eq!(parsed.wysiwyg_max_text_length, 500000);
+    assert_eq!(parsed.wysiwyg_max_bytes, 1048576);
+    assert_eq!(parsed.source_max_bytes, 10485760);
+    assert_eq!(parsed.max_lines, 1000000);
 }
 
 #[test]
-fn wysiwyg_limits_survive_a_load_mutate_save_round_trip() {
+fn document_limits_survive_a_load_mutate_save_round_trip() {
     // Rust-side load→mutate→save (e.g. add_recent_file) drops any field missing
     // from the struct, so every persisted settings field must round-trip.
     let mut value = serde_json::to_value(Settings::default()).unwrap();
     let object = value.as_object_mut().unwrap();
-    object.insert("wysiwygAdmissionBytes".into(), 524288u64.into());
-    object.insert("wysiwygAdmissionLines".into(), 20000u64.into());
-    object.insert("wysiwygMaxNodes".into(), 5000u64.into());
-    object.insert("wysiwygMaxTextLength".into(), 250000u64.into());
+    object.insert("wysiwygMaxBytes".into(), 2097152u64.into());
+    object.insert("sourceMaxBytes".into(), 52428800u64.into());
+    object.insert("maxLines".into(), 500000u64.into());
 
     let mut parsed = parse_settings(&serde_json::to_string(&value).unwrap()).unwrap();
     parsed.recent_files = vec!["/tmp/a.md".into()];
 
     let saved = serde_json::to_string_pretty(&parsed).unwrap();
     let reloaded = parse_settings(&saved).unwrap();
-    assert_eq!(reloaded.wysiwyg_admission_bytes, 524288);
-    assert_eq!(reloaded.wysiwyg_admission_lines, 20000);
-    assert_eq!(reloaded.wysiwyg_max_nodes, 5000);
-    assert_eq!(reloaded.wysiwyg_max_text_length, 250000);
+    assert_eq!(reloaded.wysiwyg_max_bytes, 2097152);
+    assert_eq!(reloaded.source_max_bytes, 52428800);
+    assert_eq!(reloaded.max_lines, 500000);
     assert_eq!(reloaded.recent_files, vec!["/tmp/a.md".to_string()]);
 }
 

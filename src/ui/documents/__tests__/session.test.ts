@@ -35,7 +35,6 @@ import { store } from '../../../infra/store';
 import { getSourceView, getSourceContent, destroySourceEditor } from '../../../editor';
 import { confirmDocumentTransitionInOperation, openFileInEditor, saveActiveDocument } from '../../sidebar/fileops';
 import { registerUiPorts, resetUiPorts } from '../../../infra/ui-ports';
-import { hideDegradationBar } from '../../degradation-bar';
 import {
   handleActiveDocumentExternalModificationInOperation,
   handleExternalDeletionInOperation,
@@ -68,7 +67,6 @@ beforeEach(async () => {
   resetUiPorts();
   registerUiPorts({
     notify: mocks.toast,
-    hideDegradationBar,
     openDocument: openFileInEditor,
     confirmDocumentTransition: confirmDocumentTransitionInOperation,
     handleExternalDeletion: handleExternalDeletionInOperation,

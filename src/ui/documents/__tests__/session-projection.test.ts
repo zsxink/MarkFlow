@@ -32,7 +32,6 @@ import { destroySourceEditor } from '../../../editor';
 import { openFileInEditor } from '../../sidebar/fileops';
 import { activateDocumentTab, getDocumentTabs, destroyDocumentSessions } from '../session';
 import { registerUiPorts, resetUiPorts } from '../../../infra/ui-ports';
-import { hideDegradationBar } from '../../degradation-bar';
 import { mountFrontmatterPanel, refreshFrontmatterPanel } from '../../frontmatter-panel';
 import { confirmDocumentTransitionInOperation } from '../../sidebar/fileops';
 import {
@@ -56,7 +55,6 @@ beforeEach(async () => {
   resetUiPorts();
   registerUiPorts({
     notify: mocks.toast,
-    hideDegradationBar,
     mountFrontmatter: mountFrontmatterPanel,
     refreshFrontmatter: refreshFrontmatterPanel,
     openDocument: openFileInEditor,

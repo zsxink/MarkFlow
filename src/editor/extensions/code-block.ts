@@ -9,6 +9,7 @@ import { logDebug, logException, logWarn } from '../../infra/logger';
 import { uiPorts } from '../../infra/ui-ports';
 import { getMermaidExportBaseName, getPlantUmlExportBaseName } from '../state';
 import { buildCodeBlockToolbar, type CodeBlockToolbar } from './code-block-toolbar';
+import { codeBlockHighlightPlugin } from './code-block-highlight';
 
 // ── Mermaid code block extension ───────────────────────────────────────
 
@@ -44,6 +45,15 @@ export function mermaidCodeBlockExtension() {
         String(node.attrs?.language ?? ''),
         node.content ? helpers.renderChildren(node.content) : '',
       );
+    },
+    addProseMirrorPlugins() {
+      // 丢弃 tiptap 自带 lowlight 装饰插件（plugin.key 前缀 'lowlight'，缺陷见
+      // code-block-highlight.ts 头注），保留 CodeBlock 基类的 VSCode 粘贴插件。
+      // plugin.key 是 prosemirror 运行时属性（d.ts 未声明）。
+      const parentPlugins = this.parent?.call(this) ?? [];
+      const kept = parentPlugins.filter(
+        plugin => !(plugin as unknown as { key: string }).key.startsWith('lowlight'));
+      return [...kept, codeBlockHighlightPlugin(this.name, lowlight)];
     },
     addNodeView() {
       return ({ node, editor, getPos }) => {
@@ -108,7 +118,11 @@ export function mermaidCodeBlockExtension() {
               onLanguageChange: (value) => {
                 const pos = typeof getPos === 'function' ? getPos() : null;
                 if (pos === null || pos === undefined) return;
-                editor.view.dispatch(editor.view.state.tr.setNodeAttribute(pos, 'language', value === '' ? null : value));
+                const next = value === '' ? null : value;
+                if ((currentNode.attrs.language ?? null) === next) return;
+                // setNodeMarkup 产生带 from/to 的 ReplaceAroundStep；attr 级 step 无法被
+                // 装饰层按位置检测，切语言必须走节点级替换以触发重新高亮。
+                editor.view.dispatch(editor.view.state.tr.setNodeMarkup(pos, undefined, { language: next }));
               },
             });
           }

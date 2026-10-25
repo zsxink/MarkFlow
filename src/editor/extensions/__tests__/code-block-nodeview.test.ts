@@ -17,6 +17,7 @@ vi.mock('../../../infra/store', () => ({ store }));
 vi.mock('../../state', () => ({ getMermaidExportBaseName: vi.fn(), getPlantUmlExportBaseName: vi.fn() }));
 
 import { mermaidCodeBlockExtension } from '../code-block';
+import { codeBlockHighlightPluginKey } from '../code-block-highlight';
 
 function createEditor() {
   return new Editor({
@@ -67,7 +68,7 @@ describe('code block NodeView toolbar', () => {
     editor.destroy();
   });
 
-  it('switches language via setNodeAttribute and keeps content byte-identical', () => {
+  it('switches language from the toolbar and keeps content byte-identical', () => {
     const editor = createEditor();
     setCodeContent(editor, 'ts', 'const a = 1;');
     const toolbar = editor.view.dom.querySelector<HTMLElement>('.code-block-toolbar')!;
@@ -114,5 +115,46 @@ describe('code block NodeView toolbar', () => {
     const code = view.dom.querySelector('pre code');
     expect(view.stopEvent({ type: 'mousedown', target: copyBtn, preventDefault: vi.fn() } as unknown as Event)).toBe(true);
     expect(view.stopEvent({ type: 'mousedown', target: code, preventDefault: vi.fn() } as unknown as Event)).toBe(false);
+  });
+});
+
+describe('code block highlight re-decoration (#448)', () => {
+  // python 关键字 elif/pass 在 java 中均非关键字：装饰集的有无可精确区分两次高亮
+  const PYTHON_SNIPPET = 'elif x: pass';
+
+  const findDecorations = (editor: Editor) => codeBlockHighlightPluginKey.getState(editor.state)!.decorations.find();
+
+  it('re-highlights with the new language after switching away from python', () => {
+    const editor = createEditor();
+    setCodeContent(editor, 'python', PYTHON_SNIPPET);
+    expect(findDecorations(editor).length).toBeGreaterThan(0);
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(0, undefined, { language: 'java' }));
+    expect(editor.state.doc.firstChild?.attrs.language).toBe('java');
+    // java 中无关键字可着色：装饰应整体消失，不得残留 python 的 span
+    expect(findDecorations(editor)).toHaveLength(0);
+    expect(editor.view.dom.querySelector('code .hljs-keyword')).toBeNull();
+    editor.destroy();
+  });
+
+  it('shows true plain text (no decorations) after clearing the language', () => {
+    const editor = createEditor();
+    setCodeContent(editor, 'python', PYTHON_SNIPPET);
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(0, undefined, { language: null }));
+    expect(editor.state.doc.firstChild?.attrs.language).toBeNull();
+    expect(findDecorations(editor)).toHaveLength(0);
+    expect(editor.view.dom.querySelectorAll('code [class*="hljs-"]').length).toBe(0);
+    editor.destroy();
+  });
+
+  it('adds decorations when a language is assigned to a plain block', () => {
+    const editor = createEditor();
+    setCodeContent(editor, null, PYTHON_SNIPPET);
+    expect(findDecorations(editor)).toHaveLength(0);
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(0, undefined, { language: 'python' }));
+    const decorations = findDecorations(editor);
+    expect(decorations.length).toBeGreaterThan(0);
+    const decorated = decorations.map(d => editor.state.doc.textBetween(d.from, d.to));
+    expect(decorated).toContain('elif');
+    editor.destroy();
   });
 });

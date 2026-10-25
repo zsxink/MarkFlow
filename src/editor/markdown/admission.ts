@@ -12,9 +12,9 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import { parseTipTapMarkdown, serializeTipTapMarkdown } from './adapter';
 import { semanticFingerprint } from './fingerprint';
-import { classifyEligibility, DEFAULT_ADMISSION_LIMITS, type AdmissionLimits } from './eligibility';
+import { classifyEligibility, DEFAULT_ADMISSION_LIMITS, WYSIWYG_STRUCTURE_BUDGET, type AdmissionLimits } from './eligibility';
 import { admitLocalized, admitOpaque } from './opaque/integration';
-import type { AdmissionSize, Eligibility, EligibilityReason, MarkdownSession } from './types';
+import type { AdmissionComplexity, AdmissionSize, Eligibility, EligibilityReason, MarkdownSession } from './types';
 
 export type AdmissionVerification =
   | { ok: true }
@@ -46,6 +46,7 @@ export function decideAdmission(
   session?: MarkdownSession;
   renderedSource?: string;
   size?: AdmissionSize;
+  complexity?: AdmissionComplexity;
 } {
   const c = classifyEligibility(source, limits);
   const fallback = () => {
@@ -55,9 +56,15 @@ export function decideAdmission(
       : { mode: 'source-only' as const, verdict: 'source-only' as const, reason: c.verdict === 'source-only' ? c.reason : 'parse-verification-failed' as const };
   };
   if (c.verdict === 'source-only') {
-    return c.reason === 'too-large'
-      ? { mode: 'source-only', verdict: c.verdict, reason: c.reason, size: c.size }
-      : fallback();
+    // Threshold rejections (size, structure density) must not enter the parse
+    // pipeline — the whole point is refusing before any expensive work.
+    if (c.reason === 'too-large') {
+      return { mode: 'source-only', verdict: c.verdict, reason: c.reason, size: c.size };
+    }
+    if (c.reason === 'too-complex') {
+      return { mode: 'source-only', verdict: c.verdict, reason: c.reason, complexity: c.complexity };
+    }
+    return fallback();
   }
   if (c.verdict === 'eligible-with-opaque') {
     // Section 7: the non-editable opaque holder exists, so an opaque doc can be
@@ -109,6 +116,7 @@ const REASON_LABELS: Record<EligibilityReason, string> = {
   'malformed-table': '表格列数不一致，无法安全转换',
   'unknown-construct': '包含暂不支持的语法',
   'too-large': '文档过大',
+  'too-complex': '结构过于复杂',
   manual: '手动确认',
 };
 
@@ -127,6 +135,7 @@ export function admissionReasonLabel(
   reason: EligibilityReason,
   size?: AdmissionSize,
   limits: AdmissionLimits = DEFAULT_ADMISSION_LIMITS,
+  complexity?: AdmissionComplexity,
 ): string {
   if (reason === 'too-large' && size) {
     // Same strict `>` as classifyEligibility: a document at exactly the byte
@@ -135,6 +144,9 @@ export function admissionReasonLabel(
     return size.bytes > limits.maxBytes
       ? `文档过大（${kilobytes(size.bytes)}KB，超过所见即所得准入上限 ${kilobytes(limits.maxBytes)}KB）`
       : `文档过大（${size.lines} 行，超过所见即所得准入上限 ${limits.maxLines} 行）`;
+  }
+  if (reason === 'too-complex' && complexity) {
+    return `结构过于复杂（${complexity.nonBlankLines} 个非空行块，超过所见即所得结构预算 ${WYSIWYG_STRUCTURE_BUDGET}），已保留源码模式`;
   }
   return REASON_LABELS[reason] ?? '当前文档暂不满足安全 WYSIWYG 条件';
 }

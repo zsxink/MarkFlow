@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { SafeHardBreak, SafeParagraph } from '../../../extensions';
 import { OpaqueNode, OPAQUE_NODE_NAME, setActiveOpaqueRegistry } from '../extension';
 import { OpaqueRegistry } from '../index';
+import { TOKENIZER_START_WINDOW } from '../../tokenizer-window';
 import { createMarkdownExtension } from '../../../init';
 
 // Task 7.3 — non-editable opaque atom extension + safe node view.
@@ -125,5 +126,30 @@ describe('opaque atom extension (7.3)', () => {
     expect(atoms[0].attrs?.slot).toBe(a.entry.slot);
     expect(atoms[1].attrs?.slot).toBe(b.entry.slot);
     editor.destroy();
+  });
+});
+
+describe('opaque tokenizer bounded `start` lookahead (#411)', () => {
+  // The old `start` ran `src.indexOf(OPAQUE_SENTINEL_PREFIX)` over the whole
+  // remaining source at every block boundary — O(n²) on fragmented documents.
+  // The bounded scan reports the first in-window sentinel and -1 beyond it.
+  const start = (src: string) =>
+    ((OpaqueNode.config as unknown as {
+      markdownTokenizer: { start: (src: string) => number };
+    }).markdownTokenizer).start(src);
+
+  it('finds a sentinel inside the window', () => {
+    const sentinel = '⟦MF-OPAQUE:1.0⟧';
+    const src = `# Title\n\n${sentinel}\n\nbody\n`;
+    expect(start(src)).toBe(src.indexOf('⟦MF-OPAQUE:'));
+  });
+
+  it('returns -1 when the sentinel lies beyond the window', () => {
+    const src = `${'a'.repeat(TOKENIZER_START_WINDOW)}\n⟦MF-OPAQUE:1.0⟧`;
+    expect(start(src)).toBe(-1);
+  });
+
+  it('returns -1 for sources without any sentinel', () => {
+    expect(start('# plain\n\ndocument\n')).toBe(-1);
   });
 });

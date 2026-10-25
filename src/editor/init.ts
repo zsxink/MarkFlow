@@ -1,7 +1,8 @@
 import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import { BulletList, ListKeymap, OrderedList, TaskList } from '@tiptap/extension-list';
+import { BulletList, ListKeymap } from '@tiptap/extension-list';
+import { FastOrderedList, FastTaskList } from './extensions/list-fast-tokenizer';
 import { TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Marked } from 'marked';
@@ -111,10 +112,10 @@ export async function initEditor() {
         placeholder: '开始写作 — 输入即所得',
       }),
       BulletList,
-      OrderedList,
+      FastOrderedList,
       VariantListItem,
       ListKeymap,
-      TaskList,
+      FastTaskList,
       VariantTaskItem.configure({
         nested: true,
       }),
@@ -163,11 +164,6 @@ export async function initEditor() {
       // check with a comparison of canonical Markdown against disk spelling.
       if (!transaction.docChanged && !appendedTransactions.some((tr) => tr.docChanged)) return;
 
-      const mode = getMode();
-      const serialized = mode === 'source' ? null : serializeMarkdown(getEditor()!);
-      const currentMd = mode === 'source'
-        ? normalizeImageMarkdown(getSourceContent())
-        : serialized?.ok ? normalizeImageMarkdown(serialized.markdown) : null;
       // Snapshot the scoped guard while handling the transaction. A later
       // scheduler callback runs after the guard's finally block has restored
       // its depth, so querying it there would misclassify programmatic writes.
@@ -178,8 +174,24 @@ export async function initEditor() {
       // transaction, while retaining the debounce for serialization work.
       if (isUserUpdate) bumpRevision();
 
+      // #411: serialization used to run synchronously per doc-changed
+      // transaction — the whole document was serialized on every keystroke
+      // (14ms at 10MB prose, 148ms at 1.9MB fragmented, and 51ms of
+      // normalizeImageMarkdown at 50MB in source mode). The result was only
+      // ever consumed by this debounced comparison, so the work moved inside
+      // the debounce window (and into flushEditorDirtyCheck callers). Mode
+      // and content are read at fire time: the mode can switch within the
+      // 400ms window.
       scheduler.schedule('dirty-check', 400, () => {
-        if (currentMd !== null && isUserUpdate) {
+        if (!isUserUpdate) return;
+        const mode = getMode();
+        const currentMd = mode === 'source'
+          ? normalizeImageMarkdown(getSourceContent())
+          : (() => {
+            const serialized = serializeMarkdown(getEditor()!);
+            return serialized?.ok ? normalizeImageMarkdown(serialized.markdown) : null;
+          })();
+        if (currentMd !== null) {
           store.setState({ dirty: currentMd !== getDocumentState().lastPersistedMarkdown });
         }
       });

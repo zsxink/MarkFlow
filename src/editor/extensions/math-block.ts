@@ -14,16 +14,45 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import type { JSONContent, MarkdownToken } from '@tiptap/core';
 import { renderKatex } from '../../render';
+import { TOKENIZER_START_WINDOW } from '../markdown/tokenizer-window';
 
 export const MATH_BLOCK_NODE_NAME = 'mathBlock';
 
 /** Marked token type emitted by the tokenizer (== `markdownTokenName`). */
 export const MATH_BLOCK_TOKEN_NAME = 'markflow-math-block';
 
-/** Marked never matches: an anchored scan with no line-leading `$$` opener. */
+/** Marked's NO_MATCH sentinel: no opener candidate in this round's window. */
 const NO_MATCH = -1;
 
 const MATH_BLOCK_RE = /^[ \t]{0,3}\$\$((?:[^$]|\$(?!\$))*?)\$\$/;
+
+/**
+ * Bounded lookahead for the block-math tokenizer (#411): the first
+ * line-leading `$$` opener inside the `TOKENIZER_START_WINDOW` prefix,
+ * returned as the index of its line start (including up to 3 indent chars),
+ * replicating the old `/^[ \t]{0,3}\$\$/m` search without scanning the whole
+ * remaining source at every block boundary. Exported for unit tests.
+ */
+export function findMathBlockStart(src: string): number {
+  const window = src.length <= TOKENIZER_START_WINDOW ? src : src.substring(0, TOKENIZER_START_WINDOW);
+  let hit = window.indexOf('$$');
+  while (hit !== -1) {
+    // Walk back over at most 3 spaces/tabs; the opener is valid only when
+    // what precedes them is a line start (string position 0 or a newline),
+    // exactly the anchored-regex semantics.
+    let lineStart = hit;
+    let indent = 0;
+    while (indent < 3 && lineStart > 0) {
+      const prev = window[lineStart - 1];
+      if (prev !== ' ' && prev !== '\t') break;
+      lineStart -= 1;
+      indent += 1;
+    }
+    if (lineStart === 0 || window[lineStart - 1] === '\n') return lineStart;
+    hit = window.indexOf('$$', hit + 1);
+  }
+  return NO_MATCH;
+}
 
 /**
  * Canonical `$$..$$` spelling for serialization. Content with newlines gets
@@ -57,16 +86,16 @@ export const MathBlock = Node.create({
   },
 
   // `start` is Marked's lookahead: jump to the first line-leading `$$` (a
-  // negative index tells Marked this tokenizer can never start). In
-  // `tokenize`, `src` is the remaining tail sliced to that position, so the
-  // anchored regex tests the block opener at offset 0.
+  // negative index tells Marked this tokenizer has no candidate this round).
+  // In `tokenize`, `src` is the remaining tail sliced to that position, so
+  // the anchored regex tests the block opener at offset 0. The scan is
+  // bounded to the tokenizer window (#411): an opener beyond it is found at
+  // a later block boundary, and the >64KB-single-block case falls back to a
+  // local literal via the round-trip fingerprint.
   markdownTokenizer: {
     name: MATH_BLOCK_TOKEN_NAME,
     level: 'block',
-    start: (src: string) => {
-      const index = src.search(/^[ \t]{0,3}\$\$/m);
-      return index < 0 ? NO_MATCH : index;
-    },
+    start: findMathBlockStart,
     tokenize(src: string): MarkdownToken | undefined {
       const match = MATH_BLOCK_RE.exec(src);
       if (!match) return undefined;

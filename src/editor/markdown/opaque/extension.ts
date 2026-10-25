@@ -22,6 +22,7 @@ import {
 } from './index';
 import { resolveClipboardOpaque } from './clipboard';
 import { annotateAdjacentListRuns } from '../adjacent-list-runs';
+import { indexOfWithinStartWindow } from '../tokenizer-window';
 import type { OpaqueCategory } from '../types';
 
 /**
@@ -105,11 +106,16 @@ export const OpaqueNode = Node.create({
   // part of the raw opaque payload ever flows through general Markdown parsing.
   // `start` is Marked's lookahead: jump to the first sentinel prefix. In
   // `tokenize`, `src` is the remaining tail (already sliced by Marked to begin
-  // at the sentinel), so a sentinel at offset 0 is consumed whole as the token.
+  // at the sentinel), so a sentinel at offset 0 is consumed whole as the
+  // token. The scan is bounded to the tokenizer window (#411): an unbounded
+  // indexOf re-scanned the whole remaining source at every block boundary,
+  // which made fragmented documents quadratic; a sentinel beyond the window
+  // is simply found at a later block boundary, and the >64KB-single-block
+  // case falls back to a local literal via the round-trip fingerprint.
   markdownTokenizer: {
     name: OPAQUE_TOKEN_NAME,
     level: 'block',
-    start: (src: string) => src.indexOf(OPAQUE_SENTINEL_PREFIX),
+    start: (src: string) => indexOfWithinStartWindow(src, OPAQUE_SENTINEL_PREFIX),
     tokenize(src: string, _tokens: MarkdownToken[], _helper: MarkdownLexerConfiguration): MarkdownToken | undefined {
       // Marked consumes preceding blocks first, so a sentinel on its own line
       // arrives at offset 0; requiring `startsWith` keeps the match precise and

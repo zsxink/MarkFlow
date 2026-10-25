@@ -3,7 +3,7 @@
 // plus the Settings object built from the current UI state.
 
 import type { Settings } from '../../types/settings';
-import { DEFAULT_SETTINGS } from '../../types/settings';
+import { DEFAULT_SETTINGS, MAX_AUTOSAVE_INTERVAL_MS } from '../../types/settings';
 
 export type Theme = 'light' | 'dark' | 'sepia';
 
@@ -17,7 +17,9 @@ export function getToggleState(id: string) {
 }
 
 export function setToggleState(id: string, active: boolean) {
-  document.getElementById(id)?.classList.toggle('active', active);
+  const element = document.getElementById(id);
+  element?.classList.toggle('active', active);
+  element?.setAttribute('aria-checked', String(active));
 }
 
 export function getSelectValue(id: string) {
@@ -65,7 +67,10 @@ export function buildSettingsFromUI(currentSettings: Settings): Settings {
     fontSize: Number(getSelectValue('setting-fontsize') || DEFAULT_SETTINGS.fontSize),
     lineHeight: Number(getSelectValue('setting-lineheight') || DEFAULT_SETTINGS.lineHeight),
     autosave: getToggleState('setting-autosave'),
-    autosaveInterval: Number(getSelectValue('setting-autosave-interval') || 10000),
+    autosaveInterval: Number(getInputValue('setting-autosave-interval')) > 0
+      ? Math.min(Number(getInputValue('setting-autosave-interval')) * 1000, MAX_AUTOSAVE_INTERVAL_MS)
+      : currentSettings.autosaveInterval || DEFAULT_SETTINGS.autosaveInterval,
+    restoreWorkspace: getToggleState('setting-restore-workspace'),
     spellcheck: getToggleState('setting-spellcheck'),
     softWrap: getToggleState('setting-softwrap'),
     codeHighlight: getToggleState('setting-codehighlight'),
@@ -123,8 +128,12 @@ export function readDocumentLimitsFromUI(): DocumentLimitsInput {
  */
 export function validateDocumentLimits(raw: DocumentLimitsInput): string | null {
   const toBytes = (value: number, unit: string) => value * (unit === 'MB' ? 1048576 : 1024);
-  if (!(raw.wysiwygMaxSize > 0) || !(raw.sourceMaxSize > 0) || !(raw.maxLines > 0)) {
+  if (![raw.wysiwygMaxSize, raw.sourceMaxSize, raw.maxLines].every(value => Number.isFinite(value) && value > 0)) {
     return '所有数值必须大于 0';
+  }
+  if (Math.round(toBytes(raw.wysiwygMaxSize, raw.wysiwygUnit)) < 1
+    || Math.round(toBytes(raw.sourceMaxSize, raw.sourceUnit)) < 1) {
+    return '文档大小必须至少为 1 字节';
   }
   if (toBytes(raw.wysiwygMaxSize, raw.wysiwygUnit) > toBytes(raw.sourceMaxSize, raw.sourceUnit)) {
     return '所见即所得文档大小不能超过源码文档大小';
@@ -135,7 +144,10 @@ export function validateDocumentLimits(raw: DocumentLimitsInput): string | null 
 /** Push a Settings object into the modal controls. */
 export function applySettingsToUI(settings: Settings) {
   setToggleState('setting-autosave', settings.autosave !== false);
-  setSelectValue('setting-autosave-interval', String(settings.autosaveInterval ?? 10000));
+  setInputValue('setting-autosave-interval', String(Math.min(settings.autosaveInterval ?? DEFAULT_SETTINGS.autosaveInterval, MAX_AUTOSAVE_INTERVAL_MS) / 1000));
+  setToggleState('setting-restore-workspace', settings.restoreWorkspace !== false);
+  const interval = document.getElementById('setting-autosave-interval') as HTMLInputElement | null;
+  if (interval) interval.disabled = settings.autosave === false;
   setToggleState('setting-spellcheck', settings.spellcheck !== false);
   setToggleState('setting-softwrap', settings.softWrap !== false);
   setToggleState('setting-codehighlight', settings.codeHighlight !== false);
@@ -165,7 +177,7 @@ export function applySettingsToUI(settings: Settings) {
     const b = bytes ?? fallback;
     return b % 1048576 === 0 && b >= 1048576
       ? { value: b / 1048576, unit: 'MB' }
-      : { value: Math.floor(b / 1024), unit: 'KB' };
+      : { value: b / 1024, unit: 'KB' };
   };
   const countOf = (value: number | undefined, fallback: number) =>
     String(value ?? fallback);

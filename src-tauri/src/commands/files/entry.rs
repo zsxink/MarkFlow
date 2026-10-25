@@ -14,10 +14,6 @@ use std::io::Read;
 use std::path::Path;
 use tauri::State;
 
-/// Safety limit for read_file — frontend handles tier logic before calling,
-/// this is a last-resort guard against OOM.
-const MAX_READ_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
-
 /// File-browser supported-format predicate: `.md` plus the seven image
 /// extensions, compared case-insensitively via the final `.`-suffix.
 /// Directories are always listed; callers let them through before checking.
@@ -117,10 +113,6 @@ fn count_lines(path: &Path) -> Result<u32, String> {
 #[tauri::command]
 pub fn read_file(path: String, state: State<AppState>) -> Result<String, String> {
     let path = resolve_path(&path, &state)?;
-    let metadata = fs::metadata(&path).map_err(|e| format!("Failed to read file: {}", e))?;
-    if metadata.len() > MAX_READ_FILE_SIZE {
-        return Err("文件过大（超过 100MB），无法直接打开".into());
-    }
     fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
 }
 

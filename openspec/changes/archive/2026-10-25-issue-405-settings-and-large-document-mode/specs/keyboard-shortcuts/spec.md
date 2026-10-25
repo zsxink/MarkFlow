@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: 设置页快捷键标签按平台渲染
 设置面板的快捷键分类 MUST 使用运行平台对应的修饰键格式展示快捷键，并与界面其他快捷键提示遵循相同的格式约定：macOS 使用符号形态（`⌘` `⇧` `⌥` `⌃`），其他平台使用名称形态（`Ctrl` `Shift` `Alt`）。

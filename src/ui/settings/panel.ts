@@ -1,3 +1,4 @@
+import '../../styles/settings.css';
 // ── Settings panel ────────────────────────────────────────────────────
 // Opens the settings modal, wires the controls, hydrates them from persisted
 // settings and persists edits back. Markup lives in `markup.ts`, field
@@ -12,7 +13,9 @@ import type { Settings } from '../../types/settings';
 import { DEFAULT_SETTINGS } from '../../types/settings';
 import { setSourceHighlight, setSourceSoftWrap } from '../../editor';
 import { open } from '@tauri-apps/plugin-dialog';
-import { createSettingsContent } from './markup';
+import { createSettingsContent, SETTINGS_GROUP_KEYS } from './markup';
+import { initSettingsNavigation } from './navigation';
+import { initSettingsControls, syncSettingsControls } from './controls';
 import {
   applySettingsToUI,
   buildSettingsFromUI,
@@ -47,26 +50,35 @@ export function showSettings() {
   settingsModalHide = modal.hide;
 
   bindSettingsEvents(modal.hide);
-  void hydrateSettingsUI();
+  void hydrateSettingsUI(document.querySelector<HTMLElement>('.settings-layout')!);
 }
 
 function bindSettingsEvents(hide: () => void) {
   document.getElementById('settings-close')?.addEventListener('click', hide);
 
-  document.querySelectorAll('.settings-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const panel = (tab as HTMLElement).dataset.panel;
-      document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      document.querySelectorAll('.settings-panel').forEach(p => {
-        (p as HTMLElement).hidden = p.id !== `panel-${panel}`;
-      });
+  const root = document.querySelector<HTMLElement>('.settings-layout')!;
+  root.closest('[role="dialog"]')?.setAttribute('aria-label', '设置');
+  initSettingsNavigation(root);
+  initSettingsControls(root);
+  root.querySelectorAll<HTMLElement>('[data-reset]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const next = buildSettingsFromUI(currentSettings);
+      for (const key of SETTINGS_GROUP_KEYS[button.dataset.reset!] ?? []) {
+        Object.assign(next, { [key]: DEFAULT_SETTINGS[key as keyof typeof DEFAULT_SETTINGS] });
+      }
+      applySettingsToUI(next);
+      syncSettingsControls(root);
+      await persistSettingsFromUI();
     });
   });
 
   document.querySelectorAll('.toggle').forEach(toggle => {
     toggle.addEventListener('click', () => {
       toggle.classList.toggle('active');
+      toggle.setAttribute('aria-checked', String(toggle.classList.contains('active')));
+      const interval = root.querySelector<HTMLInputElement>('#setting-autosave-interval');
+      if (interval) interval.disabled = !root.querySelector('#setting-autosave')?.classList.contains('active');
+      syncSettingsControls(root);
       void persistSettingsFromUI();
     });
   });
@@ -135,14 +147,14 @@ function bindSettingsEvents(hide: () => void) {
   document.getElementById('setting-plantuml-server-url')?.addEventListener('change', () => void persistSettingsFromUI());
 
   for (const id of [
-    'setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth',
+    'setting-autosave-interval', 'setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth',
     'setting-wysiwyg-max-size', 'setting-source-max-size', 'setting-max-lines',
   ]) {
     document.getElementById(id)?.addEventListener('change', () => void persistSettingsFromUI());
   }
 }
 
-async function hydrateSettingsUI() {
+async function hydrateSettingsUI(root: HTMLElement) {
   try {
     const loaded = await loadSettings();
     currentSettings = { ...DEFAULT_SETTINGS, ...loaded };
@@ -151,7 +163,9 @@ async function hydrateSettingsUI() {
     currentSettings = { ...DEFAULT_SETTINGS };
   }
 
+  if (!root.isConnected) return;
   applySettingsToUI(currentSettings);
+  syncSettingsControls();
   applyRuntimeSettings(currentSettings);
 }
 
@@ -187,19 +201,7 @@ function applyRuntimeSettings(settings: Settings) {
 }
 
 async function persistSettingsFromUI() {
-  // The document-limits group needs explicit cross-field validation (unlike
-  // the silently clamped numeric fields): an invalid group blocks persisting
-  // entirely, so the last valid values stay in effect until it is fixed.
-  const limitsError = validateDocumentLimits(readDocumentLimitsFromUI());
-  const limitsErrorEl = document.getElementById('setting-document-limits-error');
-  if (limitsError) {
-    if (limitsErrorEl) {
-      limitsErrorEl.textContent = limitsError;
-      limitsErrorEl.hidden = false;
-    }
-    return;
-  }
-  if (limitsErrorEl && !limitsErrorEl.hidden) limitsErrorEl.hidden = true;
+  if (!validateSettingsFields()) return;
 
   const uiSettings = buildSettingsFromUI(currentSettings);
 
@@ -218,4 +220,38 @@ async function persistSettingsFromUI() {
   } catch (e) {
     logException('settings.ui', 'Failed to save settings', e);
   }
+}
+
+function validateSettingsFields(): boolean {
+  let valid = true;
+  document.querySelectorAll('.settings-field-error').forEach(error => error.remove());
+  document.querySelectorAll<HTMLElement>('[aria-invalid]').forEach(field => { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); });
+  const mark = (field: HTMLInputElement, message: string) => {
+    field.setAttribute('aria-invalid', 'true');
+    const error = document.createElement('div');
+    error.id = `${field.id}-error`; error.className = 'settings-field-error'; error.textContent = message; error.setAttribute('role', 'alert');
+    field.closest('.settings-row')?.firstElementChild?.append(error);
+    field.setAttribute('aria-describedby', error.id); valid = false;
+  };
+  const documentLimits = readDocumentLimitsFromUI();
+  const limitsError = validateDocumentLimits(documentLimits);
+  const limitsErrorEl = document.getElementById('setting-document-limits-error');
+  if (limitsErrorEl) { limitsErrorEl.hidden = !limitsError; limitsErrorEl.textContent = limitsError ?? ''; }
+  document.querySelectorAll<HTMLInputElement>('.settings-layout input[type="number"]').forEach(input => {
+    if (input.disabled) return;
+    const value = Number(input.value);
+    if (!input.value || !Number.isFinite(value) || value < Number(input.min) || value > Number(input.max) || (input.step !== 'any' && !Number.isInteger(value))) {
+      mark(input, value <= 0 ? '数值必须大于 0' : `请输入 ${input.min}–${input.max} 范围内的有效数值`);
+    }
+  });
+  if (limitsError) {
+    valid = false;
+    const toBytes = (value: number, unit: string) => value * (unit === 'MB' ? 1048576 : 1024);
+    const invalidSizeField = Math.round(toBytes(documentLimits.wysiwygMaxSize, documentLimits.wysiwygUnit)) < 1
+      ? 'setting-wysiwyg-max-size'
+      : 'setting-source-max-size';
+    const field = document.getElementById(invalidSizeField) as HTMLInputElement;
+    if (field.getAttribute('aria-invalid') !== 'true') mark(field, limitsError);
+  }
+  return valid;
 }

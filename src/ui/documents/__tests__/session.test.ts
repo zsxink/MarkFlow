@@ -27,6 +27,8 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(async (_command: string, 
   return stats;
 }), convertFileSrc: (path: string) => `asset://${path}` }));
 vi.mock('../../../infra/logger', () => ({ logDebug: vi.fn(), logWarn: vi.fn(), logInfo: vi.fn(), logException: vi.fn() }));
+import { getCachedSettings } from '../../../infra/storage';
+import { DEFAULT_SETTINGS } from '../../../types/settings';
 import { initEditor } from '../../../editor';
 import { getMarkdown, switchToSource, switchToWysiwyg, getSavePlan } from '../../../editor';
 import { getEditor, setEditor, getDocumentState, getActiveDocPath } from '../../../editor';
@@ -56,6 +58,7 @@ function id(path: string) { return getDocumentTabs().find(tab => tab.path === pa
 async function sourceReady() { await vi.waitFor(() => expect(getSourceView()).not.toBeNull()); return getSourceView()!; }
 beforeEach(async () => {
   mocks.files.clear(); mocks.stats.clear(); vi.clearAllMocks();
+  vi.mocked(getCachedSettings).mockReturnValue(DEFAULT_SETTINGS);
   mocks.dialog.mockResolvedValue('keep'); mocks.cleanup.mockResolvedValue(undefined);
   mocks.read.mockImplementation(async (path: string) => {
     if (!mocks.files.has(path)) throw new Error('not found');
@@ -778,5 +781,72 @@ describe('image preview tabs', () => {
     rewriteDocumentTabPaths('/old', '/renamed');
     expect(getDocumentTabs().map(tab => tab.path)).toEqual(['/renamed/photo.jpg']);
     expect(document.querySelector('#image-preview img')?.getAttribute('src')).toBe('asset:///renamed/photo.jpg');
+  });
+});
+
+
+describe('configurable default source mode', () => {
+  it('opens over-threshold documents in Source but allows normal WYSIWYG switching', async () => {
+    vi.mocked(getCachedSettings).mockReturnValue({ ...DEFAULT_SETTINGS, wysiwygMaxBytes: 4, sourceMaxBytes: 100 });
+    await openFileInEditor('/a.md');
+    expect(store.getState().mode).toBe('source');
+    await sourceReady();
+    expect(getSourceContent()).toBe('alpha');
+    expect(document.getElementById('degradation-bar')?.title).toContain('高级');
+    switchToWysiwyg();
+    expect(store.getState().mode).toBe('wysiwyg');
+    expect(getMarkdown()).toContain('alpha');
+    expect(document.getElementById('degradation-bar')?.hidden).toBe(true);
+    expect(store.getState().dirty).toBe(false);
+  });
+  it('uses line count only for default mode and never for an open confirmation', async () => {
+    vi.mocked(getCachedSettings).mockReturnValue({ ...DEFAULT_SETTINGS, maxLines: 1 });
+    await openFileInEditor('/a.md');
+    expect(store.getState().mode).toBe('source');
+    expect(mocks.dialog).not.toHaveBeenCalled();
+    await sourceReady();
+    switchToWysiwyg();
+    expect(store.getState().mode).toBe('wysiwyg');
+  });
+  it('cancels source overflow before reading and opens it editable after confirmation', async () => {
+    vi.mocked(getCachedSettings).mockReturnValue({ ...DEFAULT_SETTINGS, wysiwygMaxBytes: 2, sourceMaxBytes: 4 });
+    mocks.dialog.mockResolvedValueOnce('cancel');
+    expect(await openFileInEditor('/a.md')).toBe(false);
+    expect(mocks.read).not.toHaveBeenCalled();
+    mocks.dialog.mockResolvedValueOnce('force');
+    expect(await openFileInEditor('/a.md')).toBe(true);
+    expect(store.getState()).toMatchObject({ mode: 'source', readOnly: false });
+    await sourceReady();
+    expect(getSourceContent()).toBe('alpha');
+  });
+  it('isolates notice dismissal and mode across tabs while settings affect later opens', async () => {
+    vi.mocked(getCachedSettings).mockReturnValue({ ...DEFAULT_SETTINGS, wysiwygMaxBytes: 4, sourceMaxBytes: 100 });
+    file('/b.md','bravo');
+    await openFileInEditor('/a.md');
+    (document.querySelector('.degradation-close') as HTMLButtonElement).click();
+    await openFileInEditor('/b.md');
+    expect(document.getElementById('degradation-bar')).not.toBeNull();
+    await activateDocumentTab(id('/a.md'));
+    expect(document.getElementById('degradation-bar')).toBeNull();
+    vi.mocked(getCachedSettings).mockReturnValue(DEFAULT_SETTINGS);
+    expect(store.getState().mode).toBe('source');
+    file('/new.md', 'new');
+    await openFileInEditor('/new.md');
+    expect(store.getState().mode).toBe('wysiwyg');
+    await activateDocumentTab(id('/b.md'));
+    expect(document.getElementById('degradation-bar')).not.toBeNull();
+    expect(store.getState().mode).toBe('source');
+  });
+  it('projects active filename and unsaved star and clears the last title', async () => {
+    await openFileInEditor('/a.md');
+    expect(document.title).toBe('a.md');
+    store.setState({ dirty: true });
+    expect(document.title).toBe('a.md*');
+    store.setState({ dirty: false });
+    expect(document.title).toBe('a.md');
+    await openFileInEditor('/b.md');
+    expect(document.title).toBe('b.md');
+    await closeAllDocumentTabs();
+    expect(document.title).toBe('MarkFlow');
   });
 });

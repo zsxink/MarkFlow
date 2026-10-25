@@ -1,5 +1,9 @@
 import type { ImageReferenceStyle, ImageStorageMode } from './image';
 
+/** Largest safe setInterval delay while autosave settings are stored in ms. */
+export const MAX_AUTOSAVE_INTERVAL_MS = 2_147_483_000;
+export const MAX_AUTOSAVE_INTERVAL_SECONDS = Math.floor(MAX_AUTOSAVE_INTERVAL_MS / 1000);
+
 export interface Settings {
   version: number;
   theme: string;
@@ -17,6 +21,7 @@ export interface Settings {
   showSidebar: boolean;
   showTooltips: boolean;
   followSystemTheme: boolean;
+  restoreWorkspace?: boolean;
   lastWorkspace?: string | null;
   imageStorageMode: ImageStorageMode;
   imageCustomPath: string;
@@ -38,12 +43,12 @@ export interface Settings {
   imagePreferRelative?: boolean;
   codeLineNumbers?: boolean;
   codeWordWrap?: boolean;
-  lastSidebarTab?: string;
+  lastSidebarTab?: string | null;
   /** Documents larger than this (bytes) stay in Source / tier as Large. */
   wysiwygMaxBytes?: number;
   /** Documents larger than this (bytes) are tiered Huge (confirm dialog). */
   sourceMaxBytes?: number;
-  /** Documents with more lines than this are tiered Huge and stay in Source. */
+  /** Documents with more lines than this default to Source. */
   maxLines?: number;
   fileTreeIgnorePatterns?: string[];
   fileTreePageSize?: number;
@@ -67,7 +72,7 @@ export const DEFAULT_SETTINGS = {
   fontSize: 18,
   lineHeight: 1.6,
   autosave: true,
-  autosaveInterval: 10000,
+  autosaveInterval: 30000,
   spellcheck: true,
   softWrap: true,
   codeHighlight: true,
@@ -75,7 +80,9 @@ export const DEFAULT_SETTINGS = {
   showSidebar: true,
   showTooltips: true,
   followSystemTheme: false,
+  restoreWorkspace: true,
   lastWorkspace: null,
+  lastSidebarTab: null,
   imageStorageMode: 'custom',
   imageCustomPath: './images',
   imageApplyToLocal: true,

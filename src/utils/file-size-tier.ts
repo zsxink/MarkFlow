@@ -25,25 +25,23 @@ export type TierThresholdSettings = Pick<Settings, 'wysiwygMaxBytes' | 'sourceMa
 /** Narrow mapping; missing fields (pre-upgrade settings) fall back to defaults. */
 export function tierConfigFromSettings(settings: TierThresholdSettings): FileTierConfig {
   return {
-    wysiwygMaxBytes: settings.wysiwygMaxBytes ?? DEFAULT_TIER_CONFIG.wysiwygMaxBytes,
-    sourceMaxBytes: settings.sourceMaxBytes ?? DEFAULT_TIER_CONFIG.sourceMaxBytes,
-    maxLines: settings.maxLines ?? DEFAULT_TIER_CONFIG.maxLines,
+    wysiwygMaxBytes: positive(settings.wysiwygMaxBytes, DEFAULT_TIER_CONFIG.wysiwygMaxBytes),
+    sourceMaxBytes: Math.max(positive(settings.wysiwygMaxBytes, DEFAULT_TIER_CONFIG.wysiwygMaxBytes), positive(settings.sourceMaxBytes, DEFAULT_TIER_CONFIG.sourceMaxBytes)),
+    maxLines: positive(settings.maxLines, DEFAULT_TIER_CONFIG.maxLines),
   };
 }
 
-/**
- * Tier derivation: Huge means the document is beyond the source-mode capacity
- * (bytes or lines) and triggers the confirm dialog; Large means it merely
- * exceeds the WYSIWYG capacity, which matches the degradation bar's
- * "switch to source" advice. Lines never produce an intermediate tier.
- */
+function positive(value: number | undefined, fallback: number): number {
+  return Number.isFinite(value) && value! > 0 ? value! : fallback;
+}
+
 export function determineTier(
   size: number,
   lines: number,
   config: FileTierConfig = DEFAULT_TIER_CONFIG,
 ): FileSizeTier {
-  if (size > config.sourceMaxBytes || lines > config.maxLines) return 'huge';
-  if (size > config.wysiwygMaxBytes) return 'large';
+  if (size > config.sourceMaxBytes) return 'huge';
+  if (size > config.wysiwygMaxBytes || lines > config.maxLines) return 'large';
   return 'normal';
 }
 

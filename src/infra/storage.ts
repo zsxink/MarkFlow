@@ -94,6 +94,10 @@ export async function loadSettings(): Promise<Settings> {
 
 export async function saveSettings(settings: Partial<Settings>): Promise<void> {
   const merged = { ...DEFAULT_SETTINGS, ...settingsCache, ...settings } as Settings;
+  const knownKeys = new Set(Object.keys(DEFAULT_SETTINGS));
+  for (const key of Object.keys(merged)) {
+    if (!knownKeys.has(key)) delete (merged as unknown as Record<string, unknown>)[key];
+  }
   await invoke('save_settings', { settings: merged });
   settingsCache = merged;
 }

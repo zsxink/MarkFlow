@@ -21,7 +21,19 @@ fn parse_settings(content: &str) -> Result<Settings, serde_json::Error> {
         migrate_v2_to_v3(&mut value);
     }
     value["version"] = serde_json::Value::Number(3u64.into());
-    serde_json::from_value(value)
+    let mut settings: Settings = serde_json::from_value(value)?;
+    let defaults = Settings::default();
+    if settings.wysiwyg_max_bytes == 0 {
+        settings.wysiwyg_max_bytes = defaults.wysiwyg_max_bytes;
+    }
+    if settings.source_max_bytes == 0 {
+        settings.source_max_bytes = defaults.source_max_bytes;
+    }
+    settings.source_max_bytes = settings.source_max_bytes.max(settings.wysiwyg_max_bytes);
+    if settings.max_lines == 0 {
+        settings.max_lines = defaults.max_lines;
+    }
+    Ok(settings)
 }
 
 /// Migrate version 1 settings to version 2:
@@ -208,6 +220,14 @@ pub fn load_settings_inner() -> Settings {
 }
 
 pub fn save_settings_inner(settings: &Settings) -> Result<(), AppError> {
+    if settings.wysiwyg_max_bytes == 0
+        || settings.max_lines == 0
+        || settings.source_max_bytes < settings.wysiwyg_max_bytes
+    {
+        return Err(AppError::serialization(
+            "Document limits must be positive and source size must be at least the WYSIWYG size",
+        ));
+    }
     let path = settings_path();
     let content = serde_json::to_string_pretty(settings)
         .map_err(|e| AppError::serialization(format!("Failed to serialize settings: {}", e)))?;

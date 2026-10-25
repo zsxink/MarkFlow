@@ -31,7 +31,7 @@ import './styles/editor.css';
 import './styles/components.css';
 import type { FileChangeEvent } from './types/events';
 import type { Settings } from './types/settings';
-import { DEFAULT_SETTINGS } from './types/settings';
+import { DEFAULT_SETTINGS, MAX_AUTOSAVE_INTERVAL_MS } from './types/settings';
 import { showEditorContextMenu } from './ui/editor-context-menu';
 import { registerUiPorts } from './infra/ui-ports';
 import { showDialog } from './ui/dialog';
@@ -89,9 +89,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initEditor();
   await initDocumentSessions();
   initDocumentTabs();
-  onDocumentTabsChanged(() => {
+  const updateWindowTitle = () => {
     void getCurrentWebviewWindow().setTitle(document.title).catch(error => logDebug('document.tabs', 'Failed to update window title', { error: String(error) }));
-  });
+  };
+  onDocumentTabsChanged(updateWindowTitle);
+  updateWindowTitle();
   initToolbar();
   // Toolbar tooltips and other static markup declare a neutral accelerator
   // (`data-shortcut`); render the chord for this platform once the DOM exists.
@@ -207,6 +209,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function restoreWorkspace() {
+  if (settings.restoreWorkspace === false) return;
   try {
     const lastWorkspace = await getWorkspace();
     if (lastWorkspace) {
@@ -246,11 +249,11 @@ export async function runAutoSaveTick() {
 function startAutoSave() {
   stopAutoSave();
   const enabled = settings.autosave !== false;
-  const interval = settings.autosaveInterval || 10000;
+  const interval = settings.autosaveInterval || DEFAULT_SETTINGS.autosaveInterval;
   logDebug('app.autosave', 'Updated autosave schedule', { enabled, interval });
 
   if (enabled) {
-    autoSaveTimer = setInterval(runAutoSaveTick, interval);
+    autoSaveTimer = setInterval(runAutoSaveTick, Math.min(interval, MAX_AUTOSAVE_INTERVAL_MS));
   }
 }
 

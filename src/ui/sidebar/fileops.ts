@@ -2,7 +2,7 @@ import { normalizePathSegments } from '../../utils/paths';
 import { readFile, writeFile, writeFileIfUnchanged, addRecentFile, authorizeImageStorage, getFileMetadata, getCachedSettings } from '../../infra/storage';
 import { getMarkdownResult, getSavePlan, hasExternalModification, isDocumentDirty, markDocumentPersisted, markExternalModification, resetEditorScroll, setActiveDocumentPath, setMarkdown, getRevision, getSourceRevision, getLastReadMtime, getLastReadSize, hasLastReadStats, clearLastReadStats, setLastReadStats, getEditor, getPipelineMode } from '../../editor';
 import { shouldUseReconcileBoundary } from '../../editor';
-import { setSourceReadOnly } from '../../editor';
+import { switchToSource, setSourceReadOnly } from '../../editor';
 import { showToast } from '../toast';
 import { suppressNextWatcherRefresh, cancelSuppressedWatcherRefresh, applyFileTreeEvents } from '../file-tree/index';
 import { refreshOutline } from '../outline';
@@ -404,16 +404,15 @@ export async function openFileInEditor(path: string): Promise<boolean> {
       // Tier thresholds come from the current settings so a change applies to
       // the next opened document without a restart.
       const tier = determineTier(metadata.size, metadata.lines, tierConfigFromSettings(getCachedSettings()));
-      let readOnly = false;
+
       if (tier === 'huge') {
         const choice = await showDialog({
           title: '文件过大',
-          body: `<p>该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p><p>建议以只读模式预览，或强制打开。</p>`,
-          buttons: [{ label: '取消', value: 'cancel' }, { label: '强制打开', value: 'force' }, { label: '只读预览', value: 'readonly', primary: true }],
+          body: `<p>该文件较大 (${formatFileSize(metadata.size)}，${metadata.lines} 行)，可能导致编辑器卡顿。</p><p>是否仍要以源码模式打开？</p>`,
+          buttons: [{ label: '取消', value: 'cancel' }, { label: '仍然打开', value: 'force', primary: true }],
           width: '400px',
         });
         if (!choice || choice === 'cancel') return null;
-        readOnly = choice === 'readonly';
       }
       const content = await readFile(path);
       await prepareImageLifecycleForOpenedDocument(path);
@@ -423,14 +422,15 @@ export async function openFileInEditor(path: string): Promise<boolean> {
       return () => {
         setActiveDocumentPath(path);
         setActiveFilePath(path);
+        if (tier !== 'normal') switchToSource();
         setMarkdown(content);
-        setReadOnly(readOnly);
-        if (tier === 'large' || tier === 'huge') showDegradationBar({ tier, size: formatFileSize(metadata.size), lines: metadata.lines, readOnly });
+        setReadOnly(false);
+        if (tier === 'large' || tier === 'huge') showDegradationBar({ tier, size: formatFileSize(metadata.size), lines: metadata.lines });
         else hideDegradationBar();
         if (stats) setLastReadStats(stats.mtime, stats.size);
         resetEditorScroll();
         refreshOutline();
-        showToast(readOnly ? '已以只读模式打开文件' : '已打开文件');
+        showToast('已打开文件');
       };
     });
     if (opened) await recordRecentFile(path);

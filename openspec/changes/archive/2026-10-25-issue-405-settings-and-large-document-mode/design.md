@@ -15,7 +15,7 @@ See `proposal.md` for motivation. The current implementation classifies files be
 **Non-Goals:**
 - Blocking a document from opening after the user confirms the source-size warning.
 - Changing persisted setting names or units.
-- Implementing UI behavior in this proposal-only change.
+- Changing the existing document-tab interaction model.
 
 ## Decisions
 
@@ -33,4 +33,6 @@ See `proposal.md` for motivation. The current implementation classifies files be
 
 ## Migration Plan
 
-No persisted schema migration is required. Existing threshold values retain their names, units, defaults, and serialization. Update the classification/qualification interaction, then validate focused tests and settings round-trip coverage. Rollback can restore the previous automatic rejection while preserving settings values.
+The new optional `restoreWorkspace` setting defaults to true in TypeScript and Rust; existing files need no version migration. Removed node/text fields are stripped when settings are saved. Existing threshold values retain their names, units, defaults, and serialization. Legacy nonpositive thresholds recover to defaults, and source bytes recover to at least WYSIWYG bytes. Saves reject an inverted size relationship. Autosave defaults to 30 seconds while saved intervals retain their value. Update the classification/qualification interaction, then validate focused tests and settings round-trip coverage. Rollback can restore the previous automatic rejection while preserving settings values.
+
+The former 100MB `read_file` ceiling is removed so source-size confirmation can actually authorize opening larger documents. Allocation, decoding and I/O failures still report through the normal open-error path.

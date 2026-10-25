@@ -86,7 +86,7 @@ select.prefs-select[aria-label$="单位"]{width:56px;min-width:56px;appearance:n
 #file-tree:hover .tree-header-actions,.tree-header:focus-within .tree-header-actions{opacity:1}
 .tree-folder,.tree-file{display:flex;align-items:center;gap:6px;min-height:25px;padding-top:3px;padding-bottom:3px;padding-right:12px;cursor:pointer;font-size:13px;color:var(--fg);user-select:none;white-space:nowrap}
 .tree-folder{padding-left:16px}.tree-file{padding-left:28px}.tree-folder:hover,.tree-file:hover{background:var(--accent-soft)}
-.tree-file.active{background:var(--accent-soft);color:var(--accent);border-left:2px solid var(--accent);padding-left:26px}
+.tree-file.active{background:color-mix(in srgb,var(--accent) 4%,var(--bg));color:var(--accent)}
 .tree-icon{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;color:#60a5fa}.tree-folder .tree-icon{color:#f59e0b}
 .chevron{width:12px;height:12px;flex:none;fill:none;stroke:var(--muted);stroke-width:2;transition:transform 150ms}.tree-folder.expanded .chevron{transform:rotate(90deg)}
 .tree-children{padding-left:12px}.tree-children[hidden]{display:none!important}

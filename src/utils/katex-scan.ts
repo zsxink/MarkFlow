@@ -50,18 +50,31 @@ export function scanMathBlockRegions(source: string): MathBlockRegion[] {
  * Returns matches sorted by position, with block formulas prioritized over
  * inline when they overlap (longest match first).
  */
-export function scanFormulas(source: string): FormulaMatch[] {
+export function scanFormulas(
+  source: string,
+  options: { recognizeDisplayBlocks?: boolean } = {},
+): FormulaMatch[] {
   const matches: FormulaMatch[] = [];
 
-  // Pass 1: Find block formulas $$...$$ (multi-line allowed)
-  // Match $$ that is not part of $$$ or more, content, then same $$ delimiter
+  // Pass 1: Find double-dollar formulas. Only a line-leading delimiter is a
+  // display block; in the middle of a paragraph `$$...$$` is inline math.
+  // This matters for list items and task items, where treating an in-sentence
+  // formula as a block widget breaks the surrounding text flow.
   const blockRe = /\$\$(?!\$)((?:[^$]|\$(?!\$))*)\$\$/g;
   let m: RegExpExecArray | null;
   while ((m = blockRe.exec(source)) !== null) {
     const content = m[1].trim();
     if (!content) continue; // Skip empty formulas like $$  $$
+    const lineStart = source.lastIndexOf('\n', m.index - 1) + 1;
+    const linePrefix = source.slice(lineStart, m.index);
+    const type = options.recognizeDisplayBlocks !== false && /^[ \t]{0,3}$/.test(linePrefix)
+      ? 'block'
+      : 'inline';
+    // Inline formula delimiters cannot span paragraphs. Leave malformed
+    // mid-line multi-line pairs untouched instead of inserting a block widget.
+    if (type === 'inline' && /\r?\n/.test(m[1])) continue;
     matches.push({
-      type: 'block',
+      type,
       from: m.index,
       to: m.index + m[0].length,
       content: m[1], // Preserve original content (including whitespace)
@@ -70,17 +83,17 @@ export function scanFormulas(source: string): FormulaMatch[] {
 
   // Pass 2: Find inline formulas $...$ (no newlines)
   // Pattern: $ not followed by whitespace/digit, content (no newline), then $
-  // Skip positions already covered by block matches
+  // Skip positions already covered by double-dollar formulas.
   const inlineRe = /\$(?!\s|\d)([^$\n]+?)\$/g;
   while ((m = inlineRe.exec(source)) !== null) {
     const matchFrom = m.index;
     const matchTo = m.index + m[0].length;
 
-    // Skip if this overlaps with a block match
-    const overlapsBlock = matches.some(
-      (bm) => bm.type === 'block' && matchFrom < bm.to && matchTo > bm.from,
+    // Skip if this overlaps with a double-dollar match.
+    const overlapsDoubleDollar = matches.some(
+      (formula) => matchFrom < formula.to && matchTo > formula.from,
     );
-    if (overlapsBlock) continue;
+    if (overlapsDoubleDollar) continue;
 
     matches.push({
       type: 'inline',

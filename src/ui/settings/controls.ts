@@ -27,7 +27,11 @@ export function initSettingsControls(root: HTMLElement): void {
     button.setAttribute('aria-label', select.getAttribute('aria-label') ?? '选择选项');
     button.setAttribute('aria-haspopup', 'listbox');
     button.setAttribute('aria-expanded', 'false');
-    button.append(document.createTextNode(''), Object.assign(document.createElement('span'), { className: 'settings-chevron', textContent: '⌄' }));
+    const chevron = document.createElement('span');
+    chevron.className = 'settings-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.innerHTML = '<svg viewBox="0 0 12 8"><path d="m2 3 4 4 4-4"/></svg>';
+    button.append(document.createTextNode(''), chevron);
     const list = document.createElement('div');
     list.className = 'settings-options';
     list.id = `${select.id}-options`;
@@ -87,7 +91,7 @@ export function initSettingsControls(root: HTMLElement): void {
       const button = document.createElement('button');
       button.type = 'button';
       button.tabIndex = -1;
-      button.textContent = direction === 1 ? '⌃' : '⌄';
+      button.innerHTML = `<svg viewBox="0 0 12 8" aria-hidden="true"><path d="${direction === 1 ? 'M2 6l4-4 4 4' : 'M2 2l4 4 4-4'}"/></svg>`;
       button.setAttribute('aria-label', direction === 1 ? '增加' : '减少');
       button.addEventListener('click', () => {
         if (input.disabled) return;

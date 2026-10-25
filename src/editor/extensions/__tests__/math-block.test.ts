@@ -219,8 +219,17 @@ describe('mathBlock bounded `start` lookahead (#411)', () => {
   });
 
   it('returns -1 when the opener lies beyond the window (no false positive)', () => {
-    const src = `${'a'.repeat(TOKENIZER_START_WINDOW)}\n$$x$$`;
+    const src = `prefix\n\n${'a'.repeat(TOKENIZER_START_WINDOW)}\n$$x$$`;
     expect(findMathBlockStart(src)).toBe(-1);
+  });
+
+  it('parses a display formula after more than 64KB of continuous prose', () => {
+    const editor = makeEditor();
+    const source = `${'a'.repeat(TOKENIZER_START_WINDOW + 128)}\n$$x$$`;
+    expect(mathBlocks(parse(editor, source))).toEqual([
+      { type: 'mathBlock', attrs: { latex: 'x' } },
+    ]);
+    editor.destroy();
   });
 
   it('does not misreport a `$$` pair straddling the window edge', () => {

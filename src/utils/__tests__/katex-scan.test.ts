@@ -35,11 +35,29 @@ describe('scanFormulas', () => {
     });
   });
 
+  it('keeps double-dollar math inline when it is embedded in a sentence', () => {
+    const result = scanFormulas('Task text $$a=c$$ and more text.');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: 'inline', content: 'a=c' });
+  });
+
+  it('keeps line-leading double-dollar math as a display block', () => {
+    const result = scanFormulas('before\n$$a=c$$\nafter');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: 'block', content: 'a=c' });
+  });
+
+  it('treats text-node-leading double-dollar math as inline when block nodes own display math', () => {
+    const result = scanFormulas('$$a=c$$', { recognizeDisplayBlocks: false });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: 'inline', content: 'a=c' });
+  });
+
   it('handles multiple formulas', () => {
     const result = scanFormulas('$a+b$ and $$x^2$$');
     expect(result).toHaveLength(2);
     expect(result[0].type).toBe('inline');
-    expect(result[1].type).toBe('block');
+    expect(result[1].type).toBe('inline');
   });
 
   it('does not treat currency $100 as formula', () => {

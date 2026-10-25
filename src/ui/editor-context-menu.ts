@@ -11,10 +11,14 @@ import type { ContextMenuItem } from './context-menu';
 
 type TextControl = HTMLInputElement | HTMLTextAreaElement;
 
-/** Show the app's native-style edit menu for areas without a specialized menu. */
+/**
+ * Fallback menu: text controls anywhere get the edit menu; the editor menu is
+ * document-specific and must not leak into toolbar/statusbar/dialogs (#444),
+ * so it only fires inside #editor-area.
+ */
 export function showEditorContextMenu(event: MouseEvent): void {
   const target = event.target instanceof Element ? event.target as HTMLElement : null;
-  if (!target || target.closest('#sidebar, .context-menu, img, .mermaid-preview, .plantuml-preview')) return;
+  if (!target) return;
 
   const control = getTextControl(target);
   if (control) {
@@ -22,6 +26,9 @@ export function showEditorContextMenu(event: MouseEvent): void {
     showContextMenuStatic(buildTextControlItems(control), { x: event.clientX, y: event.clientY }, { className: 'editor-context-menu' });
     return;
   }
+
+  if (!target.closest('#editor-area')) return;
+  if (target.closest('#sidebar, .context-menu, img, .mermaid-preview, .plantuml-preview')) return;
 
   event.preventDefault();
   prepareEditorSelection(event);

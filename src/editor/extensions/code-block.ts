@@ -8,6 +8,7 @@ import { store } from '../../infra/store';
 import { logDebug, logException, logWarn } from '../../infra/logger';
 import { uiPorts } from '../../infra/ui-ports';
 import { getMermaidExportBaseName, getPlantUmlExportBaseName } from '../state';
+import { buildCodeBlockToolbar, type CodeBlockToolbar } from './code-block-toolbar';
 
 // ── Mermaid code block extension ───────────────────────────────────────
 
@@ -62,6 +63,7 @@ export function mermaidCodeBlockExtension() {
         let previewPanel: HTMLDivElement | null = null;
         let previewEl: HTMLDivElement | null = null;
         let errorEl: HTMLDivElement | null = null;
+        let toolbar: CodeBlockToolbar | null = null;
 
         const getLanguage = () => String(currentNode.attrs.language || '').toLowerCase();
         const isMermaid = () => getLanguage() === 'mermaid';
@@ -89,8 +91,30 @@ export function mermaidCodeBlockExtension() {
           previewPanel = null;
           previewEl = null;
           errorEl = null;
+          if (!toolbar) {
+            toolbar = buildCodeBlockToolbar({
+              getLanguage,
+              getSource: () => currentNode.textContent,
+              onCopy: (source) => {
+                // 反馈已在工具条内先行展示；这里只负责尽力写入剪贴板。
+                try {
+                  navigator.clipboard.writeText(source).catch(() => {
+                    logWarn('editor.codeBlock', 'Clipboard write rejected', { sourceLen: source.length });
+                  });
+                } catch {
+                  logWarn('editor.codeBlock', 'Clipboard write failed', { sourceLen: source.length });
+                }
+              },
+              onLanguageChange: (value) => {
+                const pos = typeof getPos === 'function' ? getPos() : null;
+                if (pos === null || pos === undefined) return;
+                editor.view.dispatch(editor.view.state.tr.setNodeAttribute(pos, 'language', value === '' ? null : value));
+              },
+            });
+          }
+          toolbar.syncLanguage(language);
           if (dom.firstChild !== codeBlockPreEl) {
-            dom.replaceChildren(codeBlockPreEl);
+            dom.replaceChildren(codeBlockPreEl, toolbar.el);
           }
         };
 
@@ -337,7 +361,9 @@ export function mermaidCodeBlockExtension() {
             return true;
           },
           stopEvent(event) {
-            return isDiagram() && dom.contains(event.target as Node);
+            if (isDiagram() && dom.contains(event.target as Node)) return true;
+            // 工具条（含下拉输入）事件不得被 ProseMirror 捕获或落到 contentDOM。
+            return toolbar?.containsTarget(event.target) ?? false;
           },
           ignoreMutation(mutation: any) {
             if (isDiagram()) return true;
@@ -346,6 +372,8 @@ export function mermaidCodeBlockExtension() {
           destroy() {
             destroyed = true;
             renderVersion += 1;
+            toolbar?.destroy();
+            toolbar = null;
             document.removeEventListener('mousedown', handleDocumentMouseDown);
             store.off('settings:changed', handleSettingsChanged);
           },

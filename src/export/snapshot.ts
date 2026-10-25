@@ -112,6 +112,9 @@ export function cleanupEditorMarkup(root: DocumentFragment | Element): void {
     }
   });
 
+  // Remove the WYSIWYG code block toolbar — editor-only chrome, never content
+  root.querySelectorAll('.code-block-toolbar').forEach(el => el.remove());
+
   // Remove NodeView wrapper spans that only contain controls
   const wrappers = root.querySelectorAll('[data-node-view-wrapper]');
   wrappers.forEach(w => {

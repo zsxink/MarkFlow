@@ -11,7 +11,7 @@ const { renderMermaid, renderPlantUml, isBlankPlantUmlSource, getCachedSettings,
 }));
 vi.mock('../../../render/mermaid', () => ({ renderMermaid }));
 vi.mock('../../../render/plantuml', () => ({ renderPlantUml }));
-vi.mock('../../../render/plantuml-lazy', () => ({ isBlankPlantUmlSource }));
+vi.mock('../../../utils/plantuml', () => ({ isBlankPlantUmlSource }));
 vi.mock('../../../infra/storage', () => ({ getCachedSettings }));
 vi.mock('../../../infra/store', () => ({ store }));
 vi.mock('../../state', () => ({ getMermaidExportBaseName: vi.fn(), getPlantUmlExportBaseName: vi.fn() }));

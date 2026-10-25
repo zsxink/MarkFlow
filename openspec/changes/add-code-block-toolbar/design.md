@@ -38,7 +38,7 @@
 
 ### D5 stopEvent / ignoreMutation / 生命周期
 
-`stopEvent` 扩为：`isDiagram() && dom.contains(target)` 之外，`(toolbarEl && toolbarEl.contains(event.target))` 也返回 `true`（拦截按钮点击与下拉输入框的 keydown，防 PM 捕获或误触编辑）。`ignoreMutation` 现有非图表分支已忽略 contentDOM 之外的变异，工具条 DOM 更新（✓ 切换、列表重建）天然被忽略，无需改。下拉的 document 级 mousedown 关闭监听在 `destroy()` 移除（复用现有 handleDocumentMouseDown 挂卸模式，合并进同一监听）。
+`stopEvent` 扩为：`isDiagram() && dom.contains(target)` 之外，`(toolbarEl && toolbarEl.contains(event.target))` 也返回 `true`（拦截按钮点击与下拉输入框的 keydown，防 PM 捕获或误触编辑）。`ignoreMutation` 现有非图表分支已忽略 contentDOM 之外的变异，工具条 DOM 更新（✓ 切换、列表重建）天然被忽略，无需改。下拉的外部点击关闭由工具条自身注册 document mousedown 监听（`menu.hidden` 时早退），随 `destroy()` 一并卸载，与现有 handleDocumentMouseDown 并行互不干扰。
 
 ### D6 样式与主题
 

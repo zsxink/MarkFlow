@@ -243,7 +243,7 @@ export function buildCodeBlockToolbar(options: CodeBlockToolbarOptions): CodeBlo
 }
 
 /** 关闭当前文档内所有代码块语言下拉（一次只开一个）。 */
-export function closeAllMenus() {
+function closeAllMenus() {
   document.querySelectorAll('.code-block-toolbar.is-open').forEach(toolbar => {
     if (!(toolbar instanceof HTMLElement)) return;
     const menuEl = toolbar.querySelector<HTMLElement>('.code-block-lang-menu');

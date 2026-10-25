@@ -10,10 +10,12 @@ import {
 } from '../../editor';
 import { settleImageOperations } from '../../infra/images/core';
 import { runDocumentOperation } from '../../infra/document-operations';
+import { authorizePreviewDirectory } from '../../infra/storage';
 import { showToast } from '../toast';
 import { hideDegradationBar } from '../degradation-bar';
-import { logException } from '../../infra/logger';
+import { logDebug, logException } from '../../infra/logger';
 import { registerDocumentTabHooks } from './hooks';
+import { hideImagePreview, showImagePreview } from './image-preview';
 import { uiPorts } from '../../infra/ui-ports';
 
 export const MAX_DOCUMENT_TABS = 20;
@@ -21,13 +23,15 @@ interface DocumentSession {
   id: string;
   path: string | null;
   title: string;
+  /** `document` 会话挂编辑器；`image` 会话只渲染预览面，无编辑器上下文。 */
+  kind: 'document' | 'image';
   context: EditorDocumentContext | null;
   pendingExternal: 'modify' | 'delete' | null;
   degradation: HTMLElement | null;
   /** True only for the tab created by `initDocumentSessions` at app startup. */
   startup: boolean;
 }
-export interface DocumentTab { id: string; path: string | null; title: string; dirty: boolean }
+export interface DocumentTab { id: string; path: string | null; title: string; dirty: boolean; kind: 'document' | 'image' }
 let sessions: DocumentSession[] = [];
 let activeId: string | null = null;
 let sequence = 0;
@@ -40,7 +44,8 @@ export function getActiveTabId(): string | null { return activeId; }
 export function getDocumentTabs(): readonly DocumentTab[] {
   return sessions.map(tab => ({
     id: tab.id, path: tab.path, title: tab.path ? getFileName(tab.path) : tab.title,
-    dirty: tab.id === activeId ? store.getState().dirty : Boolean(tab.context?.projection.dirty),
+    dirty: tab.kind === 'image' ? false : tab.id === activeId ? store.getState().dirty : Boolean(tab.context?.projection.dirty),
+    kind: tab.kind,
   }));
 }
 export function onDocumentTabsChanged(listener: () => void): () => void {
@@ -66,9 +71,15 @@ function project() {
   document.querySelectorAll<HTMLElement>('.tree-file').forEach(el => {
     el.classList.toggle('active', el.dataset.path === current()?.path);
   });
+  const active = current();
   const empty = activeId === null;
   const area = document.getElementById('editor-area');
   area?.classList.toggle('document-empty', empty);
+  // 图片会话激活时预览面接管内容区，编辑器挂载点由 CSS 让位。
+  const previewing = active?.kind === 'image' && active.path !== null;
+  area?.classList.toggle('preview-active', Boolean(previewing));
+  if (previewing) showImagePreview(active!.path!);
+  else hideImagePreview();
   let placeholder = document.getElementById('document-empty-state');
   if (empty && area && !placeholder) {
     placeholder = document.createElement('div');
@@ -94,6 +105,8 @@ function project() {
 function suspendCurrent() {
   const tab = current();
   if (!tab) return false;
+  // 图片会话不持有编辑器文档；挂起时无需（也不得）抓取编辑器状态。
+  if (tab.kind === 'image') return false;
   // CM's hasFocus also checks whether the whole window is foreground, unlike
   // PM's predicate. Focus transfer depends on which surface owns the active
   // DOM element, including when a window is restored in the background.
@@ -109,20 +122,32 @@ function suspendCurrent() {
 }
 function restore(tab: DocumentSession, focusEditor = false) {
   activeId = tab.id;
-  const context = tab.context;
   publishing = true;
   try {
-    store.stageState({ ...(context?.projection ?? {}), activeFilePath: tab.path });
-    if (context) attachEditorDocument(context, false, focusEditor);
-    store.setState({ ...(context?.projection ?? {}), activeFilePath: tab.path });
-    tab.context = null;
+    if (tab.kind === 'image') {
+      // 图片会话不挂编辑器：清空切换来源文档的活动路径/脏标记投影，标题只显示文件名。
+      store.stageState({ activeFilePath: null, dirty: false });
+      store.setState({ activeFilePath: null, dirty: false });
+    } else {
+      const context = tab.context;
+      store.stageState({ ...(context?.projection ?? {}), activeFilePath: tab.path });
+      if (context) attachEditorDocument(context, false, focusEditor);
+      store.setState({ ...(context?.projection ?? {}), activeFilePath: tab.path });
+      tab.context = null;
+    }
   } finally { publishing = false; }
   hideDegradationBar();
-  if (tab.degradation) document.getElementById('editor-area')?.prepend(tab.degradation);
+  if (tab.kind === 'image') {
+    // 切换来源可能是源码模式（editor-area overflow: hidden）；预览接管滚动。
+    document.getElementById('editor-area')?.classList.toggle('source-mode', false);
+  } else if (tab.degradation) {
+    document.getElementById('editor-area')?.prepend(tab.degradation);
+  }
   project();
 }
 async function checkExternal(tab: DocumentSession) {
-  if (!tab.path) return;
+  // 图片会话无未保存状态：外部修改/删除不弹确认，激活时按预览加载失败降级。
+  if (tab.kind === 'image' || !tab.path) return;
   const state = getDocumentState();
   if (!tab.pendingExternal && state.lastReadStatsKnown) {
     try {
@@ -180,7 +205,7 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
     if (!hasCapacity()) return false;
     const previous = current();
     const focusEditor = suspendCurrent();
-    const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', context: null, pendingExternal: null, degradation: null, startup: false };
+    const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', kind: 'document', context: null, pendingExternal: null, degradation: null, startup: false };
     sessions.push(tab);
     activeId = tab.id;
     publishing = true;
@@ -207,6 +232,30 @@ export function openDocumentTab(path: string, prepare: () => Promise<(() => void
 }
 
 /**
+ * Open (or activate) an image preview tab. Shares the tab bar, cap and
+ * path-dedup semantics with document tabs, but carries no editor context and
+ * no dirty state, so closing it never asks for confirmation.
+ */
+export function openImagePreviewTab(path: string): Promise<boolean> {
+  return runDocumentOperation(async () => {
+    path = canonical(path);
+    const existing = sessions.find(tab => tab.path === path);
+    if (existing) return activateInternal(existing.id, false);
+    if (!hasCapacity()) return false;
+    // $HOME 内路径由静态 asset scope 覆盖；动态授权是补充，失败仅降级为预览占位。
+    try { await authorizePreviewDirectory(path); }
+    catch (error) { logDebug('document.tabs', 'Failed to authorize preview directory (best-effort)', { path, error: String(error) }); }
+    await settleImageOperations();
+    suspendCurrent();
+    const tab: DocumentSession = { id: `document-${++sequence}`, path, title: '', kind: 'image', context: null, pendingExternal: null, degradation: null, startup: false };
+    sessions.push(tab);
+    restore(tab);
+    await closeStartupTabIfEmpty();
+    return true;
+  });
+}
+
+/**
  * The startup default tab only greets the user. Once a document opened
  * successfully (both the file-tree and Finder entries funnel through
  * `openDocumentTab`) it has served its purpose — retire it while it is still
@@ -226,7 +275,7 @@ export function newDocumentTab(startup = false): Promise<boolean> {
     suspendCurrent();
     activeId = `document-${++sequence}`;
     const title = `未命名 ${sequence}`;
-    sessions.push({ id: activeId, path: null, title, context: null, pendingExternal: null, degradation: null, startup });
+    sessions.push({ id: activeId, path: null, title, kind: 'document', context: null, pendingExternal: null, degradation: null, startup });
     publishing = true;
     try {
       resetEditorDocument(false);
@@ -256,7 +305,8 @@ async function closeInternal(id: string, confirm = true) {
     getEditor()?.view.dom.contains(activeElement) || getSourceView()?.contentDOM.contains(activeElement)
   ));
   const index = sessions.indexOf(tab);
-  if (confirm) {
+  // 图片会话无未保存内容，关闭前不需要确认或激活切换。
+  if (confirm && tab.kind !== 'image') {
     await activateInternal(id, false);
     flushEditorDirtyCheck();
     if (!(await uiPorts.confirmDocumentTransition())) {
@@ -326,6 +376,7 @@ export function confirmAllDocumentTabsClose(): Promise<boolean> {
   return runDocumentOperation(async () => {
     const originalId = activeId;
     for (const tab of sessions) {
+      if (tab.kind === 'image') continue;
       await activateInternal(tab.id, false);
       flushEditorDirtyCheck();
       if (!(await uiPorts.confirmDocumentTransition())) return false;
@@ -337,6 +388,7 @@ export function confirmAllDocumentTabsClose(): Promise<boolean> {
 export function closeAllDocumentTabs(): Promise<boolean> {
   return runDocumentOperation(async () => {
     for (const tab of sessions) {
+      if (tab.kind === 'image') continue;
       await activateInternal(tab.id, false);
       flushEditorDirtyCheck();
       if (!(await uiPorts.confirmDocumentTransition())) return false;
@@ -368,7 +420,8 @@ export function rewriteDocumentTabPaths(from: string, to: string): void {
     // activation/save validation and the authored image mappings for lossless
     // serialization. Image NodeViews resolve their display URL at the new path.
   }
-  if (current()) store.setState({ activeFilePath: current()!.path });
+  // 图片会话的投影保持无活动文件路径；其预览 src 由 project() 同步刷新。
+  if (current()?.kind === 'document') store.setState({ activeFilePath: current()!.path });
   project();
 }
 export function hasOpenDocumentTabs() { return sessions.length > 0; }
@@ -385,6 +438,7 @@ export function routeDocumentExternalChanges(changes: readonly { path: string; k
       if (change.kind !== 'modify' && change.kind !== 'delete') continue;
       for (const tab of sessions) {
         if (!matches(tab.path, change.path)) continue;
+        if (tab.kind === 'image') continue; // 无 dirty/确认语义；激活时按预览加载失败降级
         tab.pendingExternal = change.kind === 'delete' ? 'delete' : (tab.pendingExternal ?? 'modify');
         if (tab.context) {
           tab.context.documentState.externallyModified = true;

@@ -58,6 +58,23 @@ describe('settings panel', () => {
     expect(store.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'settings:changed' }));
   });
 
+  it('hydrates the unsupported-files toggle off by default and persists toggling it on', async () => {
+    loadSettings.mockResolvedValue({});
+    await openSettingsPanel();
+    const toggle = document.getElementById('setting-filetree-show-unsupported')!;
+    expect(toggle.classList.contains('active')).toBe(false);
+    toggle.click();
+    await flush(); await flush();
+    expect(toggle.classList.contains('active')).toBe(true);
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ fileBrowserShowUnsupportedFiles: true }));
+  });
+
+  it('hydrates the unsupported-files toggle from a stored true value', async () => {
+    loadSettings.mockResolvedValue({ fileBrowserShowUnsupportedFiles: true });
+    await openSettingsPanel();
+    expect(document.getElementById('setting-filetree-show-unsupported')!.classList.contains('active')).toBe(true);
+  });
+
   it('shows the path picker only for the custom storage mode', async () => {
     loadSettings.mockResolvedValue({
       imageStorageMode: 'document-named-dir',

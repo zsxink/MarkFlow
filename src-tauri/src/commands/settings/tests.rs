@@ -93,6 +93,39 @@ fn legacy_settings_receive_file_tree_defaults() {
 }
 
 #[test]
+fn file_browser_show_unsupported_files_defaults_to_hidden() {
+    assert!(!Settings::default().file_browser_show_unsupported_files);
+}
+
+#[test]
+fn legacy_settings_receive_hidden_unsupported_files_default() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value
+        .as_object_mut()
+        .unwrap()
+        .remove("fileBrowserShowUnsupportedFiles");
+    let parsed = parse_settings(&serde_json::to_string(&value).unwrap()).unwrap();
+    assert!(!parsed.file_browser_show_unsupported_files);
+}
+
+#[test]
+fn file_browser_show_unsupported_files_survives_a_round_trip() {
+    let shown = Settings {
+        file_browser_show_unsupported_files: true,
+        ..Settings::default()
+    };
+    let saved = serde_json::to_string_pretty(&shown).unwrap();
+    let reloaded = parse_settings(&saved).unwrap();
+    assert!(reloaded.file_browser_show_unsupported_files);
+    let hidden = serde_json::to_string(&Settings::default()).unwrap();
+    assert!(
+        !parse_settings(&hidden)
+            .unwrap()
+            .file_browser_show_unsupported_files
+    );
+}
+
+#[test]
 fn legacy_settings_receive_empty_plantuml_server_url() {
     let mut value = serde_json::to_value(Settings::default()).unwrap();
     value.as_object_mut().unwrap().remove("plantumlServerUrl");

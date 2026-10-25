@@ -55,6 +55,13 @@ export function createSettingsContent(): string {
                 <div class="settings-label">自动恢复展开深度</div>
                 <input class="newfile-input" type="number" min="1" max="32" id="setting-filetree-depth" style="width:100px" />
               </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">显示不支持格式的文件</div>
+                  <div class="settings-desc">关闭时文件树仅列出 Markdown 与图片文件</div>
+                </div>
+                <button class="toggle" id="setting-filetree-show-unsupported"></button>
+              </div>
             </div>
             <div class="settings-group">
               <div class="settings-group-title">文档大小/行数上限</div>

@@ -1,3 +1,4 @@
+use crate::commands::files::entry::is_supported_browser_entry;
 use crate::commands::files::FileEntry;
 use crate::commands::settings::load_settings_inner;
 use crate::fs::ignore::{matcher_snapshot, IgnoreMatcher};
@@ -45,6 +46,7 @@ fn read_dir_page_inner(
     limit: usize,
     expected_generation: Option<&str>,
     matcher: &IgnoreMatcher,
+    show_unsupported: bool,
 ) -> Result<DirectoryPage, String> {
     let generation = directory_generation(dir)?;
     if expected_generation.is_some_and(|expected| expected != generation) {
@@ -61,6 +63,12 @@ fn read_dir_page_inner(
         let metadata =
             fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
         if metadata.file_type().is_symlink() {
+            continue;
+        }
+        // Format filtering runs before sort/paging so the cursor advances over
+        // the same stream the user sees — a page is never filled with entries
+        // the frontend would hide.
+        if !show_unsupported && !metadata.is_dir() && !is_supported_browser_entry(&name) {
             continue;
         }
         entries.push(FileEntry {
@@ -114,6 +122,7 @@ pub fn read_dir(
         limit.unwrap_or(settings.file_tree_page_size),
         generation.as_deref(),
         &matcher,
+        settings.file_browser_show_unsupported_files,
     )?;
     info!(target: "backend.file_tree", path = %normalize_path(&dir), elapsed_ms = started.elapsed().as_millis() as u64,
         entries = page.entries.len(), truncated = page.truncated, "Read shallow directory page");

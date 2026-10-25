@@ -438,6 +438,7 @@ pub fn run() {
             images::write_image_to_storage,
             images::copy_image_to_storage,
             images::authorize_image_storage,
+            images::authorize_preview_directory,
             images::write_pending_image,
             images::copy_image_to_pending,
             images::download_image_to_pending,

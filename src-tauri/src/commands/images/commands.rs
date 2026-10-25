@@ -36,6 +36,19 @@ pub fn authorize_image_storage(document_path: String, app: AppHandle) -> Result<
     })
 }
 
+/// Grant asset-protocol access to an image preview file's parent directory.
+/// Unlike `authorize_image_storage` (which grants the *storage* root for
+/// pasted images), previews render from whatever directory the opened image
+/// already lives in.
+#[tauri::command]
+pub fn authorize_preview_directory(path: String, app: AppHandle) -> Result<(), String> {
+    let parent = Path::new(&path)
+        .parent()
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .ok_or_else(|| "无效的预览路径".to_string())?;
+    allow_asset_directory(&app, parent)
+}
+
 #[tauri::command]
 pub fn write_pending_image(
     draft_id: Option<String>,

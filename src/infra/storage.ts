@@ -264,6 +264,11 @@ export async function authorizeImageStorage(documentPath: string): Promise<strin
   return invoke<string>('authorize_image_storage', { documentPath });
 }
 
+/** Grant the asset protocol access to a preview image's parent directory. */
+export async function authorizePreviewDirectory(path: string): Promise<void> {
+  return invoke('authorize_preview_directory', { path });
+}
+
 export async function fileExists(path: string): Promise<boolean> {
   return invoke<boolean>('file_exists', { path });
 }

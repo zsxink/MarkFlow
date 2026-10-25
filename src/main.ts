@@ -147,7 +147,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   store.on('settings:changed', (event) => {
     const fileTreeSettingsChanged = JSON.stringify(settings.fileTreeIgnorePatterns) !== JSON.stringify(event.settings.fileTreeIgnorePatterns)
       || settings.fileTreePageSize !== event.settings.fileTreePageSize
-      || settings.fileTreeAutoLoadDepth !== event.settings.fileTreeAutoLoadDepth;
+      || settings.fileTreeAutoLoadDepth !== event.settings.fileTreeAutoLoadDepth
+      || settings.fileBrowserShowUnsupportedFiles !== event.settings.fileBrowserShowUnsupportedFiles;
     settings = event.settings;
     startAutoSave();
     if (fileTreeSettingsChanged) {

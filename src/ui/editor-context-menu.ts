@@ -38,7 +38,7 @@ export function showEditorContextMenu(event: MouseEvent): void {
 function getTextControl(target: HTMLElement): TextControl | null {
   const control = target.closest('textarea, input') as TextControl | null;
   if (!control || control.disabled) return null;
-  if (control instanceof HTMLInputElement && !['text', 'search', 'url', 'tel', 'email', 'password'].includes(control.type)) return null;
+  if (control instanceof HTMLInputElement && !['text', 'search', 'url', 'tel', 'email', 'password', 'number'].includes(control.type)) return null;
   return control;
 }
 

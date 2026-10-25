@@ -39,6 +39,7 @@ function mountApp(): void {
     <div class="modal-settings">
       <span class="settings-label" id="settings-label">设置</span>
       <input id="settings-input" type="text">
+      <input id="settings-number" type="number">
       <select id="settings-select"><option>1</option></select>
     </div>`;
 }
@@ -76,7 +77,7 @@ describe('editor fallback context menu (#444)', () => {
 
   it('shows the text-control edit menu for inputs anywhere', () => {
     mountApp();
-    for (const id of ['settings-input', 'raw-block-textarea', 'tree-rename-input']) {
+    for (const id of ['settings-input', 'settings-number', 'raw-block-textarea', 'tree-rename-input']) {
       const event = fire(document.getElementById(id)!);
       expect(showContextMenuStatic, id).toHaveBeenCalledOnce();
       const items = showContextMenuStatic.mock.calls[0][0] as Array<{ label: string }>;

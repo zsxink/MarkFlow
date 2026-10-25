@@ -16,7 +16,6 @@ import { createSettingsContent } from './markup';
 import {
   applySettingsToUI,
   buildSettingsFromUI,
-  documentLimitsBaselineFromSettings,
   readDocumentLimitsFromUI,
   setInputValue,
   validateDocumentLimits,
@@ -92,6 +91,29 @@ function bindSettingsEvents(hide: () => void) {
     });
   }
 
+  // Switching a KB/MB unit re-expresses the entered number in the new unit
+  // (1 MB ↔ 1024 KB) so the byte size survives the switch. Attached BEFORE
+  // the generic `.settings-select` listener below, which then persists the
+  // converted state.
+  const unitSelectIds: Array<[valueId: string, unitId: string]> = [
+    ['setting-wysiwyg-max-size', 'setting-wysiwyg-max-size-unit'],
+    ['setting-source-max-size', 'setting-source-max-size-unit'],
+  ];
+  for (const [valueId, unitId] of unitSelectIds) {
+    document.getElementById(unitId)?.addEventListener('change', () => {
+      const unitEl = document.getElementById(unitId) as HTMLSelectElement | null;
+      const input = document.getElementById(valueId) as HTMLInputElement | null;
+      if (!unitEl || !input) return;
+      const previousUnit = unitEl.dataset.prevUnit ?? unitEl.value;
+      const value = Number(input.value);
+      if (previousUnit !== unitEl.value && Number.isFinite(value)) {
+        const bytes = value * (previousUnit === 'MB' ? 1048576 : 1024);
+        input.value = String(bytes / (unitEl.value === 'MB' ? 1048576 : 1024));
+      }
+      unitEl.dataset.prevUnit = unitEl.value;
+    });
+  }
+
   document.querySelectorAll('.settings-select').forEach(select => {
     select.addEventListener('change', () => {
       void persistSettingsFromUI();
@@ -111,12 +133,10 @@ function bindSettingsEvents(hide: () => void) {
     await persistSettingsFromUI();
   });
   document.getElementById('setting-plantuml-server-url')?.addEventListener('change', () => void persistSettingsFromUI());
+
   for (const id of [
     'setting-filetree-ignore', 'setting-filetree-page-size', 'setting-filetree-depth',
-    'setting-wysiwyg-admission-kb', 'setting-wysiwyg-admission-lines',
-    'setting-wysiwyg-max-nodes', 'setting-wysiwyg-max-text-length',
-    'setting-large-file-kb', 'setting-huge-file-kb',
-    'setting-large-file-lines', 'setting-huge-file-lines',
+    'setting-wysiwyg-max-size', 'setting-source-max-size', 'setting-max-lines',
   ]) {
     document.getElementById(id)?.addEventListener('change', () => void persistSettingsFromUI());
   }
@@ -170,10 +190,7 @@ async function persistSettingsFromUI() {
   // The document-limits group needs explicit cross-field validation (unlike
   // the silently clamped numeric fields): an invalid group blocks persisting
   // entirely, so the last valid values stay in effect until it is fixed.
-  const limitsError = validateDocumentLimits(
-    readDocumentLimitsFromUI(),
-    documentLimitsBaselineFromSettings(currentSettings),
-  );
+  const limitsError = validateDocumentLimits(readDocumentLimitsFromUI());
   const limitsErrorEl = document.getElementById('setting-document-limits-error');
   if (limitsError) {
     if (limitsErrorEl) {

@@ -106,8 +106,8 @@ const LINES: Record<string, number> = { small: 3, medium: 400, large: 2800 };
  * The measured latency remains diagnostic evidence, not a parallel-worker
  * correctness assertion. CI wall-clock time includes unrelated workers and
  * cannot safely decide whether document bytes may be edited. The deterministic
- * admission-size classifier (256KiB / 10k lines since issue #395, raised from
- * the stage-one 54KiB/2,500-line bound) is the enforceable protection.
+ * admission-size classifier (1MiB / 1M lines, user-configurable since #405) is
+ * the enforceable protection.
  *
  * Gate rule — the real per-open cost:
  *   - In the app the Editor is constructed once at startup; each file-open only
@@ -128,13 +128,14 @@ const V2_BASELINE = {
 
 describe('stage-one performance gate (5.8) — tiered v3 engine vs v2 baseline', () => {
   it('records each fixture\'s stock file-size tier and asserts the normal-tier budget applies to medium', () => {
-    // Bind each fixture with stock `determineTier` thresholds (large=1MB/5000
-    // lines, huge=10MB/50000 lines).  KEY FINDING: the 54KB pathological large
-    // fixture resolves to `normal` — the stock `large` threshold is ~20x above
-    // where the v3 parse regression actually bites (tens of KB), so the stock
-    // size tiers do NOT by themselves protect WYSIWYG from slow large-doc
-    // opens.  Stage two must lower the WYSIWYG admission parse threshold to the
-    // measured value recorded here, per design Open Questions.
+    // Bind each fixture with stock `determineTier` thresholds (large > 1MB
+    // WYSIWYG capacity, huge > 10MB or > 1M lines).  KEY FINDING: the 54KB
+    // pathological large fixture resolves to `normal` — the stock `large`
+    // threshold is ~20x above where the v3 parse regression actually bites
+    // (tens of KB), so the stock size tiers do NOT by themselves protect
+    // WYSIWYG from slow large-doc opens.  Stage two must lower the WYSIWYG
+    // admission parse threshold to the measured value recorded here, per
+    // design Open Questions.
     const tiers = Object.fromEntries(
       Object.keys(documents).map((t) => [t, determineTier(documents[t].length, LINES[t])]),
     );
@@ -173,12 +174,16 @@ describe('stage-one performance gate (5.8) — tiered v3 engine vs v2 baseline',
     // eslint-disable-next-line no-console
     console.log(`5.8 large (large tier): parse-median=${parseMedianMs.toFixed(1)}ms budget-degraded-to-source-only`);
     expect(Number.isFinite(parseMedianMs)).toBe(true);
-    // Since issue #395 the deterministic admission bound is 256KiB / 10k lines,
-    // so the historical dense ~54KB fixture is no longer blanket source-only:
-    // its safety rests on the per-document round-trip verification plus the
-    // runtime complexity caps (10k nodes / 500KB text).
+    // The ~54KB dense fixture sits far below the default admission capacity
+    // (1MiB / 1M lines), so it is admitted: its safety rests on the
+    // per-document round-trip verification.
     expect(classifyEligibility(documents.large)).toMatchObject({ verdict: 'eligible' });
     // Truly oversized documents are still routed to Source deterministically.
-    expect(classifyEligibility(documents.large.repeat(6))).toMatchObject({ verdict: 'source-only', reason: 'too-large' });
+    // Limits are injected explicitly so the assertion tracks the fixture size,
+    // not the user-configurable default (which has covered the fixture since
+    // the default was raised to 1MB).
+    const tightLimits = { maxBytes: documents.large.length - 1, maxLines: 10_000_000 };
+    expect(classifyEligibility(documents.large, tightLimits))
+      .toMatchObject({ verdict: 'source-only', reason: 'too-large' });
   });
 });

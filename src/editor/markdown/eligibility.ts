@@ -44,29 +44,23 @@ export interface AdmissionLimits {
 }
 
 // Admission stays deterministic (never wall-clock) but the bound must cover
-// ordinary real-world documents: the stage-one 54KiB measurement rejected a
-// plain 74KB PRD outright. 256KiB / 10k lines matches the runtime guards
-// instead — per-document safety comes from the admission round-trip
-// verification, and oversized-but-admitted docs are capped by the complexity
-// limit extension. The numbers live in DEFAULT_SETTINGS so every link reads
-// one source; this module stays pure (no store/infra imports).
+// ordinary real-world documents; the capacity (1MiB / 1M lines) matches the
+// WYSIWYG document-size setting — per-document safety comes from the admission
+// round-trip verification. The numbers live in DEFAULT_SETTINGS so every link
+// reads one source; this module stays pure (no store/infra imports).
 export const DEFAULT_ADMISSION_LIMITS: AdmissionLimits = {
-  maxBytes: DEFAULT_SETTINGS.wysiwygAdmissionBytes,
-  maxLines: DEFAULT_SETTINGS.wysiwygAdmissionLines,
+  maxBytes: DEFAULT_SETTINGS.wysiwygMaxBytes,
+  maxLines: DEFAULT_SETTINGS.maxLines,
 };
 
-/** Kept for existing test imports; value is unchanged (derived from settings). */
-export const WYSIWYG_MAX_ADMISSION_BYTES = DEFAULT_ADMISSION_LIMITS.maxBytes;
-export const WYSIWYG_MAX_ADMISSION_LINES = DEFAULT_ADMISSION_LIMITS.maxLines;
-
 /** Settings subset consumed by `admissionLimitsFromSettings`. */
-export type AdmissionSettings = Pick<Settings, 'wysiwygAdmissionBytes' | 'wysiwygAdmissionLines'>;
+export type AdmissionSettings = Pick<Settings, 'wysiwygMaxBytes' | 'maxLines'>;
 
 /** Narrow mapping so callers pass settings, not hand-built limits. */
 export function admissionLimitsFromSettings(settings: AdmissionSettings): AdmissionLimits {
   return {
-    maxBytes: settings.wysiwygAdmissionBytes ?? DEFAULT_ADMISSION_LIMITS.maxBytes,
-    maxLines: settings.wysiwygAdmissionLines ?? DEFAULT_ADMISSION_LIMITS.maxLines,
+    maxBytes: settings.wysiwygMaxBytes ?? DEFAULT_ADMISSION_LIMITS.maxBytes,
+    maxLines: settings.maxLines ?? DEFAULT_ADMISSION_LIMITS.maxLines,
   };
 }
 
@@ -232,7 +226,9 @@ export function classifyEligibility(
   const src = source.replace(/\r\n/g, '\n');
   const bytes = new TextEncoder().encode(src).byteLength;
   const lines = src.split('\n').length;
-  if (bytes >= limits.maxBytes || lines > limits.maxLines) {
+  // Strict `>` on both axes (same comparison as file-size tier): "a 1MB cap"
+  // means a document of exactly 1MB is still admitted.
+  if (bytes > limits.maxBytes || lines > limits.maxLines) {
     return {
       verdict: 'source-only',
       reason: 'too-large',

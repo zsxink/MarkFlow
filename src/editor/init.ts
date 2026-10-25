@@ -18,7 +18,6 @@ import { softBreakPastePlugin } from './paste-softbreak';
 import { imageBubblePlugin } from './image-bubble';
 import { tablePlugin } from './table';
 import { TableHandleView } from './table-handles';
-import { complexityLimitExtension } from './complexity';
 
 import {
   CustomLink,
@@ -137,7 +136,6 @@ export async function initEditor() {
           loading: 'lazy',
         },
       }),
-      complexityLimitExtension(),
       mermaidCodeBlockExtension(),
       MathBlock,
       katexPlugin(),

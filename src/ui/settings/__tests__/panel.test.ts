@@ -133,72 +133,130 @@ describe('settings panel', () => {
     }));
   });
 
-  it('hydrates document-limit fields with KB conversion, defaulting missing fields', async () => {
+  it('hydrates document-limit fields with unit display, defaulting missing fields', async () => {
     loadSettings.mockResolvedValue({
-      wysiwygAdmissionBytes: 524288,
-      wysiwygAdmissionLines: 2000,
-      wysiwygMaxNodes: 3000,
-      largeFileThreshold: 2097152,
-      largeFileLineThreshold: 4000,
+      wysiwygMaxBytes: 524288,
+      sourceMaxBytes: 2097152,
     });
 
     await openSettingsPanel();
 
     const valueOf = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
-    expect(valueOf('setting-wysiwyg-admission-kb')).toBe('512');
-    expect(valueOf('setting-wysiwyg-admission-lines')).toBe('2000');
-    expect(valueOf('setting-wysiwyg-max-nodes')).toBe('3000');
+    // KB-sized values display as KB; whole-MB values display as MB.
+    expect(valueOf('setting-wysiwyg-max-size')).toBe('512');
+    expect((document.getElementById('setting-wysiwyg-max-size-unit') as HTMLSelectElement).value).toBe('KB');
+    expect(valueOf('setting-source-max-size')).toBe('2');
+    expect((document.getElementById('setting-source-max-size-unit') as HTMLSelectElement).value).toBe('MB');
     // Missing fields (pre-upgrade settings) fall back to the documented defaults.
-    expect(valueOf('setting-wysiwyg-max-text-length')).toBe('500000');
-    expect(valueOf('setting-large-file-kb')).toBe('2048');
-    expect(valueOf('setting-huge-file-kb')).toBe('10240');
-    expect(valueOf('setting-large-file-lines')).toBe('4000');
-    expect(valueOf('setting-huge-file-lines')).toBe('50000');
+    expect(valueOf('setting-max-lines')).toBe('1000000');
   });
 
-  it('persists valid document-limit edits with KB→bytes conversion', async () => {
+  it('hydrates the document-limit defaults (1MB / 10MB / 1,000,000 lines)', async () => {
+    loadSettings.mockResolvedValue({});
+
     await openSettingsPanel();
 
-    const admissionKb = document.getElementById('setting-wysiwyg-admission-kb') as HTMLInputElement;
-    admissionKb.value = '1024';
-    admissionKb.dispatchEvent(new Event('change'));
+    const valueOf = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+    expect(valueOf('setting-wysiwyg-max-size')).toBe('1');
+    expect((document.getElementById('setting-wysiwyg-max-size-unit') as HTMLSelectElement).value).toBe('MB');
+    expect(valueOf('setting-source-max-size')).toBe('10');
+    expect((document.getElementById('setting-source-max-size-unit') as HTMLSelectElement).value).toBe('MB');
+    expect(valueOf('setting-max-lines')).toBe('1000000');
+  });
+
+  it('persists valid document-limit edits with unit→bytes conversion', async () => {
+    await openSettingsPanel();
+
+    const wysiwygSize = document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement;
+    wysiwygSize.value = '2';
+    wysiwygSize.dispatchEvent(new Event('change'));
     await flush();
     await flush();
 
-    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygAdmissionBytes: 1048576 }));
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 2097152 }));
     expect(document.getElementById('setting-document-limits-error')!.hidden).toBe(true);
+
+    // A KB-unit edit converts with the selected unit, not a hardcoded one.
+    const sourceSize = document.getElementById('setting-source-max-size') as HTMLInputElement;
+    const sourceUnit = document.getElementById('setting-source-max-size-unit') as HTMLSelectElement;
+    sourceUnit.value = 'KB';
+    sourceSize.value = '5120';
+    sourceSize.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ sourceMaxBytes: 5242880 }));
+
+    const maxLines = document.getElementById('setting-max-lines') as HTMLInputElement;
+    maxLines.value = '500000';
+    maxLines.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ maxLines: 500000 }));
   });
 
-  it('rejects large≥huge thresholds with an inline error and no write, then recovers', async () => {
+  it('switching the unit re-expresses the same byte size instead of reinterpreting the number', async () => {
     await openSettingsPanel();
 
-    const largeKb = document.getElementById('setting-large-file-kb') as HTMLInputElement;
-    largeKb.value = '20480'; // ≥ huge threshold (10240 KB)
-    largeKb.dispatchEvent(new Event('change'));
+    const size = document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement;
+    const unit = document.getElementById('setting-wysiwyg-max-size-unit') as HTMLSelectElement;
+    expect(size.value).toBe('1');
+    expect(unit.value).toBe('MB');
+
+    unit.value = 'KB';
+    unit.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    // 1 MB becomes 1024 KB, and the persisted byte size is unchanged.
+    expect(size.value).toBe('1024');
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 1048576 }));
+  });
+
+  it('rejects wysiwyg > source sizes with an inline error and no write, then recovers', async () => {
+    await openSettingsPanel();
+
+    const wysiwygSize = document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement;
+    wysiwygSize.value = '20'; // MB — above the source default (10 MB)
+    wysiwygSize.dispatchEvent(new Event('change'));
     await flush();
     await flush();
 
     const error = document.getElementById('setting-document-limits-error')!;
     expect(error.hidden).toBe(false);
-    expect(error.textContent).toContain('大文件体积阈值');
+    expect(error.textContent).toContain('所见即所得文档大小');
     expect(saveSettings).not.toHaveBeenCalled();
     expect(store.emit).not.toHaveBeenCalled();
 
-    largeKb.value = '2048';
-    largeKb.dispatchEvent(new Event('change'));
+    wysiwygSize.value = '2';
+    wysiwygSize.dispatchEvent(new Event('change'));
     await flush();
     await flush();
 
     expect(error.hidden).toBe(true);
-    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ largeFileThreshold: 2097152 }));
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 2097152 }));
   });
 
-  it('rejects non-positive and out-of-tier admission values without writing', async () => {
+  it('accepts equal wysiwyg and source sizes (empty large band is a legal choice)', async () => {
     await openSettingsPanel();
 
-    const lines = document.getElementById('setting-wysiwyg-admission-lines') as HTMLInputElement;
-    lines.value = '0';
-    lines.dispatchEvent(new Event('change'));
+    const wysiwygSize = document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement;
+    wysiwygSize.value = '10'; // MB — equal to the source default
+    wysiwygSize.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(document.getElementById('setting-document-limits-error')!.hidden).toBe(true);
+    expect(saveSettings).toHaveBeenLastCalledWith(expect.objectContaining({ wysiwygMaxBytes: 10485760 }));
+  });
+
+  it('rejects non-positive values without writing', async () => {
+    await openSettingsPanel();
+
+    const maxLines = document.getElementById('setting-max-lines') as HTMLInputElement;
+    maxLines.value = '0';
+    maxLines.dispatchEvent(new Event('change'));
     await flush();
     await flush();
 
@@ -207,15 +265,47 @@ describe('settings panel', () => {
     expect(error.textContent).toContain('大于 0');
     expect(saveSettings).not.toHaveBeenCalled();
 
-    lines.value = '4000';
-    const admissionKb = document.getElementById('setting-wysiwyg-admission-kb') as HTMLInputElement;
-    admissionKb.value = '4096'; // above the large-file tier (1024 KB)
-    admissionKb.dispatchEvent(new Event('change'));
+    maxLines.value = '-1';
+    maxLines.dispatchEvent(new Event('change'));
     await flush();
     await flush();
 
     expect(error.hidden).toBe(false);
-    expect(error.textContent).toContain('准入体积上限');
+    expect(error.textContent).toContain('大于 0');
     expect(saveSettings).not.toHaveBeenCalled();
+  });
+
+  it('strips legacy document-limit keys from the persisted settings', async () => {
+    loadSettings.mockResolvedValue({
+      wysiwygAdmissionBytes: 524288,
+      wysiwygAdmissionLines: 2000,
+      largeFileThreshold: 1048576,
+      wysiwygMaxBytes: 2097152,
+      sourceMaxBytes: 10485760,
+      maxLines: 1000000,
+    });
+
+    await openSettingsPanel();
+
+    // Hydration reads only the new fields; the legacy keys are ignored.
+    expect((document.getElementById('setting-wysiwyg-max-size') as HTMLInputElement).value).toBe('2');
+    expect((document.getElementById('setting-wysiwyg-max-size-unit') as HTMLSelectElement).value).toBe('MB');
+
+    const maxLines = document.getElementById('setting-max-lines') as HTMLInputElement;
+    maxLines.value = '500000';
+    maxLines.dispatchEvent(new Event('change'));
+    await flush();
+    await flush();
+
+    expect(saveSettings).toHaveBeenCalled();
+    const saved = saveSettings.mock.lastCall![0] as Record<string, unknown>;
+    // Legacy keys loaded from the old settings.json are stripped on save…
+    expect(saved).not.toHaveProperty('wysiwygAdmissionBytes');
+    expect(saved).not.toHaveProperty('wysiwygAdmissionLines');
+    expect(saved).not.toHaveProperty('largeFileThreshold');
+    // …while the new fields persist normally.
+    expect(saved.wysiwygMaxBytes).toBe(2097152);
+    expect(saved.sourceMaxBytes).toBe(10485760);
+    expect(saved.maxLines).toBe(500000);
   });
 });

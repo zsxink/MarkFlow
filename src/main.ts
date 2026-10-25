@@ -40,7 +40,6 @@ import { showPlantumlContextMenu } from './ui/plantuml-context-menu';
 import { showTableContextMenu } from './ui/table-context-menu';
 import { showImageContextMenu } from './ui/image-context-menu';
 import { mountFrontmatterPanel, refreshFrontmatterPanel } from './ui/frontmatter-panel';
-import { showDegradationBar, hideDegradationBar } from './ui/degradation-bar';
 import { confirmDocumentTransitionInOperation } from './ui/sidebar/fileops';
 import { handleActiveDocumentExternalModificationInOperation, handleExternalDeletionInOperation } from './ui/sidebar/conflict';
 
@@ -71,8 +70,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     showImageContextMenu: (x, y, state) => showImageContextMenu(x, y, state),
     refreshFrontmatter: (markdown) => refreshFrontmatterPanel(markdown),
     mountFrontmatter: (container) => mountFrontmatterPanel(container),
-    showDegradationBar: (info) => showDegradationBar(info),
-    hideDegradationBar: () => hideDegradationBar(),
     confirmDocumentTransition: () => confirmDocumentTransitionInOperation(),
     handleExternalModification: () => handleActiveDocumentExternalModificationInOperation(),
     handleExternalDeletion: (path) => handleExternalDeletionInOperation(path),

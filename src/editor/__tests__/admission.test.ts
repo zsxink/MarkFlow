@@ -10,7 +10,7 @@ import { parseTipTapMarkdown, serializeTipTapMarkdown } from '../markdown/adapte
 import { decideAdmission, verifyAdmission, admissionReasonLabel } from '../markdown/admission';
 import { runSaveBoundary } from '../save-reconcile';
 import { getOpaqueRegistry, endOpaqueSession } from '../markdown/opaque/session';
-import { classifyEligibility, WYSIWYG_MAX_ADMISSION_BYTES, WYSIWYG_MAX_ADMISSION_LINES } from '../markdown/eligibility';
+import { classifyEligibility } from '../markdown/eligibility';
 import { RawMarkdown } from '../markdown/fallback';
 import { OpaqueNode } from '../markdown/opaque/extension';
 
@@ -542,28 +542,36 @@ describe('admission verification (6.4)', () => {
   });
 
   it('reports the measured size with the too-large admission decision', () => {
-    const oversized = 'a'.repeat(WYSIWYG_MAX_ADMISSION_BYTES);
-    expect(decideAdmission(editor, oversized)).toMatchObject({
+    const limits = { maxBytes: 4096, maxLines: 300 };
+    const oversized = 'a'.repeat(limits.maxBytes + 1);
+    expect(decideAdmission(editor, oversized, { sourceRevision: 1, userRevisionAtAdmission: 0 }, limits)).toMatchObject({
       mode: 'source-only',
       reason: 'too-large',
-      size: { bytes: WYSIWYG_MAX_ADMISSION_BYTES, lines: 1 },
+      size: { bytes: limits.maxBytes + 1, lines: 1 },
     });
   });
 
   it('names the exceeded limit in the too-large notice', () => {
-    expect(admissionReasonLabel('too-large', { bytes: 300 * 1024, lines: 500 }))
+    const limits = { maxBytes: 256 * 1024, maxLines: 10000 };
+    expect(admissionReasonLabel('too-large', { bytes: 300 * 1024, lines: 500 }, limits))
       .toBe('文档过大（300KB，超过所见即所得准入上限 256KB）');
-    expect(admissionReasonLabel('too-large', { bytes: 1024, lines: WYSIWYG_MAX_ADMISSION_LINES + 1 }))
-      .toBe(`文档过大（${WYSIWYG_MAX_ADMISSION_LINES + 1} 行，超过所见即所得准入上限 ${WYSIWYG_MAX_ADMISSION_LINES} 行）`);
+    expect(admissionReasonLabel('too-large', { bytes: 1024, lines: limits.maxLines + 1 }, limits))
+      .toBe(`文档过大（${limits.maxLines + 1} 行，超过所见即所得准入上限 ${limits.maxLines} 行）`);
+    // Bytes exactly at the cap were not rejected by size (strict `>`), so an
+    // over-limit line count is the binding dimension named in the notice.
+    expect(admissionReasonLabel('too-large', { bytes: limits.maxBytes, lines: limits.maxLines + 1 }, limits))
+      .toBe(`文档过大（${limits.maxLines + 1} 行，超过所见即所得准入上限 ${limits.maxLines} 行）`);
     expect(admissionReasonLabel('too-large')).toBe('文档过大');
   });
 
-  it('admits a default-rejected document under raised custom limits', () => {
+  it('admits a limited-rejected document under raised custom limits', () => {
+    const limits = { maxBytes: 256 * 1024, maxLines: 10000 };
     const oversized = 'a'.repeat(300 * 1024);
-    expect(decideAdmission(editor, oversized)).toMatchObject({ mode: 'source-only', reason: 'too-large' });
+    expect(decideAdmission(editor, oversized, { sourceRevision: 1, userRevisionAtAdmission: 0 }, limits))
+      .toMatchObject({ mode: 'source-only', reason: 'too-large' });
     const raised = {
-      maxBytes: WYSIWYG_MAX_ADMISSION_BYTES * 4,
-      maxLines: WYSIWYG_MAX_ADMISSION_LINES,
+      maxBytes: 1024 * 1024,
+      maxLines: 10000,
     };
     expect(decideAdmission(editor, oversized, { sourceRevision: 1, userRevisionAtAdmission: 0 }, raised))
       .toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });

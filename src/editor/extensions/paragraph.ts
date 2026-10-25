@@ -37,6 +37,13 @@ import Paragraph from '@tiptap/extension-paragraph';
  * `- `/`* ` spellings first — the rule here covers the rest), and the third
  * CommonMark bullet character `*` joining `-`/`+` in the bullet rule.
  *
+ * #438 relaxes the anchor to allow 1-3 leading spaces: CommonMark keeps a
+ * block start effective under up to 3 spaces of indent, so the escape is
+ * inserted after the preserved indent (the indent bytes ride in the paragraph
+ * text and semantic fingerprint untouched). 4+ spaces or a tab make the line
+ * a lazy continuation — no block start — and MUST stay unescaped, or authored
+ * spellings like `正文\n    - foo` would lose byte-stability on save.
+ *
  * Non-triggering lines (`6.x`, `-foo`, `a 6. x`, `a < b`, inline `6\.`) are
  * left intact.
  */
@@ -45,7 +52,14 @@ export function escapeParagraphMarkdown(md: string): string {
 }
 
 function escapeLineLeadingPrefix(line: string, isFirstLine: boolean): string {
-  let escaped = line;
+  // 1-3 leading spaces do not defuse a block prefix, so every rule below
+  // anchors on the body after the indent and the escape lands between the
+  // preserved indent and the prefix. With 4+ spaces or a tab the body starts
+  // with whitespace and no rule can hit — exactly the lazy-continuation
+  // contract above (#438).
+  const indent = /^ {1,3}/.exec(line)?.[0] ?? '';
+  const body = line.slice(indent.length);
+  let escaped = body;
   // ordered-list marker: 1+ digits then '.' or ')' then space/tab/end
   escaped = escaped.replace(/^(\d+)([.)])(?=\s|$)/, '$1\\$2');
   // bullet markers '- ' / '+ ' / '* ' (space or tab only — '-foo'/'*foo' stay
@@ -70,13 +84,13 @@ function escapeLineLeadingPrefix(line: string, isFirstLine: boolean): string {
   // Setext underline (H1 '=' / H2 '-'): only a non-first full-line run of one
   // character has a preceding line to underline; a first-line run is plain
   // text and must stay unescaped ('=-=' mixed runs never match) (#421/#436)
-  if (!isFirstLine && /^(={1,}|-{1,})\s*$/.test(line)) {
+  if (!isFirstLine && /^(={1,}|-{1,})\s*$/.test(body)) {
     escaped = escaped.replace(/^[-=]/, '\\$&');
   }
   // HTML block opener: escape just the '<' of '<tag' / '</tag' / '<!--' —
   // 'a < b' and '<3' open no interrupting HTML block
   escaped = escaped.replace(/^<(?=[a-zA-Z!\/])/, '\\<');
-  return escaped;
+  return indent + escaped;
 }
 
 /**

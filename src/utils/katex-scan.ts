@@ -50,7 +50,10 @@ export function scanMathBlockRegions(source: string): MathBlockRegion[] {
  * Returns matches sorted by position, with block formulas prioritized over
  * inline when they overlap (longest match first).
  */
-export function scanFormulas(source: string): FormulaMatch[] {
+export function scanFormulas(
+  source: string,
+  options: { recognizeDisplayBlocks?: boolean } = {},
+): FormulaMatch[] {
   const matches: FormulaMatch[] = [];
 
   // Pass 1: Find double-dollar formulas. Only a line-leading delimiter is a
@@ -64,7 +67,9 @@ export function scanFormulas(source: string): FormulaMatch[] {
     if (!content) continue; // Skip empty formulas like $$  $$
     const lineStart = source.lastIndexOf('\n', m.index - 1) + 1;
     const linePrefix = source.slice(lineStart, m.index);
-    const type = /^[ \t]{0,3}$/.test(linePrefix) ? 'block' : 'inline';
+    const type = options.recognizeDisplayBlocks !== false && /^[ \t]{0,3}$/.test(linePrefix)
+      ? 'block'
+      : 'inline';
     // Inline formula delimiters cannot span paragraphs. Leave malformed
     // mid-line multi-line pairs untouched instead of inserting a block widget.
     if (type === 'inline' && /\r?\n/.test(m[1])) continue;

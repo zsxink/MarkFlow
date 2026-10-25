@@ -283,7 +283,11 @@ export function katexPlugin() {
               state.doc.descendants((node, pos) => {
                 if (!node.isText || !node.text) return;
                 const text = node.text;
-                const formulas = scanFormulas(text);
+                // Display formulas are represented by the `mathBlock` atom
+                // before this text-node decoration pass. Text-node boundaries
+                // can split a paragraph around marks, so local offset 0 is not
+                // enough evidence to turn `$$...$$` into a centered block.
+                const formulas = scanFormulas(text, { recognizeDisplayBlocks: false });
                 for (const formula of formulas) {
                   const from = pos + formula.from;
                   const to = pos + formula.to;

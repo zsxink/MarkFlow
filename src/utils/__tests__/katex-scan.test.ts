@@ -47,6 +47,12 @@ describe('scanFormulas', () => {
     expect(result[0]).toMatchObject({ type: 'block', content: 'a=c' });
   });
 
+  it('treats text-node-leading double-dollar math as inline when block nodes own display math', () => {
+    const result = scanFormulas('$$a=c$$', { recognizeDisplayBlocks: false });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ type: 'inline', content: 'a=c' });
+  });
+
   it('handles multiple formulas', () => {
     const result = scanFormulas('$a+b$ and $$x^2$$');
     expect(result).toHaveLength(2);

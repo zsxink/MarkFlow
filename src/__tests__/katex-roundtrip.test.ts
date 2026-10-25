@@ -11,6 +11,7 @@ import { BlockImage, CustomLink, MarkdownSafeTable, SafeHardBreak, SafeParagraph
 import { createMarkdownExtension } from '../editor/init';
 import { OpaqueNode } from '../editor/markdown/opaque/extension';
 import { parseMarkdown, serializeMarkdown } from '../editor/markdown/bridge';
+import { katexPlugin } from '../editor/katex';
 
 const mocks = vi.hoisted(() => ({
   renderMermaid: vi.fn(),
@@ -29,7 +30,7 @@ vi.mock('../infra/storage', () => ({ getCachedSettings: mocks.getCachedSettings 
 vi.mock('../infra/store', () => ({ store: mocks.store }));
 vi.mock('../infra/logger', () => ({ logDebug: mocks.logDebug, logWarn: mocks.logWarn, logException: mocks.logException }));
 
-function makeEditor() {
+function makeEditor(withKatexPlugin = false) {
   return new Editor({
     element: document.createElement('div'),
     extensions: [
@@ -61,6 +62,7 @@ function makeEditor() {
       MathBlock,
       OpaqueNode,
       createMarkdownExtension(),
+      ...(withKatexPlugin ? [katexPlugin()] : []),
     ],
   });
 }
@@ -147,9 +149,14 @@ describe('KaTeX markdown round-trip', () => {
   });
 
   it('keeps double-dollar math inline inside task list text across round-trip', () => {
-    const editor = makeEditor();
-    const source = '- [ ] 含 $$a=c$$ 数学公式\n';
+    const editor = makeEditor(true);
+    const source = '- [ ] **含**$$a=c$$ 数学块、保留片段（粘贴 HTML 块）、GFM 表格、有序/任务列表的日常文档：解析与往返无损（有界 start/guard 的语义等价性确认）\n';
     parseMarkdown(editor, source);
+    expect(editor.getJSON().content?.[0]?.type).toBe('taskList');
+    expect(editor.getText()).toContain('含$$a=c$$');
+    const formulaSource = editor.view.dom.querySelector('[data-katex-type]');
+    expect(formulaSource?.getAttribute('data-katex-type')).toBe('inline');
+    expect(editor.view.dom.querySelector('.math-block')).toBeNull();
     const first = serializeMarkdown(editor);
     expect(first.ok).toBe(true);
     if (first.ok) {

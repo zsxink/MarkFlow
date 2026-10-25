@@ -18,6 +18,21 @@ use tauri::State;
 /// this is a last-resort guard against OOM.
 const MAX_READ_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB
 
+/// File-browser supported-format predicate: `.md` plus the seven image
+/// extensions, compared case-insensitively via the final `.`-suffix.
+/// Directories are always listed; callers let them through before checking.
+/// Mirrors `IMAGE_EXTENSIONS` in `src/utils/openable-files.ts` — both sides'
+/// tests assert the same list, so new formats must be added in both places.
+pub(crate) fn is_supported_browser_entry(name: &str) -> bool {
+    let Some((_, extension)) = name.rsplit_once('.') else {
+        return false;
+    };
+    matches!(
+        extension.to_lowercase().as_str(),
+        "md" | "svg" | "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp"
+    )
+}
+
 #[tauri::command]
 pub fn read_path_entry(path: String, state: State<AppState>) -> Result<FileEntry, String> {
     let path = resolve_path(&path, &state)?;
@@ -37,6 +52,14 @@ pub fn read_path_entry(path: String, state: State<AppState>) -> Result<FileEntry
     let matcher = matcher_snapshot(&settings.file_tree_ignore_patterns);
     if name.starts_with('.') || matcher.is_ignored(&workspace, &path) {
         return Err("Path is ignored".into());
+    }
+    // Same listing rule as `read_dir` pages, so watcher-incremental inserts
+    // never resurface a file the paged listing would have hidden.
+    if !metadata.is_dir()
+        && !settings.file_browser_show_unsupported_files
+        && !is_supported_browser_entry(&name)
+    {
+        return Err("Unsupported file type".into());
     }
     Ok(FileEntry {
         name,

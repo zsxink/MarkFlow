@@ -54,6 +54,8 @@ export interface Settings {
   fileTreeIgnorePatterns?: string[];
   fileTreePageSize?: number;
   fileTreeAutoLoadDepth?: number;
+  /** 文件浏览器是否列出不支持格式的文件（默认 false，仅 .md 与图片）。 */
+  fileBrowserShowUnsupportedFiles?: boolean;
   recentFiles: string[];
   recentFolders: string[];
   lastWindowWidth: number;
@@ -99,6 +101,7 @@ export const DEFAULT_SETTINGS = {
   fileTreeIgnorePatterns: ['.git', 'node_modules', 'target', 'dist'],
   fileTreePageSize: 500,
   fileTreeAutoLoadDepth: 8,
+  fileBrowserShowUnsupportedFiles: false,
   recentFiles: [],
   recentFolders: [],
   lastWindowWidth: 1200,

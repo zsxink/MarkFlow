@@ -3,10 +3,12 @@ import { undo as undoSource } from '@codemirror/commands';
 const mocks = vi.hoisted(() => ({
   files: new Map<string, string>(), stats: new Map<string, { mtime: number; size: number }>(),
   dialog: vi.fn(), save: vi.fn(), toast: vi.fn(), write: vi.fn(), read: vi.fn(), cleanup: vi.fn(),
+  authorizePreviewDirectory: vi.fn(),
 }));
 vi.mock('../../../infra/storage', () => ({
   loadSettings: vi.fn(async () => ({})), getCachedSettings: vi.fn(() => ({ plantumlServerUrl: '' })),
   cleanupPendingImages: mocks.cleanup, authorizeImageStorage: vi.fn(async () => {}), addRecentFile: vi.fn(async () => {}),
+  authorizePreviewDirectory: mocks.authorizePreviewDirectory,
   getFileMetadata: vi.fn(async (path: string) => {
     if (!mocks.files.has(path)) throw new Error('not found');
     return { size: mocks.files.get(path)!.length, lines: 2 };
@@ -42,7 +44,7 @@ import {
   activateDocumentTab, closeDocumentTab, getDocumentTabs, getActiveTabId, newDocumentTab,
   reopenClosedDocumentTab, destroyDocumentSessions, confirmAllDocumentTabsClose, closeAllDocumentTabs, routeDocumentExternalChanges,
   rewriteDocumentTabPaths, cycleDocumentTab,
-  initDocumentSessions, openDocumentTab, MAX_DOCUMENT_TABS,
+  initDocumentSessions, openDocumentTab, openImagePreviewTab, MAX_DOCUMENT_TABS,
 } from '../session';
 import { isDocumentOperationPending, runDocumentOperation } from '../../../infra/document-operations';
 import { attachImageDraft } from '../../../infra/images/core';
@@ -546,5 +548,102 @@ describe('startup blank tab auto-close', () => {
     await openFileInEditor('/b.md');
     expect(getDocumentTabs().map(tab => tab.path)).toEqual(['/a.md', '/b.md']);
     expect(getActiveTabId()).toBe(id('/b.md'));
+  });
+});
+
+describe('image preview tabs', () => {
+  it('opens a preview tab, dedupes by path, and reports kind without dirty', async () => {
+    await openFileInEditor('/a.md');
+    expect(await openImagePreviewTab('/img/photo.PNG')).toBe(true);
+    expect(mocks.authorizePreviewDirectory).toHaveBeenCalledWith('/img/photo.PNG');
+    const tabs = getDocumentTabs();
+    expect(tabs.map(tab => tab.path)).toEqual(['/a.md', '/img/photo.PNG']);
+    expect(tabs[1]).toMatchObject({ kind: 'image', dirty: false });
+    expect(getActiveTabId()).toBe(tabs[1].id);
+    expect(store.getState().activeFilePath).toBeNull();
+    expect(document.getElementById('image-preview')).not.toBeNull();
+    expect(document.querySelector('#image-preview img')?.getAttribute('src')).toBe('asset:///img/photo.PNG');
+
+    // 重复打开同一路径（含未规范化的相对段）激活既有标签，不新建。
+    expect(await openImagePreviewTab('/img/../img/photo.PNG')).toBe(true);
+    expect(getDocumentTabs()).toHaveLength(2);
+    expect(getActiveTabId()).toBe(tabs[1].id);
+    // 同路径的文档标签也复用同一去重语义：再次打开激活既有 image 标签。
+    expect(await openFileInEditor('/img/photo.PNG')).toBe(true);
+    expect(getDocumentTabs()).toHaveLength(2);
+    expect(getActiveTabId()).toBe(tabs[1].id);
+    expect(mocks.read).not.toHaveBeenCalledWith('/img/photo.PNG');
+  });
+
+  it('preserves the document editor context across document and image switches', async () => {
+    await openFileInEditor('/a.md');
+    getEditor()!.commands.insertContentAt(2, 'X');
+    const before = getEditor()!.state;
+    await openImagePreviewTab('/img/pic.webp');
+    expect(getDocumentTabs().map(tab => tab.kind)).toEqual(['document', 'image']);
+    await activateDocumentTab(id('/a.md'));
+    expect(getEditor()!.state).toEqual(before);
+    expect(getEditor()!.state.doc).toBe(before.doc);
+    expect(getMarkdown()).toContain('X');
+    expect(document.getElementById('image-preview')).toBeNull();
+    await activateDocumentTab(id('/img/pic.webp'));
+    expect(document.getElementById('image-preview')).not.toBeNull();
+    await activateDocumentTab(id('/a.md'));
+    expect(getMarkdown()).toContain('X');
+  });
+
+  it('counts image tabs toward the tab cap and closes them without a save confirmation', async () => {
+    await initDocumentSessions();
+    // 首次成功打开即退役空白启动标签，20 个图片标签正好占满容量。
+    for (let index = 0; index < 20; index++) await openImagePreviewTab(`/img/${index}.png`);
+    expect(getDocumentTabs()).toHaveLength(20);
+    expect(await openImagePreviewTab('/img/overflow.png')).toBe(false);
+    expect(mocks.toast).toHaveBeenCalledWith(expect.stringContaining('20'));
+    expect(getDocumentTabs()).toHaveLength(20);
+
+    const image = id('/img/3.png');
+    expect(await closeDocumentTab(image)).toBe(true);
+    expect(mocks.dialog).not.toHaveBeenCalled();
+    expect(getDocumentTabs()).toHaveLength(19);
+    // 关闭的图片标签可重开，走统一分流后仍是 image 会话。
+    expect(await reopenClosedDocumentTab()).toBe(true);
+    expect(getDocumentTabs().find(tab => tab.path === '/img/3.png')).toMatchObject({ kind: 'image', dirty: false });
+  });
+
+  it('never marks an image tab dirty and skips external-change confirmations for it', async () => {
+    // 经统一分流入口（最近文件/文件树同源）打开图片。
+    expect(await openFileInEditor('/img/pic.webp')).toBe(true);
+    await routeDocumentExternalChanges([{ path: '/img/pic.webp', kind: 'delete' }]);
+    expect(mocks.dialog).not.toHaveBeenCalled();
+    await activateDocumentTab(id('/img/pic.webp'));
+    expect(mocks.dialog).not.toHaveBeenCalled();
+    expect(getDocumentTabs().find(tab => tab.path === '/img/pic.webp')!.dirty).toBe(false);
+    expect(await confirmAllDocumentTabsClose()).toBe(true);
+    expect(mocks.dialog).not.toHaveBeenCalled();
+  });
+
+  it('resets the zoom mode and alt text when switching directly between image tabs', async () => {
+    await openImagePreviewTab('/img/one.png');
+    await openImagePreviewTab('/img/two.png');
+    const preview = document.getElementById('image-preview')!;
+    const img = preview.querySelector('img')!;
+    const toggle = preview.querySelector<HTMLButtonElement>('.image-preview-toggle')!;
+    expect(img.alt).toBe('two.png');
+    toggle.click();
+    expect(toggle.textContent).toBe('适应窗口');
+    expect(preview.classList.contains('original-size')).toBe(true);
+    // 图片→图片直接切换复用预览容器，缩放态与 alt 必须随之复位。
+    await activateDocumentTab(id('/img/one.png'));
+    expect(img.alt).toBe('one.png');
+    expect(img.getAttribute('src')).toBe('asset:///img/one.png');
+    expect(toggle.textContent).toBe('原始尺寸');
+    expect(preview.classList.contains('original-size')).toBe(false);
+  });
+
+  it('rewrites image tab paths with the workspace and refreshes the preview source', async () => {
+    await openImagePreviewTab('/old/photo.jpg');
+    rewriteDocumentTabPaths('/old', '/renamed');
+    expect(getDocumentTabs().map(tab => tab.path)).toEqual(['/renamed/photo.jpg']);
+    expect(document.querySelector('#image-preview img')?.getAttribute('src')).toBe('asset:///renamed/photo.jpg');
   });
 });

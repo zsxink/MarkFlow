@@ -73,6 +73,7 @@ export function buildSettingsFromUI(currentSettings: Settings): Settings {
     fileTreeIgnorePatterns: getInputValue('setting-filetree-ignore').split(',').map(value => value.trim()).filter(Boolean),
     fileTreePageSize: Math.min(5000, Math.max(50, Number(getInputValue('setting-filetree-page-size')) || 500)),
     fileTreeAutoLoadDepth: Math.min(32, Math.max(1, Number(getInputValue('setting-filetree-depth')) || 8)),
+    fileBrowserShowUnsupportedFiles: getToggleState('setting-filetree-show-unsupported'),
     wysiwygAdmissionBytes: kbToBytes(limits.wysiwygAdmissionKb, currentSettings.wysiwygAdmissionBytes ?? DEFAULT_SETTINGS.wysiwygAdmissionBytes),
     wysiwygAdmissionLines: count(limits.wysiwygAdmissionLines, currentSettings.wysiwygAdmissionLines ?? DEFAULT_SETTINGS.wysiwygAdmissionLines),
     wysiwygMaxNodes: count(limits.wysiwygMaxNodes, currentSettings.wysiwygMaxNodes ?? DEFAULT_SETTINGS.wysiwygMaxNodes),
@@ -193,6 +194,7 @@ export function applySettingsToUI(settings: Settings) {
   setInputValue('setting-filetree-ignore', (settings.fileTreeIgnorePatterns ?? DEFAULT_SETTINGS.fileTreeIgnorePatterns ?? []).join(', '));
   setInputValue('setting-filetree-page-size', String(settings.fileTreePageSize ?? 500));
   setInputValue('setting-filetree-depth', String(settings.fileTreeAutoLoadDepth ?? 8));
+  setToggleState('setting-filetree-show-unsupported', settings.fileBrowserShowUnsupportedFiles === true);
   setInputValue('setting-plantuml-server-url', String(settings.plantumlServerUrl ?? ''));
 
   // Volume fields are stored as bytes but entered/shown as whole KB.

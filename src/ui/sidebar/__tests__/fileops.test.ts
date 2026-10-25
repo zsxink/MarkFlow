@@ -5,13 +5,13 @@ const mocks = vi.hoisted(() => ({
   authorizeImageStorage: vi.fn(), preparePendingImagesForSave: vi.fn(), completePendingImagesSave: vi.fn(), abortPendingImagesSave: vi.fn(), discardActiveImageDraft: vi.fn(),
   getMarkdownResult: vi.fn(), getSavePlan: vi.fn(), hasExternalModification: vi.fn(), isDocumentDirty: vi.fn(), markDocumentPersisted: vi.fn(), markExternalModification: vi.fn(), resetEditorScroll: vi.fn(), setActiveDocumentPath: vi.fn(), setMarkdown: vi.fn(), getRevision: vi.fn(), getSourceRevision: vi.fn(), getLastReadMtime: vi.fn(), getLastReadSize: vi.fn(), hasLastReadStats: vi.fn(), clearLastReadStats: vi.fn(), setLastReadStats: vi.fn(), getEditor: vi.fn(), getPipelineMode: vi.fn(), shouldUseReconcileBoundary: vi.fn(),
   save: vi.fn(), showToast: vi.fn(), getActiveFilePath: vi.fn(), setActiveFilePath: vi.fn(), invoke: vi.fn(), getCachedSettings: vi.fn(() => ({})),
-  openDocumentTab: vi.fn(), isPathOpenInOtherDocument: vi.fn(), flushEditorDirtyCheck: vi.fn(),
+  openDocumentTab: vi.fn(), isPathOpenInOtherDocument: vi.fn(), openImagePreviewTab: vi.fn(), flushEditorDirtyCheck: vi.fn(),
   operationTail: Promise.resolve() as Promise<unknown>,
 }));
 vi.mock('../../../infra/storage', () => ({ readFile: mocks.readFile, writeFile: mocks.writeFile, writeFileIfUnchanged: mocks.writeFileIfUnchanged, addRecentFile: mocks.addRecentFile, authorizeImageStorage: mocks.authorizeImageStorage, getFileMetadata: mocks.getFileMetadata, getCachedSettings: mocks.getCachedSettings }));
 vi.mock('../../../infra/images/core', () => ({ preparePendingImagesForSave: mocks.preparePendingImagesForSave, completePendingImagesSave: mocks.completePendingImagesSave, abortPendingImagesSave: mocks.abortPendingImagesSave, discardActiveImageDraft: mocks.discardActiveImageDraft }));
 vi.mock('../../../editor', () => ({ getMarkdownResult: mocks.getMarkdownResult, getSavePlan: mocks.getSavePlan, hasExternalModification: mocks.hasExternalModification, isDocumentDirty: mocks.isDocumentDirty, markDocumentPersisted: mocks.markDocumentPersisted, markExternalModification: mocks.markExternalModification, resetEditorScroll: mocks.resetEditorScroll, setActiveDocumentPath: mocks.setActiveDocumentPath, setMarkdown: mocks.setMarkdown, getRevision: mocks.getRevision, getSourceRevision: mocks.getSourceRevision, getLastReadMtime: mocks.getLastReadMtime, getLastReadSize: mocks.getLastReadSize, hasLastReadStats: mocks.hasLastReadStats, clearLastReadStats: mocks.clearLastReadStats, setLastReadStats: mocks.setLastReadStats, getEditor: mocks.getEditor, getPipelineMode: mocks.getPipelineMode, shouldUseReconcileBoundary: mocks.shouldUseReconcileBoundary, setSourceReadOnly: vi.fn(), flushEditorDirtyCheck: mocks.flushEditorDirtyCheck, getEditorDocumentVersion: () => 1, commitEditorDocumentDrafts: vi.fn() }));
-vi.mock('../../documents/session', () => ({ openDocumentTab: mocks.openDocumentTab, isPathOpenInOtherDocument: mocks.isPathOpenInOtherDocument }));
+vi.mock('../../documents/session', () => ({ openDocumentTab: mocks.openDocumentTab, isPathOpenInOtherDocument: mocks.isPathOpenInOtherDocument, openImagePreviewTab: mocks.openImagePreviewTab }));
 vi.mock('../../../infra/document-operations', () => ({
   runDocumentOperation: vi.fn((operation: () => unknown) => {
     const result = mocks.operationTail.then(operation);
@@ -195,5 +195,38 @@ describe('active document file operations', () => {
     expect(mocks.markExternalModification).toHaveBeenCalled();
     // The second production boundary call records stale-source/reconcileError.
     expect(mocks.getSavePlan).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('openFileInEditor format routing', () => {
+  it('routes image extensions to the preview tab without reading file content', async () => {
+    mocks.openImagePreviewTab.mockResolvedValue(true);
+    await expect(openFileInEditor('/work/photo.PNG')).resolves.toBe(true);
+    expect(mocks.openImagePreviewTab).toHaveBeenCalledWith('/work/photo.PNG');
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.getFileMetadata).not.toHaveBeenCalled();
+    expect(mocks.openDocumentTab).not.toHaveBeenCalled();
+    expect(mocks.addRecentFile).toHaveBeenCalledWith('/work/photo.PNG');
+  });
+
+  it('reports unsupported formats with a toast and opens nothing', async () => {
+    await expect(openFileInEditor('/work/data.csv')).resolves.toBe(false);
+    expect(mocks.showToast).toHaveBeenCalledWith('不支持该格式: .csv');
+    await expect(openFileInEditor('/work/noextension')).resolves.toBe(false);
+    expect(mocks.showToast).toHaveBeenCalledWith('不支持该格式: 无扩展名');
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(mocks.openImagePreviewTab).not.toHaveBeenCalled();
+    expect(mocks.openDocumentTab).not.toHaveBeenCalled();
+    expect(mocks.addRecentFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps the markdown chain unchanged for .md files', async () => {
+    mocks.getFileMetadata.mockResolvedValue({ size: 10, lines: 1 });
+    mocks.readFile.mockResolvedValue('# opened');
+    await expect(openFileInEditor('/work/note.MD')).resolves.toBe(true);
+    expect(mocks.openDocumentTab).toHaveBeenCalledWith('/work/note.MD', expect.any(Function));
+    expect(mocks.readFile).toHaveBeenCalledWith('/work/note.MD');
+    expect(mocks.openImagePreviewTab).not.toHaveBeenCalled();
+    expect(mocks.showToast).toHaveBeenCalledWith('已打开文件');
   });
 });

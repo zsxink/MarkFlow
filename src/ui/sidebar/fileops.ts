@@ -16,7 +16,8 @@ import { refreshFrontmatterPanel } from '../frontmatter-panel';
 import { store } from '../../infra/store';
 import { invoke } from '@tauri-apps/api/core';
 import { runDocumentOperation, isDocumentOperationPending } from '../../infra/document-operations';
-import { openDocumentTab, isPathOpenInOtherDocument } from '../documents/session';
+import { openDocumentTab, openImagePreviewTab, isPathOpenInOtherDocument } from '../documents/session';
+import { classifyOpenableFile } from '../../utils/openable-files';
 import { getEditorDocumentVersion } from '../../editor';
 import { commitEditorDocumentDrafts, flushEditorDirtyCheck } from '../../editor';
 import {
@@ -379,6 +380,24 @@ export async function reloadActiveDocumentFromDiskInOperation(options: { force?:
 
 export async function openFileInEditor(path: string): Promise<boolean> {
   path = normalizePathSegments(path.replace(/\\/g, '/'));
+  // 入口按扩展名统一分流：文件树/最近文件/系统多开都汇聚于此。
+  const kind = classifyOpenableFile(path);
+  if (kind === 'image') {
+    try {
+      const opened = await openImagePreviewTab(path);
+      if (opened) await recordRecentFile(path);
+      return opened;
+    } catch (e) {
+      showToast(`打开失败: ${e}`);
+      return false;
+    }
+  }
+  if (kind === 'unsupported') {
+    const dot = path.lastIndexOf('.');
+    const suffix = dot >= 0 && dot < path.length - 1 ? `.${path.slice(dot + 1)}` : '无扩展名';
+    showToast(`不支持该格式: ${suffix}`);
+    return false;
+  }
   try {
     const opened = await openDocumentTab(path, async () => {
       const metadata = await getFileMetadata(path);

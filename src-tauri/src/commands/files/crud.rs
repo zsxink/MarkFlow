@@ -1,9 +1,11 @@
 //! Directory listing and file-tree CRUD: create/rename/delete/copy.
 
+use crate::commands::files::entry::is_supported_browser_entry;
 use crate::commands::files::paths::{
     resolve_path, validate_parent_in_workspace, validate_path_in_workspace,
 };
 use crate::commands::files::FileEntry;
+use crate::commands::settings::load_settings_inner;
 use crate::paths::normalize_path;
 use crate::state::AppState;
 use std::fs;
@@ -126,6 +128,7 @@ pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileE
     if !dir.is_dir() {
         return Err("Not a directory".into());
     }
+    let show_unsupported = load_settings_inner().file_browser_show_unsupported_files;
     let mut entries = Vec::new();
     for entry in fs::read_dir(&dir).map_err(|e| format!("Failed to read dir: {}", e))? {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
@@ -137,6 +140,11 @@ pub fn read_single_dir(path: String, state: State<AppState>) -> Result<Vec<FileE
         let metadata =
             fs::symlink_metadata(&path).map_err(|e| format!("Failed to inspect entry: {}", e))?;
         if metadata.file_type().is_symlink() {
+            continue;
+        }
+        // Same listing rule as the paged `read_dir`, so directory views built
+        // from this full listing never disagree with their paged siblings.
+        if !show_unsupported && !metadata.is_dir() && !is_supported_browser_entry(&name) {
             continue;
         }
         entries.push(FileEntry {

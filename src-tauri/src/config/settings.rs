@@ -89,6 +89,10 @@ pub struct Settings {
     pub file_tree_page_size: usize,
     #[serde(default = "default_file_tree_auto_load_depth")]
     pub file_tree_auto_load_depth: usize,
+    /// Whether the file browser lists files with unsupported formats.
+    /// Default false (hide): only `.md` and image extensions are listed.
+    #[serde(default = "default_file_browser_show_unsupported_files")]
+    pub file_browser_show_unsupported_files: bool,
     #[serde(default)]
     pub recent_files: Vec<String>,
     #[serde(default)]
@@ -171,6 +175,9 @@ fn default_file_tree_page_size() -> usize {
 fn default_file_tree_auto_load_depth() -> usize {
     8
 }
+fn default_file_browser_show_unsupported_files() -> bool {
+    false
+}
 
 impl Default for Settings {
     fn default() -> Self {
@@ -217,6 +224,7 @@ impl Default for Settings {
             file_tree_ignore_patterns: default_file_tree_ignore_patterns(),
             file_tree_page_size: default_file_tree_page_size(),
             file_tree_auto_load_depth: default_file_tree_auto_load_depth(),
+            file_browser_show_unsupported_files: default_file_browser_show_unsupported_files(),
             recent_files: vec![],
             recent_folders: vec![],
             last_window_width: 1200.0,

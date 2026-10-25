@@ -441,4 +441,64 @@ describe('editor extensions', () => {
       expect(escapeParagraphMarkdown('\\- - -')).toBe('\\- - -');
     });
   });
+
+  // issue #438: 1-3 leading spaces do not defuse a block prefix (CommonMark
+  // keeps the block start effective), so the escape must land AFTER the
+  // indent — between the preserved indent bytes and the prefix. 4+ spaces or
+  // a tab make the line a lazy continuation (no block start) and stay unescaped.
+  describe('escapeParagraphMarkdown — indented block prefixes (issue #438)', () => {
+    it('escapes indented prefixes after the indent, keeping the indent bytes', () => {
+      expect(escapeParagraphMarkdown('正文\n  ---')).toBe('正文\n  \\---');
+      expect(escapeParagraphMarkdown('正文\n   ===')).toBe('正文\n   \\===');
+      expect(escapeParagraphMarkdown('正文\n  --')).toBe('正文\n  \\--');
+      expect(escapeParagraphMarkdown('正文\n  - foo')).toBe('正文\n  \\- foo');
+      expect(escapeParagraphMarkdown('正文\n  1. x')).toBe('正文\n  1\\. x');
+      expect(escapeParagraphMarkdown('正文\n  # x')).toBe('正文\n  \\# x');
+      expect(escapeParagraphMarkdown('正文\n > x')).toBe('正文\n \\> x');
+      expect(escapeParagraphMarkdown('正文\n  <div> x')).toBe('正文\n  \\<div> x');
+      expect(escapeParagraphMarkdown('正文\n  ``` x')).toBe('正文\n  \\``` x');
+      expect(escapeParagraphMarkdown('正文\n  ~~~')).toBe('正文\n  \\~~~');
+      // Rule order is unchanged by the indent: '*' rides the bullet rule first,
+      // '_' rides the space-separated HR rule (same as the column-0 forms).
+      expect(escapeParagraphMarkdown('正文\n  * * *')).toBe('正文\n  \\* * *');
+      expect(escapeParagraphMarkdown('正文\n  _ _ _')).toBe('正文\n  \\_ _ _');
+      // First lines take the prefix escapes too — the indent just rides along.
+      expect(escapeParagraphMarkdown('  - foo')).toBe('  \\- foo');
+      expect(escapeParagraphMarkdown('  ---')).toBe('  \\---');
+      // Hard-break continuation lines share the fix.
+      expect(escapeParagraphMarkdown('正文  \n  ---')).toBe('正文  \n  \\---');
+    });
+
+    it('leaves first-line indented setext underlines unescaped', () => {
+      // A first line has no preceding line to underline — same rule as the
+      // column-0 '--'/'===' first-line forms.
+      expect(escapeParagraphMarkdown('  --')).toBe('  --');
+      expect(escapeParagraphMarkdown('  ===')).toBe('  ===');
+    });
+
+    it('does not touch 4+ space or tab indents (lazy continuation)', () => {
+      // 4+ spaces / a tab make the body start with whitespace: no rule hits,
+      // and such lines must stay unescaped for authored byte-stability.
+      expect(escapeParagraphMarkdown('正文\n    - foo')).toBe('正文\n    - foo');
+      expect(escapeParagraphMarkdown('正文\n     # x')).toBe('正文\n     # x');
+      expect(escapeParagraphMarkdown('正文\n\t- foo')).toBe('正文\n\t- foo');
+    });
+
+    it('does not double-escape already-escaped indented prefixes', () => {
+      expect(escapeParagraphMarkdown('正文\n  \\- foo')).toBe('正文\n  \\- foo');
+      expect(escapeParagraphMarkdown('正文\n  \\---')).toBe('正文\n  \\---');
+    });
+
+    it('leaves all-space and plain indented lines untouched', () => {
+      expect(escapeParagraphMarkdown('正文\n  ')).toBe('正文\n  ');
+      expect(escapeParagraphMarkdown('正文\n   ')).toBe('正文\n   ');
+      expect(escapeParagraphMarkdown('正文\n    ')).toBe('正文\n    ');
+      expect(escapeParagraphMarkdown('正文\n  bar')).toBe('正文\n  bar');
+    });
+
+    it('escapes every indented prefix line in one multi-line paragraph', () => {
+      expect(escapeParagraphMarkdown('正文\n  ---\n  - foo\n   # x\n > 引用'))
+        .toBe('正文\n  \\---\n  \\- foo\n   \\# x\n \\> 引用');
+    });
+  });
 });

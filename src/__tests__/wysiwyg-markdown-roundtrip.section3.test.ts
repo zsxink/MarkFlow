@@ -696,4 +696,139 @@ describe('Section 3 dedicated syntax round-trip tests', () => {
       expect(dash.reparsed).toEqual(dash.first);
     });
   });
+
+  // Issue #438: 1-3 leading spaces do not defuse a block prefix, so an
+  // indented continuation line ('  ---' / '  - foo' / …) used to serialize
+  // unescaped — the escape rules were column-0 anchored — and a re-parse
+  // split the paragraph (setext heading / list / …), the same split that made
+  // such saves conflict. The escape now lands between the preserved indent
+  // bytes and the prefix; 4+ spaces or a tab are lazy continuations and stay
+  // unescaped. '>'/'<'-led spellings ride tiptap's entity encoding, '*'/'_' /
+  // backtick runs its per-character escapes — pinned here like §3.9/§3.10 so
+  // a serializer change that re-opens the split cannot land silently.
+  describe('3.11 paragraph continuation indented block-prefix escape (#438)', () => {
+    /** In-editor paragraph with the given visual lines joined by breaks. */
+    function breakParagraph(lines: string[], hardBreak = false): JSONContent {
+      const content: JSONContent[] = [];
+      lines.forEach((line, index) => {
+        if (index > 0) {
+          content.push(hardBreak ? { type: 'hardBreak' } : { type: 'hardBreak', attrs: { soft: true } });
+        }
+        content.push({ type: 'text', text: line });
+      });
+      return { type: 'paragraph', content };
+    }
+
+    /** Round-trip an in-editor document through serialize → re-parse. */
+    function roundTripDoc(doc: JSONContent) {
+      const editor = createAppEditor();
+      try {
+        editor.commands.setContent(doc);
+        const first = editor.getJSON();
+        const output = editor.getMarkdown();
+        editor.commands.setContent(output, { contentType: 'markdown' });
+        const reparsed = editor.getJSON();
+        return { output, first, reparsed };
+      } finally {
+        editor.destroy();
+      }
+    }
+
+    /** Top-level block types of a parsed document. */
+    function topLevelTypes(json: unknown): string[] {
+      return ((json as { content?: Array<{ type?: string }> }).content ?? []).map((node) => node.type ?? '');
+    }
+
+    /** Visual lines of the first paragraph (breaks split, texts joined). */
+    function paragraphLines(json: unknown): string[] {
+      const para = (json as { content?: Array<Record<string, unknown>> }).content?.[0];
+      if (!para || para.type !== 'paragraph') return [`<${String(para?.type)}>`];
+      const lines: string[] = [];
+      let current = '';
+      for (const child of (para.content as Array<Record<string, unknown>>) ?? []) {
+        if (child.type === 'hardBreak') {
+          lines.push(current);
+          current = '';
+        } else if (child.type === 'text') {
+          current += child.text ?? '';
+        }
+      }
+      lines.push(current);
+      return lines;
+    }
+
+    it('keeps typed indented continuation lines one paragraph on save and reload', () => {
+      const cases: Array<{ lines: string[]; output: string }> = [
+        { lines: ['正文', '  ---'], output: '正文\n  \\---' },
+        { lines: ['正文', '   ==='], output: '正文\n   \\===' },
+        { lines: ['正文', '  --'], output: '正文\n  \\--' },
+        { lines: ['正文', '  - foo'], output: '正文\n  \\- foo' },
+        { lines: ['正文', '  1. x'], output: '正文\n  1\\. x' },
+        { lines: ['正文', '  # x'], output: '正文\n  \\# x' },
+        { lines: ['正文', ' > 引用'], output: '正文\n &gt; 引用' },
+        { lines: ['正文', '  <div> x'], output: '正文\n  &lt;div&gt; x' },
+        { lines: ['正文', '  ``` x'], output: '正文\n  \\`\\`\\` x' },
+        // '*'/'_' spaced-hr spellings ride the upstream per-character escapes
+        // after the indent (same as §3.10's column-0 forms).
+        { lines: ['正文', '  * * *'], output: '正文\n  \\* \\* \\*' },
+        { lines: ['正文', '  _ _ _'], output: '正文\n  \\_ \\_ \\_' },
+      ];
+      for (const { lines, output } of cases) {
+        const doc = breakParagraph(lines);
+        const result = roundTripDoc(doc);
+        expect(result.output, JSON.stringify(lines)).toBe(output);
+        expect(topLevelTypes(result.reparsed), JSON.stringify(lines)).toEqual(['paragraph']);
+        expect(paragraphLines(result.reparsed), JSON.stringify(lines)).toEqual(lines);
+        expect(result.reparsed, JSON.stringify(lines)).toEqual(result.first);
+      }
+    });
+
+    it('keeps hard-break indented continuation lines one paragraph too', () => {
+      const cases: Array<{ lines: string[]; output: string }> = [
+        { lines: ['正文', '  ---'], output: '正文  \n  \\---' },
+        { lines: ['正文', '  - foo'], output: '正文  \n  \\- foo' },
+      ];
+      for (const { lines, output } of cases) {
+        const result = roundTripDoc(breakParagraph(lines, true));
+        expect(result.output, JSON.stringify(lines)).toBe(output);
+        expect(topLevelTypes(result.reparsed), JSON.stringify(lines)).toEqual(['paragraph']);
+        expect(paragraphLines(result.reparsed), JSON.stringify(lines)).toEqual(lines);
+      }
+    });
+
+    it('keeps 4-space and tab indented continuation lines unescaped (lazy continuation)', () => {
+      // 4+ spaces / a tab make the line a lazy continuation: no block start,
+      // no escape — the indent stays byte-for-byte in the paragraph text.
+      const lazy = roundTripDoc(breakParagraph(['正文', '    - foo']));
+      expect(lazy.output).toBe('正文\n    - foo');
+      expect(topLevelTypes(lazy.reparsed)).toEqual(['paragraph']);
+      expect(paragraphLines(lazy.reparsed)).toEqual(['正文', '    - foo']);
+      expect(lazy.reparsed).toEqual(lazy.first);
+
+      const tabbed = roundTripDoc(breakParagraph(['正文', '\t- foo']));
+      expect(tabbed.output).toBe('正文\n\t- foo');
+      expect(topLevelTypes(tabbed.reparsed)).toEqual(['paragraph']);
+      expect(tabbed.reparsed).toEqual(tabbed.first);
+    });
+
+    it('keeps authored indented escaped forms byte-stable across reload', () => {
+      // Escaped prefixes parse into paragraph text with the indent intact
+      // ('  - foo'); serializing re-inserts the escape after the indent.
+      const bullet = roundTrip('正文\n  \\- foo');
+      expect(bullet.output).toBe('正文\n  \\- foo');
+      expect(topLevelTypes(bullet.reparsed)).toEqual(['paragraph']);
+      expect(bullet.reparsed).toEqual(bullet.first);
+
+      const h2 = roundTrip('正文\n  \\--');
+      expect(h2.output).toBe('正文\n  \\--');
+      expect(topLevelTypes(h2.reparsed)).toEqual(['paragraph']);
+      expect(h2.reparsed).toEqual(h2.first);
+
+      // Authored 4-space lazy continuation: byte-stable and never escaped.
+      const lazy = roundTrip('正文\n    - foo');
+      expect(lazy.output).toBe('正文\n    - foo');
+      expect(topLevelTypes(lazy.reparsed)).toEqual(['paragraph']);
+      expect(lazy.reparsed).toEqual(lazy.first);
+    });
+  });
 });

@@ -427,6 +427,65 @@ describe('admission verification (6.4)', () => {
     }
   });
 
+  // issue #438: typing an indented block-prefix continuation line ('  ---')
+  // used to serialize unescaped — the escape rules were column-0 anchored —
+  // so the save candidate re-parsed the paragraph as a setext H2 and the
+  // reconcile boundary refused to write. With the indent-aware escape the
+  // candidate carries '  \---' and the save proceeds.
+  it('keeps a typed indented continuation line saveable as one paragraph (#438)', () => {
+    const src = '正文第一行\n第二行\n';
+    const admission = decideAdmission(editor, src, { sourceRevision: 1, userRevisionAtAdmission: 0 });
+    expect(admission).toMatchObject({ mode: 'reconcile', verdict: 'eligible', reason: 'supported' });
+    expect(admission.session).not.toBeNull();
+    if (!admission.session) return;
+
+    const parsed = parseTipTapMarkdown(editor, src);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    editor.commands.setContent(parsed.doc);
+    // Simulate typing a soft-break continuation line "  ---" at the paragraph end.
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, [
+      { type: 'hardBreak', attrs: { soft: true } },
+      { type: 'text', text: '  ---' },
+    ]);
+
+    const decision = runSaveBoundary(editor, {
+      session: admission.session,
+      currentSourceRevision: 1,
+      currentUserRevision: 1,
+      registry: getOpaqueRegistry(),
+      pipelineMode: admission.mode,
+    });
+    expect(decision.kind).toBe('safe-edit');
+    if (decision.kind === 'safe-edit') {
+      expect(decision.markdown).toBe('正文第一行\n第二行\n  \\---');
+    }
+  });
+
+  // issue #438: saved docs whose paragraphs contain indented escaped prefixes
+  // ('正文\n  \- foo') or 4-space lazy continuations ('正文\n    - foo') must
+  // re-admit as supported plain paragraphs — the indented escaped form stays
+  // byte-stable, the lazy continuation gains no escape.
+  it('re-admits indented-prefix and lazy-continuation paragraphs as supported (#438)', () => {
+    for (const src of ['正文\n  \\- foo\n', '正文\n  \\--\n', '正文\n    - foo\n']) {
+      expect(classifyEligibility(src), `${JSON.stringify(src)} eligibility`).toMatchObject({ verdict: 'eligible' });
+      expect(verifyAdmission(editor, src), `${JSON.stringify(src)} verification`).toEqual({ ok: true });
+    }
+
+    const parseAndSerialize = (src: string) => {
+      const parsed = parseTipTapMarkdown(editor, src);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return null;
+      editor.commands.setContent(parsed.doc);
+      const serialized = serializeTipTapMarkdown(editor);
+      return serialized.ok ? serialized.markdown : null;
+    };
+    // The indented escaped form round-trips byte-stable; the 4-space lazy
+    // continuation never gains an escape.
+    expect(parseAndSerialize('正文\n  \\- foo\n')).toBe('正文\n  \\- foo');
+    expect(parseAndSerialize('正文\n    - foo\n')).toBe('正文\n    - foo');
+  });
+
   // Negative / non-regression: real block structures still serialize exactly
   // as before (the paragraph renderer must not rewrite typed list/heading/HR
   // nodes), and plain paragraph text is not over-escaped.
